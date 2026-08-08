@@ -20,7 +20,7 @@ services:
         value: "true"        # first registered user becomes Admin; set "false" to disable
       # --- FREE-FOREVER CLOUD STORAGE (recommended) -------------------------
       # Set these in the Render dashboard (Service → Environment) after
-      # creating the resources (see DEPLOY.md → "Free forever storage").
+      # creating the resources (Turso → create DB + read/write token;
       # The database lives in Turso (free cloud SQLite, 5 GB) and asset files
       # live in Cloudflare R2 (free 10 GB). When TURSO_URL is set the local
       # data/ dir is ignored; when R2_* are absent, uploads fall back to disk.
@@ -42,7 +42,7 @@ services:
       - key: UPLOAD_DIR
         value: ./data/uploads   # used only when R2_* are unset (ephemeral on free tier)
       # Your custom domain, once Cloudflare DNS points at this service
-      # (see DEPLOY.md step 2f). Used for password-reset email links.
+      # Used for password-reset email links.
       # Uncomment ONLY after https://kingsproduction.cc is live, then redeploy.
       # - key: PUBLIC_URL
       #   value: https://kingsproduction.cc

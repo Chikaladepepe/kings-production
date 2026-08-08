@@ -1576,7 +1576,7 @@ function footerHtml() {
       <div><h4>Studio</h4><div class="footer-links"><a href="#/portfolio">Portfolio</a><a href="#/creators">Creators</a><a href="#/license">License</a></div></div>
       <div><h4>Marketplace</h4><div class="footer-links"><a href="#/shop">Shop</a><a href="#/login">Log in</a><a href="#/register">Create account</a></div></div>
     </div>
-    <div class="footer-bottom">© ${new Date().getFullYear()} Kings Production · “Where Excellence Meets Innovation”</div>
+    <div class="footer-bottom">© ${new Date().getFullYear()} Kings Production · “Where Excellence Meets Innovation” · <a href="#/privacy" style="color:var(--text-2)">Privacy Policy</a> · <a href="#/terms" style="color:var(--text-2)">Terms of Use</a></div>
   </footer>`;
 }
 function renderShell() {
@@ -1616,10 +1616,11 @@ const TITLES = {
   portfolio: 'Portfolio — Kings Production', license: 'License — Kings Production', creators: 'Creators — Kings Production',
   login: 'Log in — Kings Production', register: 'Create account — Kings Production',
   settings: 'Settings — Kings Production', admin: 'Admin Panel — Kings Production',
+  privacy: 'Privacy Policy — Kings Production', terms: 'Terms of Use — Kings Production',
 };
 async function router() {
   const { path, params, query } = parseHash();
-  if (!['home', 'shop', 'portfolio', 'license', 'creators', 'asset', 'profile', 'login', 'register', 'forgot', 'reset', 'settings', 'upload', 'my-assets', 'admin'].includes(path)) { location.hash = '#/'; return; }
+  if (!['home', 'shop', 'portfolio', 'license', 'creators', 'asset', 'profile', 'login', 'register', 'forgot', 'reset', 'settings', 'upload', 'my-assets', 'admin', 'privacy', 'terms'].includes(path)) { location.hash = '#/'; return; }
   const me = await API.me();
   STATE.user = me.ok ? me.data : null;
   renderHeader();
@@ -2327,6 +2328,63 @@ VIEWS.license = async () => {
     ${my}
   </div>`;
 };
+
+/* ---- legal: privacy policy + terms of use ---- */
+function legalShell(eyebrow, title, updated) {
+  return `<div class="page" style="max-width:840px">
+    <div class="section-head"><div><span class="section-eyebrow">${eyebrow}</span><h2>${title}</h2><p>Last updated: ${updated}</p></div></div>
+    <div class="card card-pad" style="line-height:1.8;font-size:14.5px;color:var(--text-2)">`;
+}
+function legalEnd() { return `</div></div>`; }
+function legalSection(title, ...paras) {
+  return `<h3 style="font-family:var(--font-display);color:var(--text);font-size:16px;margin:28px 0 8px">${title}</h3>`
+    + paras.map(p => `<p style="margin:8px 0">${p}</p>`).join('');
+}
+
+VIEWS.privacy = async () => legalShell('Legal', 'Privacy Policy', 'August 2026') + `
+    <p style="margin:8px 0">Kings Production (“we”, “our”, “us”) runs this marketplace and development-studio site. This policy explains what information we collect, why we collect it, and how we protect it. By using the site you agree to the practices described here.</p>
+    ${legalSection('Information we collect',
+      'Account information you provide voluntarily — your handle, display name, email address, and any profile picture or bio you choose to add. We also keep records of the assets, comments, reviews, and reports you post, and of purchases and license keys issued to your account.',
+      'Basic technical data needed to operate and secure the service — such as your IP address and browser type in server logs, used only for security, abuse prevention, and rate-limiting.')}
+    ${legalSection('How we use it',
+      'Everything we store exists to run the site: to create and secure your account, protect it with two-factor authentication if you enable it, process purchases and license keys, moderate submissions, and respond to reports. We do not sell, rent, or trade your personal information to anyone. There are no third-party advertisements and no third-party trackers or analytics on this site.')}
+    ${legalSection('Where your data lives',
+      'Your data is stored on our servers (and, where configured, in secure cloud storage providers used solely to host this site). Your password is never stored in plain text — it is salted and hashed with PBKDF2. Your session is an encrypted token kept only in your own browser, so you stay logged in on your device.')}
+    ${legalSection('Roblox and our no-scraping promise',
+      'We are fully aware of, and comply with, the Roblox Terms of Use and Roblox privacy expectations. This site does not scrape, harvest, crawl, or otherwise collect any information from Roblox, from Roblox accounts, or from Roblox users — not today, not ever.',
+      'Why? Three reasons. First, scraping or accessing Roblox user data without permission would violate the Roblox Terms of Use. Second, we do not need it: this is an independent storefront where asset files are delivered directly on this site, so no Roblox platform data is required to run it. Third, privacy by design: we believe in collecting only what is necessary, and the only information we hold is what you give us voluntarily here.',
+      'The one exception is data you choose to enter yourself: for example, if you assign a license key to a Roblox game, you type in that game ID — we never look it up, fetch from Roblox, or use it for anything other than recording your license assignment.')}
+    ${legalSection('Children',
+      'The site is intended for users aged 13 and older, consistent with Roblox’s own age requirements. We do not knowingly collect personal information from children under 13. If you believe a child has provided us personal information, contact us and we will delete it.')}
+    ${legalSection('Your choices and rights',
+      'You can view and edit your profile and security settings at any time, disable two-factor authentication, and request deletion of your account by contacting us. We will honor deletion requests promptly, subject to records we are required to keep for security or legal reasons.')}
+    ${legalSection('Changes to this policy',
+      'If we change this policy, we will update the date above and, for significant changes, announce it on the site. Continued use of the site after changes means you accept the updated policy.',
+      'Questions? Contact the Kings Production team through the site or the community links on this page.')}
+  ${legalEnd()}`;
+
+VIEWS.terms = async () => legalShell('Legal', 'Terms of Use', 'August 2026') + `
+    <p style="margin:8px 0">These Terms of Use (“Terms”) govern your access to and use of the Kings Production website and marketplace. By creating an account, browsing, or purchasing anything on this site, you agree to these Terms.</p>
+    ${legalSection('Eligibility and accounts',
+      'You must be at least 13 years old to use this site. You are responsible for keeping your login credentials secure and for everything done through your account. One account per person: do not create accounts to evade a ban or timeout, and do not share or sell your account.',
+      'We may suspend, time out, or permanently ban accounts that violate these Terms or are reported for misconduct.')}
+    ${legalSection('The marketplace and creators',
+      'Asset files are posted by VIP / Licensed creators and are reviewed by the Kings Production team before they go live. We moderate submissions and reserve the right to reject or remove any asset at any time. Prohibited content includes anything illegal, malicious (including malware), stolen or infringing, or otherwise harmful.',
+      'You may not post assets you do not own or have the right to sell, and you may not copy or redistribute content from this site without permission.')}
+    ${legalSection('Purchases and license keys',
+      'When you purchase an asset, you receive a unique license key (a “KP-” key) recorded to your account. The key grants you a non-exclusive, personal license to use that asset in your projects, subject to any terms stated on the asset page. Keys are issued upon successful purchase and cannot be transferred or resold.',
+      'You may assign a license key to your own Roblox game by entering the game ID on the License page. Payments, where offered, are processed by a third-party provider; the provider handles your payment details — we never see or store your card or payment information.')}
+    ${legalSection('Intellectual property',
+      'Creators retain ownership of the assets they post; by posting, they grant Kings Production a license to host, display, and sell those assets on this site. The site itself — its design, branding, the crown logo, and the studio’s own content — is the property of Kings Production. You may not copy, scrape, mirror, or reuse the site, its design, or its content.',
+      'This website is an independent project. We are not affiliated with, endorsed by, or sponsored by Roblox Corporation. "Roblox" is a trademark of Roblox Corporation.')}
+    ${legalSection('Respect for Roblox and user privacy',
+      'We are aware of and follow the Roblox Terms of Use. This site does not scrape or harvest any data from Roblox or from Roblox users — see our Privacy Policy for the full explanation. You are responsible for making sure any asset you use in Roblox complies with the Roblox Terms of Use and your agreements with Roblox.')}
+    ${legalSection('Disclaimer and liability',
+      'The site and all assets are provided “as is”, without warranties of any kind. To the maximum extent permitted by law, Kings Production is not liable for any indirect or consequential damages arising from your use of the site or from assets purchased here. Purchases are final except where required by law.')}
+    ${legalSection('Changes and contact',
+      'We may update these Terms from time to time; the latest version is always on this page. Continued use of the site means you accept the current Terms. Questions? Contact the Kings Production team through the site or the community links on this page.')}
+  ${legalEnd()}`;
+
 async function onAssignLicense(purchaseId, e) {
   e.preventDefault();
   const r = await API.assignLicense(STATE.user, purchaseId, { gameId: e.target.gameId.value, gameName: e.target.gameName.value });
