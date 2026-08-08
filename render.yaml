@@ -1,5 +1,10 @@
-# Render blueprint — deploy with "New → Blueprint" pointing at this repo,
-# or paste this file into a new Blueprint service.
+# Render blueprint — deploy with "New → Blueprint" pointing at this repo.
+# NOTE: Render's FREE tier does NOT support persistent disks, so data
+# (database + uploads) lives on an ephemeral disk and resets whenever the
+# service is redeployed. That's fine for testing. For permanent storage:
+#   (a) upgrade this service to a paid plan, then uncomment the `disk:` block
+#       below (one redeploy and data survives), or
+#   (b) ask the dev to wire a free external SQLite host (e.g. Turso).
 services:
   - type: web
     name: kings-production
@@ -13,16 +18,15 @@ services:
         value: 24
       - key: AUTO_ADMIN
         value: "true"        # first registered user becomes Admin; set "false" to disable
+      - key: DATA_DIR
+        value: ./data        # ephemeral on free tier (resets on redeploy)
+      - key: UPLOAD_DIR
+        value: ./data/uploads
       # Your custom domain, once Cloudflare DNS points at this service
       # (see DEPLOY.md step 2f). Used for password-reset email links.
       # Uncomment ONLY after https://kingsproduction.cc is live, then redeploy.
       # - key: PUBLIC_URL
       #   value: https://kingsproduction.cc
-      # Persistent storage on the attached disk
-      - key: DATA_DIR
-        value: /opt/render/project/src/data
-      - key: UPLOAD_DIR
-        value: /opt/render/project/src/data/uploads
       # Real email delivery (optional):
       # - key: SMTP_HOST
       #   value: smtp.example.com
@@ -30,7 +34,8 @@ services:
       #   value: ...
       # - key: SMTP_PASS
       #   value: ...
-    disk:
-      name: kings-data
-      mountPath: /opt/render/project/src/data
-      sizeGB: 1
+    # Persistent storage — free tier only. Uncomment on a paid plan:
+    # disk:
+    #   name: kings-data
+    #   mountPath: /opt/render/project/src/data
+    #   sizeGB: 1
