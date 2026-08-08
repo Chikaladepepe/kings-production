@@ -115,11 +115,11 @@
     ],
     creators: [
       { id: 'cr1', name: 'King', role: 'Founder · Lead Developer', bio: 'Builds the systems that hold the studio together and ships the frameworks you see in the shop.' },
-      { id: 'cr2', name: 'Vex', role: 'UI / UX Designer', bio: 'Designs interfaces players actually enjoy. Behind the Vex UI Library and every shop front.' },
-      { id: 'cr3', name: 'Ace', role: 'Core Scripter', bio: 'Writes the server-authoritative code behind our admin, auction, and framework systems.' },
-      { id: 'cr4', name: 'Nova', role: '3D Modeler', bio: 'Crafts the models, rigs, and environments — from character packs to modular castle kits.' },
-      { id: 'cr5', name: 'Echo', role: 'Animator', bio: 'Hand-tunes every animation clip, from combat flows to climbing and parkour.' },
-      { id: 'cr6', name: 'Onyx', role: 'Systems Engineer', bio: 'Designs backend logic, data stores, and the architecture behind our largest projects.' }
+      { id: 'cr2', name: 'Chika', role: 'UI / UX Designer', bio: 'Designs interfaces players actually enjoy. Behind the Chika UI Library and every shop front.' },
+      { id: 'cr3', name: 'Chika', role: 'Core Scripter', bio: 'Writes the server-authoritative code behind our admin, auction, and framework systems.' },
+      { id: 'cr4', name: 'Chika', role: '3D Modeler', bio: 'Crafts the models, rigs, and environments — from character packs to modular castle kits.' },
+      { id: 'cr5', name: 'Chika', role: 'Animator', bio: 'Hand-tunes every animation clip, from combat flows to climbing and parkour.' },
+      { id: 'cr6', name: 'Chika', role: 'Systems Engineer', bio: 'Designs backend logic, data stores, and the architecture behind our largest projects.' }
     ]
   };
 
