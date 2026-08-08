@@ -27,9 +27,17 @@ moderation from a dedicated Admin Panel.
 purchase. VIP / Licensed creators post assets — every submission enters the
 **approval queue**, and admins approve or reject with a reason.
 
-**Purchases with license keys.** Buying an asset issues a **license key** that
-is tied to your account. Assign it to your own Roblox game from the License
-page, and download your file whenever you need it.
+**Purchases with license keys — and a VIP upgrade included.** Buying any asset
+issues a **license key** tied to your account, and **instantly upgrades your
+account to VIP / Licensed** — meaning you can start posting and selling your
+own assets right after your first purchase. Assign your key to your own Roblox
+game from the License page, and download your file whenever you need it.
+
+**Payments: Stripe · PayPal · GCash.** Checkout is powered by **Stripe**
+(cards), **PayPal**, and **GCash** (via PayMongo). Choose your method at
+checkout, pay, and the license + VIP upgrade are issued the moment payment
+confirms. Until a payment gateway is connected, checkout runs in **test mode**
+and completes instantly without moving money.
 
 **Built by the community, for the community.** Every asset, comment, and
 profile has a **report** action so the team can act on misconduct — with bans

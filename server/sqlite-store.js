@@ -36,6 +36,7 @@ const SCHEMA = {
   emails: ['id', 'to', 'subject', 'action', 'body', 'link', 'createdAt', 'read'],
   portfolio: ['id', 'title', 'category', 'desc', 'stat', 'status'],
   creators: ['id', 'name', 'role', 'bio'],
+  orders: ['id', 'buyerId', 'assetId', 'method', 'amount', 'currency', 'status', 'providerRef', 'licenseKey', 'createdAt', 'paidAt', 'updatedAt'],
 };
 /* Booleans are persisted as 0/1 integers and restored on read. */
 const BOOLS = { users: ['banned', 'totpEnabled'], tokens: ['used'], emails: ['read'] };
@@ -89,6 +90,14 @@ CREATE TABLE IF NOT EXISTS portfolio (
 CREATE TABLE IF NOT EXISTS creators (
   id TEXT PRIMARY KEY, name TEXT NOT NULL, role TEXT, bio TEXT
 );
+CREATE TABLE IF NOT EXISTS orders (
+  id TEXT PRIMARY KEY, buyerId TEXT NOT NULL, assetId TEXT NOT NULL,
+  method TEXT NOT NULL, amount INTEGER NOT NULL, currency TEXT NOT NULL DEFAULT 'PHP',
+  status TEXT NOT NULL DEFAULT 'created', providerRef TEXT, licenseKey TEXT,
+  createdAt INTEGER NOT NULL, paidAt INTEGER, updatedAt INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_orders_buyer ON orders (buyerId);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON orders (status);
 CREATE INDEX IF NOT EXISTS idx_assets_status ON assets (status);
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions (userId);
 CREATE INDEX IF NOT EXISTS idx_comments_asset ON comments (assetId);

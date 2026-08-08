@@ -472,6 +472,13 @@ body{background:
 :focus-visible{outline:2px solid rgba(212,175,55,.7);outline-offset:2px}
 .empty .crown svg{filter:drop-shadow(0 0 16px rgba(212,175,55,.35))}
 
+/* checkout payment methods */
+.pm-list{display:flex;flex-direction:column;gap:10px}
+.pm-card{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:13px 14px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,0)),var(--surface-2);border:1px solid var(--border-strong);cursor:pointer;transition:border-color .16s,transform .16s,box-shadow .16s;font-family:inherit;color:var(--text)}
+.pm-card:hover{border-color:rgba(212,175,55,.4);transform:translateY(-1px);box-shadow:0 0 18px rgba(212,175,55,.08)}
+.pm-card small{display:block;color:var(--text-3);font-size:12px;margin-top:2px}
+.pm-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:17px;background:linear-gradient(150deg,#2a2a33,#1a1a20);border:1px solid var(--border-strong);color:var(--gold);flex-shrink:0}
+
 </style>
 </head>
 <body>
@@ -555,7 +562,7 @@ async function idbDel(key) { const db = await idbOpen(); return new Promise((res
 /* ---- browser storage backend (fallback when the Express/SQLite server is unreachable) ----
    The engine in shared/engine.js talks to `store` (metadata) + `Files` (blobs).
    The same engine runs inside the Node server against SQLite + disk. */
-const DB_TABLES = ['users', 'assets', 'purchases', 'comments', 'sessions', 'tokens', 'emails', 'reviews', 'reports', 'portfolio', 'creators'];
+const DB_TABLES = ['users', 'assets', 'purchases', 'comments', 'sessions', 'tokens', 'emails', 'reviews', 'reports', 'portfolio', 'creators', 'orders'];
 const Files = {
   put: (id, file) => idbPut(id, file),
   get: id => idbGet(id).then(v => v || null),
@@ -746,7 +753,7 @@ const API = {};
   function createEngine(deps) {
     const store = deps.store, files = deps.files, mail = deps.mail;
     const cfg = Object.assign(
-      { autoAdminFirstUser: true, devMail: true, onlineWindowMs: 10 * 6e4, sessionTtlMs: 30 * 24 * 36e5, maxUploadBytes: 20 * 1024 * 1024 },
+      { autoAdminFirstUser: true, devMail: true, onlineWindowMs: 10 * 6e4, sessionTtlMs: 30 * 24 * 36e5, maxUploadBytes: 20 * 1024 * 1024, currency: 'PHP', priceMultiplier: 1 },
       deps.config || {}
     );
     const all = t => store.all(t);
@@ -1071,6 +1078,19 @@ const API = {};
     }
 
     /* ============ PURCHASES & LICENSES ============ */
+    /* Issue the license, bump sales, and auto-upgrade Members → VIP / Licensed
+       creators (that is the whole point of buying a license: you can post). */
+    function grantLicense(u, a) {
+      const key = 'KP-' + randomToken(4).toUpperCase().match(/.{1,4}/g).join('-');
+      store.put('purchases', { id: 'p' + uid(), assetId: a.id, buyerId: u.id, price: a.price, licenseKey: key, gameId: null, gameName: '', createdAt: now() });
+      a.sales = (a.sales || 0) + 1;
+      store.put('assets', a);
+      let vipUpgrade = false;
+      if (u.role === 'member') { u.role = 'vip'; u.updatedAt = now(); store.put('users', u); vipUpgrade = true; }
+      flush();
+      return { licenseKey: key, vipUpgrade };
+    }
+
     async function purchase(user, id) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
@@ -1081,12 +1101,92 @@ const API = {};
       if (a.status !== 'approved') return fail('notfound', 'This asset is not available for purchase.');
       if (a.ownerId === u.id) return fail('self', 'You cannot purchase your own asset.');
       if (all('purchases').some(p => p.assetId === id && p.buyerId === u.id)) return fail('owned', 'You already own this asset.');
-      const key = 'KP-' + randomToken(4).toUpperCase().match(/.{1,4}/g).join('-');
-      store.put('purchases', { id: 'p' + uid(), assetId: id, buyerId: u.id, price: a.price, licenseKey: key, gameId: null, gameName: '', createdAt: now() });
-      a.sales = (a.sales || 0) + 1;
-      store.put('assets', a);
+      const r = grantLicense(u, a);
+      return ok(r);
+    }
+
+    /* ---- payment orders (Stripe · PayPal · GCash) ---- */
+    const PAY_METHODS = ['stripe', 'paypal', 'gcash'];
+    async function createOrder(user, assetId, method) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      method = String(method || '').toLowerCase();
+      if (!PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, or GCash.');
+      const a = byIdIn('assets', assetId);
+      if (!a) return fail('notfound', 'Asset not found.');
+      if (isTimedOut(u)) return fail('timeout', 'You are currently timed out and cannot make purchases.');
+      if (isBanned(u)) return fail('banned', 'Your account is banned.');
+      if (a.status !== 'approved') return fail('notfound', 'This asset is not available for purchase.');
+      if (a.ownerId === u.id) return fail('self', 'You cannot purchase your own asset.');
+      if (all('purchases').some(p => p.assetId === a.id && p.buyerId === u.id)) return fail('owned', 'You already own this asset.');
+      if (all('orders').some(o => o.buyerId === u.id && o.assetId === a.id && (o.status === 'created' || o.status === 'paid')))
+        return fail('pending', 'You already have a pending order for this asset.');
+      const amount = Math.max(1, Math.round((a.price || 0) * cfg.priceMultiplier));
+      const order = { id: 'o' + uid(), buyerId: u.id, assetId: a.id, method, amount, currency: cfg.currency, status: 'created', providerRef: null, licenseKey: null, createdAt: now(), paidAt: null, updatedAt: now() };
+      store.put('orders', order);
       flush();
-      return ok({ licenseKey: key });
+      return ok({ orderId: order.id, amount: order.amount, currency: order.currency });
+    }
+    function finalizeOrder(order, buyer, a) {
+      if (order.status === 'completed') return ok({ licenseKey: order.licenseKey, vipUpgrade: false });
+      if (order.status !== 'paid') { order.status = 'paid'; order.paidAt = now(); }
+      order.updatedAt = now();
+      const r = grantLicense(buyer, a);
+      order.status = 'completed';
+      order.licenseKey = r.licenseKey;
+      order.updatedAt = now();
+      store.put('orders', order);
+      flush();
+      return ok({ licenseKey: r.licenseKey, vipUpgrade: r.vipUpgrade, method: order.method });
+    }
+    async function completeOrder(user, orderId, providerRef) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const order = byIdIn('orders', orderId);
+      if (!order || order.buyerId !== u.id) return fail('forbidden', 'Order not found.');
+      if (providerRef && !order.providerRef) { order.providerRef = String(providerRef); store.put('orders', order); }
+      const a = byIdIn('assets', order.assetId);
+      if (!a) return fail('notfound', 'The asset for this order no longer exists.');
+      return finalizeOrder(order, u, a);
+    }
+    /* Payment-confirmation path (webhook / provider verify / admin) — completes
+       an order as its buyer without a user session. */
+    async function settleOrder(orderId, providerRef) {
+      const order = byIdIn('orders', orderId);
+      if (!order) return fail('notfound', 'Order not found.');
+      const buyer = dbUser(order.buyerId);
+      if (!buyer) return fail('notfound', 'The buyer account no longer exists.');
+      const a = byIdIn('assets', order.assetId);
+      if (!a) return fail('notfound', 'The asset for this order no longer exists.');
+      if (providerRef && !order.providerRef) { order.providerRef = String(providerRef); store.put('orders', order); }
+      return finalizeOrder(order, buyer, a);
+    }
+    async function cancelOrder(user, orderId) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const order = byIdIn('orders', orderId);
+      if (!order || order.buyerId !== u.id) return fail('forbidden', 'Order not found.');
+      if (order.status === 'created') { order.status = 'cancelled'; order.updatedAt = now(); store.put('orders', order); flush(); }
+      return ok(true);
+    }
+    async function myOrders(user) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      return ok(all('orders').filter(o => o.buyerId === u.id).sort((x, y) => y.createdAt - x.createdAt).map(o => ({ ...o, asset: summarize(byIdIn('assets', o.assetId)) })));
+    }
+    async function adminOrders(actor) {
+      const r = requireAdmin(actor); if (r) return r;
+      return ok(all('orders').slice().sort((x, y) => y.createdAt - x.createdAt).map(o => ({ ...o, buyer: publicUser(dbUser(o.buyerId)), asset: summarize(byIdIn('assets', o.assetId)) })));
+    }
+    async function adminCompleteOrder(actor, orderId) {
+      const r = requireAdmin(actor); if (r) return r;
+      const order = byIdIn('orders', orderId);
+      if (!order) return fail('notfound', 'Order not found.');
+      const buyer = dbUser(order.buyerId);
+      if (!buyer) return fail('notfound', 'The buyer account no longer exists.');
+      const a = byIdIn('assets', order.assetId);
+      if (!a) return fail('notfound', 'The asset for this order no longer exists.');
+      return finalizeOrder(order, buyer, a);
     }
 
     async function myPurchases(user) {
@@ -1364,13 +1464,13 @@ const API = {};
       register, login, verify2fa, requestReset, resetPassword, logout, me,
       updateProfile, setup2fa, enable2fa, disable2fa,
       createAsset, listApproved, topSelling, getAsset, updateAsset, deleteAsset, myAssets, download,
-      purchase, myPurchases, assignLicense,
+      purchase, myPurchases, assignLicense, createOrder, completeOrder, settleOrder, cancelOrder, myOrders, adminOrders, adminCompleteOrder,
       addComment, listComments,
       listReviews, addReview, deleteReview,
       createReport, adminReports, adminResolveReport,
       publicProfile, content,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
-      adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSessions, adminEmails,
+      adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSessions, adminEmails, adminOrders, adminCompleteOrder,
     };
   }
 
@@ -1488,6 +1588,16 @@ API.download = (id, user) => _wrap(async () => {
 
 /* ---- purchases & licenses ---- */
 API.purchase = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.purchase(user, id) : await _call('POST', '/api/assets/' + _e(id) + '/purchase'));
+API.paymentMethods = () => _wrap(async () => _mode === 'local'
+  ? { ok: true, data: { dev: true, currency: 'PHP', methods: [{ id: 'stripe', label: 'Stripe', enabled: true }, { id: 'paypal', label: 'PayPal', enabled: true }, { id: 'gcash', label: 'GCash', enabled: true }] } }
+  : await _call('GET', '/api/payment/methods'));
+API.checkout = (user, assetId, method) => _wrap(async () => _mode === 'local'
+  ? await (async () => { const o = await _engine.createOrder(user, assetId, method); if (!o.ok) return o; return await _engine.completeOrder(user, o.data.orderId, 'dev'); })()
+  : await _call('POST', '/api/checkout', { assetId, method }));
+API.confirmPayment = (orderId, providerRef) => _wrap(async () => _mode === 'local' ? { ok: true, data: {} } : await _call('POST', '/api/payments/confirm', { orderId, providerRef }));
+API.myOrders = user => _wrap(async () => _mode === 'local' ? await _engine.myOrders(user) : await _call('GET', '/api/orders/mine'));
+API.adminOrders = user => _wrap(async () => _mode === 'local' ? await _engine.adminOrders(user) : await _call('GET', '/api/admin/orders'));
+API.adminCompleteOrder = (user, orderId) => _wrap(async () => _mode === 'local' ? await _engine.adminCompleteOrder(user, orderId) : await _call('POST', '/api/admin/orders/' + _e(orderId) + '/complete'));
 API.myPurchases = user => _wrap(async () => _mode === 'local' ? await _engine.myPurchases(user) : await _call('GET', '/api/purchases/mine'));
 API.assignLicense = (user, purchaseId, a) => _wrap(async () => _mode === 'local' ? await _engine.assignLicense(user, purchaseId, a) : await _call('POST', '/api/licenses/assign', { purchaseId, ...a }));
 
@@ -1806,9 +1916,41 @@ function readFileAsDataURL(file) { return new Promise((res, rej) => { const r = 
 /* ---- shared actions ---- */
 async function onBuy(id) {
   if (!STATE.user) { go('/login'); return; }
-  const res = await API.purchase(STATE.user, id);
-  if (res.ok) { toast('Purchased! Your license is on the License page.'); await router(); }
-  else { toast(res.error, 'err'); if (res.code === 'timeout' || res.code === 'owned' || res.code === 'banned') await router(); }
+  openCheckout(id);
+}
+async function openCheckout(assetId) {
+  const pm = await API.paymentMethods();
+  const data = pm.ok && pm.data ? pm.data : { dev: true, methods: [{ id: 'stripe', label: 'Stripe', enabled: true }, { id: 'paypal', label: 'PayPal', enabled: true }, { id: 'gcash', label: 'GCash', enabled: true }] };
+  const methods = data.methods || [];
+  const cards = methods.map(m => `<button class="pm-card" type="button" data-method="${m.id}">
+      <span class="pm-icon">${m.id === 'stripe' ? 'S' : m.id === 'paypal' ? 'P' : 'G'}</span>
+      <span><b>${esc(m.label)}</b><small>${m.enabled ? 'Online payment · card / wallet' : 'Not configured yet'}</small></span>
+    </button>`).join('');
+  const ov = modal({
+    title: 'Checkout',
+    cancelLabel: 'Cancel',
+    body: `<p class="muted small" style="margin:0 0 14px">Choose how to pay. Every purchase issues a <b>license key</b> and upgrades your account to <b style="color:var(--vip)">VIP / Licensed</b> so you can post your own assets.</p>
+      <div class="pm-list">${cards}</div>
+      ${data.dev ? `<p class="hint" style="margin-top:12px">Test mode — no payment gateway is connected yet, so checkout completes instantly (no money moves).</p>` : ''}`,
+    confirmLabel: 'Continue',
+    onConfirm: () => {},
+  });
+  ov.querySelector('[data-act=confirm]').classList.add('hidden');
+  ov.querySelectorAll('.pm-card').forEach(c => c.addEventListener('click', async () => {
+    const entry = methods.find(m => m.id === c.dataset.method);
+    if (!entry || !entry.enabled) { toast('This payment method is not configured yet.', 'err'); return; }
+    ov.remove();
+    const res = await API.checkout(STATE.user, assetId, entry.id);
+    if (!res.ok) { toast(res.error, 'err'); if (res.code === 'timeout' || res.code === 'owned' || res.code === 'banned' || res.code === 'pending') await router(); return; }
+    if (res.data && res.data.redirect) { location.href = res.data.redirect; return; }
+    if (res.data && res.data.licenseKey) {
+      toast(res.data.vipUpgrade ? 'License issued! You are now VIP / Licensed — you can post assets. 👑' : 'License issued! It is on your License page.');
+      if (STATE.user) STATE.user.role = 'vip';
+      await router();
+      return;
+    }
+    toast('Purchase complete.'); await router();
+  }));
 }
 async function triggerFileDownload(res) {
   if (!res.ok) { toast(res.error, 'err'); return; }
@@ -1856,7 +1998,8 @@ VIEWS.asset = async ({ params }) => {
   } else if (!me) {
     buyHtml = `<a class="btn btn-primary btn-lg" href="#/login">Log in to purchase</a>`;
   } else if (a.status === 'approved') {
-    buyHtml = `<button class="btn btn-primary btn-lg" onclick="onBuy('${a.id}')">${ICON.cart} Purchase · ${fmtMoney(a.price)}</button>`;
+    buyHtml = `<button class="btn btn-primary btn-lg" onclick="onBuy('${a.id}')">${ICON.cart} Purchase · ${fmtMoney(a.price)}</button>
+      ${me && me.role !== 'vip' && me.role !== 'admin' ? `<p class="muted small" style="margin-top:10px">Every purchase upgrades you to <b style="color:var(--vip)">VIP / Licensed</b> — you can post your own assets right after.</p>` : ''}`;
   }
 
   const commentHtml = comments.ok ? comments.data.map(c => `
@@ -2375,7 +2518,8 @@ VIEWS.creators = async () => {
 };
 
 /* ---- license ---- */
-VIEWS.license = async () => {
+VIEWS.license = async ({ query } = {}) => {
+  if (query && query.paid) handlePaidReturn(query);
   const tiers = [
     { name: 'Standard', price: 'Included', desc: 'Every purchase includes a standard license.', feats: ['1 assigned game ID', 'Personal / single experience use', 'Free updates for the asset'], featured: false },
     { name: 'Extended', price: '+50%', desc: 'For creators shipping to multiple games.', feats: ['Up to 3 assigned game IDs', 'Commercial use allowed', 'Priority support'], featured: true },
@@ -2399,12 +2543,12 @@ VIEWS.license = async () => {
               <input class="input" style="flex:1;min-width:160px" name="gameName" placeholder="Game name (optional)">
               <button class="btn btn-primary btn-sm" type="submit">Assign</button></form>`}
         </div>`).join('')}</div>`
-      : emptyHtml('No purchases yet', 'Buy an asset from the shop and its license will appear here.')}`;
+      : emptyHtml('No purchases yet', 'Buy any asset from the shop — you get a license key and instantly become VIP / Licensed, able to post your own assets.')}`;
   } else {
     my = `<div class="center mt2" style="padding:44px 0">${emptyHtml('Log in to manage your licenses', 'Purchases and license keys are tied to your account.')}<a class="btn btn-primary" href="#/login">Log in</a></div>`;
   }
   return `<div class="page">
-    <div class="section-head"><div><span class="section-eyebrow">License</span><h2>Licensing</h2><p>Every purchase includes a license key. Assign it to your Roblox game to legally use the asset.</p></div></div>
+    <div class="section-head"><div><span class="section-eyebrow">License</span><h2>Licensing</h2><p>Every purchase issues a license key and upgrades your account to <b style="color:var(--vip)">VIP / Licensed</b> so you can post your own assets. Assign your key to a Roblox game to activate it. · Payments: Stripe · PayPal · GCash</p></div></div>
     <div class="grid tier-grid">${tiers.map(t => `
       <div class="tier ${t.featured ? 'featured' : ''}">
         <h3>${esc(t.name)}</h3>
@@ -2415,6 +2559,17 @@ VIEWS.license = async () => {
     ${my}
   </div>`;
 };
+async function handlePaidReturn(query) {
+  const providerRef = query.token || query.source_id || query.source || null;
+  const ords = await API.myOrders(STATE.user);
+  const pending = ords.ok && ords.data.find(o => o.status === 'created' || o.status === 'paid');
+  if (!pending) return;
+  const res = await API.confirmPayment(pending.id, providerRef);
+  if (res.ok) toast(res.data && res.data.vipUpgrade ? 'Payment confirmed! License issued — you are now VIP / Licensed. 👑' : 'Payment confirmed — license issued!');
+  else toast(res.error, 'err');
+  go('/license');
+  await router();
+}
 
 /* ---- legal: privacy policy + terms of use ---- */
 function legalShell(eyebrow, title, updated) {
@@ -2458,9 +2613,10 @@ VIEWS.terms = async () => legalShell('Legal', 'Terms of Use', 'August 2026') + `
     ${legalSection('The marketplace and creators',
       'Asset files are posted by VIP / Licensed creators and are reviewed by the Kings Production team before they go live. We moderate submissions and reserve the right to reject or remove any asset at any time. Prohibited content includes anything illegal, malicious (including malware), stolen or infringing, or otherwise harmful.',
       'You may not post assets you do not own or have the right to sell, and you may not copy or redistribute content from this site without permission.')}
-    ${legalSection('Purchases and license keys',
-      'When you purchase an asset, you receive a unique license key (a “KP-” key) recorded to your account. The key grants you a non-exclusive, personal license to use that asset in your projects, subject to any terms stated on the asset page. Keys are issued upon successful purchase and cannot be transferred or resold.',
-      'You may assign a license key to your own Roblox game by entering the game ID on the License page. Payments, where offered, are processed by a third-party provider; the provider handles your payment details — we never see or store your card or payment information.')}
+    ${legalSection('Purchases, license keys, and payments',
+      'When you purchase an asset, you receive a unique license key (a “KP-” key) recorded to your account. The key grants you a non-exclusive, personal license to use that asset in your projects, subject to any terms stated on the asset page. Keys are issued upon successful payment and cannot be transferred or resold.',
+      'Purchasing any asset automatically upgrades your account to VIP / Licensed, which lets you post and sell your own assets on the marketplace. This upgrade is granted the moment your payment is confirmed.',
+      'Payments are processed through third-party providers: **Stripe** (cards), **PayPal**, and **GCash** (via PayMongo). The provider handles your payment details — we never see or store your card or payment information. Until a gateway is connected, checkout runs in test mode and completes without moving money.')}
     ${legalSection('Intellectual property',
       'Creators retain ownership of the assets they post; by posting, they grant Kings Production a license to host, display, and sell those assets on this site. The site itself — its design, branding, the crown logo, and the studio’s own content — is the property of Kings Production. You may not copy, scrape, mirror, or reuse the site, its design, or its content.',
       'This website is an independent project. We are not affiliated with, endorsed by, or sponsored by Roblox Corporation. "Roblox" is a trademark of Roblox Corporation.')}
@@ -2483,7 +2639,7 @@ VIEWS.admin = async () => {
   if (!STATE.user || STATE.user.role !== 'admin') {
     return `<div class="page">${emptyHtml('Admins only', 'This is a separate interface for administrators.')}</div>`;
   }
-  const tabs = [['overview', 'Overview'], ['approvals', 'Approvals'], ['assets', 'Assets'], ['users', 'Users'], ['reports', 'Reports'], ['online', 'Online'], ['mailbox', 'Mailbox']];
+  const tabs = [['overview', 'Overview'], ['approvals', 'Approvals'], ['assets', 'Assets'], ['users', 'Users'], ['reports', 'Reports'], ['orders', 'Orders'], ['online', 'Online'], ['mailbox', 'Mailbox']];
   const tabbar = `<div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${STATE.adminTab === k ? 'active' : ''}" onclick="setAdminTab('${k}')">${l}</button>`).join('')}</div>`;
   return `<div class="page" style="max-width:1080px">
     <div class="section-head"><div><span class="section-eyebrow">Administration</span><h2>Admin Panel</h2><p>Moderate submissions, users, and review marketplace activity.</p></div></div>
@@ -2499,6 +2655,13 @@ VIEWS_BIND.admin = async () => {
   body.innerHTML = html;
 };
 async function setAdminTab(tab) { STATE.adminTab = tab; await router(); }
+async function onAdminCompleteOrder(orderId) {
+  modal({
+    title: 'Complete this order?', confirmLabel: 'Complete',
+    body: '<p>Marks the order as paid and issues the license key + VIP / Licensed upgrade to the buyer. Use this for manual / offline payments (e.g. a GCash transfer received outside the app).</p>',
+    onConfirm: async () => { const r = await API.adminCompleteOrder(STATE.user, orderId); if (r.ok) toast('Order completed — license issued.'); else toast(r.error, 'err'); await router(); },
+  });
+}
 async function adminTabHtml(tab) {
   if (tab === 'overview') {
     const o = await API.adminOverview(STATE.user);
@@ -2509,6 +2672,25 @@ async function adminTabHtml(tab) {
       ${stat(d.users, 'Total users')}${stat(d.online, 'Online now')}${stat(d.assets, 'Total assets')}${stat(d.pending, 'Pending approval')}${stat(d.sales, 'Sales')}${stat(fmtMoney(d.revenue), 'Revenue')}${stat(d.reports, 'Open reports')}${stat(d.reviews, 'Reviews')}${stat(d.banned, 'Banned')}${stat(d.timedOut, 'Timed out')}
     </div>
     <p class="muted small mt">Admins are protected from bans and timeouts — moderation actions are never available against Admin accounts.</p>`;
+  }
+  if (tab === 'orders') {
+    const r = await API.adminOrders(STATE.user);
+    const list = r.ok ? r.data : [];
+    const oStatus = s => s === 'completed' ? `<span class="badge ok">Completed</span>`
+      : s === 'paid' ? `<span class="badge warn">Paid</span>`
+      : s === 'cancelled' ? `<span class="badge plain">Cancelled</span>`
+      : `<span class="badge warn">Created</span>`;
+    return `<div class="table-wrap"><table class="table">
+      <thead><tr><th>Asset</th><th>Buyer</th><th>Method</th><th>Amount</th><th>Status</th><th>Date</th><th></th></tr></thead>
+      <tbody>${list.map(o => `<tr>
+        <td>${o.asset ? `<a href="#/asset/${o.asset.id}">${esc(o.asset.title)}</a>` : '(deleted asset)'}</td>
+        <td>${o.buyer ? `<a href="#/profile/${esc(o.buyer.handle)}">${esc(o.buyer.displayName)}</a>` : '—'}</td>
+        <td class="muted">${esc(o.method)}</td>
+        <td>${o.amount} ${esc(o.currency)}</td>
+        <td>${oStatus(o.status)}</td>
+        <td class="muted">${fmtDate(o.createdAt)}</td>
+        <td>${o.status === 'created' ? `<button class="btn btn-primary btn-sm" onclick="onAdminCompleteOrder('${o.id}')">Mark paid &amp; complete</button>` : ''}</td>
+      </tr>`).join('') || `<tr><td colspan="7"><div class="empty">No orders yet.</div></td></tr>`}</tbody></table></div>`;
   }
   if (tab === 'approvals') {
     const [p, r] = await Promise.all([API.adminPending(STATE.user), API.adminRejected(STATE.user)]);

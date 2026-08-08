@@ -126,7 +126,7 @@
   function createEngine(deps) {
     const store = deps.store, files = deps.files, mail = deps.mail;
     const cfg = Object.assign(
-      { autoAdminFirstUser: true, devMail: true, onlineWindowMs: 10 * 6e4, sessionTtlMs: 30 * 24 * 36e5, maxUploadBytes: 20 * 1024 * 1024 },
+      { autoAdminFirstUser: true, devMail: true, onlineWindowMs: 10 * 6e4, sessionTtlMs: 30 * 24 * 36e5, maxUploadBytes: 20 * 1024 * 1024, currency: 'PHP', priceMultiplier: 1 },
       deps.config || {}
     );
     const all = t => store.all(t);
@@ -451,6 +451,19 @@
     }
 
     /* ============ PURCHASES & LICENSES ============ */
+    /* Issue the license, bump sales, and auto-upgrade Members → VIP / Licensed
+       creators (that is the whole point of buying a license: you can post). */
+    function grantLicense(u, a) {
+      const key = 'KP-' + randomToken(4).toUpperCase().match(/.{1,4}/g).join('-');
+      store.put('purchases', { id: 'p' + uid(), assetId: a.id, buyerId: u.id, price: a.price, licenseKey: key, gameId: null, gameName: '', createdAt: now() });
+      a.sales = (a.sales || 0) + 1;
+      store.put('assets', a);
+      let vipUpgrade = false;
+      if (u.role === 'member') { u.role = 'vip'; u.updatedAt = now(); store.put('users', u); vipUpgrade = true; }
+      flush();
+      return { licenseKey: key, vipUpgrade };
+    }
+
     async function purchase(user, id) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
@@ -461,12 +474,92 @@
       if (a.status !== 'approved') return fail('notfound', 'This asset is not available for purchase.');
       if (a.ownerId === u.id) return fail('self', 'You cannot purchase your own asset.');
       if (all('purchases').some(p => p.assetId === id && p.buyerId === u.id)) return fail('owned', 'You already own this asset.');
-      const key = 'KP-' + randomToken(4).toUpperCase().match(/.{1,4}/g).join('-');
-      store.put('purchases', { id: 'p' + uid(), assetId: id, buyerId: u.id, price: a.price, licenseKey: key, gameId: null, gameName: '', createdAt: now() });
-      a.sales = (a.sales || 0) + 1;
-      store.put('assets', a);
+      const r = grantLicense(u, a);
+      return ok(r);
+    }
+
+    /* ---- payment orders (Stripe · PayPal · GCash) ---- */
+    const PAY_METHODS = ['stripe', 'paypal', 'gcash'];
+    async function createOrder(user, assetId, method) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      method = String(method || '').toLowerCase();
+      if (!PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, or GCash.');
+      const a = byIdIn('assets', assetId);
+      if (!a) return fail('notfound', 'Asset not found.');
+      if (isTimedOut(u)) return fail('timeout', 'You are currently timed out and cannot make purchases.');
+      if (isBanned(u)) return fail('banned', 'Your account is banned.');
+      if (a.status !== 'approved') return fail('notfound', 'This asset is not available for purchase.');
+      if (a.ownerId === u.id) return fail('self', 'You cannot purchase your own asset.');
+      if (all('purchases').some(p => p.assetId === a.id && p.buyerId === u.id)) return fail('owned', 'You already own this asset.');
+      if (all('orders').some(o => o.buyerId === u.id && o.assetId === a.id && (o.status === 'created' || o.status === 'paid')))
+        return fail('pending', 'You already have a pending order for this asset.');
+      const amount = Math.max(1, Math.round((a.price || 0) * cfg.priceMultiplier));
+      const order = { id: 'o' + uid(), buyerId: u.id, assetId: a.id, method, amount, currency: cfg.currency, status: 'created', providerRef: null, licenseKey: null, createdAt: now(), paidAt: null, updatedAt: now() };
+      store.put('orders', order);
       flush();
-      return ok({ licenseKey: key });
+      return ok({ orderId: order.id, amount: order.amount, currency: order.currency });
+    }
+    function finalizeOrder(order, buyer, a) {
+      if (order.status === 'completed') return ok({ licenseKey: order.licenseKey, vipUpgrade: false });
+      if (order.status !== 'paid') { order.status = 'paid'; order.paidAt = now(); }
+      order.updatedAt = now();
+      const r = grantLicense(buyer, a);
+      order.status = 'completed';
+      order.licenseKey = r.licenseKey;
+      order.updatedAt = now();
+      store.put('orders', order);
+      flush();
+      return ok({ licenseKey: r.licenseKey, vipUpgrade: r.vipUpgrade, method: order.method });
+    }
+    async function completeOrder(user, orderId, providerRef) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const order = byIdIn('orders', orderId);
+      if (!order || order.buyerId !== u.id) return fail('forbidden', 'Order not found.');
+      if (providerRef && !order.providerRef) { order.providerRef = String(providerRef); store.put('orders', order); }
+      const a = byIdIn('assets', order.assetId);
+      if (!a) return fail('notfound', 'The asset for this order no longer exists.');
+      return finalizeOrder(order, u, a);
+    }
+    /* Payment-confirmation path (webhook / provider verify / admin) — completes
+       an order as its buyer without a user session. */
+    async function settleOrder(orderId, providerRef) {
+      const order = byIdIn('orders', orderId);
+      if (!order) return fail('notfound', 'Order not found.');
+      const buyer = dbUser(order.buyerId);
+      if (!buyer) return fail('notfound', 'The buyer account no longer exists.');
+      const a = byIdIn('assets', order.assetId);
+      if (!a) return fail('notfound', 'The asset for this order no longer exists.');
+      if (providerRef && !order.providerRef) { order.providerRef = String(providerRef); store.put('orders', order); }
+      return finalizeOrder(order, buyer, a);
+    }
+    async function cancelOrder(user, orderId) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const order = byIdIn('orders', orderId);
+      if (!order || order.buyerId !== u.id) return fail('forbidden', 'Order not found.');
+      if (order.status === 'created') { order.status = 'cancelled'; order.updatedAt = now(); store.put('orders', order); flush(); }
+      return ok(true);
+    }
+    async function myOrders(user) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      return ok(all('orders').filter(o => o.buyerId === u.id).sort((x, y) => y.createdAt - x.createdAt).map(o => ({ ...o, asset: summarize(byIdIn('assets', o.assetId)) })));
+    }
+    async function adminOrders(actor) {
+      const r = requireAdmin(actor); if (r) return r;
+      return ok(all('orders').slice().sort((x, y) => y.createdAt - x.createdAt).map(o => ({ ...o, buyer: publicUser(dbUser(o.buyerId)), asset: summarize(byIdIn('assets', o.assetId)) })));
+    }
+    async function adminCompleteOrder(actor, orderId) {
+      const r = requireAdmin(actor); if (r) return r;
+      const order = byIdIn('orders', orderId);
+      if (!order) return fail('notfound', 'Order not found.');
+      const buyer = dbUser(order.buyerId);
+      if (!buyer) return fail('notfound', 'The buyer account no longer exists.');
+      const a = byIdIn('assets', order.assetId);
+      if (!a) return fail('notfound', 'The asset for this order no longer exists.');
+      return finalizeOrder(order, buyer, a);
     }
 
     async function myPurchases(user) {
@@ -744,13 +837,13 @@
       register, login, verify2fa, requestReset, resetPassword, logout, me,
       updateProfile, setup2fa, enable2fa, disable2fa,
       createAsset, listApproved, topSelling, getAsset, updateAsset, deleteAsset, myAssets, download,
-      purchase, myPurchases, assignLicense,
+      purchase, myPurchases, assignLicense, createOrder, completeOrder, settleOrder, cancelOrder, myOrders, adminOrders, adminCompleteOrder,
       addComment, listComments,
       listReviews, addReview, deleteReview,
       createReport, adminReports, adminResolveReport,
       publicProfile, content,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
-      adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSessions, adminEmails,
+      adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSessions, adminEmails, adminOrders, adminCompleteOrder,
     };
   }
 

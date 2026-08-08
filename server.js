@@ -67,12 +67,99 @@ async function main() {
     config: {
       autoAdminFirstUser: process.env.AUTO_ADMIN !== 'false', // first registered user becomes Admin
       devMail: !process.env.SMTP_HOST, // expose reset links in API responses only when mail isn't configured
+      currency: process.env.PAYMENT_CURRENCY || 'PHP', // checkout currency (e.g. PHP, USD, EUR)
+      priceMultiplier: Number(process.env.PRICE_MULTIPLIER || 1), // price-unit → currency rate
     },
   });
+
+  /* ---- payments (Stripe · PayPal · GCash via PayMongo) ----
+     Enabled by env keys; when none are set the checkout runs in dev/test
+     mode and completes instantly without moving money. */
+  const PAYMENT = {
+    currency: process.env.PAYMENT_CURRENCY || 'PHP',
+    stripe: process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null,
+    paypal: (process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET) ? { id: process.env.PAYPAL_CLIENT_ID, secret: process.env.PAYPAL_CLIENT_SECRET } : null,
+    paymongo: process.env.PAYMONGO_SECRET_KEY || null,
+  };
+  PAYMENT.dev = !(PAYMENT.stripe || PAYMENT.paypal || PAYMENT.paymongo);
+
+  async function paypalToken() {
+    const cred = Buffer.from(`${PAYMENT.paypal.id}:${PAYMENT.paypal.secret}`).toString('base64');
+    const r = await fetch('https://api-m.paypal.com/v1/oauth2/token', {
+      method: 'POST',
+      headers: { Authorization: `Basic ${cred}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'grant_type=client_credentials',
+    });
+    const j = await r.json();
+    return j.access_token;
+  }
+  async function paypalCreateOrder(amount, currency, title, orderId) {
+    const token = await paypalToken();
+    const r = await fetch('https://api-m.paypal.com/v2/checkout/orders', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        intent: 'CAPTURE',
+        purchase_units: [{ reference_id: orderId, description: String(title).slice(0, 120), amount: { currency_code: currency, value: Number(amount).toFixed(2) } }],
+      }),
+    });
+    const j = await r.json();
+    const approve = j.links && j.links.find(l => l.rel === 'approve');
+    return { id: j.id, url: approve ? approve.href : null };
+  }
+  async function paypalCapture(providerOrderId) {
+    const token = await paypalToken();
+    const r = await fetch(`https://api-m.paypal.com/v2/checkout/orders/${providerOrderId}/capture`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    const j = await r.json();
+    return j.status === 'COMPLETED';
+  }
+  const pmAuth = () => `Basic ${Buffer.from(PAYMENT.paymongo + ':').toString('base64')}`;
+  async function paymongoCreateSource(amount, currency, title, orderId) {
+    const r = await fetch('https://api.paymongo.com/v1/sources', {
+      method: 'POST',
+      headers: { Authorization: pmAuth(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: { attributes: {
+        amount: amount * 100, currency: currency.toLowerCase(), type: 'gcash',
+        redirect: { success: PUBLIC_URL + '/#/license?paid=1', failed: PUBLIC_URL + '/#/license' },
+        metadata: { order_id: orderId },
+      } } }),
+    });
+    const j = await r.json();
+    const attrs = j.data && j.data.attributes || {};
+    return { id: j.data && j.data.id, url: attrs.redirect && attrs.redirect.checkout_url };
+  }
+  async function paymongoCharged(sourceId) {
+    const r = await fetch(`https://api.paymongo.com/v1/sources/${sourceId}`, { headers: { Authorization: pmAuth() } });
+    const j = await r.json();
+    return !!(j.data && j.data.attributes && j.data.attributes.status === 'charged');
+  }
 
   /* ---- app ---- */
   const app = express();
   app.disable('x-powered-by');
+  /* Stripe webhook must receive the RAW body for signature verification —
+     register it before the global JSON parser. */
+  app.post('/api/payments/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+    try {
+      if (!PAYMENT.stripe) return res.status(400).json({ ok: false, error: 'Stripe is not configured.' });
+      const sig = req.headers['stripe-signature'];
+      let evt;
+      try { evt = PAYMENT.stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET); }
+      catch (e) { return res.status(400).json({ ok: false, error: 'Invalid Stripe signature.' }); }
+      if (evt.type === 'checkout.session.completed') {
+        const orderId = evt.data.object.metadata && evt.data.object.metadata.orderId;
+        if (orderId) {
+          const r = await engine.settleOrder(orderId, evt.data.object.id);
+          if (!r.ok) console.error('[stripe] settle failed:', r.error);
+        }
+      }
+      res.json({ ok: true, received: true });
+    } catch (e) { console.error('[stripe webhook]', e); res.status(500).json({ ok: false }); }
+  });
   app.use(express.json({ limit: '4mb' })); // profile pictures are base64 data URLs
 
   /* With a cloud store, wait until every pending write has landed in Turso
@@ -199,6 +286,96 @@ async function main() {
     send(res, await engine.assignLicense(u, b.purchaseId, { gameId: b.gameId, gameName: b.gameName }));
   }));
 
+  /* ---- payments & checkout (Stripe · PayPal · GCash) ---- */
+  app.get('/api/payment/methods', (req, res) => res.json({
+    ok: true,
+    data: {
+      dev: PAYMENT.dev,
+      currency: PAYMENT.currency,
+      methods: [
+        { id: 'stripe', label: 'Stripe', enabled: !!PAYMENT.stripe },
+        { id: 'paypal', label: 'PayPal', enabled: !!PAYMENT.paypal },
+        { id: 'gcash', label: 'GCash', enabled: !!PAYMENT.paymongo },
+      ],
+    },
+  }));
+  app.post('/api/checkout', h(async (req, res) => {
+    const u = await needAuth(req, res); if (!u) return;
+    const { assetId, method } = req.body || {};
+    const r = await engine.createOrder(u, assetId, method);
+    if (!r.ok) return send(res, r);
+    const { orderId, amount, currency } = r.data;
+    if (PAYMENT.dev) {
+      // No gateway keys configured — complete instantly (test mode, no money moves).
+      return send(res, await engine.completeOrder(u, orderId, 'dev'));
+    }
+    try {
+      const asset = await engine.getAsset(u, assetId);
+      const title = (asset.ok && asset.data && asset.data.title) || 'Kings Production asset';
+      if (method === 'stripe' && PAYMENT.stripe) {
+        const session = await PAYMENT.stripe.checkout.sessions.create({
+          mode: 'payment',
+          line_items: [{ price_data: {
+            currency: currency.toLowerCase(),
+            unit_amount: amount * 100,
+            product_data: { name: String(title).slice(0, 60), description: 'License key · VIP / Licensed upgrade included' },
+          }, quantity: 1 }],
+          metadata: { orderId },
+          success_url: PUBLIC_URL + '/#/license?paid=1',
+          cancel_url: PUBLIC_URL + '/#/license',
+        });
+        return send(res, { ok: true, data: { orderId, redirect: session.url } });
+      }
+      if (method === 'paypal' && PAYMENT.paypal) {
+        const pp = await paypalCreateOrder(amount, currency, title, orderId);
+        if (!pp.url) return send(res, { ok: false, code: 'provider', error: 'PayPal could not start the checkout.' });
+        return send(res, { ok: true, data: { orderId, redirect: pp.url } });
+      }
+      if (method === 'gcash' && PAYMENT.paymongo) {
+        const pm = await paymongoCreateSource(amount, currency, title, orderId);
+        if (!pm.url) return send(res, { ok: false, code: 'provider', error: 'GCash could not start the checkout.' });
+        return send(res, { ok: true, data: { orderId, redirect: pm.url } });
+      }
+      await engine.cancelOrder(u, orderId);
+      return send(res, { ok: false, code: 'unavailable', error: 'That payment method is not configured yet.' });
+    } catch (e) {
+      console.error('[checkout]', e && e.message || e);
+      await engine.cancelOrder(u, orderId);
+      return send(res, { ok: false, code: 'provider', error: 'Could not start the payment. Please try again.' });
+    }
+  }));
+  /* Called after the buyer returns from the provider (PayPal / GCash) — verifies
+     the payment and completes the order (license + VIP upgrade). Stripe completes
+     via webhook; this endpoint is a safe no-op then. */
+  app.post('/api/payments/confirm', h(async (req, res) => {
+    const u = await needAuth(req, res); if (!u) return;
+    const { orderId, providerRef } = req.body || {};
+    if (!orderId) return send(res, { ok: false, code: 'invalid', error: 'Missing order reference.' });
+    const ords = await engine.myOrders(u);
+    const ord = ords.ok && ords.data.find(o => o.id === orderId);
+    if (!ord) return send(res, { ok: false, code: 'notfound', error: 'Order not found.' });
+    if (ord.status === 'completed') return send(res, await engine.completeOrder(u, orderId));
+    if (ord.method === 'paypal' && PAYMENT.paypal) {
+      if (!providerRef) return send(res, { ok: false, code: 'invalid', error: 'Payment reference missing.' });
+      const okPay = await paypalCapture(providerRef);
+      if (!okPay) return send(res, { ok: false, code: 'pending', error: 'Payment was not completed. Try again from the License page.' });
+      return send(res, await engine.settleOrder(orderId, providerRef));
+    }
+    if (ord.method === 'gcash' && PAYMENT.paymongo) {
+      if (!providerRef) return send(res, { ok: false, code: 'invalid', error: 'Payment reference missing.' });
+      const okG = await paymongoCharged(providerRef);
+      if (!okG) return send(res, { ok: false, code: 'pending', error: 'Payment was not completed. Try again from the License page.' });
+      return send(res, await engine.settleOrder(orderId, providerRef));
+    }
+    if (ord.method === 'stripe') {
+      if (ord.status === 'paid') return send(res, await engine.settleOrder(orderId));
+      return send(res, { ok: false, code: 'pending', error: 'Payment is still processing — your license will appear on the License page shortly.' });
+    }
+    return send(res, { ok: false, code: 'unavailable', error: 'That payment method is not configured.' });
+  }));
+  app.get('/api/orders/mine', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.myOrders(u)); }));
+  app.post('/api/orders/:id/cancel', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.cancelOrder(u, req.params.id)); }));
+
   /* ---- profiles & content ---- */
   app.get('/api/profile/:handle', h(async (req, res) => send(res, await engine.publicProfile(req.params.handle))));
   app.get('/api/site/content', h(async (req, res) => send(res, await engine.content())));
@@ -231,6 +408,8 @@ async function main() {
   app.get('/api/admin/emails', admin(async u => engine.adminEmails(u)));
   app.get('/api/admin/reports', admin(async u => engine.adminReports(u)));
   app.post('/api/admin/reports/:id/resolve', admin(async (u, req) => engine.adminResolveReport(u, req.params.id)));
+  app.get('/api/admin/orders', admin(async u => engine.adminOrders(u)));
+  app.post('/api/admin/orders/:id/complete', admin(async (u, req) => engine.adminCompleteOrder(u, req.params.id)));
 
   /* ---- the app (single-file SPA) ---- */
   app.get('/', (req, res) => res.sendFile(path.join(ROOT, 'index.html')));
