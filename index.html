@@ -1,0 +1,2537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kings Production — Premium Roblox Development Studio</title>
+<meta name="description" content="Kings Production — premium Roblox assets: scripts, models, plugins, animations, and systems.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%230c0c0e'/%3E%3Cpath d='M4 16.5V10l4.2 3.6L12 6.5l3.8 7.1L20 10v6.5a1.6 1.6 0 0 1-1.6 1.6H5.6A1.6 1.6 0 0 1 4 16.5Z' fill='%23d4af37'/%3E%3Crect x='5.2' y='19' width='13.6' height='1.8' rx='0.9' fill='%23d4af37'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============ CHUNK A: TOKENS · BASE · SHELL ============ */
+:root{
+  --bg:#0c0c0e; --bg-2:#0f0f12; --surface:#141418; --surface-2:#1a1a1f; --surface-3:#22222a;
+  --border:#26262c; --border-strong:#34343d;
+  --text:#ececee; --text-2:#a3a3ad; --text-3:#65656e;
+  --gold:#d4af37;
+  --member:#7d7d88; --vip:#4d8dff; --danger:#e5484d; --ok:#46a758;
+  --radius:14px; --radius-s:9px;
+  --font-ui:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;
+  --font-display:'Space Grotesk','Inter',system-ui,sans-serif;
+  --shadow-1:0 1px 2px rgba(0,0,0,.5),0 10px 30px rgba(0,0,0,.4);
+  --shadow-2:0 2px 6px rgba(0,0,0,.4),0 24px 60px rgba(0,0,0,.55);
+  --header-h:64px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font-ui);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;min-height:100vh}
+::selection{background:#3a3a42;color:#fff}
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:#2a2a31;border-radius:8px;border:3px solid var(--bg)}
+::-webkit-scrollbar-thumb:hover{background:#3a3a44}
+a{color:inherit;text-decoration:none}
+img{max-width:100%;display:block}
+button{font-family:inherit}
+input,select,textarea{font-family:inherit;font-size:15px}
+:focus-visible{outline:2px solid #8a8a95;outline-offset:2px;border-radius:4px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* crown — the ONLY gold element in the system */
+.crown{color:var(--gold);display:inline-flex;flex-shrink:0}
+.crown svg{display:block}
+
+/* ===== layout shell ===== */
+#app{min-height:100vh;display:flex;flex-direction:column}
+.site-header{position:sticky;top:0;z-index:50;height:var(--header-h);background:rgba(12,12,14,.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--border)}
+.header-inner{max-width:1200px;margin:0 auto;height:100%;padding:0 24px;display:flex;align-items:center;gap:28px}
+.brand{display:flex;align-items:center;gap:11px;font-family:var(--font-display);font-weight:700;font-size:18px;letter-spacing:-.01em;color:var(--text)}
+.brand .crown svg{width:26px;height:26px}
+.brand-sub{display:block;font-family:var(--font-ui);font-weight:500;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--text-3)}
+.brand-txt{display:flex;flex-direction:column;line-height:1.15}
+.main-nav{display:flex;gap:4px;margin-left:12px}
+.main-nav a{padding:8px 14px;border-radius:9px;font-size:14px;font-weight:500;color:var(--text-2);transition:color .18s,background .18s}
+.main-nav a:hover{color:var(--text);background:rgba(255,255,255,.05)}
+.main-nav a.active{color:var(--text);background:rgba(255,255,255,.08)}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+
+.site-footer{border-top:1px solid var(--border);background:var(--bg-2);margin-top:auto}
+.footer-inner{max-width:1200px;margin:0 auto;padding:46px 24px 34px;display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:40px}
+.footer-brand .crown svg{width:30px;height:30px}
+.footer-brand p{color:var(--text-3);font-size:13.5px;margin-top:12px;max-width:300px}
+.footer h4{font-family:var(--font-display);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-3);margin-bottom:14px}
+.footer-links{display:flex;flex-direction:column;gap:9px}
+.footer-links a{color:var(--text-2);font-size:14px;transition:color .18s}
+.footer-links a:hover{color:var(--text)}
+.footer-bottom{border-top:1px solid var(--border);padding:18px 0;text-align:center;color:var(--text-3);font-size:12.5px}
+
+main{flex:1;width:100%}
+.page{max-width:1200px;margin:0 auto;padding:40px 24px 72px}
+.page-narrow{max-width:760px}
+.view{animation:viewIn .32s cubic-bezier(.2,.7,.3,1)}
+@keyframes viewIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.view{animation:none}}
+
+/* hero */
+.hero{position:relative;overflow:hidden;border-bottom:1px solid var(--border);background:radial-gradient(1100px 500px at 50% -10%,rgba(255,255,255,.055),transparent 60%)}
+.hero-inner{max-width:1200px;margin:0 auto;padding:84px 24px 66px;text-align:center}
+.hero .crown svg{width:44px;height:44px;filter:drop-shadow(0 0 22px rgba(212,175,55,.35))}
+.hero-eyebrow{margin-top:18px;font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--text-3);font-weight:600}
+.hero h1{font-family:var(--font-display);font-size:clamp(38px,6vw,64px);line-height:1.04;letter-spacing:-.03em;font-weight:700;margin-top:14px}
+.hero-tag{font-size:clamp(17px,2.4vw,21px);color:var(--text-2);margin-top:16px;font-weight:400}
+.hero-em{color:var(--text);font-weight:500}
+.hero-cta{display:flex;gap:14px;justify-content:center;margin-top:34px;flex-wrap:wrap}
+.hero-stats{display:flex;gap:0;justify-content:center;margin-top:52px;border-top:1px solid var(--border);padding-top:30px;flex-wrap:wrap}
+.hero-stat{padding:0 38px;text-align:center}
+.hero-stat + .hero-stat{border-left:1px solid var(--border)}
+.hero-stat b{display:block;font-family:var(--font-display);font-size:30px;font-weight:700}
+.hero-stat span{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-3)}
+
+@media (max-width:760px){
+  .hero-stat{padding:10px 22px}
+  .footer-inner{grid-template-columns:1fr;gap:28px}
+  .main-nav{display:none}
+}
+
+/* ============ CHUNK B: COMPONENTS ============ */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 22px;border-radius:10px;border:1px solid transparent;font-size:14.5px;font-weight:600;cursor:pointer;transition:transform .15s,box-shadow .2s,background .18s,color .18s,border-color .18s,opacity .18s;white-space:nowrap}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:#f2f2f4;color:#101013}
+.btn-primary:hover{background:#fff;box-shadow:0 8px 22px rgba(255,255,255,.12)}
+.btn-ghost{background:transparent;color:var(--text-2);border-color:var(--border-strong)}
+.btn-ghost:hover{color:var(--text);border-color:#4a4a55;background:rgba(255,255,255,.03)}
+.btn-danger{background:transparent;color:#ff7b80;border-color:rgba(229,72,77,.45)}
+.btn-danger:hover{background:rgba(229,72,77,.12);border-color:var(--danger)}
+.btn-solid-danger{background:var(--danger);color:#fff}
+.btn-solid-danger:hover{background:#f0555a}
+.btn-sm{padding:7px 13px;font-size:13px;border-radius:8px}
+.btn-lg{padding:14px 30px;font-size:15.5px;border-radius:12px}
+.btn:disabled,.btn[disabled]{opacity:.45;cursor:not-allowed;transform:none}
+
+.input,.select,.textarea{width:100%;background:var(--surface-2);border:1px solid var(--border-strong);color:var(--text);border-radius:10px;padding:11px 14px;transition:border-color .18s,box-shadow .18s}
+.input::placeholder,.textarea::placeholder{color:var(--text-3)}
+.input:focus,.select:focus,.textarea:focus{outline:none;border-color:#5a5a66;box-shadow:0 0 0 3px rgba(255,255,255,.06)}
+.textarea{resize:vertical;min-height:110px;line-height:1.55}
+.select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%23a3a3ad' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:38px;cursor:pointer}
+.field{margin-bottom:18px}
+.field label{display:block;font-size:13px;font-weight:600;color:var(--text-2);margin-bottom:7px}
+.field .hint{font-size:12px;color:var(--text-3);margin-top:6px}
+.field .req{color:#ff7b80;margin-left:2px}
+.form-error{background:rgba(229,72,77,.1);border:1px solid rgba(229,72,77,.4);color:#ff9aa0;border-radius:10px;padding:11px 14px;font-size:13.5px;margin-bottom:16px}
+.form-ok{background:rgba(70,167,88,.1);border:1px solid rgba(70,167,88,.4);color:#7fd18d;border-radius:10px;padding:11px 14px;font-size:13.5px;margin-bottom:16px}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);transition:border-color .2s,transform .2s,box-shadow .2s}
+.card-hover:hover{transform:translateY(-3px);border-color:var(--border-strong);box-shadow:var(--shadow-1)}
+.card-pad{padding:22px}
+
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;line-height:1.5;white-space:nowrap}
+.badge.member{background:rgba(125,125,136,.16);color:#a9a9b3;border:1px solid rgba(125,125,136,.35)}
+.badge.vip{background:rgba(77,141,255,.14);color:#7fb0ff;border:1px solid rgba(77,141,255,.4)}
+.badge.admin{background:rgba(212,175,55,.13);color:var(--gold);border:1px solid rgba(212,175,55,.45)}
+.badge.admin .crown svg{width:11px;height:11px}
+.badge.plain{background:rgba(255,255,255,.06);color:var(--text-2);border:1px solid var(--border-strong)}
+.badge.ok{background:rgba(70,167,88,.13);color:#7fd18d;border:1px solid rgba(70,167,88,.4)}
+.badge.warn{background:rgba(163,163,173,.12);color:#b9b9c2;border:1px solid rgba(163,163,173,.4)}
+.badge.err{background:rgba(229,72,77,.12);color:#ff9aa0;border:1px solid rgba(229,72,77,.4)}
+
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border-radius:999px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text-2);font-size:13px;font-weight:500;cursor:pointer;transition:all .16s}
+.chip:hover{color:var(--text);border-color:#4a4a55}
+.chip.active{color:#0c0c0e;background:#f2f2f4;border-color:#f2f2f4;font-weight:600}
+
+.avatar{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;overflow:hidden;background:linear-gradient(145deg,#232329,#1a1a1f);border:1px solid var(--border-strong);flex-shrink:0;color:var(--text-3);font-family:var(--font-display);font-weight:600}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.avatar .crown svg{width:46%;height:46%}
+
+/* asset grid + card */
+.grid{display:grid;gap:20px}
+.grid-assets{grid-template-columns:repeat(auto-fill,minmax(248px,1fr))}
+.asset-card{display:flex;flex-direction:column;overflow:hidden;cursor:pointer}
+.asset-thumb{position:relative;height:150px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--border);overflow:hidden}
+.asset-thumb .thumb-bg{position:absolute;inset:0;opacity:.9}
+.asset-thumb .thumb-icon{position:relative;color:#fff;filter:drop-shadow(0 6px 16px rgba(0,0,0,.5))}
+.asset-thumb .thumb-icon svg{width:44px;height:44px;opacity:.92}
+.asset-rank{position:absolute;top:12px;left:12px;background:rgba(12,12,14,.78);backdrop-filter:blur(6px);border:1px solid var(--border-strong);color:var(--text);border-radius:8px;padding:3px 9px;font-size:12px;font-weight:700}
+.asset-cat{position:absolute;top:12px;right:12px}
+.asset-body{padding:15px 16px 16px;display:flex;flex-direction:column;gap:9px;flex:1}
+.asset-title{font-family:var(--font-display);font-size:15.5px;font-weight:600;line-height:1.3}
+.asset-owner{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-2)}
+.asset-owner .avatar{width:22px;height:22px;font-size:10px}
+.asset-foot{display:flex;align-items:center;justify-content:space-between;margin-top:auto;padding-top:9px;border-top:1px solid var(--border)}
+.price{font-family:var(--font-display);font-weight:700;font-size:16px}
+.sales{font-size:12.5px;color:var(--text-3);display:inline-flex;align-items:center;gap:5px}
+
+/* section headers */
+.section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:44px 0 20px}
+.section-head:first-child{margin-top:0}
+.section-head h2{font-family:var(--font-display);font-size:24px;font-weight:700;letter-spacing:-.02em}
+.section-head p{color:var(--text-3);font-size:14px;margin-top:3px}
+.section-eyebrow{font-size:11.5px;letter-spacing:.26em;text-transform:uppercase;color:var(--text-3);font-weight:600;margin-bottom:8px;display:block}
+
+/* toolbar */
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:22px}
+.search{position:relative;flex:1;min-width:220px;max-width:420px}
+.search svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--text-3)}
+.search .input{padding-left:38px}
+
+/* tables */
+.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)}
+.table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:640px}
+.table th{text-align:left;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-3);font-weight:600;padding:13px 16px;border-bottom:1px solid var(--border);white-space:nowrap}
+.table td{padding:13px 16px;border-bottom:1px solid var(--border);vertical-align:middle}
+.table tr:last-child td{border-bottom:none}
+.table tbody tr{transition:background .15s}
+.table tbody tr:hover{background:rgba(255,255,255,.025)}
+.table .row-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+/* tabs */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:26px;overflow-x:auto}
+.tab{padding:11px 18px;font-size:14px;font-weight:600;color:var(--text-3);border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;transition:color .16s,border-color .16s}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--text);border-color:#f2f2f4}
+
+/* toast */
+#toasts{position:fixed;bottom:22px;right:22px;z-index:120;display:flex;flex-direction:column;gap:10px;max-width:340px}
+.toast{background:var(--surface-2);border:1px solid var(--border-strong);color:var(--text);padding:13px 16px;border-radius:11px;box-shadow:var(--shadow-2);font-size:14px;display:flex;gap:10px;align-items:flex-start;animation:toastIn .28s cubic-bezier(.2,.8,.3,1);cursor:pointer}
+.toast.ok{border-color:rgba(70,167,88,.5)}
+.toast.err{border-color:rgba(229,72,77,.55)}
+.toast.out{opacity:0;transform:translateX(16px);transition:all .3s}
+@keyframes toastIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+/* modal */
+.modal-overlay{position:fixed;inset:0;z-index:110;background:rgba(6,6,8,.66);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .2s}
+.modal{width:100%;max-width:470px;background:var(--surface);border:1px solid var(--border-strong);border-radius:16px;box-shadow:var(--shadow-2);padding:26px;animation:popIn .24s cubic-bezier(.2,.8,.3,1)}
+.modal h3{font-family:var(--font-display);font-size:19px;font-weight:700;margin-bottom:10px}
+.modal p{color:var(--text-2);font-size:14px;margin-bottom:20px}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes popIn{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:none}}
+
+/* dropdown */
+.dropdown{position:relative}
+.dropdown-menu{position:absolute;right:0;top:calc(100% + 8px);min-width:230px;background:var(--surface);border:1px solid var(--border-strong);border-radius:12px;box-shadow:var(--shadow-2);padding:6px;z-index:60;animation:popIn .16s}
+.dropdown-menu a,.dropdown-menu button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:10px 12px;border-radius:8px;font-size:14px;color:var(--text-2);background:none;border:none;cursor:pointer;transition:background .14s,color .14s}
+.dropdown-menu a:hover,.dropdown-menu button:hover{background:rgba(255,255,255,.05);color:var(--text)}
+.dropdown-menu .sep{height:1px;background:var(--border);margin:6px 4px}
+
+/* empty state */
+.empty{text-align:center;padding:64px 20px;color:var(--text-3)}
+.empty .crown svg{width:38px;height:38px;opacity:.5;margin:0 auto 14px}
+.empty h3{font-family:var(--font-display);color:var(--text-2);font-size:17px;margin-bottom:6px}
+.empty p{font-size:14px;max-width:360px;margin:0 auto}
+
+/* misc */
+.row{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.spacer{flex:1}
+.divider{border:none;border-top:1px solid var(--border);margin:26px 0}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.dot.on{background:var(--ok);box-shadow:0 0 8px rgba(70,167,88,.6)}
+.dot.off{background:var(--text-3)}
+.mono{font-family:ui-monospace,'SF Mono','Cascadia Code',Menlo,monospace}
+.muted{color:var(--text-3)}
+.small{font-size:12.5px}
+.bold{font-weight:600}
+.mt{margin-top:16px}
+.mt2{margin-top:28px}
+.mb{margin-bottom:16px}
+.center{text-align:center}
+.hidden{display:none!important}
+.loading{display:flex;align-items:center;justify-content:center;gap:10px;padding:60px 0;color:var(--text-3)}
+.spinner{width:18px;height:18px;border-radius:50%;border:2px solid var(--border-strong);border-top-color:var(--text-2);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.kbd{background:var(--surface-2);border:1px solid var(--border-strong);border-radius:5px;padding:1px 6px;font-size:12px;color:var(--text-2);font-family:ui-monospace,monospace}
+
+/* ============ CHUNK C: VIEWS ============ */
+/* auth */
+.auth-wrap{max-width:420px;margin:48px auto;padding:34px;background:var(--surface);border:1px solid var(--border);border-radius:18px}
+.auth-wrap .brand{justify-content:center;margin-bottom:8px}
+.auth-title{font-family:var(--font-display);font-size:23px;font-weight:700;text-align:center;margin:14px 0 4px}
+.auth-sub{text-align:center;color:var(--text-3);font-size:13.5px;margin-bottom:24px}
+.auth-alt{text-align:center;font-size:13.5px;color:var(--text-2);margin-top:20px}
+.auth-alt a{color:var(--text);font-weight:600;border-bottom:1px solid var(--border-strong)}
+.auth-alt a:hover{border-color:var(--text)}
+.demo-box{margin-top:26px;border:1px dashed var(--border-strong);border-radius:11px;padding:14px 16px;background:var(--bg-2);font-size:12.5px;color:var(--text-3)}
+.demo-box b{color:var(--text-2)}
+.demo-box code{color:#c9c9d1}
+
+/* 2FA digits */
+.otp-input{width:100%;text-align:center;font-size:26px;letter-spacing:.55em;padding:13px;font-family:var(--font-display);font-weight:700}
+.totp-live{display:flex;align-items:center;gap:16px;background:var(--bg-2);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
+.totp-code{font-family:var(--font-display);font-size:30px;font-weight:700;letter-spacing:.14em;color:#d7f4dc}
+.totp-ring{width:52px;height:52px;flex-shrink:0}
+.totp-ring circle{fill:none;stroke-width:3}
+.totp-ring .track{stroke:var(--border-strong)}
+.totp-ring .arc{stroke:var(--ok);stroke-linecap:round;transition:stroke-dashoffset 1s linear}
+
+/* asset page */
+.asset-hero{display:grid;grid-template-columns:minmax(300px,440px) 1fr;gap:34px;align-items:start}
+.asset-hero-thumb{position:relative;height:300px;border-radius:16px;border:1px solid var(--border);overflow:hidden;display:flex;align-items:center;justify-content:center}
+.asset-hero-thumb .thumb-icon svg{width:84px;height:84px}
+.asset-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px}
+.asset-desc{color:var(--text-2);font-size:15px;line-height:1.75;white-space:pre-wrap;margin-top:18px}
+.buy-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:14px;margin-top:22px;max-width:380px}
+.buy-box .price{font-size:24px}
+.poster-row{display:flex;align-items:center;gap:12px;padding:16px 0;border-top:1px solid var(--border);margin-top:26px}
+.poster-row .avatar{width:44px;height:44px;font-size:17px}
+
+/* comments */
+.comments{margin-top:44px}
+.comment{display:flex;gap:13px;padding:16px 0;border-top:1px solid var(--border)}
+.comment .avatar{width:38px;height:38px;font-size:14px}
+.comment-body{flex:1;min-width:0}
+.comment-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:4px}
+.comment-name{font-weight:600;font-size:14px}
+.comment-time{font-size:12px;color:var(--text-3)}
+.comment-text{font-size:14px;color:var(--text-2);line-height:1.65;overflow-wrap:break-word}
+.composer{display:flex;gap:12px;margin-top:18px;align-items:flex-start}
+.composer .avatar{width:40px;height:40px;font-size:15px}
+.composer textarea{flex:1;min-height:74px}
+
+/* profile */
+.profile-hero{display:flex;gap:26px;align-items:center;padding:34px;background:var(--surface);border:1px solid var(--border);border-radius:18px;flex-wrap:wrap}
+.profile-hero .avatar{width:104px;height:104px;font-size:38px;border-width:2px}
+.profile-name{font-family:var(--font-display);font-size:28px;font-weight:700;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.profile-handle{color:var(--text-3);font-size:15px}
+.profile-meta{display:flex;gap:26px;margin-top:14px;flex-wrap:wrap}
+.profile-meta div b{font-family:var(--font-display);font-size:19px;display:block}
+.profile-meta div span{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-3)}
+.profile-bio{color:var(--text-2);font-size:14px;margin-top:14px;max-width:560px}
+
+/* portfolio & creators */
+.portfolio-grid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+.project-card{overflow:hidden}
+.project-banner{height:150px;position:relative;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--border);overflow:hidden}
+.project-banner svg{width:52px;height:52px;color:rgba(255,255,255,.9)}
+.project-body{padding:18px 20px 20px}
+.project-body h3{font-family:var(--font-display);font-size:17.5px;font-weight:700;margin-bottom:6px}
+.project-body p{color:var(--text-2);font-size:13.5px;line-height:1.6}
+.project-foot{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+.project-foot b{font-family:var(--font-display);font-size:15px}
+.project-foot span{font-size:12px;color:var(--text-3)}
+.creators-grid{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.creator-card{text-align:center;padding:30px 22px}
+.creator-card .avatar{width:78px;height:78px;font-size:28px;margin:0 auto 16px}
+.creator-card h3{font-family:var(--font-display);font-size:18px;font-weight:700}
+.creator-card .role{color:var(--vip);font-size:12.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-top:3px}
+.creator-card p{color:var(--text-2);font-size:13.5px;margin-top:12px;line-height:1.6}
+
+/* license */
+.tier-grid{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.tier{border:1px solid var(--border);border-radius:16px;padding:26px;background:var(--surface);position:relative;display:flex;flex-direction:column;gap:12px}
+.tier.featured{border-color:var(--border-strong);background:var(--surface-2)}
+.tier h3{font-family:var(--font-display);font-size:19px}
+.tier .price-line{font-family:var(--font-display);font-size:24px;font-weight:700}
+.tier ul{list-style:none;display:flex;flex-direction:column;gap:8px;font-size:13.5px;color:var(--text-2)}
+.tier li{display:flex;gap:9px;align-items:flex-start}
+.tier li::before{content:"✓";color:var(--ok);font-weight:700;flex-shrink:0}
+.tier .btn{margin-top:auto}
+.license-key{font-family:ui-monospace,monospace;background:var(--bg-2);border:1px solid var(--border-strong);border-radius:8px;padding:5px 10px;font-size:12.5px;color:#c9c9d1;letter-spacing:.06em}
+
+/* admin */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:18px 20px}
+.stat-card b{font-family:var(--font-display);font-size:27px;display:block}
+.stat-card span{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-3)}
+.approve-card{display:flex;gap:18px;background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:18px;align-items:flex-start;flex-wrap:wrap}
+.approve-card .thumb{width:110px;height:82px;border-radius:10px;border:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+.approve-card .info{flex:1;min-width:220px}
+.approve-card h4{font-family:var(--font-display);font-size:16px;margin-bottom:4px}
+.approve-card .desc{color:var(--text-3);font-size:13px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.user-row{display:flex;align-items:center;gap:12px}
+.user-row .avatar{width:34px;height:34px;font-size:13px}
+.status-pill{font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;display:inline-block}
+.status-approved{background:rgba(70,167,88,.13);color:#7fd18d;border:1px solid rgba(70,167,88,.4)}
+.status-pending{background:rgba(163,163,173,.14);color:#b9b9c2;border:1px solid rgba(163,163,173,.45)}
+.status-rejected{background:rgba(229,72,77,.12);color:#ff9aa0;border:1px solid rgba(229,72,77,.4)}
+
+/* mobile */
+@media (max-width:860px){
+  .asset-hero{grid-template-columns:1fr}
+  .asset-hero-thumb{height:210px}
+  .page{padding:28px 16px 56px}
+  .header-inner{padding:0 14px;gap:14px}
+  .hero-inner{padding:56px 18px 44px}
+  .profile-hero{padding:24px}
+  .modal{max-width:100%}
+}
+@media (max-width:560px){
+  .hide-sm{display:none!important}
+  .grid-assets{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px}
+  .asset-thumb{height:110px}
+  .asset-title{font-size:14px}
+}
+
+/* generic thumb gradients by category */
+.thumb-anim{background:linear-gradient(150deg,#24324a,#12141c)}
+.thumb-model{background:linear-gradient(150deg,#2c2338,#14121a)}
+.thumb-plugin{background:linear-gradient(150deg,#1f3a34,#101612)}
+.thumb-system{background:linear-gradient(150deg,#3a2b1f,#171310)}
+.thumb-default{background:linear-gradient(150deg,#26262e,#141418)}
+
+/* reviews & ratings */
+.stars{display:inline-flex;gap:2px;color:var(--text);font-size:13px;letter-spacing:1px;line-height:1}
+.stars .off{color:var(--border-strong)}
+.asset-rating{display:flex;align-items:center;gap:7px}
+.star-btn{background:none;border:none;cursor:pointer;font-size:21px;line-height:1;color:var(--border-strong);padding:2px 3px;transition:color .15s,transform .15s}
+.star-btn.on{color:var(--text)}
+.star-btn:hover{transform:scale(1.18)}
+.stars-pick{display:inline-flex;margin-bottom:8px}
+.review-summary{display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap;padding:22px}
+.review{display:flex;gap:13px;padding:16px 0;border-top:1px solid var(--border)}
+.review .avatar{width:36px;height:36px;font-size:13px}
+.review-text{font-size:14px;color:var(--text-2);line-height:1.65;overflow-wrap:break-word;margin-top:5px}
+.review-form .textarea{min-height:70px;margin-bottom:10px}
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;border:1px solid var(--border-strong);background:transparent;color:var(--text-3);cursor:pointer;transition:all .15s;margin-left:auto}
+.icon-btn:hover{color:var(--text);border-color:#4a4a55;background:rgba(255,255,255,.03)}
+.icon-btn.danger:hover{color:#ff7b80;border-color:rgba(229,72,77,.5);background:rgba(229,72,77,.1)}
+
+</style>
+</head>
+<body>
+<div id="app" aria-live="polite"></div>
+<noscript><div style="padding:40px;font-family:sans-serif;color:#fff;background:#0c0c0e;min-height:100vh">Kings Production requires JavaScript to run.</div></noscript>
+<script>
+'use strict';
+/* ================= CHUNK 1: STORE · SEED · HELPERS ================= */
+const STORE_KEY = 'kp_db_v3';
+const SESSION_KEY = 'kp_session_v3';
+const IDB_NAME = 'kp_files';
+const IDB_STORE = 'files';
+
+const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-5);
+const now = () => Date.now();
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtMoney = n => 'R$ ' + Number(n || 0).toLocaleString('en-US');
+const fmtDate = t => new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+const fmtDateFull = t => new Date(t).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+const initials = name => String(name || '?').trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+function timeAgo(t) {
+  const s = Math.max(0, (now() - t) / 1000);
+  if (s < 60) return 'just now';
+  const m = s / 60;
+  if (m < 60) return Math.floor(m) + 'm ago';
+  const h = m / 60;
+  if (h < 24) return Math.floor(h) + 'h ago';
+  const d = h / 24;
+  if (d < 30) return Math.floor(d) + 'd ago';
+  return fmtDate(t);
+}
+const b64encode = str => btoa(unescape(encodeURIComponent(str)));
+const b64decode = b64 => decodeURIComponent(escape(atob(b64)));
+
+/* ---- icon set (grey UI icons; the crown is the only gold element) ---- */
+const ICON = {
+  crown: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 16.5V10l4.2 3.6L12 6.5l3.8 7.1L20 10v6.5a1.6 1.6 0 0 1-1.6 1.6H5.6A1.6 1.6 0 0 1 4 16.5Z"/><rect x="5.2" y="19" width="13.6" height="1.8" rx="0.9"/></svg>',
+  search: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>',
+  cart: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2.5 3.5h2.6l2.4 11h11l2.6-8.5H6"/></svg>',
+  download: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11m0 0 4.2-4.2M12 14 7.8 9.8"/><path d="M4 17v2.4A1.6 1.6 0 0 0 5.6 21h12.8a1.6 1.6 0 0 0 1.6-1.6V17"/></svg>',
+  edit: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3.5a2.4 2.4 0 0 1 3.4 3.4L8 19.3 3.5 20.5 4.7 16 17 3.5Z"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6.5h17M9 6.5V4.6A1.6 1.6 0 0 1 10.6 3h2.8A1.6 1.6 0 0 1 15 4.6v1.9m3.5 0-1 12.3A1.6 1.6 0 0 1 15.9 20H8.1a1.6 1.6 0 0 1-1.6-1.4l-1-12.1"/><path d="M10 10.5v6M14 10.5v6"/></svg>',
+  shield: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 5.8v5.4c0 4.5 3 8.4 7 9.8 4-1.4 7-5.3 7-9.8V5.8L12 3Z"/><path d="m9 11.8 2.2 2.2L15.5 9.5"/></svg>',
+  clock: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
+  ban: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="m6 6 12 12"/></svg>',
+  logout: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/><path d="M10 8l-4 4 4 4M6 12h9"/></svg>',
+  user: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1.6-3.4 4.3-5 7.5-5s5.9 1.6 7.5 5"/></svg>',
+  upload: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V5m0 0L7.8 9.2M12 5l4.2 4.2"/><path d="M4 17v2.4A1.6 1.6 0 0 0 5.6 21h12.8a1.6 1.6 0 0 0 1.6-1.6V17"/></svg>',
+  key: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="14" r="4.5"/><path d="m11 11 8.5-8.5M16 6l3 3M13.5 8.5 16 11"/></svg>',
+  mail: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 7 8.5 6 8.5-6"/></svg>',
+  lock: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>',
+  chevron: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>',
+  check: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m4.5 12.5 5 5 10-11"/></svg>',
+  x: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  eye: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>',
+  anim: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="16" rx="2"/><path d="M7.5 4v16M16.5 4v16M2.5 9h5M2.5 15h5M16.5 9h5M16.5 15h5"/><path d="m10 10 3.5 2-3.5 2Z" fill="currentColor" stroke="none"/></svg>',
+  model: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 2.8 20 7.4v9.2L12 21.2 4 16.6V7.4L12 2.8Z"/><path d="M12 2.8v9.2m0 0L4 7.4m8 4.6 8-4.6M12 21.2v-9.2"/></svg>',
+  plugin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M8 4a1 1 0 0 1 2 0v1h4V4a1 1 0 0 1 2 0v1a2 2 0 0 0 2 2h1v4h-1a1 1 0 0 0 0 2h1v4h-1a2 2 0 0 0-2 2v1h-4v-1a1 1 0 0 0-2 0v1H6v-1a2 2 0 0 0-2-2H3v-4h1a1 1 0 0 0 0-2H3V7h1a2 2 0 0 0 2-2V4h2Z"/></svg>',
+  system: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.5M12 18.7v2.5M2.8 12h2.5M18.7 12h2.5M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8"/></svg>',
+  flag: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 4.5c4.5-2 7 2 11 0v8.5c-4.5 2-7-2-11 0"/><path d="M5 13c4.5-2 7 2 11 0"/></svg>'
+};
+const CATEGORIES = ['animation', 'model', 'plugin', 'system'];
+const CAT_LABEL = { animation: 'Animation', model: 'Model', plugin: 'Plugin', system: 'System' };
+const CAT_ICON = { animation: ICON.anim, model: ICON.model, plugin: ICON.plugin, system: ICON.system };
+const CAT_THUMB = { animation: 'thumb-anim', model: 'thumb-model', plugin: 'thumb-plugin', system: 'thumb-system' };
+
+/* ---- IndexedDB file store (uploads may exceed localStorage quota) ---- */
+function idbOpen() {
+  return new Promise((res, rej) => {
+    const rq = indexedDB.open(IDB_NAME, 1);
+    rq.onupgradeneeded = () => rq.result.createObjectStore(IDB_STORE);
+    rq.onsuccess = () => res(rq.result);
+    rq.onerror = () => rej(rq.error);
+  });
+}
+async function idbPut(key, val) { const db = await idbOpen(); return new Promise((res, rej) => { const tx = db.transaction(IDB_STORE, 'readwrite'); tx.objectStore(IDB_STORE).put(val, key); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); }); }
+async function idbGet(key) { const db = await idbOpen(); return new Promise((res, rej) => { const tx = db.transaction(IDB_STORE, 'readonly'); const rq = tx.objectStore(IDB_STORE).get(key); rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error); }); }
+async function idbDel(key) { const db = await idbOpen(); return new Promise((res, rej) => { const tx = db.transaction(IDB_STORE, 'readwrite'); tx.objectStore(IDB_STORE).delete(key); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); }); }
+
+/* ---- browser storage backend (fallback when the Express/SQLite server is unreachable) ----
+   The engine in shared/engine.js talks to `store` (metadata) + `Files` (blobs).
+   The same engine runs inside the Node server against SQLite + disk. */
+const DB_TABLES = ['users', 'assets', 'purchases', 'comments', 'sessions', 'tokens', 'emails', 'reviews', 'reports', 'portfolio', 'creators'];
+const Files = {
+  put: (id, file) => idbPut(id, file),
+  get: id => idbGet(id).then(v => v || null),
+  del: id => idbDel(id),
+};
+function createLocalStore() {
+  const DB = {};
+  DB_TABLES.forEach(t => DB[t] = []);
+  let _lastSave = 0;
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (raw) { const d = JSON.parse(raw); if (d && d.v === 3) DB_TABLES.forEach(t => { if (Array.isArray(d[t])) DB[t] = d[t]; }); }
+    } catch (e) { console.warn('DB load failed', e); }
+  }
+  function save() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(Object.assign({ v: 3 }, DB))); _lastSave = Date.now(); }
+    catch (e) { console.warn('DB save failed', e); }
+  }
+  load();
+  return {
+    get: (t, id) => (DB[t] || []).find(x => x.id === id) || null,
+    all: t => DB[t] || [],
+    put: (t, row) => {
+      const arr = DB[t] || (DB[t] = []);
+      const i = arr.findIndex(x => x.id === row.id);
+      if (i >= 0) arr[i] = row; else arr.push(row);
+      const n = Date.now();
+      if (n - _lastSave > 1200) save();
+    },
+    del: (t, id) => { DB[t] = (DB[t] || []).filter(x => x.id !== id); save(); },
+    flush: save,
+  };
+}
+
+/* ---- demo accounts removed ----
+   No users, assets, purchases, or comments are seeded. Studio content
+   (portfolio + creators) is seeded by the engine itself; the first user to
+   register on a fresh install is auto-promoted to Admin (configurable via
+   AUTO_ADMIN on the server). */
+
+/* ================= CHUNK 2: UI ROLE HELPERS ================= */
+/* The pre-port in-browser API (crypto, sessions, marketplace, admin) once lived
+   here and is removed — all business logic now runs in the shared engine below
+   (KP-ENGINE-BEGIN .. KP-ENGINE-END) against localStorage/IndexedDB in the
+   browser or SQLite/disk on the Node server. The client wrapper further below
+   attaches the normalized API surface to `API`. These role helpers are still
+   used directly by the views for UI decisions. */
+const isTimedOut = u => !!(u && u.timeoutUntil && u.timeoutUntil > now());
+const isBanned = u => !!(u && u.banned);
+const canPost = u => !!(u && (u.role === 'vip' || u.role === 'admin') && !isBanned(u) && !isTimedOut(u));
+function timeoutText(u) {
+  if (!u || !u.timeoutUntil) return null;
+  const ms = u.timeoutUntil - now();
+  if (ms <= 0) return null;
+  const h = Math.floor(ms / 36e5), m = Math.floor((ms % 36e5) / 6e4);
+  return (h > 0 ? h + 'h ' : '') + m + 'm';
+}
+
+/* ================= API ================= */
+const API = {};
+/* ==== KP-ENGINE-BEGIN ==== */
+/* ============================================================================
+   KINGS PRODUCTION ENGINE v3
+   Shared business logic. Runs in the Node backend (module.exports) and is
+   inlined verbatim into the browser bundle (window.KPEngine) by
+   scripts/build.mjs — keep the two copies identical.
+
+   The engine is transport-agnostic. It talks to three injected adapters:
+     store  — get(table,id) / all(table) / put(table,row) / del(table,id) / flush()
+              (browser: localStorage; node: SQLite via server/sqlite-store.js)
+     files  — put(id, {name,data,mime,size}) / get(id) / del(id)
+              (browser: IndexedDB; node: disk via server/disk-files.js)
+     mail   — optional deliver(email) side-channel (node: console + optional SMTP)
+   Uses only platform crypto (globalThis.crypto, TextEncoder) available in both
+   Node >= 19 and browsers.
+   ============================================================================ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.KPEngine = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  /* ---- helpers ---- */
+  const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-5);
+  const now = () => Date.now();
+  const ok = data => ({ ok: true, data: data == null ? null : data });
+  const fail = (code, error) => ({ ok: false, code, error });
+  const byId = (list, id) => list.find(x => x.id === id);
+
+  const CATEGORIES = ['animation', 'model', 'plugin', 'system'];
+  const CAT_LABEL = { animation: 'Animation', model: 'Model', plugin: 'Plugin', system: 'System' };
+  const ROLES = ['member', 'vip', 'admin'];
+
+  /* ---- crypto (WebCrypto — works in Node >= 19 and browsers) ---- */
+  const TE = new TextEncoder();
+  const hex = b => [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+  const unhex = s => new Uint8Array(s.match(/.{2}/g).map(x => parseInt(x, 16)));
+  function randomToken(bytes = 24) { const a = new Uint8Array(bytes); crypto.getRandomValues(a); return hex(a); }
+
+  async function hashPassword(pw) {
+    const salt = new Uint8Array(16); crypto.getRandomValues(salt);
+    const key = await crypto.subtle.importKey('raw', TE.encode(pw), 'PBKDF2', false, ['deriveBits']);
+    const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: 60000, hash: 'SHA-256' }, key, 256);
+    return hex(salt) + ':' + hex(new Uint8Array(bits));
+  }
+  async function verifyPassword(pw, stored) {
+    try {
+      const [sh, hh] = String(stored).split(':');
+      const key = await crypto.subtle.importKey('raw', TE.encode(pw), 'PBKDF2', false, ['deriveBits']);
+      const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: unhex(sh), iterations: 60000, hash: 'SHA-256' }, key, 256);
+      return hex(new Uint8Array(bits)) === hh;
+    } catch (e) { return false; }
+  }
+
+  /* ---- TOTP (RFC 6238) for 2FA ---- */
+  const B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  function base32Encode(bytes) {
+    let bits = 0, val = 0, out = '';
+    for (const b of bytes) { val = (val << 8) | b; bits += 8; while (bits >= 5) { out += B32[(val >> (bits - 5)) & 31]; bits -= 5; } }
+    if (bits > 0) out += B32[(val << (5 - bits)) & 31];
+    return out;
+  }
+  function base32Decode(str) {
+    const map = {}; [...B32].forEach((c, i) => map[c] = i);
+    let bits = 0, val = 0; const out = [];
+    for (const ch of String(str).toUpperCase().replace(/=+$/, '')) { if (map[ch] == null) continue; val = (val << 5) | map[ch]; bits += 5; if (bits >= 8) { out.push((val >> (bits - 8)) & 255); bits -= 8; } }
+    return new Uint8Array(out);
+  }
+  function totpSecret() { const s = new Uint8Array(20); crypto.getRandomValues(s); return base32Encode(s); }
+  function otpauthUri(secret, email) {
+    return 'otpauth://totp/Kings%20Production:' + encodeURIComponent(email) + '?secret=' + secret + '&issuer=Kings%20Production&algorithm=SHA1&digits=6&period=30';
+  }
+  async function totpCode(secret, atMs = Date.now()) {
+    const counter = Math.floor(atMs / 1000 / 30);
+    const key = await crypto.subtle.importKey('raw', base32Decode(secret), { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']);
+    const buf = new ArrayBuffer(8); new DataView(buf).setUint32(4, counter, false);
+    const h = new Uint8Array(await crypto.subtle.sign('HMAC', key, new Uint8Array(buf)));
+    const off = h[h.length - 1] & 0xf;
+    const bin = ((h[off] & 0x7f) << 24) | (h[off + 1] << 16) | (h[off + 2] << 8) | h[off + 3];
+    return String(bin % 1000000).padStart(6, '0');
+  }
+  async function verifyTotp(secret, code, windowSteps = 1) {
+    if (!/^\d{6}$/.test(String(code || ''))) return false;
+    const t = Date.now();
+    for (let w = -windowSteps; w <= windowSteps; w++) if ((await totpCode(secret, t + w * 30000)) === String(code)) return true;
+    return false;
+  }
+
+  /* ---- user helpers ---- */
+  const isTimedOut = u => !!(u && u.timeoutUntil && u.timeoutUntil > now());
+  const isBanned = u => !!(u && u.banned);
+  const isRestricted = u => isBanned(u) || isTimedOut(u);
+  const canPost = u => !!(u && (u.role === 'vip' || u.role === 'admin') && !isBanned(u) && !isTimedOut(u));
+  const isAdmin = u => !!(u && u.role === 'admin');
+  const publicUser = u => u ? ({ id: u.id, handle: u.handle, displayName: u.displayName, role: u.role, pfp: u.pfp, bio: u.bio, createdAt: u.createdAt }) : null;
+  const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled }) : null;
+  function timeoutText(u) {
+    if (!u || !u.timeoutUntil) return null;
+    const ms = u.timeoutUntil - now();
+    if (ms <= 0) return null;
+    const h = Math.floor(ms / 36e5), m = Math.floor((ms % 36e5) / 6e4);
+    return (h > 0 ? h + 'h ' : '') + m + 'm';
+  }
+  const okHandle = h => /^[a-zA-Z0-9_]{3,20}$/.test(h || '');
+  const okEmail = e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e || '');
+
+  /* ---- studio content (portfolio + creators are content rows, NOT accounts) ---- */
+  const CONTENT = {
+    portfolio: [
+      { id: 'pp1', title: 'Kingdom Realms', category: 'Game Experience', desc: 'A medieval RPG with custom combat systems, a questing framework, and a living player economy.', stat: '1.2M visits', status: 'Live' },
+      { id: 'pp2', title: 'Neon Drift', category: 'Racing', desc: 'High-speed arcade racing built on our drift controller, with neon night circuits and time trials.', stat: '860K visits', status: 'Live' },
+      { id: 'pp3', title: 'Shadow Vault', category: 'Horror', desc: 'A co-op horror escape with dynamic lighting, proximity audio, and procedurally placed vaults.', stat: '640K visits', status: 'Live' },
+      { id: 'pp4', title: 'Pixel Harvest', category: 'Farming', desc: 'A cozy farming simulation with seasons, crops, automation, and a trading marketplace.', stat: '510K visits', status: 'Live' },
+      { id: 'pp5', title: 'Arsenal Zero', category: 'FPS Framework', desc: 'A modular FPS framework — loadouts, hit registration, and networking — shipped to 40+ experiences.', stat: '320K installs', status: 'Framework' },
+      { id: 'pp6', title: 'Lumen Isles', category: 'Adventure', desc: 'An open-world adventure with custom terrain generation and a traversal system in active development.', stat: '280K visits', status: 'Beta' }
+    ],
+    creators: [
+      { id: 'cr1', name: 'King', role: 'Founder · Lead Developer', bio: 'Builds the systems that hold the studio together and ships the frameworks you see in the shop.' },
+      { id: 'cr2', name: 'Vex', role: 'UI / UX Designer', bio: 'Designs interfaces players actually enjoy. Behind the Vex UI Library and every shop front.' },
+      { id: 'cr3', name: 'Ace', role: 'Core Scripter', bio: 'Writes the server-authoritative code behind our admin, auction, and framework systems.' },
+      { id: 'cr4', name: 'Nova', role: '3D Modeler', bio: 'Crafts the models, rigs, and environments — from character packs to modular castle kits.' },
+      { id: 'cr5', name: 'Echo', role: 'Animator', bio: 'Hand-tunes every animation clip, from combat flows to climbing and parkour.' },
+      { id: 'cr6', name: 'Onyx', role: 'Systems Engineer', bio: 'Designs backend logic, data stores, and the architecture behind our largest projects.' }
+    ]
+  };
+
+  function createEngine(deps) {
+    const store = deps.store, files = deps.files, mail = deps.mail;
+    const cfg = Object.assign(
+      { autoAdminFirstUser: true, devMail: true, onlineWindowMs: 10 * 6e4, sessionTtlMs: 30 * 24 * 36e5, maxUploadBytes: 20 * 1024 * 1024 },
+      deps.config || {}
+    );
+    const all = t => store.all(t);
+    const byIdIn = (t, id) => store.get(t, id);
+    const flush = () => { if (store.flush) store.flush(); };
+    const dbUser = id => byIdIn('users', id);
+    const resolveUser = user => (user && user.id) ? dbUser(user.id) : null;
+    const requireAdmin = actor => {
+      if (!actor) return fail('auth', 'You must be logged in as an admin.');
+      if (actor.role !== 'admin') return fail('adminOnly', 'You do not have permission to do that.');
+      return null;
+    };
+
+    function seedContent() {
+      if (all('portfolio').length) return;
+      CONTENT.portfolio.forEach(r => store.put('portfolio', r));
+      CONTENT.creators.forEach(r => store.put('creators', r));
+      flush();
+    }
+
+    function pruneSessions() {
+      const old = now() - cfg.sessionTtlMs, idle = now() - 24 * 36e5;
+      all('sessions').filter(s => s.createdAt < old || s.lastSeen < idle).forEach(s => store.del('sessions', s.id));
+    }
+    function createSession(userId, label) {
+      const s = { id: randomToken(), userId, label: label || '', createdAt: now(), lastSeen: now(), expiresAt: now() + cfg.sessionTtlMs };
+      store.put('sessions', s);
+      flush(); // session writes must persist immediately
+      return s;
+    }
+
+    function summarize(a) {
+      const o = dbUser(a.ownerId);
+      const rv = all('reviews').filter(r => r.assetId === a.id);
+      const rating = rv.length ? Math.round((rv.reduce((s, r) => s + r.rating, 0) / rv.length) * 10) / 10 : null;
+      return { id: a.id, title: a.title, category: a.category, price: a.price, sales: a.sales, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, owner: o ? publicUser(o) : null, rating, ratingCount: rv.length };
+    }
+    function sendEmail(rec) {
+      const row = { id: 'e' + uid(), to: rec.to, subject: rec.subject, action: rec.action, body: rec.body, link: rec.link || null, createdAt: now(), read: false };
+      store.put('emails', row);
+      if (mail && mail.deliver) { try { mail.deliver({ ...rec, link: rec.link }); } catch (e) { console.error('mail deliver failed', e); } }
+      flush();
+      return row;
+    }
+
+    /* ============ AUTH ============ */
+    async function register({ handle, displayName, email, password } = {}) {
+      handle = String(handle || '').trim();
+      displayName = String(displayName || '').trim();
+      email = String(email || '').trim().toLowerCase();
+      if (!okHandle(handle)) return fail('invalid', 'Handle must be 3–20 characters (letters, numbers, underscore).');
+      if (all('users').some(u => u.handle.toLowerCase() === handle.toLowerCase())) return fail('taken', 'That handle is already taken.');
+      if (displayName.length < 2 || displayName.length > 40) return fail('invalid', 'Display name must be 2–40 characters.');
+      if (!okEmail(email)) return fail('invalid', 'Please enter a valid email address.');
+      if (all('users').some(u => u.email.toLowerCase() === email)) return fail('taken', 'An account with that email already exists.');
+      if (String(password || '').length < 6) return fail('invalid', 'Password must be at least 6 characters.');
+      const isFirst = cfg.autoAdminFirstUser && all('users').length === 0;
+      const user = {
+        id: 'u' + uid(), handle, displayName, email, role: isFirst ? 'admin' : 'member',
+        passHash: await hashPassword(password), bio: '', pfp: null,
+        totpSecret: null, totpEnabled: false, banned: false, banReason: null, timeoutUntil: null, createdAt: now(), updatedAt: now(),
+      };
+      store.put('users', user);
+      const s = createSession(user.id);
+      flush();
+      return ok({ token: s.id, user: selfUser(user) });
+    }
+
+    async function login({ login, password, label } = {}) {
+      login = String(login || '').trim().toLowerCase();
+      const u = all('users').find(x => x.handle.toLowerCase() === login || x.email.toLowerCase() === login);
+      if (!u || !(await verifyPassword(String(password || ''), u.passHash))) return fail('bad', 'Incorrect handle/email or password.');
+      if (u.banned) return fail('banned', 'This account has been banned by an administrator.');
+      if (u.totpEnabled) return ok({ need2fa: true, userId: u.id });
+      const s = createSession(u.id, label);
+      return ok({ token: s.id, user: selfUser(u) });
+    }
+
+    async function verify2fa({ userId, code, label } = {}) {
+      const u = dbUser(userId);
+      if (!u || !u.totpEnabled) return fail('bad', 'Two-factor verification is not active for this account.');
+      if (u.banned) return fail('banned', 'This account has been banned by an administrator.');
+      if (!(await verifyTotp(u.totpSecret, code))) return fail('bad', 'That code is invalid or expired.');
+      const s = createSession(u.id, label);
+      return ok({ token: s.id, user: selfUser(u) });
+    }
+
+    async function requestReset({ email } = {}) {
+      email = String(email || '').trim().toLowerCase();
+      const u = all('users').find(x => x.email.toLowerCase() === email);
+      if (!u) return ok({ sent: true }); // never reveal whether an email exists
+      all('tokens').filter(t => t.userId === u.id && t.purpose === 'reset' && !t.used).forEach(t => store.del('tokens', t.id));
+      const token = randomToken(18);
+      store.put('tokens', { id: 't' + uid(), userId: u.id, token, purpose: 'reset', expiresAt: now() + 36e5, used: false, createdAt: now() });
+      const link = '#/reset?token=' + token;
+      sendEmail({ to: u.email, subject: 'Reset your Kings Production password', action: 'reset', body: 'A password reset was requested for your account. Use the link below to choose a new password. This link expires in 60 minutes and can only be used once.', link });
+      return ok(Object.assign({ sent: true }, cfg.devMail ? { devLink: link } : {}));
+    }
+
+    async function resetPassword({ token, password } = {}) {
+      const t = all('tokens').find(x => x.token === token && x.purpose === 'reset' && !x.used);
+      if (!t) return fail('bad', 'This reset link is invalid or has already been used.');
+      if (t.expiresAt < now()) return fail('expired', 'This reset link has expired. Request a new one.');
+      if (String(password || '').length < 6) return fail('invalid', 'Password must be at least 6 characters.');
+      const u = dbUser(t.userId);
+      if (!u) return fail('bad', 'Account not found.');
+      u.passHash = await hashPassword(password);
+      u.updatedAt = now();
+      store.put('users', u);
+      t.used = true;
+      store.put('tokens', t);
+      all('sessions').filter(s => s.userId === u.id).forEach(s => store.del('sessions', s.id)); // sign out everywhere
+      flush();
+      return ok(true);
+    }
+
+    async function logout(token) {
+      if (token) store.del('sessions', token);
+      flush();
+      return ok(true);
+    }
+
+    async function me(token) {
+      if (!token) return ok(null);
+      pruneSessions();
+      const s = byIdIn('sessions', token);
+      if (!s) return ok(null);
+      const u = dbUser(s.userId);
+      if (!u) return ok(null);
+      s.lastSeen = now();
+      store.put('sessions', s);
+      return ok(selfUser(u));
+    }
+
+    /* ============ PROFILE & 2FA ============ */
+    async function updateProfile(user, { displayName, handle, bio, pfp } = {}) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'Account not found.');
+      displayName = String(displayName || '').trim();
+      handle = String(handle || '').trim();
+      if (displayName.length < 2 || displayName.length > 40) return fail('invalid', 'Display name must be 2–40 characters.');
+      if (!okHandle(handle)) return fail('invalid', 'Handle must be 3–20 characters (letters, numbers, underscore).');
+      if (all('users').some(x => x.id !== u.id && x.handle.toLowerCase() === handle.toLowerCase())) return fail('taken', 'That handle is already taken.');
+      if (pfp !== null && pfp !== undefined && typeof pfp === 'string' && pfp.length > 1.8e6) return fail('invalid', 'Profile picture is too large.');
+      u.displayName = displayName;
+      u.handle = handle;
+      if (bio !== undefined) u.bio = String(bio || '').slice(0, 300);
+      if (pfp !== undefined) u.pfp = pfp || null;
+      u.updatedAt = now();
+      store.put('users', u);
+      flush();
+      return ok(publicUser(u));
+    }
+
+    async function setup2fa(user) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'Account not found.');
+      if (!u.totpSecret) { u.totpSecret = totpSecret(); store.put('users', u); flush(); }
+      return ok({ secret: u.totpSecret, uri: otpauthUri(u.totpSecret, u.email), email: u.email });
+    }
+    async function enable2fa(user, { code } = {}) {
+      const u = resolveUser(user);
+      if (!u || !u.totpSecret) return fail('bad', 'No secret has been generated yet — start setup first.');
+      if (!(await verifyTotp(u.totpSecret, code))) return fail('bad', 'That code is invalid — make sure your authenticator shows the current code.');
+      u.totpEnabled = true;
+      store.put('users', u);
+      flush();
+      return ok(true);
+    }
+    async function disable2fa(user, { code } = {}) {
+      const u = resolveUser(user);
+      if (!u || !u.totpEnabled) return fail('bad', 'Two-factor authentication is not enabled.');
+      if (!(await verifyTotp(u.totpSecret, code))) return fail('bad', 'That code is invalid or expired.');
+      u.totpEnabled = false;
+      u.totpSecret = null;
+      store.put('users', u);
+      flush();
+      return ok(true);
+    }
+
+    /* ============ ASSETS ============ */
+    function normalizeFile(fileData, fileName) {
+      if (fileData && typeof fileData === 'object') return { name: fileData.name || fileName, data: fileData.data, mime: fileData.mime || 'application/octet-stream', size: fileData.size || 0 };
+      if (fileData) return { name: fileName, data: fileData, mime: 'application/octet-stream', size: 0 };
+      return null;
+    }
+
+    async function createAsset(user, { title, category, description, price, fileName, fileData } = {}) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to post assets.');
+      if (!canPost(u)) {
+        if (u.role === 'member') return fail('vipOnly', 'Only VIP / Licensed creators can post assets. Members can comment and purchase.');
+        if (isTimedOut(u)) return fail('timeout', 'You are currently timed out and cannot post assets.');
+        return fail('auth', 'You must be logged in to post assets.');
+      }
+      title = String(title || '').trim();
+      description = String(description || '').trim();
+      price = Number(price);
+      category = String(category || '').toLowerCase();
+      if (title.length < 3 || title.length > 60) return fail('invalid', 'Title must be 3–60 characters.');
+      if (!CATEGORIES.includes(category)) return fail('invalid', 'Choose a valid category: Animation, Model, Plugin, or System.');
+      if (description.length < 10) return fail('invalid', 'A full description is required (at least 10 characters).');
+      if (!Number.isFinite(price) || price <= 0 || price > 999999) return fail('invalid', 'Price must be a positive number of Robux.');
+      const file = normalizeFile(fileData, fileName);
+      if (!fileName && !file) return fail('invalid', 'Please upload the asset file.');
+      const asset = {
+        id: 'a' + uid(), ownerId: u.id, title, category, description, price,
+        fileName: file ? file.name : fileName, fileMime: file ? file.mime : 'application/octet-stream', fileSize: file ? file.size : 0,
+        status: 'pending', rejectReason: null, sales: 0, createdAt: now(), updatedAt: now(), approvedAt: null,
+      };
+      if (file) {
+        if (file.size > cfg.maxUploadBytes) return fail('invalid', 'File is too large (max 20 MB).');
+        try { await files.put(asset.id, file); }
+        catch (err) { console.error(err); return fail('storage', 'Could not store the file.'); }
+      }
+      store.put('assets', asset);
+      flush();
+      return ok({ id: asset.id, status: 'pending' });
+    }
+
+    async function listApproved() {
+      return ok(all('assets').filter(a => a.status === 'approved').sort((x, y) => y.createdAt - x.createdAt).map(summarize));
+    }
+    async function topSelling(n = 6) {
+      return ok(all('assets').filter(a => a.status === 'approved').sort((x, y) => y.sales - x.sales).slice(0, n).map(summarize));
+    }
+    async function getAsset(id, viewerId) {
+      const a = byIdIn('assets', id);
+      if (!a) return fail('notfound', 'This asset could not be found.');
+      const viewer = viewerId ? dbUser(viewerId) : null;
+      const isOwner = !!viewer && viewer.id === a.ownerId;
+      const isAdminView = !!viewer && viewer.role === 'admin';
+      if (a.status !== 'approved' && !isOwner && !isAdminView) return fail('notfound', 'This asset is not available yet.');
+      const purchase = viewer ? all('purchases').find(p => p.assetId === id && p.buyerId === viewer.id) : null;
+      return ok({
+        ...summarize(a),
+        description: a.description,
+        isOwner,
+        hasPurchased: !!purchase,
+        canDownload: !!(isOwner || isAdminView || purchase),
+        purchase,
+      });
+    }
+
+    async function updateAsset(user, id, { title, category, description, price, fileName, fileData } = {}) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const a = byIdIn('assets', id);
+      if (!a) return fail('notfound', 'Asset not found.');
+      if (a.ownerId !== u.id) return fail('forbidden', 'Only the creator of this asset can edit it.');
+      if (!canPost(u)) return fail('timeout', 'You are currently restricted and cannot edit posts.');
+      if (title !== undefined) {
+        title = String(title || '').trim();
+        if (title.length < 3 || title.length > 60) return fail('invalid', 'Title must be 3–60 characters.');
+        a.title = title;
+      }
+      if (category !== undefined) {
+        category = String(category).toLowerCase();
+        if (!CATEGORIES.includes(category)) return fail('invalid', 'Choose a valid category.');
+        a.category = category;
+      }
+      if (description !== undefined) {
+        description = String(description || '').trim();
+        if (description.length < 10) return fail('invalid', 'A full description is required (at least 10 characters).');
+        a.description = description;
+      }
+      if (price !== undefined) {
+        price = Number(price);
+        if (!Number.isFinite(price) || price <= 0 || price > 999999) return fail('invalid', 'Price must be a positive number of Robux.');
+        a.price = price;
+      }
+      const file = normalizeFile(fileData, fileName);
+      if (file) {
+        if (file.size > cfg.maxUploadBytes) return fail('invalid', 'File is too large (max 20 MB).');
+        a.fileName = file.name; a.fileMime = file.mime; a.fileSize = file.size;
+        try { await files.put(a.id, file); } catch (err) { console.error(err); return fail('storage', 'Could not store the file.'); }
+      }
+      a.status = 'pending'; // any change re-enters the approval queue
+      a.rejectReason = null;
+      a.updatedAt = now();
+      store.put('assets', a);
+      flush();
+      return ok({ id: a.id, status: 'pending' });
+    }
+
+    function cascadeDelete(id) {
+      const commentIds = all('comments').filter(c => c.assetId === id).map(c => c.id);
+      all('comments').filter(c => c.assetId === id).forEach(c => store.del('comments', c.id));
+      all('purchases').filter(p => p.assetId === id).forEach(p => store.del('purchases', p.id));
+      all('reviews').filter(r => r.assetId === id).forEach(r => store.del('reviews', r.id));
+      all('reports').filter(rp => (rp.targetType === 'asset' && rp.targetId === id) || (rp.targetType === 'comment' && commentIds.includes(rp.targetId))).forEach(rp => store.del('reports', rp.id));
+      files.del(id);
+      store.del('assets', id);
+    }
+
+    async function deleteAsset(user, id) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const a = byIdIn('assets', id);
+      if (!a) return fail('notfound', 'Asset not found.');
+      if (a.ownerId !== u.id) return fail('forbidden', 'Only the creator of this asset can delete it.');
+      cascadeDelete(id);
+      flush();
+      return ok(true);
+    }
+
+    async function myAssets(user) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      return ok(all('assets').filter(a => a.ownerId === u.id).sort((x, y) => y.createdAt - x.createdAt).map(summarize));
+    }
+
+    async function download(user, id) {
+      const a = byIdIn('assets', id);
+      if (!a) return fail('notfound', 'Asset not found.');
+      const v = resolveUser(user);
+      const isOwner = v && v.id === a.ownerId;
+      const isAdminView = v && v.role === 'admin';
+      const hasPurchased = v && all('purchases').some(p => p.assetId === id && p.buyerId === v.id);
+      if (!isOwner && !isAdminView && !hasPurchased) return fail('forbidden', 'Purchase this asset to download the file.');
+      return ok({ fileName: a.fileName, mime: a.fileMime, size: a.fileSize });
+    }
+
+    /* ============ PURCHASES & LICENSES ============ */
+    async function purchase(user, id) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const a = byIdIn('assets', id);
+      if (!a) return fail('notfound', 'Asset not found.');
+      if (isTimedOut(u)) return fail('timeout', 'You are currently timed out and cannot make purchases.');
+      if (isBanned(u)) return fail('banned', 'Your account is banned.');
+      if (a.status !== 'approved') return fail('notfound', 'This asset is not available for purchase.');
+      if (a.ownerId === u.id) return fail('self', 'You cannot purchase your own asset.');
+      if (all('purchases').some(p => p.assetId === id && p.buyerId === u.id)) return fail('owned', 'You already own this asset.');
+      const key = 'KP-' + randomToken(4).toUpperCase().match(/.{1,4}/g).join('-');
+      store.put('purchases', { id: 'p' + uid(), assetId: id, buyerId: u.id, price: a.price, licenseKey: key, gameId: null, gameName: '', createdAt: now() });
+      a.sales = (a.sales || 0) + 1;
+      store.put('assets', a);
+      flush();
+      return ok({ licenseKey: key });
+    }
+
+    async function myPurchases(user) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      return ok(all('purchases').filter(p => p.buyerId === u.id).sort((x, y) => y.createdAt - x.createdAt).map(p => ({ ...p, asset: summarize(byIdIn('assets', p.assetId)) })));
+    }
+
+    async function assignLicense(user, purchaseId, { gameId, gameName } = {}) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const p = byIdIn('purchases', purchaseId);
+      if (!p || p.buyerId !== u.id) return fail('forbidden', 'License not found.');
+      gameId = String(gameId || '').trim();
+      if (!/^\d{6,20}$/.test(gameId)) return fail('invalid', 'Enter a valid Roblox game ID (digits only).');
+      p.gameId = gameId;
+      p.gameName = String(gameName || '').trim().slice(0, 60);
+      store.put('purchases', p);
+      flush();
+      return ok(true);
+    }
+
+    /* ============ COMMENTS ============ */
+    async function addComment(user, assetId, body) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      if (isTimedOut(u)) return fail('timeout', 'You are currently timed out and cannot comment.');
+      if (isBanned(u)) return fail('banned', 'Your account is banned.');
+      const a = byIdIn('assets', assetId);
+      if (!a) return fail('notfound', 'Asset not found.');
+      if (a.status !== 'approved') return fail('notfound', 'This asset is not available yet.');
+      body = String(body || '').trim();
+      if (!body) return fail('invalid', 'Write a comment first.');
+      if (body.length > 1000) return fail('invalid', 'Comments are limited to 1000 characters.');
+      store.put('comments', { id: 'c' + uid(), assetId, userId: u.id, body, createdAt: now() });
+      flush();
+      return ok(true);
+    }
+    async function listComments(assetId) {
+      const a = byIdIn('assets', assetId);
+      if (!a || a.status !== 'approved') return ok([]);
+      return ok(all('comments').filter(c => c.assetId === assetId).sort((x, y) => y.createdAt - x.createdAt).map(c => ({ ...c, user: publicUser(dbUser(c.userId)) })));
+    }
+
+    /* ============ REVIEWS & RATINGS ============ */
+    async function listReviews(assetId) {
+      const a = byIdIn('assets', assetId);
+      if (!a || a.status !== 'approved') return ok({ avg: 0, count: 0, items: [] });
+      const items = all('reviews').filter(r => r.assetId === assetId).sort((x, y) => y.createdAt - x.createdAt)
+        .map(r => ({ id: r.id, assetId: r.assetId, rating: r.rating, body: r.body, createdAt: r.createdAt, updatedAt: r.updatedAt, user: publicUser(dbUser(r.userId)) }));
+      const count = items.length;
+      const avg = count ? Math.round((items.reduce((s, r) => s + r.rating, 0) / count) * 10) / 10 : 0;
+      return ok({ avg, count, items });
+    }
+    async function addReview(user, assetId, { rating, body } = {}) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      if (isTimedOut(u)) return fail('timeout', 'You are currently timed out and cannot review assets.');
+      if (isBanned(u)) return fail('banned', 'Your account is banned.');
+      const a = byIdIn('assets', assetId);
+      if (!a) return fail('notfound', 'Asset not found.');
+      if (a.status !== 'approved') return fail('notfound', 'This asset is not available yet.');
+      if (a.ownerId === u.id) return fail('self', 'You cannot review your own asset.');
+      rating = Number(rating);
+      if (!Number.isInteger(rating) || rating < 1 || rating > 5) return fail('invalid', 'Pick a star rating from 1 to 5.');
+      body = String(body || '').trim().slice(0, 1000);
+      const existing = all('reviews').find(r => r.assetId === assetId && r.userId === u.id);
+      const t = now();
+      if (existing) {
+        existing.rating = rating;
+        existing.body = body;
+        existing.updatedAt = t;
+        store.put('reviews', existing);
+      } else {
+        store.put('reviews', { id: 'r' + uid(), assetId, userId: u.id, rating, body, createdAt: t, updatedAt: t });
+      }
+      flush();
+      return ok(true);
+    }
+    async function deleteReview(user, reviewId) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const r = byIdIn('reviews', reviewId);
+      if (!r) return fail('notfound', 'Review not found.');
+      if (r.userId !== u.id) return fail('forbidden', 'Only the author of this review can delete it.');
+      store.del('reviews', reviewId);
+      flush();
+      return ok(true);
+    }
+
+    /* ============ REPORTS ============ */
+    const REPORT_TYPES = ['asset', 'comment', 'user'];
+    async function createReport(user, { targetType, targetId, reason, details } = {}) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      if (isBanned(u)) return fail('banned', 'Your account is banned.');
+      targetType = String(targetType || '').toLowerCase();
+      if (!REPORT_TYPES.includes(targetType)) return fail('invalid', 'Invalid report target.');
+      reason = String(reason || '').trim();
+      details = String(details || '').trim().slice(0, 1000);
+      if (reason.length < 3 || reason.length > 200) return fail('invalid', 'Choose or describe a reason for this report.');
+      let self = false;
+      if (targetType === 'asset') { const a = byIdIn('assets', targetId); if (!a) return fail('notfound', 'This asset does not exist.'); self = a.ownerId === u.id; }
+      else if (targetType === 'comment') { const c = byIdIn('comments', targetId); if (!c) return fail('notfound', 'This comment does not exist.'); self = c.userId === u.id; }
+      else { const t = dbUser(targetId); if (!t) return fail('notfound', 'This user does not exist.'); self = t.id === u.id; }
+      if (self) return fail('self', 'You cannot report your own content.');
+      if (all('reports').some(r => r.reporterId === u.id && r.targetType === targetType && r.targetId === targetId && r.status === 'open'))
+        return fail('duplicate', 'You have already reported this. Our team will review it.');
+      store.put('reports', { id: 'r' + uid(), reporterId: u.id, targetType, targetId, reason, details, status: 'open', resolvedBy: null, resolvedAt: null, createdAt: now() });
+      flush();
+      return ok(true);
+    }
+    function reportContext(rep) {
+      const out = { id: rep.id, reporterId: rep.reporterId, targetType: rep.targetType, targetId: rep.targetId, reason: rep.reason, details: rep.details, status: rep.status, resolvedBy: rep.resolvedBy, resolvedAt: rep.resolvedAt, createdAt: rep.createdAt, reporter: publicUser(dbUser(rep.reporterId)) };
+      if (rep.targetType === 'asset') out.asset = summarize(byIdIn('assets', rep.targetId));
+      else if (rep.targetType === 'comment') {
+        const c = byIdIn('comments', rep.targetId);
+        const a = c ? byIdIn('assets', c.assetId) : null;
+        out.comment = c ? { id: c.id, body: c.body, userId: c.userId, assetId: c.assetId, assetTitle: a ? a.title : null, user: publicUser(dbUser(c.userId)) } : null;
+      } else out.user = publicUser(dbUser(rep.targetId));
+      return out;
+    }
+    async function adminReports(actor) {
+      const r = requireAdmin(actor); if (r) return r;
+      const rows = all('reports').slice().sort((x, y) => y.createdAt - x.createdAt);
+      return ok({ open: rows.filter(x => x.status === 'open').map(reportContext), resolved: rows.filter(x => x.status === 'resolved').map(reportContext) });
+    }
+    async function adminResolveReport(actor, id) {
+      const r = requireAdmin(actor); if (r) return r;
+      const rep = byIdIn('reports', id);
+      if (!rep) return fail('notfound', 'Report not found.');
+      rep.status = 'resolved';
+      rep.resolvedBy = actor.id;
+      rep.resolvedAt = now();
+      store.put('reports', rep);
+      flush();
+      return ok(true);
+    }
+
+    /* ============ PUBLIC PROFILE & CONTENT ============ */
+    async function publicProfile(handle) {
+      const u = all('users').find(x => x.handle.toLowerCase() === String(handle || '').toLowerCase());
+      if (!u) return fail('notfound', 'This user does not exist.');
+      const assets = all('assets').filter(a => a.ownerId === u.id && a.status === 'approved').sort((x, y) => y.createdAt - x.createdAt).slice(0, 12).map(summarize);
+      const purchases = all('purchases').filter(p => p.buyerId === u.id).sort((x, y) => y.createdAt - x.createdAt).slice(0, 8).map(p => ({ ...p, asset: summarize(byIdIn('assets', p.assetId)) }));
+      const comments = all('comments').filter(c => c.userId === u.id).sort((x, y) => y.createdAt - x.createdAt).slice(0, 8).map(c => ({ ...c, asset: byIdIn('assets', c.assetId) ? summarize(byIdIn('assets', c.assetId)) : null }));
+      return ok({ user: publicUser(u), assetCount: all('assets').filter(a => a.ownerId === u.id && a.status === 'approved').length, assets, purchases, comments });
+    }
+    async function content() {
+      return ok({ portfolio: all('portfolio').slice().sort((a, b) => a.id < b.id ? -1 : 1), creators: all('creators').slice().sort((a, b) => a.id < b.id ? -1 : 1) });
+    }
+
+    /* ============ ADMIN ============ */
+    async function adminOverview(actor) {
+      const r = requireAdmin(actor); if (r) return r;
+      return ok({
+        users: all('users').length,
+        assets: all('assets').length,
+        pending: all('assets').filter(a => a.status === 'pending').length,
+        approved: all('assets').filter(a => a.status === 'approved').length,
+        sales: all('purchases').length,
+        revenue: all('purchases').reduce((s, p) => s + p.price, 0),
+        comments: all('comments').length,
+        reviews: all('reviews').length,
+        reports: all('reports').filter(x => x.status === 'open').length,
+        online: all('sessions').filter(s => now() - s.lastSeen < cfg.onlineWindowMs).length,
+        banned: all('users').filter(u => u.banned).length,
+        timedOut: all('users').filter(u => isTimedOut(u)).length,
+      });
+    }
+    async function adminPending(actor) { const r = requireAdmin(actor); if (r) return r; return ok(all('assets').filter(a => a.status === 'pending').sort((x, y) => y.createdAt - x.createdAt).map(summarize)); }
+    async function adminRejected(actor) { const r = requireAdmin(actor); if (r) return r; return ok(all('assets').filter(a => a.status === 'rejected').sort((x, y) => y.createdAt - x.createdAt).map(summarize)); }
+    async function adminApprove(actor, id) {
+      const r = requireAdmin(actor); if (r) return r;
+      const a = byIdIn('assets', id);
+      if (!a) return fail('notfound', 'Asset not found.');
+      a.status = 'approved'; a.rejectReason = null; a.approvedAt = now(); a.updatedAt = now();
+      store.put('assets', a);
+      flush();
+      return ok(true);
+    }
+    async function adminReject(actor, id, reason) {
+      const r = requireAdmin(actor); if (r) return r;
+      const a = byIdIn('assets', id);
+      if (!a) return fail('notfound', 'Asset not found.');
+      reason = String(reason || '').trim().slice(0, 300);
+      a.status = 'rejected'; a.rejectReason = reason || 'Rejected by an administrator.'; a.updatedAt = now();
+      store.put('assets', a);
+      flush();
+      return ok(true);
+    }
+    async function adminAssets(actor) { const r = requireAdmin(actor); if (r) return r; return ok(all('assets').slice().sort((x, y) => y.createdAt - x.createdAt).map(summarize)); }
+    async function adminDeleteAsset(actor, id) {
+      const r = requireAdmin(actor); if (r) return r;
+      const a = byIdIn('assets', id);
+      if (!a) return fail('notfound', 'Asset not found.');
+      cascadeDelete(id);
+      flush();
+      return ok(true);
+    }
+    async function adminUsers(actor) {
+      const r = requireAdmin(actor); if (r) return r;
+      return ok(all('users').slice().sort((a, b) => a.createdAt - b.createdAt).map(u => ({
+        ...publicUser(u), banned: u.banned, banReason: u.banReason || null, timeoutUntil: u.timeoutUntil, email: u.email,
+      })));
+    }
+    async function adminBan(actor, targetId, reason) {
+      const r = requireAdmin(actor); if (r) return r;
+      const t = dbUser(targetId);
+      if (!t) return fail('notfound', 'User not found.');
+      if (t.role === 'admin') return fail('adminProtected', 'Admins cannot be moderated. Admin accounts are protected from bans and timeouts.');
+      t.banned = true; t.banReason = String(reason || '').trim() || 'Banned by an administrator.'; t.timeoutUntil = null; t.updatedAt = now();
+      store.put('users', t);
+      all('sessions').filter(s => s.userId === t.id).forEach(s => store.del('sessions', s.id));
+      flush();
+      return ok(true);
+    }
+    async function adminUnban(actor, targetId) {
+      const r = requireAdmin(actor); if (r) return r;
+      const t = dbUser(targetId);
+      if (!t) return fail('notfound', 'User not found.');
+      t.banned = false; t.banReason = null; t.updatedAt = now();
+      store.put('users', t);
+      flush();
+      return ok(true);
+    }
+    async function adminTimeout(actor, targetId, minutes) {
+      const r = requireAdmin(actor); if (r) return r;
+      const t = dbUser(targetId);
+      if (!t) return fail('notfound', 'User not found.');
+      if (t.role === 'admin') return fail('adminProtected', 'Admins cannot be moderated. Admin accounts are protected from bans and timeouts.');
+      minutes = Math.max(1, Math.min(10080, Number(minutes) || 30));
+      t.timeoutUntil = now() + minutes * 6e4;
+      t.banned = false;
+      t.updatedAt = now();
+      store.put('users', t);
+      flush();
+      return ok(true);
+    }
+    async function adminClearTimeout(actor, targetId) {
+      const r = requireAdmin(actor); if (r) return r;
+      const t = dbUser(targetId);
+      if (!t) return fail('notfound', 'User not found.');
+      t.timeoutUntil = null; t.updatedAt = now();
+      store.put('users', t);
+      flush();
+      return ok(true);
+    }
+    async function adminSetRole(actor, targetId, role) {
+      const r = requireAdmin(actor); if (r) return r;
+      const t = dbUser(targetId);
+      if (!t) return fail('notfound', 'User not found.');
+      if (t.id === actor.id) return fail('self', 'You cannot change your own role.');
+      if (t.role === 'admin') return fail('adminProtected', 'Admins are protected — you cannot change another admin\u2019s role.');
+      if (!ROLES.includes(String(role || ''))) return fail('invalid', 'Invalid role.');
+      t.role = role; t.updatedAt = now();
+      store.put('users', t);
+      flush();
+      return ok(true);
+    }
+    async function adminSessions(actor) {
+      const r = requireAdmin(actor); if (r) return r;
+      pruneSessions();
+      const rows = all('sessions').slice().sort((a, b) => b.lastSeen - a.lastSeen).map(s => ({ ...s, user: publicUser(dbUser(s.userId)), online: now() - s.lastSeen < cfg.onlineWindowMs }));
+      return ok({ total: rows.length, online: rows.filter(x => x.online).length, rows });
+    }
+    async function adminEmails(actor) {
+      const r = requireAdmin(actor); if (r) return r;
+      return ok(all('emails').slice().reverse());
+    }
+
+    seedContent();
+
+    return {
+      register, login, verify2fa, requestReset, resetPassword, logout, me,
+      updateProfile, setup2fa, enable2fa, disable2fa,
+      createAsset, listApproved, topSelling, getAsset, updateAsset, deleteAsset, myAssets, download,
+      purchase, myPurchases, assignLicense,
+      addComment, listComments,
+      listReviews, addReview, deleteReview,
+      createReport, adminReports, adminResolveReport,
+      publicProfile, content,
+      adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
+      adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSessions, adminEmails,
+    };
+  }
+
+  return { createEngine, totpCode };
+});
+
+/* ==== KP-ENGINE-END ==== */
+
+/* ================= KINGS PRODUCTION CLIENT (transport + API wrapper) ================= */
+/* The engine above is shared verbatim with the Node backend (shared/engine.js).
+   This client auto-detects the transport:
+     remote — an Express/SQLite server answering /api/* on this origin
+     local  — the same engine running in-browser over localStorage + IndexedDB
+   The API surface below is what the views call; it normalizes both transports. */
+
+const _e = encodeURIComponent;
+function _getToken() { try { return localStorage.getItem(SESSION_KEY); } catch (e) { return null; } }
+function _setToken(t) { try { t ? localStorage.setItem(SESSION_KEY, t) : localStorage.removeItem(SESSION_KEY); } catch (e) {} }
+function _browserLabel() {
+  const ua = navigator.userAgent;
+  const os = /Windows/i.test(ua) ? 'Windows' : /Mac/i.test(ua) ? 'macOS' : /Linux/i.test(ua) ? 'Linux' : 'Unknown OS';
+  const br = /Edg\//i.test(ua) ? 'Edge' : /Chrome\//i.test(ua) ? 'Chrome' : /Firefox\//i.test(ua) ? 'Firefox' : /Safari\//i.test(ua) ? 'Safari' : 'Browser';
+  return br + ' on ' + os;
+}
+let _mode = null;      // 'remote' | 'local'
+let _engine = null;
+
+async function _detectTransport() {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 1500);
+    const r = await fetch('/api/health', { signal: ctrl.signal });
+    clearTimeout(timer);
+    if (r.ok) { _mode = 'remote'; console.info('[Kings Production] connected to the Node/Express + SQLite backend'); return; }
+  } catch (e) { /* server unreachable — fall through to the in-browser engine */ }
+  _mode = 'local';
+  _engine = KPEngine.createEngine({ store: createLocalStore(), files: Files, config: { autoAdminFirstUser: true } });
+  console.info('[Kings Production] backend not reachable — using the in-browser engine (localStorage)');
+}
+
+async function _call(method, path, body) {
+  const headers = {};
+  const t = _getToken();
+  if (t) headers['Authorization'] = 'Bearer ' + t;
+  if (body !== undefined && !(body instanceof FormData)) headers['Content-Type'] = 'application/json';
+  const res = await fetch(path, { method, headers, body: body instanceof FormData ? body : (body === undefined ? undefined : JSON.stringify(body)) });
+  let json;
+  try { json = await res.json(); } catch (e) { json = { ok: false, code: 'badresp', error: 'Unexpected server response.' }; }
+  return json;
+}
+async function _wrap(fn) {
+  try { return await fn(); }
+  catch (e) { console.error(e); return { ok: false, code: 'net', error: 'Network error — is the Kings Production server running?' }; }
+}
+function _authPair(r) { if (r.ok && r.data && r.data.token) { _setToken(r.data.token); return { ok: true, data: r.data.user }; } return r; }
+
+API.boot = async () => { await _detectTransport(); };
+
+/* ---- auth ---- */
+API.register = args => _wrap(async () => _authPair(_mode === 'local' ? await _engine.register(args) : await _call('POST', '/api/auth/register', args)));
+API.login = args => _wrap(async () => _authPair(_mode === 'local' ? await _engine.login({ ...args, label: _browserLabel() }) : await _call('POST', '/api/auth/login', args)));
+API.verify2fa = args => _wrap(async () => _authPair(_mode === 'local' ? await _engine.verify2fa({ ...args, label: _browserLabel() }) : await _call('POST', '/api/auth/verify2fa', args)));
+API.me = () => _wrap(async () => _mode === 'local' ? await _engine.me(_getToken()) : await _call('GET', '/api/me'));
+API.logout = () => _wrap(async () => {
+  const t = _getToken(); _setToken(null);
+  if (_mode === 'local') { if (t) await _engine.logout(t); return { ok: true, data: true }; }
+  return await _call('POST', '/api/auth/logout');
+});
+API.requestReset = args => _wrap(async () => {
+  if (_mode === 'local') return await _engine.requestReset(args);
+  const r = await _call('POST', '/api/auth/request-reset', args);
+  if (r.ok && r.data && r.data.devLink) r.data.devLink = new URL(r.data.devLink, location.href).href;
+  return r;
+});
+API.resetPassword = args => _wrap(async () => _mode === 'local' ? await _engine.resetPassword(args) : await _call('POST', '/api/auth/reset-password', args));
+
+/* ---- profile & 2FA ---- */
+API.updateProfile = (user, patch) => _wrap(async () => _mode === 'local' ? await _engine.updateProfile(user, patch) : await _call('PATCH', '/api/profile', patch));
+API.setup2fa = user => _wrap(async () => _mode === 'local' ? await _engine.setup2fa(user) : await _call('POST', '/api/auth/2fa/setup'));
+API.enable2fa = (user, a) => _wrap(async () => _mode === 'local' ? await _engine.enable2fa(user, a) : await _call('POST', '/api/auth/2fa/enable', a));
+API.disable2fa = (user, a) => _wrap(async () => _mode === 'local' ? await _engine.disable2fa(user, a) : await _call('POST', '/api/auth/2fa/disable', a));
+
+/* ---- assets ---- */
+async function _assetForm(a, withFile) {
+  const fd = new FormData();
+  fd.append('title', a.title || ''); fd.append('category', a.category || ''); fd.append('description', a.description || ''); fd.append('price', a.price);
+  if (withFile && a.fileData) fd.append('file', await (await fetch(a.fileData)).blob(), a.fileName || 'asset-file');
+  return fd;
+}
+API.createAsset = (user, a) => _wrap(async () => {
+  if (_mode === 'local') return await _engine.createAsset(user, a);
+  return await _call('POST', '/api/assets', await _assetForm(a, true));
+});
+API.updateAsset = (user, id, a) => _wrap(async () => {
+  if (_mode === 'local') return await _engine.updateAsset(user, id, a);
+  return await _call('PATCH', '/api/assets/' + _e(id), await _assetForm(a, true));
+});
+API.listApproved = () => _wrap(async () => _mode === 'local' ? await _engine.listApproved() : await _call('GET', '/api/assets'));
+API.topSelling = (n = 6) => _wrap(async () => _mode === 'local' ? await _engine.topSelling(n) : await _call('GET', '/api/assets/top?n=' + n));
+API.getAsset = (id, viewerId) => _wrap(async () => _mode === 'local' ? await _engine.getAsset(id, viewerId) : await _call('GET', '/api/assets/' + _e(id)));
+API.deleteAsset = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.deleteAsset(user, id) : await _call('DELETE', '/api/assets/' + _e(id)));
+API.myAssets = user => _wrap(async () => _mode === 'local' ? await _engine.myAssets(user) : await _call('GET', '/api/assets/mine'));
+API.download = (id, user) => _wrap(async () => {
+  if (_mode === 'local') {
+    const r = await _engine.download(user, id);
+    if (!r.ok) return r;
+    const f = await Files.get(id);
+    if (!f) return { ok: false, code: 'notfound', error: 'The file for this asset is missing.' };
+    return { ok: true, data: { fileName: r.data.fileName, dataURL: f.data } };
+  }
+  const r = await _call('GET', '/api/assets/' + _e(id) + '/download');
+  if (!r.ok) return r;
+  return { ok: true, data: { fileName: r.data.fileName, url: '/api/assets/' + _e(id) + '/file' } };
+});
+
+/* ---- purchases & licenses ---- */
+API.purchase = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.purchase(user, id) : await _call('POST', '/api/assets/' + _e(id) + '/purchase'));
+API.myPurchases = user => _wrap(async () => _mode === 'local' ? await _engine.myPurchases(user) : await _call('GET', '/api/purchases/mine'));
+API.assignLicense = (user, purchaseId, a) => _wrap(async () => _mode === 'local' ? await _engine.assignLicense(user, purchaseId, a) : await _call('POST', '/api/licenses/assign', { purchaseId, ...a }));
+
+/* ---- comments ---- */
+API.addComment = (user, assetId, body) => _wrap(async () => _mode === 'local' ? await _engine.addComment(user, assetId, body) : await _call('POST', '/api/assets/' + _e(assetId) + '/comments', { body }));
+API.listComments = assetId => _wrap(async () => _mode === 'local' ? await _engine.listComments(assetId) : await _call('GET', '/api/assets/' + _e(assetId) + '/comments'));
+
+/* ---- reviews & ratings ---- */
+API.listReviews = assetId => _wrap(async () => _mode === 'local' ? await _engine.listReviews(assetId) : await _call('GET', '/api/assets/' + _e(assetId) + '/reviews'));
+API.addReview = (user, assetId, a) => _wrap(async () => _mode === 'local' ? await _engine.addReview(user, assetId, a) : await _call('POST', '/api/assets/' + _e(assetId) + '/reviews', a));
+API.deleteReview = (user, reviewId) => _wrap(async () => _mode === 'local' ? await _engine.deleteReview(user, reviewId) : await _call('DELETE', '/api/reviews/' + _e(reviewId)));
+
+/* ---- reports ---- */
+API.createReport = (user, a) => _wrap(async () => _mode === 'local' ? await _engine.createReport(user, a) : await _call('POST', '/api/reports', a));
+
+/* ---- profiles & content ---- */
+API.publicProfile = handle => _wrap(async () => _mode === 'local' ? await _engine.publicProfile(handle) : await _call('GET', '/api/profile/' + _e(handle)));
+API.content = () => _wrap(async () => _mode === 'local' ? await _engine.content() : await _call('GET', '/api/site/content'));
+
+/* ---- admin ---- */
+API.adminOverview = user => _wrap(async () => _mode === 'local' ? await _engine.adminOverview(user) : await _call('GET', '/api/admin/overview'));
+API.adminPending = user => _wrap(async () => {
+  if (_mode === 'local') return await _engine.adminPending(user);
+  const r = await _call('GET', '/api/admin/approvals');
+  return r.ok ? { ok: true, data: r.data.pending } : r;
+});
+API.adminRejected = user => _wrap(async () => {
+  if (_mode === 'local') return await _engine.adminRejected(user);
+  const r = await _call('GET', '/api/admin/approvals');
+  return r.ok ? { ok: true, data: r.data.rejected } : r;
+});
+API.adminApprove = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.adminApprove(user, id) : await _call('POST', '/api/admin/approvals/' + _e(id) + '/approve'));
+API.adminReject = (user, id, reason) => _wrap(async () => _mode === 'local' ? await _engine.adminReject(user, id, reason) : await _call('POST', '/api/admin/approvals/' + _e(id) + '/reject', { reason }));
+API.adminAssets = user => _wrap(async () => _mode === 'local' ? await _engine.adminAssets(user) : await _call('GET', '/api/admin/assets'));
+API.adminDeleteAsset = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.adminDeleteAsset(user, id) : await _call('DELETE', '/api/admin/assets/' + _e(id)));
+API.adminUsers = user => _wrap(async () => _mode === 'local' ? await _engine.adminUsers(user) : await _call('GET', '/api/admin/users'));
+API.adminBan = (user, id, reason) => _wrap(async () => _mode === 'local' ? await _engine.adminBan(user, id, reason) : await _call('POST', '/api/admin/users/' + _e(id) + '/ban', { reason }));
+API.adminUnban = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.adminUnban(user, id) : await _call('POST', '/api/admin/users/' + _e(id) + '/unban'));
+API.adminTimeout = (user, id, minutes) => _wrap(async () => _mode === 'local' ? await _engine.adminTimeout(user, id, minutes) : await _call('POST', '/api/admin/users/' + _e(id) + '/timeout', { minutes }));
+API.adminClearTimeout = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.adminClearTimeout(user, id) : await _call('POST', '/api/admin/users/' + _e(id) + '/clear-timeout'));
+API.adminSetRole = (user, id, role) => _wrap(async () => _mode === 'local' ? await _engine.adminSetRole(user, id, role) : await _call('POST', '/api/admin/users/' + _e(id) + '/role', { role }));
+API.adminSessions = user => _wrap(async () => _mode === 'local' ? await _engine.adminSessions(user) : await _call('GET', '/api/admin/sessions'));
+API.adminEmails = user => _wrap(async () => _mode === 'local' ? await _engine.adminEmails(user) : await _call('GET', '/api/admin/emails'));
+API.adminReports = user => _wrap(async () => _mode === 'local' ? await _engine.adminReports(user) : await _call('GET', '/api/admin/reports'));
+API.adminResolveReport = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.adminResolveReport(user, id) : await _call('POST', '/api/admin/reports/' + _e(id) + '/resolve'));
+
+/* TOTP utility used by the live-code display during 2FA setup */
+API.totp = secret => KPEngine.totpCode(secret);
+
+/* ================= CHUNK 4: UI HELPERS · SHELL · ROUTER · HOME/SHOP ================= */
+/* ---- small UI pieces ---- */
+function avatarHtml(u, px = 36) {
+  if (u && u.pfp) return `<span class="avatar" style="width:${px}px;height:${px}px"><img src="${esc(u.pfp)}" alt=""></span>`;
+  return `<span class="avatar" style="width:${px}px;height:${px}px;font-size:${Math.round(px * 0.38)}px">${esc(initials(u && u.displayName))}</span>`;
+}
+function badgeHtml(role) {
+  if (role === 'admin') return `<span class="badge admin" title="Administrator"><span class="crown">${ICON.crown}</span>Admin</span>`;
+  if (role === 'vip') return `<span class="badge vip" title="VIP / Licensed creator">VIP</span>`;
+  return `<span class="badge member" title="Member">Member</span>`;
+}
+function statusBadge(status, rejectReason) {
+  if (status === 'approved') return `<span class="status-pill status-approved">Approved</span>`;
+  if (status === 'pending') return `<span class="status-pill status-pending">Pending approval</span>`;
+  return `<span class="status-pill status-rejected" title="${esc(rejectReason || '')}">Rejected</span>`;
+}
+function catBadge(cat) { return `<span class="badge plain"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${CAT_ICON[cat].replace(/<svg[^>]*>/i, '').replace(/<\/svg>/i, '')}</svg>${CAT_LABEL[cat]}</span>`; }
+function thumbHtml(cat, size = 44) {
+  return `<div class="thumb-bg ${CAT_THUMB[cat] || 'thumb-default'}"></div><span class="thumb-icon" style="width:${size}px;height:${size}px">${CAT_ICON[cat]}</span>`;
+}
+function assetCardHtml(a, rank) {
+  return `<article class="card card-hover asset-card" data-id="${a.id}" onclick="go('#/asset/${a.id}')">
+    <div class="asset-thumb">${rank !== undefined ? `<span class="asset-rank">#${rank + 1}</span>` : ''}<span class="asset-cat">${catBadge(a.category)}</span>${thumbHtml(a.category, 40)}</div>
+    <div class="asset-body">
+      <h3 class="asset-title">${esc(a.title)}</h3>
+      <div class="asset-owner">${avatarHtml(a.owner, 22)}<a href="#/profile/${esc(a.owner.handle)}" onclick="event.stopPropagation()">${esc(a.owner.displayName)}</a>${badgeHtml(a.owner.role)}</div>
+      ${a.ratingCount ? `<div class="asset-rating">${starsHtml(a.rating)}<span class="muted small">${a.rating} · ${a.ratingCount}</span></div>` : ''}
+      <div class="asset-foot"><span class="price">${fmtMoney(a.price)}</span><span class="sales">${ICON.cart}${a.sales || 0} sold</span></div>
+    </div></article>`;
+}
+function emptyHtml(title, sub) {
+  return `<div class="empty"><span class="crown">${ICON.crown}</span><h3>${esc(title)}</h3>${sub ? `<p>${esc(sub)}</p>` : ''}</div>`;
+}
+function loadingHtml() { return `<div class="loading"><span class="spinner"></span>Loading…</div>`; }
+
+/* ---- toast ---- */
+function toast(msg, type = 'ok') {
+  let box = document.getElementById('toasts');
+  if (!box) { box = document.createElement('div'); box.id = 'toasts'; document.body.appendChild(box); }
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.innerHTML = `<span>${type === 'err' ? '✕' : type === 'ok' ? '✓' : 'i'}</span><span>${esc(msg)}</span>`;
+  box.appendChild(el);
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 350); }, 3400);
+}
+
+/* ---- modal ---- */
+function modal({ title, body, confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger = false, onConfirm, validate }) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `<div class="modal" role="dialog" aria-modal="true">
+    <h3>${esc(title)}</h3>
+    <div class="modal-body">${body}</div>
+    <div class="modal-actions"><button class="btn btn-ghost btn-sm" data-act="cancel">${esc(cancelLabel)}</button>
+    <button class="btn ${danger ? 'btn-solid-danger' : 'btn-primary'} btn-sm" data-act="confirm">${esc(confirmLabel)}</button></div></div>`;
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  overlay.querySelector('[data-act=cancel]').onclick = close;
+  overlay.querySelector('[data-act=confirm]').onclick = async () => {
+    const btn = overlay.querySelector('[data-act=confirm]');
+    btn.disabled = true;
+    const val = validate ? await validate(overlay) : {};
+    if (val === false) { btn.disabled = false; return; }
+    close();
+    onConfirm && onConfirm(val);
+  };
+  const onKey = e => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', onKey, true);
+  function close() { document.removeEventListener('keydown', onKey, true); overlay.remove(); }
+  document.body.appendChild(overlay);
+  setTimeout(() => { const f = overlay.querySelector('input,textarea,select'); f && f.focus(); }, 30);
+  return overlay;
+}
+function promptModal({ title, label, placeholder, confirmLabel = 'Confirm', danger = false, onConfirm, type = 'text', required }) {
+  modal({
+    title, confirmLabel, danger, onConfirm,
+    body: `<div class="field"><label>${esc(label)}</label><input class="input" id="pm-input" type="${type}" placeholder="${esc(placeholder || '')}"></div>`,
+    validate: ov => { const v = ov.querySelector('#pm-input').value.trim(); if (required && !v) { toast('This field is required.', 'err'); return false; } return { value: v }; },
+  });
+}
+
+/* ---- navigation ---- */
+const go = path => { location.hash = '#' + path; };
+function parseHash() {
+  const h = location.hash.replace(/^#\/?/, '');
+  const [pathPart, queryPart] = h.split('?');
+  const segs = pathPart.split('/').filter(Boolean);
+  return { path: segs[0] || 'home', params: segs.slice(1), query: Object.fromEntries(new URLSearchParams(queryPart || '')) };
+}
+
+let STATE = { user: null, adminTab: 'overview', catalogQ: '', catalogCat: '' };
+
+/* ---- shell ---- */
+function headerHtml(user) {
+  const nav = [['portfolio', 'Portfolio'], ['shop', 'Shop'], ['license', 'License'], ['creators', 'Creators']]
+    .map(([p, l]) => `<a href="#/${p}" data-nav="${p}">${l}</a>`).join('');
+  const right = user
+    ? `<div class="dropdown">
+        <button class="btn btn-ghost" id="user-btn" style="gap:10px">${avatarHtml(user, 30)}<span class="hide-sm">${esc(user.displayName)}</span>${ICON.chevron}</button>
+        <div class="dropdown-menu hidden" id="user-menu">
+          <a href="#/profile/${esc(user.handle)}">${ICON.user} My Profile</a>
+          <a href="#/my-assets">${ICON.edit} My Assets</a>
+          ${canPost(user) ? `<a href="#/upload">${ICON.plus} Upload Asset</a>` : ''}
+          ${user.role === 'admin' ? `<a href="#/admin">${ICON.shield} Admin Panel</a>` : ''}
+          <a href="#/settings">${ICON.clock} Settings</a>
+          <div class="sep"></div>
+          <button id="logout-btn">${ICON.logout} Log out</button>
+        </div>
+      </div>`
+    : `<a class="btn btn-ghost btn-sm" href="#/login">Log in</a><a class="btn btn-primary btn-sm" href="#/register">Create account</a>`;
+  return `<header class="site-header"><div class="header-inner">
+    <a class="brand" href="#/" aria-label="Kings Production home"><span class="crown">${ICON.crown}</span><span class="brand-txt">Kings Production<span class="brand-sub">Roblox Studio</span></span></a>
+    <nav class="main-nav" aria-label="Primary">${nav}</nav>
+    <div class="header-right">${right}</div>
+  </div></header>`;
+}
+function footerHtml() {
+  return `<footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <a class="brand" href="#/"><span class="crown">${ICON.crown}</span><span class="brand-txt">Kings Production<span class="brand-sub">Roblox Studio</span></span></a>
+        <p>Premium Roblox development studio. Scripts, models, plugins, animations, and systems — built to a standard we are proud to ship.</p>
+      </div>
+      <div><h4>Studio</h4><div class="footer-links"><a href="#/portfolio">Portfolio</a><a href="#/creators">Creators</a><a href="#/license">License</a></div></div>
+      <div><h4>Marketplace</h4><div class="footer-links"><a href="#/shop">Shop</a><a href="#/login">Log in</a><a href="#/register">Create account</a></div></div>
+    </div>
+    <div class="footer-bottom">© ${new Date().getFullYear()} Kings Production · “Where Excellence Meets Innovation”</div>
+  </footer>`;
+}
+function renderShell() {
+  const app = document.getElementById('app');
+  app.innerHTML = headerHtml(null) + `<main id="main"></main>` + footerHtml() + `<div id="toasts"></div>`;
+  app.querySelector('#user-btn') && app.querySelector('#user-btn').addEventListener('click', e => {
+    e.stopPropagation(); document.getElementById('user-menu').classList.toggle('hidden');
+  });
+  document.addEventListener('click', e => {
+    const m = document.getElementById('user-menu');
+    if (m && !m.classList.contains('hidden') && !e.target.closest('#user-btn')) m.classList.add('hidden');
+  });
+  const lo = document.getElementById('logout-btn');
+  if (lo) lo.addEventListener('click', async () => { await API.logout(); STATE.user = null; renderHeader(); toast('Logged out.'); go('/'); });
+}
+function renderHeader() {
+  const app = document.getElementById('app');
+  const old = app.querySelector('.site-header');
+  old && old.remove();
+  app.querySelector('main').insertAdjacentHTML('beforebegin', headerHtml(STATE.user));
+  bindHeader();
+}
+function bindHeader() {
+  const btn = document.getElementById('user-btn');
+  btn && btn.addEventListener('click', e => { e.stopPropagation(); document.getElementById('user-menu').classList.toggle('hidden'); });
+  document.addEventListener('click', e => {
+    const m = document.getElementById('user-menu');
+    if (m && !m.classList.contains('hidden') && !e.target.closest('#user-btn')) m.classList.add('hidden');
+  });
+  const lo = document.getElementById('logout-btn');
+  lo && lo.addEventListener('click', async () => { await API.logout(); STATE.user = null; renderHeader(); toast('Logged out.'); go('/'); });
+}
+
+/* ---- router ---- */
+const TITLES = {
+  home: 'Kings Production — Premium Roblox Development Studio', shop: 'Shop — Kings Production',
+  portfolio: 'Portfolio — Kings Production', license: 'License — Kings Production', creators: 'Creators — Kings Production',
+  login: 'Log in — Kings Production', register: 'Create account — Kings Production',
+  settings: 'Settings — Kings Production', admin: 'Admin Panel — Kings Production',
+};
+async function router() {
+  const { path, params, query } = parseHash();
+  if (!['home', 'shop', 'portfolio', 'license', 'creators', 'asset', 'profile', 'login', 'register', 'forgot', 'reset', 'settings', 'upload', 'my-assets', 'admin'].includes(path)) { location.hash = '#/'; return; }
+  const me = await API.me();
+  STATE.user = me.ok ? me.data : null;
+  renderHeader();
+  const main = document.getElementById('main');
+  let html = loadingHtml();
+  main.innerHTML = `<div class="view">${html}</div>`;
+  try { html = await VIEWS[path]({ params, query }); }
+  catch (e) { console.error(e); html = `<div class="page">${emptyHtml('Something went wrong', e.message || 'Unknown error')}</div>`; }
+  main.innerHTML = `<div class="view">${html}</div>`;
+  document.title = TITLES[path] || 'Kings Production';
+  window.scrollTo({ top: 0 });
+  const act = document.querySelector(`[data-nav="${path}"]`);
+  if (act) { document.querySelectorAll('[data-nav]').forEach(a => a.classList.remove('active')); act.classList.add('active'); }
+  if (VIEWS_BIND[path]) await VIEWS_BIND[path]({ params, query });
+}
+
+/* ---- catalog component ---- */
+function catalogSectionHtml(insidePage) {
+  const inner = `<div class="section-head"><div><span class="section-eyebrow">Marketplace</span><h2>All Assets</h2><p>Scripts, models, plugins, animations, and systems — approved by the Kings Production team.</p></div></div>
+    <div class="toolbar">
+      <div class="search">${ICON.search}<input class="input" id="cat-q" placeholder="Search assets…" value="${esc(STATE.catalogQ)}"></div>
+      <div class="row" id="cat-chips">${['', ...CATEGORIES].map(c => `<button class="chip ${STATE.catalogCat === c ? 'active' : ''}" data-cat="${c}">${c ? CAT_LABEL[c] : 'All'}</button>`).join('')}</div>
+    </div>
+    <div id="cat-grid">${loadingHtml()}</div>`;
+  return insidePage ? inner : `<section class="page" style="padding-top:8px">${inner}</section>`;
+}
+function refreshCatalog() {
+  const grid = document.getElementById('cat-grid');
+  if (!grid) return;
+  grid.innerHTML = loadingHtml();
+  API.listApproved().then(res => {
+    if (!res.ok) { grid.innerHTML = emptyHtml('Could not load assets', res.error); return; }
+    const q = STATE.catalogQ.toLowerCase();
+    const list = res.data.filter(a =>
+      (!STATE.catalogCat || a.category === STATE.catalogCat) &&
+      (!q || (a.title + ' ' + a.description + ' ' + (a.owner && a.owner.displayName)).toLowerCase().includes(q)));
+    grid.innerHTML = list.length
+      ? `<div class="grid grid-assets">${list.map(a => assetCardHtml(a)).join('')}</div>`
+      : emptyHtml('No assets found', 'Try a different search or category.');
+  });
+}
+function bindCatalog() {
+  const q = document.getElementById('cat-q');
+  q && q.addEventListener('input', e => { STATE.catalogQ = e.target.value; clearTimeout(q._t); q._t = setTimeout(refreshCatalog, 180); });
+  const chips = document.getElementById('cat-chips');
+  chips && chips.addEventListener('click', e => {
+    const b = e.target.closest('[data-cat]'); if (!b) return;
+    STATE.catalogCat = b.dataset.cat;
+    chips.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.cat === b.dataset.cat));
+    refreshCatalog();
+  });
+  refreshCatalog();
+}
+
+/* ================= VIEWS ================= */
+const VIEWS = {};
+
+VIEWS.home = async () => {
+  const top = await API.topSelling(4);
+  const statRows = await Promise.all([API.listApproved(), API.content()]);
+  const approvedCount = statRows[0].data && statRows[0].data.length ? statRows[0].data.length : 0;
+  const content = statRows[1].data || { portfolio: [], creators: [] };
+  return `
+  <section class="hero"><div class="hero-inner">
+    <span class="crown">${ICON.crown}</span>
+    <div class="hero-eyebrow">Premium Roblox Development Studio</div>
+    <h1>Kings Production</h1>
+    <p class="hero-tag">“Where <span class="hero-em">Excellence</span> Meets <span class="hero-em">Innovation</span>”</p>
+    <div class="hero-cta"><a class="btn btn-primary btn-lg" href="#/shop">Enter Shop</a><a class="btn btn-ghost btn-lg" href="#/portfolio">View Portfolio</a></div>
+    <div class="hero-stats">
+      <div class="hero-stat"><b>${content.portfolio.length}+</b><span>Projects shipped</span></div>
+      <div class="hero-stat"><b>${approvedCount}+</b><span>Products available</span></div>
+      <div class="hero-stat"><b>${content.creators.length}</b><span>Elite creators</span></div>
+    </div>
+  </div></section>
+  <div class="page">
+    <div class="section-head"><div><span class="section-eyebrow">Featured</span><h2>Top Selling Assets</h2><p>Our most purchased assets, ranked by sales.</p></div><a class="btn btn-ghost btn-sm" href="#/shop">Browse all →</a></div>
+    <div class="grid grid-assets">${top.ok && top.data.length ? top.data.map((a, i) => assetCardHtml(a, i)).join('') : emptyHtml('No assets yet', 'Approved assets will appear here.')}</div>
+  </div>
+  ${catalogSectionHtml()}`;
+};
+
+VIEWS.shop = async () => {
+  return `<div class="page">
+    <div class="section-head"><div><span class="section-eyebrow">Shop</span><h2>Marketplace</h2><p>Browse and purchase premium Roblox assets.</p></div></div>
+    ${catalogSectionHtml(true)}
+  </div>`;
+};
+
+/* ================= CHUNK 5: ASSET · PROFILE · AUTH · SETTINGS · UPLOAD · MY-ASSETS ================= */
+const VIEWS_BIND = {};
+VIEWS_BIND.home = () => bindCatalog();
+VIEWS_BIND.shop = () => bindCatalog();
+function readFileAsDataURL(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
+
+/* ---- shared actions ---- */
+async function onBuy(id) {
+  if (!STATE.user) { go('/login'); return; }
+  const res = await API.purchase(STATE.user, id);
+  if (res.ok) { toast('Purchased! Your license is on the License page.'); await router(); }
+  else { toast(res.error, 'err'); if (res.code === 'timeout' || res.code === 'owned' || res.code === 'banned') await router(); }
+}
+async function triggerFileDownload(res) {
+  if (!res.ok) { toast(res.error, 'err'); return; }
+  if (res.data.url) {
+    try {
+      const r = await fetch(res.data.url, { headers: { Authorization: 'Bearer ' + _getToken() } });
+      if (!r.ok) throw new Error('download failed');
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = res.data.fileName || 'asset-file';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    } catch (err) { toast('Could not download the file.', 'err'); return; }
+  } else {
+    const a = document.createElement('a');
+    a.href = res.data.dataURL; a.download = res.data.fileName || 'asset-file';
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+  toast('Downloading ' + (res.data.fileName || 'file'));
+}
+async function onDownload(id) {
+  const res = await API.download(id, STATE.user);
+  triggerFileDownload(res);
+}
+
+/* ---- asset detail ---- */
+VIEWS.asset = async ({ params }) => {
+  const res = await API.getAsset(params[0], STATE.user && STATE.user.id);
+  if (!res.ok) return `<div class="page">${emptyHtml('Asset not found', res.error)}</div>`;
+  const a = res.data;
+  const me = STATE.user;
+  const comments = await API.listComments(a.id);
+  const reviews = await API.listReviews(a.id);
+  const ownerView = a.isOwner || (me && me.role === 'admin');
+
+  let buyHtml = '';
+  if (me && a.isOwner) {
+    buyHtml = `
+      <div class="form-${a.status === 'rejected' ? 'error' : 'ok'}">${a.status === 'pending' ? 'This asset is in the pending approval queue and is not visible to the public yet.' : a.status === 'rejected' ? 'This asset was rejected: ' + esc(a.rejectReason) : ''}</div>
+      <div class="row"><button class="btn btn-ghost" onclick="onEditAsset('${a.id}')">${ICON.edit} Edit</button><button class="btn btn-danger" onclick="onDeleteAsset('${a.id}')">${ICON.trash} Delete</button></div>`;
+  } else if (me && isTimedOut(me)) {
+    buyHtml = `<div class="form-error">You are currently timed out (${esc(timeoutText(me))} remaining) and cannot purchase or comment.</div>`;
+  } else if (a.hasPurchased) {
+    buyHtml = `<div class="form-ok">You own this asset.</div><button class="btn btn-primary btn-lg" onclick="onDownload('${a.id}')">${ICON.download} Download file</button>`;
+  } else if (!me) {
+    buyHtml = `<a class="btn btn-primary btn-lg" href="#/login">Log in to purchase</a>`;
+  } else if (a.status === 'approved') {
+    buyHtml = `<button class="btn btn-primary btn-lg" onclick="onBuy('${a.id}')">${ICON.cart} Purchase · ${fmtMoney(a.price)}</button>`;
+  }
+
+  const commentHtml = comments.ok ? comments.data.map(c => `
+    <div class="comment">${avatarHtml(c.user, 38)}
+      <div class="comment-body">
+        <div class="comment-head"><a class="comment-name" href="#/profile/${esc(c.user.handle)}">${esc(c.user.displayName)}</a>${badgeHtml(c.user.role)}<span class="comment-time">${timeAgo(c.createdAt)}</span>${me && c.user && c.user.id !== me.id ? `<button class="icon-btn" title="Report comment" onclick="onReport('comment','${c.id}')">${ICON.flag}</button>` : ''}</div>
+        <div class="comment-text">${esc(c.body)}</div>
+      </div></div>`).join('') : '';
+
+  const composerHtml = me
+    ? (isTimedOut(me) ? `<div class="form-error">Commenting is disabled while you are timed out (${esc(timeoutText(me))} remaining).</div>`
+      : `<form class="composer" onsubmit="onComment(event)" data-asset="${a.id}">${avatarHtml(me, 40)}<textarea class="textarea" name="body" placeholder="Share your thoughts on this asset…" maxlength="1000" required></textarea><button class="btn btn-primary btn-sm" type="submit">Comment</button></form>`)
+    : `<p class="muted"><a href="#/login">Log in</a> to join the discussion.</p>`;
+
+  /* reviews & ratings */
+  const reviewData = reviews.ok ? reviews.data : { avg: 0, count: 0, items: [] };
+  const myReview = me ? reviewData.items.find(r => r.user && r.user.id === me.id) : null;
+  let reviewFormHtml;
+  if (!me) reviewFormHtml = `<p class="muted small"><a href="#/login">Log in</a> to review this asset.</p>`;
+  else if (isTimedOut(me)) reviewFormHtml = `<p class="form-error">Reviews are disabled while you are timed out (${esc(timeoutText(me))} remaining).</p>`;
+  else if (a.isOwner) reviewFormHtml = `<p class="muted small">You cannot review your own asset.</p>`;
+  else if (a.status !== 'approved') reviewFormHtml = '';
+  else reviewFormHtml = `<form class="review-form" data-asset="${a.id}" onsubmit="onSubmitReview(event,'${a.id}')">
+      <div class="stars-pick" id="rp-${a.id}">${[1, 2, 3, 4, 5].map(i => `<button type="button" class="star-btn ${myReview && myReview.rating >= i ? 'on' : ''}" data-r="${i}" onclick="pickStar('${a.id}', ${i})">★</button>`).join('')}</div>
+      <input type="hidden" name="rating" value="${myReview ? myReview.rating : ''}">
+      <textarea class="textarea" name="body" maxlength="1000" placeholder="What did you think? (optional)">${myReview ? esc(myReview.body) : ''}</textarea>
+      <div class="row" style="gap:10px"><button class="btn btn-primary btn-sm" type="submit">${myReview ? 'Update review' : 'Post review'}</button>${myReview ? `<button class="btn btn-ghost btn-sm" type="button" onclick="onDeleteReview('${myReview.id}')">${ICON.trash} Remove my review</button>` : ''}</div>
+    </form>`;
+  const reviewListHtml = reviewData.items.length
+    ? reviewData.items.map(r => `
+      <div class="review">${avatarHtml(r.user, 36)}
+        <div class="review-body" style="flex:1;min-width:0">
+          <div class="comment-head"><a class="comment-name" href="#/profile/${esc(r.user.handle)}">${esc(r.user.displayName)}</a>${badgeHtml(r.user.role)}${starsHtml(r.rating)}<span class="comment-time">${timeAgo(r.createdAt)}</span>${me && r.user && r.user.id === me.id ? `<button class="icon-btn danger" title="Delete review" onclick="onDeleteReview('${r.id}')">${ICON.trash}</button>` : ''}</div>
+          ${r.body ? `<div class="review-text">${esc(r.body)}</div>` : ''}
+        </div></div>`).join('')
+    : emptyHtml('No reviews yet', 'Be the first to rate this asset.');
+
+  return `<div class="page page-narrow">
+    <div class="asset-hero">
+      <div class="asset-hero-thumb">${thumbHtml(a.category, 84)}</div>
+      <div>
+        <div class="asset-meta">${catBadge(a.category)}${ownerView ? statusBadge(a.status, a.rejectReason) : ''}<span class="sales">${ICON.cart}${a.sales} sold</span>${a.ratingCount ? `${starsHtml(a.rating)}<span class="muted small">${a.rating} · ${a.ratingCount}</span>` : ''}</div>
+        <h1 style="font-family:var(--font-display);font-size:clamp(26px,4vw,38px);font-weight:700;letter-spacing:-.02em;margin-top:10px">${esc(a.title)}</h1>
+        <div class="asset-meta"><span class="price" style="font-size:22px">${fmtMoney(a.price)}</span><span class="muted small">· posted ${fmtDate(a.createdAt)}</span></div>
+        <div class="asset-desc">${esc(a.description)}</div>
+        <div class="buy-box">${buyHtml || `<span class="muted small">This asset is not for sale yet.</span>`}</div>
+      </div>
+    </div>
+    <div class="poster-row">
+      ${avatarHtml(a.owner, 44)}
+      <div style="flex:1"><div class="row" style="gap:8px"><a href="#/profile/${esc(a.owner.handle)}" class="bold">${esc(a.owner.displayName)}</a>${badgeHtml(a.owner.role)}</div><div class="muted small">Creator · joined ${fmtDate(a.owner.createdAt)}</div></div>
+      ${me && !a.isOwner ? `<button class="btn btn-ghost btn-sm" onclick="onReport('asset','${a.id}')">${ICON.flag} Report</button>` : ''}
+    </div>
+    <div class="reviews" style="margin-top:44px">
+      <div class="section-head"><div><h2>Reviews &amp; Ratings <span class="muted small" style="font-weight:400">(${reviewData.count})</span></h2></div></div>
+      <div class="card card-pad review-summary">
+        <div style="text-align:center;flex-shrink:0">
+          <div style="font-family:var(--font-display);font-size:40px;font-weight:700;line-height:1">${reviewData.count ? reviewData.avg : '—'}</div>
+          ${starsHtml(reviewData.avg)}
+          <div class="muted small mt">${reviewData.count} review${reviewData.count === 1 ? '' : 's'}</div>
+        </div>
+        <div style="flex:1;min-width:220px">${reviewFormHtml}</div>
+      </div>
+      <div class="review-list" style="margin-top:18px">${reviewListHtml}</div>
+    </div>
+    <div class="comments" style="margin-top:44px">
+      <div class="section-head"><div><h2>Comments <span class="muted small" style="font-weight:400">(${comments.ok ? comments.data.length : 0})</span></h2></div></div>
+      ${composerHtml}
+      ${commentHtml || emptyHtml('No comments yet', 'Be the first to comment on this asset.')}
+    </div>
+  </div>`;
+};
+VIEWS_BIND.asset = () => { };
+
+async function onComment(e) {
+  e.preventDefault();
+  const res = await API.addComment(STATE.user, e.target.dataset.asset, e.target.body.value);
+  if (res.ok) { toast('Comment posted.'); await router(); } else toast(res.error, 'err');
+}
+async function onEditAsset(id) { go('/upload?edit=' + id); }
+async function onDeleteAsset(id) {
+  modal({ title: 'Delete this asset?', danger: true, confirmLabel: 'Delete',
+    body: '<p>This permanently removes the asset, its purchases, and all comments. This cannot be undone.</p>',
+    onConfirm: async () => { const res = await API.deleteAsset(STATE.user, id); if (res.ok) { toast('Asset deleted.'); await router(); } else toast(res.error, 'err'); } });
+}
+
+/* ---- reviews & ratings actions ---- */
+function starsHtml(avg) {
+  const r = Math.max(0, Math.min(5, Math.round(Number(avg) || 0)));
+  let s = '<span class="stars">';
+  for (let i = 1; i <= 5; i++) s += `<span class="${i <= r ? '' : 'off'}">★</span>`;
+  return s + '</span>';
+}
+function pickStar(assetId, r) {
+  const box = document.getElementById('rp-' + assetId);
+  if (!box) return;
+  box.querySelectorAll('.star-btn').forEach(b => b.classList.toggle('on', Number(b.dataset.r) <= r));
+  const form = box.closest('form');
+  if (form) form.rating.value = r;
+}
+async function onSubmitReview(e, assetId) {
+  e.preventDefault();
+  const f = e.target;
+  const rating = Number(f.rating.value);
+  if (!rating || rating < 1 || rating > 5) { toast('Pick a star rating.', 'err'); return; }
+  const res = await API.addReview(STATE.user, assetId, { rating, body: f.body.value });
+  if (res.ok) { toast('Review posted.'); await router(); } else toast(res.error, 'err');
+}
+async function onDeleteReview(reviewId) {
+  const res = await API.deleteReview(STATE.user, reviewId);
+  if (res.ok) { toast('Review removed.'); await router(); } else toast(res.error, 'err');
+}
+
+/* ---- reporting flow ---- */
+function onReport(type, id) {
+  if (!STATE.user) { go('/login'); return; }
+  const labels = { asset: 'this asset', comment: 'this comment', user: 'this user' };
+  const reasons = ['Scam or fraudulent listing', 'Stolen or unlicensed content', 'Inappropriate content', 'Spam', 'Harassment or abuse', 'Other'];
+  modal({
+    title: 'Report ' + labels[type],
+    confirmLabel: 'Submit report',
+    body: `<p>Reports are reviewed by the Kings Production team. Please be specific.</p>
+      <div class="field"><label>Reason</label><select class="select" id="rep-reason">${reasons.map(r => `<option>${esc(r)}</option>`).join('')}</select></div>
+      <div class="field"><label>Details (optional)</label><textarea class="textarea" id="rep-details" maxlength="1000" placeholder="Add any context that will help our team review this…"></textarea></div>`,
+    validate: async ov => {
+      const reason = ov.querySelector('#rep-reason').value;
+      const details = ov.querySelector('#rep-details').value.trim();
+      const res = await API.createReport(STATE.user, { targetType: type, targetId: id, reason, details });
+      if (!res.ok) { toast(res.error, 'err'); return false; }
+      toast('Report submitted — thank you. Our team will review it.');
+      return true;
+    },
+  });
+}
+function repIconHtml(type) {
+  return `<span style="position:relative;color:#fff">${ICON[type === 'asset' ? 'model' : type === 'comment' ? 'mail' : 'user']}</span>`;
+}
+async function onAdminResolve(id) {
+  const r = await API.adminResolveReport(STATE.user, id);
+  r.ok ? (toast('Report resolved.'), await router()) : toast(r.error, 'err');
+}
+async function onAdminRole(id, role) {
+  const r = await API.adminSetRole(STATE.user, id, role);
+  r.ok ? (toast('Role updated.'), await router()) : toast(r.error, 'err');
+}
+
+/* ---- profile ---- */
+VIEWS.profile = async ({ params }) => {
+  const res = await API.publicProfile(params[0]);
+  if (!res.ok) return `<div class="page">${emptyHtml('User not found', res.error)}</div>`;
+  const { user, assetCount, assets, purchases, comments } = res.data;
+  const me = STATE.user;
+  const boughtTotal = purchases.reduce((s, p) => s + p.price, 0);
+  return `<div class="page page-narrow">
+    <div class="profile-hero">
+      ${avatarHtml(user, 104)}
+      <div style="flex:1;min-width:240px">
+        <div class="profile-name">${esc(user.displayName)} ${badgeHtml(user.role)}</div>
+        <div class="profile-handle">@${esc(user.handle)} · joined ${fmtDateFull(user.createdAt)}</div>
+        <div class="profile-meta">
+          <div><b>${assetCount}</b><span>Assets</span></div>
+          <div><b>${purchases.length}</b><span>Purchases</span></div>
+          <div><b>${comments.length}</b><span>Comments</span></div>
+          <div><b>${fmtMoney(boughtTotal)}</b><span>Spent</span></div>
+        </div>
+        ${user.bio ? `<p class="profile-bio">${esc(user.bio)}</p>` : ''}
+        ${me && me.id !== user.id ? `<div class="mt"><button class="btn btn-ghost btn-sm" onclick="onReport('user','${user.id}')">${ICON.flag} Report user</button></div>` : ''}
+      </div>
+    </div>
+    <div class="section-head"><div><span class="section-eyebrow">Portfolio</span><h2>Assets posted</h2><p>Approved assets by ${esc(user.displayName)}.</p></div></div>
+    ${assets.length ? `<div class="grid grid-assets">${assets.map(a => assetCardHtml(a)).join('')}</div>` : emptyHtml('No assets posted', user.role === 'vip' || user.role === 'admin' ? 'This creator has not published any approved assets yet.' : 'Members can purchase and comment — only VIP / Licensed creators can post assets.')}
+    <div class="section-head"><div><span class="section-eyebrow">Activity</span><h2>Recent purchases</h2><p>What ${esc(user.displayName)} has bought recently.</p></div></div>
+    ${purchases.length ? `<div class="card card-pad" style="padding:6px 0">${purchases.map(p => `
+      <div class="row" style="padding:12px 20px;border-bottom:1px solid var(--border);gap:12px">
+        ${p.asset && p.asset.owner ? avatarHtml(p.asset.owner, 28) : ''}
+        <div style="flex:1;min-width:0">${p.asset ? `<a href="#/asset/${p.asset.id}" class="bold">${esc(p.asset.title)}</a>` : '<span class="muted">(deleted asset)</span>'}<div class="muted small">Purchased ${fmtDate(p.createdAt)}</div></div>
+        <span class="price">${fmtMoney(p.price)}</span>
+      </div>`).join('')}</div>` : emptyHtml('No purchases yet', 'Nothing here yet — purchases show up publicly once made.')}
+    <div class="section-head"><div><span class="section-eyebrow">Activity</span><h2>Recent comments</h2><p>Latest comments by ${esc(user.displayName)}.</p></div></div>
+    ${comments.length ? `<div class="card card-pad" style="padding:6px 0">${comments.map(c => `
+      <div class="comment" style="border:none">${avatarHtml(user, 34)}
+        <div class="comment-body"><div class="comment-head"><span class="comment-time">${timeAgo(c.createdAt)}</span>${c.asset ? `on <a href="#/asset/${c.asset.id}" class="muted">${esc(c.asset.title)}</a>` : ''}</div><div class="comment-text">${esc(c.body)}</div></div></div>`).join('')}</div>` : emptyHtml('No comments yet', 'No public comments from this user yet.')}
+  </div>`;
+};
+
+/* ---- auth ---- */
+VIEWS.login = async () => {
+  const need2fa = !!STATE.twoFactorUserId;
+  return `<div class="auth-wrap">
+    <a class="brand" href="#/" style="justify-content:center"><span class="crown">${ICON.crown}</span></a>
+    <h1 class="auth-title">${need2fa ? 'Two-factor authentication' : 'Welcome back'}</h1>
+    <p class="auth-sub">${need2fa ? 'Enter the 6-digit code from your authenticator app.' : 'Log in to your Kings Production account.'}</p>
+    ${need2fa
+      ? `<form onsubmit="onVerify2fa(event)"><div class="field"><label>Verification code</label><input class="input otp-input" name="code" inputmode="numeric" maxlength="6" placeholder="••••••" required autocomplete="one-time-code"></div><button class="btn btn-primary btn-lg" style="width:100%" type="submit">Verify & log in</button></form>`
+      : `<form onsubmit="handleLogin(event)">
+          <div class="field"><label>Handle or email</label><input class="input" name="login" placeholder="e.g. yourhandle or you@example.com" required autocomplete="username"></div>
+          <div class="field"><label>Password</label><input class="input" name="password" type="password" placeholder="••••••••" required autocomplete="current-password"></div>
+          <div class="row" style="justify-content:space-between;margin-bottom:16px"><span class="muted small">Protected with 2FA when enabled.</span><a class="small bold" href="#/forgot" style="color:var(--text-2)">Forgot password?</a></div>
+          <button class="btn btn-primary btn-lg" style="width:100%" type="submit">Log in</button>
+        </form>`}
+    ${need2fa ? '' : `<p class="auth-alt">New here? <a href="#/register">Create an account</a></p>`}
+    ${need2fa ? `<p class="auth-alt"><a href="#/login" onclick="STATE.twoFactorUserId=null">← Back to log in</a></p>` : ''}
+    <div class="demo-box"><b>Security</b><br>Passwords are stored as salted PBKDF2 hashes, and two-factor authentication uses TOTP (RFC 6238).<br>On a fresh install the first account to register is promoted to <b>Admin</b>.</div>
+  </div>`;
+};
+VIEWS.register = async () => `
+  <div class="auth-wrap">
+    <a class="brand" href="#/" style="justify-content:center"><span class="crown">${ICON.crown}</span></a>
+    <h1 class="auth-title">Create your account</h1>
+    <p class="auth-sub">Join the Kings Production marketplace. New accounts start as Members.</p>
+    <form onsubmit="handleRegister(event)">
+      <div class="field"><label>Display name</label><input class="input" name="displayName" placeholder="How you appear publicly" maxlength="40" required></div>
+      <div class="field"><label>Handle</label><input class="input" name="handle" placeholder="3–20 chars, letters/numbers/_" pattern="[a-zA-Z0-9_]{3,20}" required><div class="hint">Your public username — shown as @handle.</div></div>
+      <div class="field"><label>Email</label><input class="input" name="email" type="email" placeholder="you@example.com" required></div>
+      <div class="field"><label>Password</label><input class="input" name="password" type="password" minlength="6" placeholder="At least 6 characters" required autocomplete="new-password"></div>
+      <button class="btn btn-primary btn-lg" style="width:100%" type="submit">Create account</button>
+    </form>
+    <p class="auth-alt">Already have an account? <a href="#/login">Log in</a></p>
+  </div>`;
+VIEWS.forgot = async () => `
+  <div class="auth-wrap">
+    <a class="brand" href="#/" style="justify-content:center"><span class="crown">${ICON.crown}</span></a>
+    <h1 class="auth-title">Reset your password</h1>
+    <p class="auth-sub">Enter your account email and we will send you a reset link.</p>
+    <form onsubmit="handleForgot(event)">
+      <div class="field"><label>Email</label><input class="input" name="email" type="email" placeholder="you@example.com" required></div>
+      <button class="btn btn-primary btn-lg" style="width:100%" type="submit">Send reset link</button>
+    </form>
+    <p class="auth-alt"><a href="#/login">← Back to log in</a></p>
+  </div>`;
+VIEWS.reset = async ({ query }) => {
+  if (!query.token) return `<div class="page">${emptyHtml('Missing token', 'Open the reset link from your email.')}</div>`;
+  return `
+  <div class="auth-wrap">
+    <a class="brand" href="#/" style="justify-content:center"><span class="crown">${ICON.crown}</span></a>
+    <h1 class="auth-title">Choose a new password</h1>
+    <p class="auth-sub">For your account. This link can only be used once.</p>
+    <form onsubmit="handleReset(event)">
+      <input type="hidden" name="token" value="${esc(query.token)}">
+      <div class="field"><label>New password</label><input class="input" name="password" type="password" minlength="6" placeholder="At least 6 characters" required autocomplete="new-password"></div>
+      <div class="field"><label>Confirm password</label><input class="input" name="confirm" type="password" placeholder="Repeat your password" required autocomplete="new-password"></div>
+      <button class="btn btn-primary btn-lg" style="width:100%" type="submit">Set new password</button>
+    </form>
+    <p class="auth-alt"><a href="#/login">← Back to log in</a></p>
+  </div>`;
+};
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const f = e.target;
+  const res = await API.login({ login: f.login.value, password: f.password.value });
+  if (!res.ok) { toast(res.error, 'err'); if (res.code === 'banned') await router(); return; }
+  if (res.data && res.data.need2fa) { STATE.twoFactorUserId = res.data.userId; await router(); return; }
+  STATE.user = res.data; renderHeader(); toast('Welcome back, ' + res.data.displayName); go('/');
+}
+async function onVerify2fa(e) {
+  e.preventDefault();
+  const res = await API.verify2fa({ userId: STATE.twoFactorUserId, code: e.target.code.value });
+  if (!res.ok) { toast(res.error, 'err'); return; }
+  STATE.twoFactorUserId = null; STATE.user = res.data; renderHeader(); toast('Logged in securely.'); go('/');
+}
+async function handleRegister(e) {
+  e.preventDefault();
+  const f = e.target;
+  const res = await API.register({ handle: f.handle.value, displayName: f.displayName.value, email: f.email.value, password: f.password.value });
+  if (!res.ok) { toast(res.error, 'err'); return; }
+  STATE.user = res.data; renderHeader(); toast('Account created — welcome to Kings Production!'); go('/');
+}
+async function handleForgot(e) {
+  e.preventDefault();
+  const res = await API.requestReset({ email: e.target.email.value });
+  if (!res.ok) { toast(res.error, 'err'); return; }
+  toast('If that email exists, a reset link is on its way.');
+  if (res.data && res.data.devLink) {
+    modal({ title: 'Reset link sent',
+      body: `<p>An email was sent to ${esc(e.target.email.value)}. In this development preview, mail is delivered to a local mailbox instead of a real inbox.</p><p><a class="btn btn-primary btn-sm" href="${res.data.devLink}">Open the reset link</a></p><p class="muted small">Admins can view all sent mail in the Admin Panel → Mailbox.</p>` });
+  }
+}
+async function handleReset(e) {
+  e.preventDefault();
+  const f = e.target;
+  if (f.password.value !== f.confirm.value) { toast('Passwords do not match.', 'err'); return; }
+  const res = await API.resetPassword({ token: f.token.value, password: f.password.value });
+  if (!res.ok) { toast(res.error, 'err'); return; }
+  toast('Password updated. Log in with your new password.'); go('/login');
+}
+
+/* ---- settings ---- */
+VIEWS.settings = async () => {
+  if (!STATE.user) return `<div class="page">${emptyHtml('Not logged in', 'Log in to manage your account.')}</div>`;
+  const u = STATE.user;
+  return `<div class="page page-narrow">
+    <div class="section-head"><div><span class="section-eyebrow">Account</span><h2>Settings</h2><p>Manage your profile, security, and account details.</p></div></div>
+    <div class="card card-pad" style="margin-bottom:20px">
+      <h3 style="font-family:var(--font-display);font-size:17px;margin-bottom:16px">Profile</h3>
+      <form onsubmit="handleSaveProfile(event)">
+        <div class="row" style="align-items:flex-start;gap:20px;margin-bottom:6px">
+          <div style="text-align:center">
+            <div id="pfp-preview">${avatarHtml(u, 84)}</div>
+            <label class="btn btn-ghost btn-sm mt" style="cursor:pointer">Upload<input type="file" id="pfp-input" accept="image/*" class="hidden" onchange="onPfpPick(event)"></label>
+            <p class="hint muted small" style="margin-top:6px">PNG / JPG</p>
+          </div>
+          <div style="flex:1">
+            <div class="field"><label>Display name</label><input class="input" name="displayName" value="${esc(u.displayName)}" maxlength="40" required></div>
+            <div class="field"><label>Handle</label><input class="input" name="handle" value="${esc(u.handle)}" pattern="[a-zA-Z0-9_]{3,20}" required><div class="hint">Public username — @${esc(u.handle)}</div></div>
+            <div class="field"><label>Bio</label><textarea class="textarea" name="bio" maxlength="300" placeholder="A short line about you…">${esc(u.bio || '')}</textarea></div>
+          </div>
+        </div>
+        <button class="btn btn-primary" type="submit">Save changes</button>
+      </form>
+    </div>
+    <div class="card card-pad" style="margin-bottom:20px">
+      <h3 style="font-family:var(--font-display);font-size:17px;margin-bottom:6px">Two-factor authentication</h3>
+      <p class="muted small mb">Add an extra layer of security. 2FA uses a time-based one-time code from an authenticator app (or the live code shown during setup).</p>
+      ${u.totpEnabled
+        ? `<div class="row"><span class="badge ok">${ICON.check} 2FA enabled</span><button class="btn btn-ghost btn-sm" onclick="onDisable2fa()">Disable 2FA</button></div>`
+        : `<button class="btn btn-ghost" onclick="onSetup2fa()">${ICON.lock} Set up two-factor authentication</button>`}
+    </div>
+    <div class="card card-pad">
+      <h3 style="font-family:var(--font-display);font-size:17px;margin-bottom:6px">Account</h3>
+      <div class="row" style="justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)"><span class="muted">Email</span><span>${esc(u.email)}</span></div>
+      <div class="row" style="justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)"><span class="muted">Role</span><span>${badgeHtml(u.role)}</span></div>
+      <div class="row" style="justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)"><span class="muted">Member since</span><span>${fmtDateFull(u.createdAt)}</span></div>
+      <div class="row" style="justify-content:space-between;padding:9px 0"><span class="muted">Status</span><span>${u.banned ? '<span class="status-pill status-rejected">Banned</span>' : isTimedOut(u) ? `<span class="status-pill status-pending">Timed out (${esc(timeoutText(u))})</span>` : '<span class="status-pill status-approved">Active</span>'}</span></div>
+    </div>
+  </div>`;
+};
+VIEWS_BIND.settings = () => { };
+let _pfpData = null;
+function onPfpPick(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { toast('Please choose an image file.', 'err'); return; }
+  readFileAsDataURL(file).then(d => {
+    _pfpData = d;
+    document.getElementById('pfp-preview').innerHTML = `<img src="${d}" alt="" class="avatar" style="width:84px;height:84px">`;
+  });
+}
+async function handleSaveProfile(e) {
+  e.preventDefault();
+  const f = e.target;
+  const res = await API.updateProfile(STATE.user, { displayName: f.displayName.value, handle: f.handle.value, bio: f.bio.value, pfp: _pfpData });
+  if (!res.ok) { toast(res.error, 'err'); return; }
+  _pfpData = null;
+  STATE.user = { ...STATE.user, ...res.data };
+  renderHeader();
+  toast('Profile updated.');
+  await router();
+}
+let _totpTimer = null;
+function stopTotpTimer() { if (_totpTimer) { clearInterval(_totpTimer); _totpTimer = null; } }
+function totpLiveHtml(secret, digits = 6) {
+  return `<div class="totp-live">
+    <svg class="totp-ring" viewBox="0 0 52 52"><circle class="track" cx="26" cy="26" r="23"/><circle class="arc" id="totp-arc" cx="26" cy="26" r="23" stroke-dasharray="144.5" stroke-dashoffset="0" transform="rotate(-90 26 26)"/></svg>
+    <div><div class="muted small">Live code (updates every 30s)</div><div class="totp-code" id="totp-code">——————</div></div>
+  </div>`;
+}
+async function onSetup2fa() {
+  const res = await API.setup2fa(STATE.user);
+  if (!res.ok) { toast(res.error, 'err'); return; }
+  const { secret, uri, email } = res.data;
+  stopTotpTimer();
+  const ov = modal({
+    title: 'Set up two-factor authentication', confirmLabel: 'Enable 2FA',
+    body: `<p>Add this secret to an authenticator app, or use the live code below during setup. You will need a code to log in from new sessions.</p>
+      <div class="field"><label>Secret key</label><input class="input mono" id="tfa-secret" value="${secret}" readonly onclick="this.select()"><div class="hint">Click to select. Scan or type this into your authenticator.</div></div>
+      ${totpLiveHtml(secret)}
+      <div class="field mt"><label>Verification code</label><input class="input otp-input" id="tfa-code" inputmode="numeric" maxlength="6" placeholder="••••••" required></div>
+      <p class="muted small">Authenticator URI: <span class="mono" style="word-break:break-all;font-size:11px">${esc(uri)}</span></p>`,
+    validate: async ov => {
+      const code = ov.querySelector('#tfa-code').value.trim();
+      if (!/^\d{6}$/.test(code)) { toast('Enter the 6-digit code.', 'err'); return false; }
+      const r = await API.enable2fa(STATE.user, { code });
+      if (!r.ok) { toast(r.error, 'err'); return false; }
+      return true;
+    },
+    onConfirm: async () => { stopTotpTimer(); toast('Two-factor authentication enabled.'); await router(); },
+    onClose: stopTotpTimer,
+  });
+  const tick = async () => {
+    const el = document.getElementById('totp-code'); if (!el) { stopTotpTimer(); return; }
+    const code = await totpCode(secret);
+    el.textContent = code;
+    const rem = 30 - (Math.floor(Date.now() / 1000) % 30);
+    const arc = document.getElementById('totp-arc');
+    if (arc) arc.setAttribute('stroke-dashoffset', String(144.5 * (1 - rem / 30)));
+  };
+  tick(); _totpTimer = setInterval(tick, 1000);
+  ov._close = ov.querySelector('[data-act=cancel]').onclick;
+}
+async function onDisable2fa() {
+  modal({ title: 'Disable two-factor authentication', confirmLabel: 'Disable 2FA', danger: true,
+    body: `<p>Enter a current code to confirm.</p><div class="field"><label>Current code</label><input class="input otp-input" id="tfa-code" inputmode="numeric" maxlength="6" placeholder="••••••"></div>`,
+    validate: async ov => {
+      const r = await API.disable2fa(STATE.user, { code: ov.querySelector('#tfa-code').value.trim() });
+      if (!r.ok) { toast(r.error, 'err'); return false; }
+      return true;
+    },
+    onConfirm: async () => { toast('Two-factor authentication disabled.'); await router(); } });
+}
+
+/* ---- upload / edit ---- */
+VIEWS.upload = async ({ query }) => {
+  if (!STATE.user) return `<div class="page">${emptyHtml('Not logged in', 'Log in to post assets.')}</div>`;
+  if (!canPost(STATE.user)) {
+    return `<div class="page page-narrow">${STATE.user.role === 'member'
+      ? `<div class="card card-pad center" style="padding:56px 30px"><span class="crown" style="font-size:34px">${ICON.crown}</span><h2 style="font-family:var(--font-display);font-size:24px;margin:14px 0 8px">Members cannot post assets</h2><p class="muted" style="max-width:420px;margin:0 auto">Posting assets is a VIP / Licensed creator feature. Members can comment and purchase from the marketplace.</p></div>`
+      : `<div class="page">${emptyHtml('Currently restricted', 'Your account is timed out and cannot post assets right now.')}</div>`}</div>`;
+  }
+  let a = null;
+  if (query.edit) {
+    const r = await API.getAsset(query.edit, STATE.user.id);
+    if (!r.ok) return `<div class="page">${emptyHtml('Asset not found', r.error)}</div>`;
+    if (!r.data.isOwner) return `<div class="page">${emptyHtml('Not your asset', 'Only the creator can edit this asset.')}</div>`;
+    a = r.data;
+  }
+  return `<div class="page page-narrow">
+    <div class="section-head"><div><span class="section-eyebrow">${a ? 'Edit' : 'Sell'}</span><h2>${a ? 'Edit asset' : 'Upload a new asset'}</h2><p>${a ? 'Changes send the asset back into the pending approval queue.' : 'VIP / Licensed creators can post assets. Submissions are reviewed by an admin before going live.'}</p></div></div>
+    <div class="card card-pad">
+      <form onsubmit="onSubmitAsset(event)">
+        <input type="hidden" name="id" value="${a ? a.id : ''}">
+        <div class="field"><label>Title<span class="req">*</span></label><input class="input" name="title" maxlength="60" placeholder="e.g. Onyx Admin Commands" value="${esc(a ? a.title : '')}" required></div>
+        <div class="row" style="align-items:flex-start">
+          <div class="field" style="flex:1;min-width:200px"><label>Category<span class="req">*</span></label><select class="select" name="category" required>${CATEGORIES.map(c => `<option value="${c}" ${a && a.category === c ? 'selected' : ''}>${CAT_LABEL[c]}</option>`).join('')}</select><div class="hint">Roblox categories only.</div></div>
+          <div class="field" style="flex:1;min-width:160px"><label>Price (Robux)<span class="req">*</span></label><input class="input" name="price" type="number" min="1" max="999999" step="1" placeholder="499" value="${a ? a.price : ''}" required></div>
+        </div>
+        <div class="field"><label>Full description<span class="req">*</span></label><textarea class="textarea" name="description" placeholder="Describe the asset in detail — what it includes, how it works, what it is built for…" required>${esc(a ? a.description : '')}</textarea></div>
+        <div class="field"><label>Asset file${a ? '' : '<span class="req">*</span>'}</label>
+          <input class="input" type="file" name="file" ${a ? '' : 'required'} accept=".rbxl,.rbxm,.rbxmx,.lua,.luau,.zip,.txt">
+          ${a ? `<div class="hint">Current file: ${esc(a.fileName)} — choose a new file to replace it.</div>` : '<div class="hint">The actual Roblox file (.rbxl, .rbxm, .rbxmx, .lua, .luau, .zip).</div>'}
+        </div>
+        <div class="row"><button class="btn btn-primary" type="submit">${a ? 'Save & resubmit' : 'Submit for approval'}</button>${a ? '<a class="btn btn-ghost" href="#/my-assets">Cancel</a>' : ''}</div>
+      </form>
+    </div>
+  </div>`;
+};
+async function onSubmitAsset(e) {
+  e.preventDefault();
+  const f = e.target;
+  const fileInput = f.file;
+  const file = fileInput.files && fileInput.files[0];
+  if (!file && !f.id.value) { toast('Please upload the asset file.', 'err'); return; }
+  if (file && file.size > 20 * 1024 * 1024) { toast('File is too large (max 20 MB).', 'err'); return; }
+  const btn = f.querySelector('button[type=submit]');
+  const origLabel = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Uploading…';
+  try {
+    let fileData = null, fileName = null;
+    if (file) { fileData = await readFileAsDataURL(file); fileName = file.name; }
+    const res = f.id.value
+      ? await API.updateAsset(STATE.user, f.id.value, { title: f.title.value, category: f.category.value, description: f.description.value, price: f.price.value, fileName, fileData })
+      : await API.createAsset(STATE.user, { title: f.title.value, category: f.category.value, description: f.description.value, price: f.price.value, fileName, fileData });
+    if (!res.ok) { toast(res.error, 'err'); return; }
+    toast(f.id.value ? 'Changes submitted — back in the approval queue.' : 'Asset submitted for admin approval.');
+    go('/my-assets');
+  } catch (err) {
+    console.error(err);
+    toast('Upload failed — please try again.', 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = origLabel;
+  }
+}
+
+/* ---- my assets ---- */
+VIEWS['my-assets'] = async () => {
+  if (!STATE.user) return `<div class="page">${emptyHtml('Not logged in', 'Log in to manage your assets.')}</div>`;
+  const mine = await API.myAssets(STATE.user);
+  const list = mine.ok ? mine.data : [];
+  return `<div class="page page-narrow">
+    <div class="section-head"><div><span class="section-eyebrow">Creator</span><h2>My Assets</h2><p>Everything you have posted — ${list.filter(a => a.status === 'approved').length} live, ${list.filter(a => a.status === 'pending').length} pending approval.</p></div>${canPost(STATE.user) ? '<a class="btn btn-primary btn-sm" href="#/upload">' + ICON.plus + ' New asset</a>' : ''}</div>
+    ${list.length ? `<div class="card" style="padding:6px 0">${list.map(a => `
+      <div class="row" style="padding:14px 20px;border-bottom:1px solid var(--border);gap:14px">
+        <div style="width:46px;height:46px;border-radius:9px;border:1px solid var(--border);overflow:hidden;position:relative;flex-shrink:0">${thumbHtml(a.category, 22)}</div>
+        <div style="flex:1;min-width:0"><div class="bold" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.title)}</div><div class="muted small">${catBadge(a.category)} ${ICON.cart}${a.sales} sold · posted ${fmtDate(a.createdAt)}</div></div>
+        <div>${statusBadge(a.status, a.rejectReason)}</div>
+        <div class="row" style="gap:8px"><button class="btn btn-ghost btn-sm" onclick="onEditAsset('${a.id}')">${ICON.edit} Edit</button><button class="btn btn-danger btn-sm" onclick="onDeleteAsset('${a.id}')">${ICON.trash}</button></div>
+      </div>`).join('')}</div>`
+    : emptyHtml('No assets yet', canPost(STATE.user) ? 'Upload your first asset — it will be reviewed before going live.' : 'Members cannot post assets. Upgrade to a VIP / Licensed creator to sell on the marketplace.')}
+  </div>`;
+};
+
+/* ================= CHUNK 6: PORTFOLIO · CREATORS · LICENSE · ADMIN · BOOT ================= */
+/* ---- portfolio ---- */
+VIEWS.portfolio = async () => {
+  const rot = ['system', 'model', 'anim', 'plugin'];
+  const c = await API.content();
+  const list = c.ok && c.data && c.data.portfolio ? c.data.portfolio : [];
+  return `<div class="page">
+    <div class="section-head"><div><span class="section-eyebrow">Portfolio</span><h2>Our finest creations</h2><p>Premium Roblox experiences and case studies shipped by the studio.</p></div></div>
+    <div class="grid portfolio-grid">${list.map((p, i) => `
+      <article class="card card-hover project-card">
+        <div class="project-banner"><div class="thumb-bg thumb-default"></div><span style="position:relative">${ICON[rot[i % 4]]}</span></div>
+        <div class="project-body">
+          <h3>${esc(p.title)}</h3>
+          <p>${esc(p.desc)}</p>
+          <div class="project-foot"><b>${esc(p.stat)}</b><span class="badge ${p.status === 'Live' ? 'ok' : 'plain'}">${esc(p.status)}</span></div>
+        </div></article>`).join('') || emptyHtml('No projects yet', 'Portfolio items will appear here.')}</div>
+  </div>`;
+};
+
+/* ---- creators ---- */
+VIEWS.creators = async () => {
+  const c = await API.content();
+  const list = c.ok && c.data && c.data.creators ? c.data.creators : [];
+  return `<div class="page">
+    <div class="section-head"><div><span class="section-eyebrow">Creators</span><h2>The team behind the studio</h2><p>Elite developers, designers, and artists building Kings Production.</p></div></div>
+    <div class="grid creators-grid">${list.map(cr => `
+      <div class="card card-hover creator-card">
+        <span>${avatarHtml({ displayName: cr.name }, 78)}</span>
+        <h3>${esc(cr.name)}</h3>
+        <div class="role">${esc(cr.role)}</div>
+        <p>${esc(cr.bio)}</p>
+      </div>`).join('') || emptyHtml('No creators yet', 'The studio team will appear here.')}</div>
+  </div>`;
+};
+
+/* ---- license ---- */
+VIEWS.license = async () => {
+  const tiers = [
+    { name: 'Standard', price: 'Included', desc: 'Every purchase includes a standard license.', feats: ['1 assigned game ID', 'Personal / single experience use', 'Free updates for the asset'], featured: false },
+    { name: 'Extended', price: '+50%', desc: 'For creators shipping to multiple games.', feats: ['Up to 3 assigned game IDs', 'Commercial use allowed', 'Priority support'], featured: true },
+    { name: 'Studio', price: 'Contact', desc: 'For teams and studios at scale.', feats: ['Unlimited game IDs', 'White-label rights', 'Dedicated support channel'], featured: false },
+  ];
+  let my = '';
+  if (STATE.user) {
+    const r = await API.myPurchases(STATE.user);
+    const list = r.ok ? r.data : [];
+    my = `<div class="section-head mt2"><div><span class="section-eyebrow">Your licenses</span><h2>Manage your purchases</h2><p>Assign each license to a Roblox game to activate it.</p></div></div>
+      ${list.length ? `<div class="card" style="padding:6px 0">${list.map(p => `
+        <div style="padding:18px 20px;border-bottom:1px solid var(--border)">
+          <div class="row" style="justify-content:space-between;gap:12px">
+            <div><div class="bold">${p.asset ? `<a href="#/asset/${p.asset.id}">${esc(p.asset.title)}</a>` : '(deleted asset)'}</div>
+            <div class="muted small">Purchased ${fmtDate(p.createdAt)} · ${fmtMoney(p.price)}</div></div>
+            <span class="license-key">${esc(p.licenseKey)}</span>
+          </div>
+          ${p.gameId ? `<div class="row mt" style="gap:10px"><span class="badge ok">${ICON.check} Assigned</span><span class="muted small">${esc(p.gameName || 'Game')} · ID ${esc(p.gameId)}</span></div>`
+          : `<form class="row mt" style="gap:10px" onsubmit="onAssignLicense('${p.id}',event)">
+              <input class="input" style="flex:1;min-width:160px" name="gameId" inputmode="numeric" placeholder="Roblox game ID (digits)" pattern="\d{6,20}" required>
+              <input class="input" style="flex:1;min-width:160px" name="gameName" placeholder="Game name (optional)">
+              <button class="btn btn-primary btn-sm" type="submit">Assign</button></form>`}
+        </div>`).join('')}</div>`
+      : emptyHtml('No purchases yet', 'Buy an asset from the shop and its license will appear here.')}`;
+  } else {
+    my = `<div class="center mt2" style="padding:44px 0">${emptyHtml('Log in to manage your licenses', 'Purchases and license keys are tied to your account.')}<a class="btn btn-primary" href="#/login">Log in</a></div>`;
+  }
+  return `<div class="page">
+    <div class="section-head"><div><span class="section-eyebrow">License</span><h2>Licensing</h2><p>Every purchase includes a license key. Assign it to your Roblox game to legally use the asset.</p></div></div>
+    <div class="grid tier-grid">${tiers.map(t => `
+      <div class="tier ${t.featured ? 'featured' : ''}">
+        <h3>${esc(t.name)}</h3>
+        <div class="price-line">${esc(t.price)}</div>
+        <p class="muted small">${esc(t.desc)}</p>
+        <ul>${t.feats.map(f => `<li>${esc(f)}</li>`).join('')}</ul>
+      </div>`).join('')}</div>
+    ${my}
+  </div>`;
+};
+async function onAssignLicense(purchaseId, e) {
+  e.preventDefault();
+  const r = await API.assignLicense(STATE.user, purchaseId, { gameId: e.target.gameId.value, gameName: e.target.gameName.value });
+  if (r.ok) { toast('License assigned to your game.'); await router(); } else toast(r.error, 'err');
+}
+
+/* ---- admin ---- */
+VIEWS.admin = async () => {
+  if (!STATE.user || STATE.user.role !== 'admin') {
+    return `<div class="page">${emptyHtml('Admins only', 'This is a separate interface for administrators.')}</div>`;
+  }
+  const tabs = [['overview', 'Overview'], ['approvals', 'Approvals'], ['assets', 'Assets'], ['users', 'Users'], ['reports', 'Reports'], ['online', 'Online'], ['mailbox', 'Mailbox']];
+  const tabbar = `<div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${STATE.adminTab === k ? 'active' : ''}" onclick="setAdminTab('${k}')">${l}</button>`).join('')}</div>`;
+  return `<div class="page" style="max-width:1080px">
+    <div class="section-head"><div><span class="section-eyebrow">Administration</span><h2>Admin Panel</h2><p>Moderate submissions, users, and review marketplace activity.</p></div></div>
+    ${tabbar}
+    <div id="admin-body">${loadingHtml()}</div>
+  </div>`;
+};
+VIEWS_BIND.admin = async () => {
+  const body = document.getElementById('admin-body');
+  if (!body) return;
+  body.innerHTML = loadingHtml();
+  const html = await adminTabHtml(STATE.adminTab);
+  body.innerHTML = html;
+};
+async function setAdminTab(tab) { STATE.adminTab = tab; await router(); }
+async function adminTabHtml(tab) {
+  if (tab === 'overview') {
+    const o = await API.adminOverview(STATE.user);
+    if (!o.ok) return `<p class="form-error">${esc(o.error)}</p>`;
+    const d = o.data;
+    const stat = (v, l) => `<div class="stat-card"><b>${v}</b><span>${l}</span></div>`;
+    return `<div class="stat-grid">
+      ${stat(d.users, 'Total users')}${stat(d.online, 'Online now')}${stat(d.assets, 'Total assets')}${stat(d.pending, 'Pending approval')}${stat(d.sales, 'Sales')}${stat(fmtMoney(d.revenue), 'Revenue')}${stat(d.reports, 'Open reports')}${stat(d.reviews, 'Reviews')}${stat(d.banned, 'Banned')}${stat(d.timedOut, 'Timed out')}
+    </div>
+    <p class="muted small mt">Admins are protected from bans and timeouts — moderation actions are never available against Admin accounts.</p>`;
+  }
+  if (tab === 'approvals') {
+    const [p, r] = await Promise.all([API.adminPending(STATE.user), API.adminRejected(STATE.user)]);
+    const pend = p.ok ? p.data : [];
+    const rej = r.ok ? r.data : [];
+    return `<h3 style="font-family:var(--font-display);font-size:17px;margin-bottom:14px">Pending submissions (${pend.length})</h3>
+      ${pend.length ? pend.map(a => `
+        <div class="approve-card mb">
+          <div class="thumb">${thumbHtml(a.category, 26)}</div>
+          <div class="info">
+            <h4>${esc(a.title)} <span class="muted small" style="font-weight:400">· ${fmtMoney(a.price)}</span></h4>
+            <div class="muted small mb">by <a href="#/profile/${esc(a.owner.handle)}">${esc(a.owner.displayName)}</a> ${badgeHtml(a.owner.role)} · ${catBadge(a.category)} · posted ${timeAgo(a.createdAt)}</div>
+            <div class="desc">${esc(a.description)}</div>
+            <div class="muted small mt">File: <span class="mono">${esc(a.fileName)}</span></div>
+          </div>
+          <div class="row" style="gap:8px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" onclick="onAdminDownload('${a.id}')">${ICON.download} File</button>
+            <button class="btn btn-ghost btn-sm" onclick="onAdminReject('${a.id}')">Reject</button>
+            <button class="btn btn-primary btn-sm" onclick="onAdminApprove('${a.id}')">${ICON.check} Approve</button>
+          </div></div>`).join('')
+      : emptyHtml('Queue is clear', 'No assets are waiting for approval.')}
+      <h3 class="mt2" style="font-family:var(--font-display);font-size:17px;margin-bottom:14px">Rejected submissions (${rej.length})</h3>
+      ${rej.length ? rej.map(a => `<div class="approve-card mb"><div class="thumb">${thumbHtml(a.category, 26)}</div><div class="info"><h4>${esc(a.title)}</h4><div class="muted small mb">by ${esc(a.owner.displayName)} · ${timeAgo(a.createdAt)}</div><div class="desc" style="color:var(--text-2)">${esc(a.rejectReason)}</div></div></div>`).join('')
+      : `<p class="muted small">No rejected submissions.</p>`}`;
+  }
+  if (tab === 'assets') {
+    const r = await API.adminAssets(STATE.user);
+    const list = r.ok ? r.data : [];
+    return `<div class="table-wrap"><table class="table">
+      <thead><tr><th>Asset</th><th>Owner</th><th>Category</th><th>Price</th><th>Sales</th><th>Status</th><th></th></tr></thead>
+      <tbody>${list.map(a => `<tr>
+        <td><div class="row" style="gap:10px"><span style="width:34px;height:26px;border-radius:6px;overflow:hidden;position:relative;flex-shrink:0;border:1px solid var(--border)">${thumbHtml(a.category, 14)}</span><a href="#/asset/${a.id}" class="bold">${esc(a.title)}</a></div></td>
+        <td><a href="#/profile/${esc(a.owner.handle)}">${esc(a.owner.displayName)}</a></td>
+        <td>${CAT_LABEL[a.category]}</td><td>${fmtMoney(a.price)}</td><td>${a.sales}</td><td>${statusBadge(a.status, a.rejectReason)}</td>
+        <td><div class="row-actions"><button class="btn btn-ghost btn-sm" title="Access file" onclick="onAdminDownload('${a.id}')">${ICON.download}</button><button class="btn btn-danger btn-sm" title="Delete post" onclick="onAdminDelete('${a.id}')">${ICON.trash}</button></div></td>
+      </tr>`).join('') || `<tr><td colspan="7"><div class="empty">No assets.</div></td></tr>`}</tbody></table></div>`;
+  }
+  if (tab === 'users') {
+    const r = await API.adminUsers(STATE.user);
+    const list = r.ok ? r.data : [];
+    return `<div class="table-wrap"><table class="table">
+      <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Status</th><th>Moderation</th></tr></thead>
+      <tbody>${list.map(u => {
+        const isAdminUser = u.role === 'admin';
+        const status = u.banned ? `<span class="status-pill status-rejected">Banned${u.banReason ? ' — ' + esc(u.banReason) : ''}</span>`
+          : u.timeoutUntil && u.timeoutUntil > now() ? `<span class="status-pill status-pending">Timed out (${esc(timeoutText(u))})</span>`
+          : '<span class="status-pill status-approved">Active</span>';
+        const actions = isAdminUser
+          ? `<span class="muted small">${ICON.shield} Protected — admins cannot be moderated</span>`
+          : `<div class="row-actions">
+              ${u.banned ? `<button class="btn btn-ghost btn-sm" onclick="onAdminUnban('${u.id}')">Unban</button>` : `<button class="btn btn-danger btn-sm" onclick="onAdminBan('${u.id}')">${ICON.ban} Ban</button>`}
+              ${u.timeoutUntil && u.timeoutUntil > now() ? `<button class="btn btn-ghost btn-sm" onclick="onAdminClear('${u.id}')">Clear timeout</button>` : `<button class="btn btn-ghost btn-sm" onclick="onAdminTimeout('${u.id}')">${ICON.clock} Timeout</button>`}
+            </div>`;
+        return `<tr>
+          <td><div class="user-row">${avatarHtml(u, 34)}<div><a class="bold" href="#/profile/${esc(u.handle)}">${esc(u.displayName)}</a><div class="muted small">@${esc(u.handle)} ${badgeHtml(u.role)}</div></div></div></td>
+          <td class="muted">${esc(u.email)}</td>
+          <td>${u.id === STATE.user.id ? badgeHtml(u.role) + ' <span class="muted small">(you)</span>' : u.role === 'admin' ? badgeHtml(u.role) + ' <span class="muted small">Protected</span>' : `<select class="select" style="width:auto;padding:6px 30px 6px 10px;font-size:12.5px;border-radius:8px" onchange="onAdminRole('${u.id}', this.value)" title="Change role">${['member', 'vip', 'admin'].map(r => `<option value="${r}" ${u.role === r ? 'selected' : ''}>${r === 'vip' ? 'VIP / Licensed' : r.charAt(0).toUpperCase() + r.slice(1)}</option>`).join('')}</select>`}</td>
+          <td>${status}</td>
+          <td>${actions}</td></tr>`;
+      }).join('')}</tbody></table></div>`;
+  }
+  if (tab === 'reports') {
+    const r = await API.adminReports(STATE.user);
+    if (!r.ok) return `<p class="form-error">${esc(r.error)}</p>`;
+    const { open, resolved } = r.data;
+    const card = rep => {
+      let title = '', ctx = '';
+      if (rep.targetType === 'asset') {
+        title = `Asset: ${rep.asset ? rep.asset.title : '(deleted)'}`;
+        ctx = rep.asset ? `<a class="btn btn-ghost btn-sm" href="#/asset/${rep.asset.id}">${ICON.eye} View</a><button class="btn btn-danger btn-sm" onclick="onAdminDelete('${rep.asset.id}')">${ICON.trash} Delete post</button>` : '';
+      } else if (rep.targetType === 'comment') {
+        title = `Comment: “${rep.comment ? rep.comment.body.slice(0, 70) : '(deleted)'}”`;
+        ctx = `<span class="muted small">on ${rep.comment && rep.comment.assetTitle ? esc(rep.comment.assetTitle) : 'a deleted asset'}</span>`;
+      } else {
+        title = `User: ${rep.user ? rep.user.displayName : '(deleted)'}`;
+        ctx = rep.user && rep.user.role !== 'admin'
+          ? `<button class="btn btn-danger btn-sm" onclick="onAdminBan('${rep.user.id}')">${ICON.ban} Ban</button><button class="btn btn-ghost btn-sm" onclick="onAdminTimeout('${rep.user.id}')">${ICON.clock} Timeout</button><a class="btn btn-ghost btn-sm" href="#/profile/${esc(rep.user.handle)}">${ICON.eye} Profile</a>`
+          : (rep.user ? `<span class="muted small">${ICON.shield} Admin target — protected</span>` : '');
+      }
+      return `<div class="approve-card mb">
+        <div class="thumb">${repIconHtml(rep.targetType)}</div>
+        <div class="info">
+          <h4>${esc(title)}</h4>
+          <div class="muted small mb">Reported by ${esc(rep.reporter.displayName)} · ${timeAgo(rep.createdAt)} · <span class="badge plain">${esc(rep.reason)}</span></div>
+          ${rep.details ? `<p class="muted small">${esc(rep.details)}</p>` : ''}
+        </div>
+        <div class="row" style="gap:8px;flex-wrap:wrap">${ctx}<button class="btn btn-primary btn-sm" onclick="onAdminResolve('${rep.id}')">${ICON.check} Resolve</button></div>
+      </div>`;
+    };
+    return `<h3 style="font-family:var(--font-display);font-size:17px;margin-bottom:14px">Open reports (${open.length})</h3>
+      ${open.length ? open.map(card).join('') : emptyHtml('No open reports', 'Reports from users will appear here for review.')}
+      <h3 class="mt2" style="font-family:var(--font-display);font-size:17px;margin-bottom:14px">Resolved (${resolved.length})</h3>
+      ${resolved.length ? resolved.map(card).join('') : '<p class="muted small">No resolved reports.</p>'}`;
+  }
+  if (tab === 'online') {
+    const r = await API.adminSessions(STATE.user);
+    const d = r.ok ? r.data : { rows: [], total: 0, online: 0 };
+    return `<p class="muted mb"><b class="bold" style="color:var(--text)">${d.online}</b> users online right now · ${d.total} active sessions total (last 10 minutes counts as online).</p>
+      <div class="card" style="padding:6px 0">${d.rows.map(s => `
+        <div class="row" style="padding:12px 20px;border-bottom:1px solid var(--border);gap:12px">
+          <span class="dot ${s.online ? 'on' : 'off'}"></span>
+          ${avatarHtml(s.user, 32)}
+          <div style="flex:1;min-width:0"><a class="bold" href="#/profile/${esc(s.user.handle)}">${esc(s.user.displayName)}</a> ${badgeHtml(s.user.role)}<div class="muted small">${esc(s.label)}</div></div>
+          <span class="muted small">${s.online ? 'active ' + timeAgo(s.lastSeen) : 'last seen ' + timeAgo(s.lastSeen)}</span>
+        </div>`).join('') || emptyHtml('No sessions', 'Sessions appear here after users log in.')}</div>`;
+  }
+  if (tab === 'mailbox') {
+    const r = await API.adminEmails(STATE.user);
+    const list = r.ok ? r.data : [];
+    return `<p class="muted mb">Development mailbox — emails are delivered here instead of a real inbox.</p>
+      ${list.length ? `<div class="card" style="padding:6px 0">${list.map(e => `
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
+          <div class="row" style="justify-content:space-between;gap:10px"><div><b>${esc(e.subject)}</b> <span class="muted small">· to ${esc(e.to)}</span></div><span class="muted small">${timeAgo(e.createdAt)}</span></div>
+          <p class="muted small mt">${esc(e.body)}</p>
+          ${e.link ? `<a class="btn btn-ghost btn-sm mt" href="${esc(e.link)}">${ICON.key} Open reset link</a>` : ''}
+        </div>`).join('')}</div>` : emptyHtml('Mailbox empty', 'Sent emails will appear here.')}`;
+  }
+  return '';
+}
+
+/* ---- admin actions ---- */
+async function onAdminApprove(id) {
+  const r = await API.adminApprove(STATE.user, id);
+  if (r.ok) { toast('Approved — the asset is now live on the marketplace.'); await router(); } else toast(r.error, 'err');
+}
+function onAdminReject(id) {
+  promptModal({ title: 'Reject submission', label: 'Reason (shown to the creator)', placeholder: 'e.g. File is corrupted', required: true, danger: true, confirmLabel: 'Reject',
+    onConfirm: async ({ value }) => { const r = await API.adminReject(STATE.user, id, value); r.ok ? (toast('Submission rejected.'), await router()) : toast(r.error, 'err'); } });
+}
+function onAdminDelete(id) {
+  modal({ title: 'Delete this asset?', danger: true, confirmLabel: 'Delete', body: '<p>This removes the post permanently, including its file and history.</p>',
+    onConfirm: async () => { const r = await API.adminDeleteAsset(STATE.user, id); r.ok ? (toast('Asset deleted.'), await router()) : toast(r.error, 'err'); } });
+}
+async function onAdminDownload(id) {
+  const res = await API.download(id, STATE.user);
+  triggerFileDownload(res);
+}
+function onAdminBan(id) {
+  promptModal({ title: 'Ban user', label: 'Reason', placeholder: 'e.g. Marketplace fraud', required: true, danger: true, confirmLabel: 'Ban',
+    onConfirm: async ({ value }) => { const r = await API.adminBan(STATE.user, id, value); r.ok ? (toast('User banned.'), await router()) : toast(r.error, 'err'); } });
+}
+function onAdminUnban(id) {
+  modal({ title: 'Unban this user?', confirmLabel: 'Unban', body: '<p>The user will be able to log in again immediately.</p>',
+    onConfirm: async () => { const r = await API.adminUnban(STATE.user, id); r.ok ? (toast('User unbanned.'), await router()) : toast(r.error, 'err'); } });
+}
+function onAdminTimeout(id) {
+  promptModal({ title: 'Timeout user', label: 'Duration in minutes (1–10080)', placeholder: '30', type: 'number', confirmLabel: 'Timeout',
+    onConfirm: async ({ value }) => { const r = await API.adminTimeout(STATE.user, id, value); r.ok ? (toast('User timed out — commenting, purchasing, and posting are blocked until it expires.'), await router()) : toast(r.error, 'err'); } });
+}
+function onAdminClear(id) {
+  modal({ title: 'Clear this timeout?', confirmLabel: 'Clear timeout', body: '<p>Restores commenting, purchasing, and posting for this user.</p>',
+    onConfirm: async () => { const r = await API.adminClearTimeout(STATE.user, id); r.ok ? (toast('Timeout cleared.'), await router()) : toast(r.error, 'err'); } });
+}
+
+/* ---- boot ---- */
+async function init() {
+  try {
+    await API.boot();
+    renderShell();
+    window.addEventListener('hashchange', router);
+    await router();
+  } catch (err) {
+    console.error('Boot failed', err);
+    document.getElementById('app').innerHTML = `<div class="page">${emptyHtml('Could not start', 'The storage or server this app relies on could not be reached.')}</div>`;
+  }
+}
+init();
+
+</script>
+</body>
+</html>

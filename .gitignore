@@ -1,0 +1,12 @@
+# deps
+node_modules/
+
+# runtime data
+data/
+uploads/
+
+# logs & OS
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db

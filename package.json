@@ -1,0 +1,23 @@
+{
+  "name": "kings-production",
+  "version": "3.0.0",
+  "description": "Kings Production — Roblox asset marketplace with real authentication (2FA, password reset), roles, approval queue, purchases/licenses, reviews, ratings, and a reporting flow. Node/Express + SQLite backend with a single-file SPA frontend.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build": "node scripts/build.mjs",
+    "check": "node --check server.js && node --check server/sqlite-store.js && node --check server/disk-files.js && node --check server/mail.js && node --check shared/engine.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "multer": "^2.2.0"
+  },
+  "optionalDependencies": {
+    "nodemailer": "^9.0.5"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}

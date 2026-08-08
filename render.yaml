@@ -1,0 +1,36 @@
+# Render blueprint — deploy with "New → Blueprint" pointing at this repo,
+# or paste this file into a new Blueprint service.
+services:
+  - type: web
+    name: kings-production
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 24
+      - key: AUTO_ADMIN
+        value: "true"        # first registered user becomes Admin; set "false" to disable
+      # Your custom domain, once Cloudflare DNS points at this service
+      # (see DEPLOY.md step 2f). Used for password-reset email links.
+      # Uncomment ONLY after https://kingsproduction.cc is live, then redeploy.
+      # - key: PUBLIC_URL
+      #   value: https://kingsproduction.cc
+      # Persistent storage on the attached disk
+      - key: DATA_DIR
+        value: /opt/render/project/src/data
+      - key: UPLOAD_DIR
+        value: /opt/render/project/src/data/uploads
+      # Real email delivery (optional):
+      # - key: SMTP_HOST
+      #   value: smtp.example.com
+      # - key: SMTP_USER
+      #   value: ...
+      # - key: SMTP_PASS
+      #   value: ...
+    disk:
+      name: kings-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
