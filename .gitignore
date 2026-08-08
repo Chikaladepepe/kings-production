@@ -5,6 +5,11 @@ node_modules/
 data/
 uploads/
 
+# local secrets — never commit
+.env
+.env.local
+.env.production
+
 # logs & OS
 *.log
 npm-debug.log*
