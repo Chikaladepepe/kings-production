@@ -60,6 +60,20 @@ async function main() {
       secure: process.env.SMTP_SECURE === 'true',
     } : null,
   });
+  /* Live exchange rates (USD base) refreshed from a free API; falls back to
+     the engine's static table when offline. Used for regional pricing. */
+  let liveFx = null;
+  async function refreshFx() {
+    try {
+      const r = await fetch('https://open.er-api.com/v6/latest/USD', { signal: AbortSignal.timeout(8000) });
+      const j = await r.json();
+      if (j && j.result === 'success' && j.rates) {
+        liveFx = j.rates;
+        if (engine && engine.setFx) engine.setFx(j.rates);
+      }
+    } catch (e) { /* keep last good rates */ }
+  }
+
   const engine = createEngine({
     store,
     files,
@@ -67,10 +81,13 @@ async function main() {
     config: {
       autoAdminFirstUser: process.env.AUTO_ADMIN !== 'false', // first registered user becomes Admin
       devMail: !process.env.SMTP_HOST, // expose reset links in API responses only when mail isn't configured
-      currency: process.env.PAYMENT_CURRENCY || 'PHP', // checkout currency (e.g. PHP, USD, EUR)
+      currency: process.env.PAYMENT_CURRENCY || 'USD', // checkout base currency (USD)
       priceMultiplier: Number(process.env.PRICE_MULTIPLIER || 1), // price-unit → currency rate
+      fx: liveFx || undefined, // live USD→X rates (engine falls back to its static table)
     },
   });
+  refreshFx();
+  setInterval(refreshFx, 6 * 36e5).unref();
 
   /* ---- payments (Stripe · PayPal · GCash via PayMongo) ----
      Enabled by env keys; when none are set the checkout runs in dev/test
@@ -234,14 +251,14 @@ async function main() {
   app.post('/api/assets', upload.single('file'), h(async (req, res) => {
     const u = await needAuth(req, res); if (!u) return;
     send(res, await engine.createAsset(u, {
-      title: req.body.title, category: req.body.category, description: req.body.description, price: req.body.price,
+      title: req.body.title, category: req.body.category, description: req.body.description, price: req.body.price, imageUrl: req.body.imageUrl,
       fileName: req.file && req.file.originalname, fileData: bodyFile(req),
     }));
   }));
   app.patch('/api/assets/:id', upload.single('file'), h(async (req, res) => {
     const u = await needAuth(req, res); if (!u) return;
     send(res, await engine.updateAsset(u, req.params.id, {
-      title: req.body.title, category: req.body.category, description: req.body.description, price: req.body.price,
+      title: req.body.title, category: req.body.category, description: req.body.description, price: req.body.price, imageUrl: req.body.imageUrl,
       fileName: req.file && req.file.originalname, fileData: bodyFile(req),
     }));
   }));
@@ -287,6 +304,7 @@ async function main() {
   }));
 
   /* ---- payments & checkout (Stripe · PayPal · GCash) ---- */
+  app.get('/api/rates', (req, res) => res.json({ ok: true, data: { base: 'USD', rates: liveFx || null } }));
   app.get('/api/payment/methods', (req, res) => res.json({
     ok: true,
     data: {

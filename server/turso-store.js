@@ -29,7 +29,7 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const { createClient } = require('@libsql/client');
-const { SCHEMA, BOOLS, DDL } = require('./sqlite-store.js');
+const { SCHEMA, BOOLS, DDL, MIGRATIONS } = require('./sqlite-store.js');
 
 function createTursoStore({ url, authToken }) {
   if (!url) throw new Error('TURSO_URL is required for the Turso store.');
@@ -77,6 +77,7 @@ function createTursoStore({ url, authToken }) {
     }
     const client = createClient({ url, authToken: authToken || undefined });
     await client.executeMultiple(DDL); // same schema as the SQLite adapter
+    for (const sql of MIGRATIONS) { try { await client.execute(sql); } catch (e) { /* duplicate column — already migrated */ } }
     await loadAll(client);
     console.log('[turso] connected; tables loaded: ' + Object.keys(SCHEMA).map(t => `${t}=${cache[t].size}`).join(', '));
     return client;

@@ -25,9 +25,9 @@ const fs = require('node:fs');
    map only — never from untrusted input — so the dynamic INSERT/REPLACE below
    cannot be injection points. */
 const SCHEMA = {
-  users: ['id', 'handle', 'email', 'displayName', 'passHash', 'bio', 'pfp', 'role', 'banned', 'banReason', 'timeoutUntil', 'totpSecret', 'totpEnabled', 'createdAt', 'updatedAt'],
+  users: ['id', 'handle', 'email', 'displayName', 'passHash', 'bio', 'pfp', 'role', 'banned', 'banReason', 'timeoutUntil', 'totpSecret', 'totpEnabled', 'country', 'createdAt', 'updatedAt'],
   sessions: ['id', 'userId', 'label', 'createdAt', 'lastSeen', 'expiresAt'],
-  assets: ['id', 'ownerId', 'title', 'category', 'description', 'price', 'fileName', 'fileMime', 'fileSize', 'status', 'rejectReason', 'sales', 'createdAt', 'updatedAt', 'approvedAt'],
+  assets: ['id', 'ownerId', 'title', 'category', 'description', 'price', 'fileName', 'fileMime', 'fileSize', 'imageUrl', 'status', 'rejectReason', 'sales', 'createdAt', 'updatedAt', 'approvedAt'],
   purchases: ['id', 'assetId', 'buyerId', 'price', 'licenseKey', 'gameId', 'gameName', 'createdAt'],
   comments: ['id', 'assetId', 'userId', 'body', 'createdAt'],
   reviews: ['id', 'assetId', 'userId', 'rating', 'body', 'createdAt', 'updatedAt'],
@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS users (
   displayName TEXT NOT NULL, passHash TEXT NOT NULL, bio TEXT, pfp TEXT,
   role TEXT NOT NULL DEFAULT 'member', banned INTEGER NOT NULL DEFAULT 0, banReason TEXT,
   timeoutUntil INTEGER, totpSecret TEXT, totpEnabled INTEGER NOT NULL DEFAULT 0,
-  createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL
+  country TEXT, createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY, userId TEXT NOT NULL, label TEXT,
@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE TABLE IF NOT EXISTS assets (
   id TEXT PRIMARY KEY, ownerId TEXT NOT NULL, title TEXT NOT NULL, category TEXT NOT NULL,
   description TEXT NOT NULL, price INTEGER NOT NULL, fileName TEXT, fileMime TEXT, fileSize INTEGER,
-  status TEXT NOT NULL DEFAULT 'pending', rejectReason TEXT, sales INTEGER NOT NULL DEFAULT 0,
+  imageUrl TEXT, status TEXT NOT NULL DEFAULT 'pending', rejectReason TEXT, sales INTEGER NOT NULL DEFAULT 0,
   createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL, approvedAt INTEGER
 );
 CREATE TABLE IF NOT EXISTS purchases (
@@ -112,6 +112,7 @@ function createSqliteStore(file) {
   db.exec('PRAGMA journal_mode = WAL;');
   db.exec('PRAGMA foreign_keys = ON;');
   db.exec(DDL);
+  runMigrations(db);
 
   function rowToObj(table, row) {
     if (!row) return null;
@@ -151,4 +152,15 @@ function createSqliteStore(file) {
   };
 }
 
-module.exports = { createSqliteStore, SCHEMA, BOOLS, DDL };
+/* Optional ALTERs for databases created before new columns were added. */
+const MIGRATIONS = [
+  "ALTER TABLE users ADD COLUMN country TEXT",
+  "ALTER TABLE assets ADD COLUMN imageUrl TEXT",
+];
+function runMigrations(db) {
+  for (const sql of MIGRATIONS) {
+    try { db.exec(sql); } catch (e) { /* duplicate column — already migrated */ }
+  }
+}
+
+module.exports = { createSqliteStore, SCHEMA, BOOLS, DDL, MIGRATIONS, runMigrations };

@@ -30,6 +30,11 @@
   const CAT_LABEL = { animation: 'Animation', model: 'Model', plugin: 'Plugin', system: 'System' };
   const ROLES = ['member', 'vip', 'admin'];
 
+  /* ---- regional pricing: base USD, converted to the buyer's country ---- */
+  const COUNTRY_CURRENCY = { US: 'USD', PH: 'PHP', GB: 'GBP', CA: 'CAD', AU: 'AUD', DE: 'EUR', FR: 'EUR', ES: 'EUR', IT: 'EUR', NL: 'EUR', PT: 'EUR', IE: 'EUR', JP: 'JPY', KR: 'KRW', IN: 'INR', SG: 'SGD', MY: 'MYR', ID: 'IDR', BR: 'BRL', MX: 'MXN', AE: 'AED', SA: 'SAR', ZA: 'ZAR', NG: 'NGN', GH: 'GHS', KE: 'KES', EG: 'EGP', TR: 'TRY', RU: 'RUB', CN: 'CNY', HK: 'HKD', TW: 'TWD', TH: 'THB', VN: 'VND', AR: 'ARS', CL: 'CLP', CO: 'COP', PE: 'PEN' };
+  const FX_FALLBACK = { USD: 1, PHP: 56.5, GBP: 0.79, CAD: 1.36, AUD: 1.5, EUR: 0.92, JPY: 150, KRW: 1330, INR: 83.5, SGD: 1.35, MYR: 4.7, IDR: 15800, BRL: 5.1, MXN: 17.2, AED: 3.67, SAR: 3.75, ZAR: 18.5, NGN: 1480, GHS: 15.4, KES: 129, EGP: 48, TRY: 32.5, RUB: 92, CNY: 7.2, HKD: 7.8, TWD: 32, THB: 36.5, VND: 25400, ARS: 890, CLP: 940, COP: 3900, PEN: 3.7 };
+  const CURRENCY_SYMBOL = { USD: '$', PHP: '₱', GBP: '£', CAD: 'C$', AUD: 'A$', EUR: '€', JPY: '¥', KRW: '₩', INR: '₹', SGD: 'S$', MYR: 'RM', IDR: 'Rp', BRL: 'R$', MXN: 'Mex$', AED: 'د.إ', SAR: '﷼', ZAR: 'R', NGN: '₦', GHS: 'GH₵', KES: 'KSh', EGP: 'E£', TRY: '₺', RUB: '₽', CNY: '¥', HKD: 'HK$', TWD: 'NT$', THB: '฿', VND: '₫', ARS: '$', CLP: '$', COP: '$', PEN: 'S/' };
+
   /* ---- crypto (WebCrypto — works in Node >= 19 and browsers) ---- */
   const TE = new TextEncoder();
   const hex = b => [...b].map(x => x.toString(16).padStart(2, '0')).join('');
@@ -92,7 +97,7 @@
   const canPost = u => !!(u && (u.role === 'vip' || u.role === 'admin') && !isBanned(u) && !isTimedOut(u));
   const isAdmin = u => !!(u && u.role === 'admin');
   const publicUser = u => u ? ({ id: u.id, handle: u.handle, displayName: u.displayName, role: u.role, pfp: u.pfp, bio: u.bio, createdAt: u.createdAt }) : null;
-  const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled }) : null;
+  const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled, country: u.country }) : null;
   function timeoutText(u) {
     if (!u || !u.timeoutUntil) return null;
     const ms = u.timeoutUntil - now();
@@ -126,9 +131,14 @@
   function createEngine(deps) {
     const store = deps.store, files = deps.files, mail = deps.mail;
     const cfg = Object.assign(
-      { autoAdminFirstUser: true, devMail: true, onlineWindowMs: 10 * 6e4, sessionTtlMs: 30 * 24 * 36e5, maxUploadBytes: 20 * 1024 * 1024, currency: 'PHP', priceMultiplier: 1 },
+      { autoAdminFirstUser: true, devMail: true, onlineWindowMs: 10 * 6e4, sessionTtlMs: 30 * 24 * 36e5, maxUploadBytes: 20 * 1024 * 1024, currency: 'USD', priceMultiplier: 1 },
       deps.config || {}
     );
+    const fx = Object.assign({}, FX_FALLBACK, cfg.fx || {});
+    const currencyOf = c => COUNTRY_CURRENCY[String(c || '').toUpperCase()] || 'USD';
+    const fxRate = cur => Number(fx[cur] || 1);
+    const convertPrice = (usd, country) => Math.max(1, Math.round((Number(usd) || 0) * fxRate(currencyOf(country))));
+    function setFx(rates) { if (rates && typeof rates === 'object') Object.assign(fx, rates); }
     const all = t => store.all(t);
     const byIdIn = (t, id) => store.get(t, id);
     const flush = () => { if (store.flush) store.flush(); };
@@ -162,7 +172,7 @@
       const o = dbUser(a.ownerId);
       const rv = all('reviews').filter(r => r.assetId === a.id);
       const rating = rv.length ? Math.round((rv.reduce((s, r) => s + r.rating, 0) / rv.length) * 10) / 10 : null;
-      return { id: a.id, title: a.title, category: a.category, price: a.price, sales: a.sales, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, owner: o ? publicUser(o) : null, rating, ratingCount: rv.length };
+      return { id: a.id, title: a.title, category: a.category, price: a.price, sales: a.sales, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, imageUrl: a.imageUrl, owner: o ? publicUser(o) : null, rating, ratingCount: rv.length };
     }
     function sendEmail(rec) {
       const row = { id: 'e' + uid(), to: rec.to, subject: rec.subject, action: rec.action, body: rec.body, link: rec.link || null, createdAt: now(), read: false };
@@ -173,7 +183,7 @@
     }
 
     /* ============ AUTH ============ */
-    async function register({ handle, displayName, email, password } = {}) {
+    async function register({ handle, displayName, email, password, country } = {}) {
       handle = String(handle || '').trim();
       displayName = String(displayName || '').trim();
       email = String(email || '').trim().toLowerCase();
@@ -183,11 +193,13 @@
       if (!okEmail(email)) return fail('invalid', 'Please enter a valid email address.');
       if (all('users').some(u => u.email.toLowerCase() === email)) return fail('taken', 'An account with that email already exists.');
       if (String(password || '').length < 6) return fail('invalid', 'Password must be at least 6 characters.');
+      country = String(country || '').trim().toUpperCase().slice(0, 2);
+      if (!COUNTRY_CURRENCY[country]) country = 'US';
       const isFirst = cfg.autoAdminFirstUser && all('users').length === 0;
       const user = {
         id: 'u' + uid(), handle, displayName, email, role: isFirst ? 'admin' : 'member',
         passHash: await hashPassword(password), bio: '', pfp: null,
-        totpSecret: null, totpEnabled: false, banned: false, banReason: null, timeoutUntil: null, createdAt: now(), updatedAt: now(),
+        totpSecret: null, totpEnabled: false, banned: false, banReason: null, timeoutUntil: null, country, createdAt: now(), updatedAt: now(),
       };
       store.put('users', user);
       const s = createSession(user.id);
@@ -262,7 +274,7 @@
     }
 
     /* ============ PROFILE & 2FA ============ */
-    async function updateProfile(user, { displayName, handle, bio, pfp } = {}) {
+    async function updateProfile(user, { displayName, handle, bio, pfp, country } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'Account not found.');
       displayName = String(displayName || '').trim();
@@ -275,6 +287,10 @@
       u.handle = handle;
       if (bio !== undefined) u.bio = String(bio || '').slice(0, 300);
       if (pfp !== undefined) u.pfp = pfp || null;
+      if (country !== undefined) {
+        country = String(country || '').trim().toUpperCase().slice(0, 2);
+        if (COUNTRY_CURRENCY[country]) u.country = country;
+      }
       u.updatedAt = now();
       store.put('users', u);
       flush();
@@ -314,7 +330,14 @@
       return null;
     }
 
-    async function createAsset(user, { title, category, description, price, fileName, fileData } = {}) {
+    function normalizeImageUrl(v) {
+      v = String(v || '').trim();
+      if (!v) return null;
+      if (!/^https?:\/\//i.test(v)) return null;
+      if (v.length > 2000) return null;
+      return v;
+    }
+    async function createAsset(user, { title, category, description, price, fileName, fileData, imageUrl } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to post assets.');
       if (!canPost(u)) {
@@ -329,13 +352,15 @@
       if (title.length < 3 || title.length > 60) return fail('invalid', 'Title must be 3–60 characters.');
       if (!CATEGORIES.includes(category)) return fail('invalid', 'Choose a valid category: Animation, Model, Plugin, or System.');
       if (description.length < 10) return fail('invalid', 'A full description is required (at least 10 characters).');
-      if (!Number.isFinite(price) || price <= 0 || price > 999999) return fail('invalid', 'Price must be a positive number of Robux.');
+      if (!Number.isFinite(price) || price <= 0 || price > 999999) return fail('invalid', 'Price must be a positive number of USD.');
+      const img = normalizeImageUrl(imageUrl);
+      if (img === null && String(imageUrl || '').trim()) return fail('invalid', 'Image link must be a valid http(s) URL.');
       const file = normalizeFile(fileData, fileName);
-      if (!fileName && !file) return fail('invalid', 'Please upload the asset file.');
+      if (!img && !fileName && !file) return fail('invalid', 'Please add an image link (or upload the asset file).');
       const asset = {
         id: 'a' + uid(), ownerId: u.id, title, category, description, price,
         fileName: file ? file.name : fileName, fileMime: file ? file.mime : 'application/octet-stream', fileSize: file ? file.size : 0,
-        status: 'pending', rejectReason: null, sales: 0, createdAt: now(), updatedAt: now(), approvedAt: null,
+        imageUrl: img, status: 'pending', rejectReason: null, sales: 0, createdAt: now(), updatedAt: now(), approvedAt: null,
       };
       if (file) {
         if (file.size > cfg.maxUploadBytes) return fail('invalid', 'File is too large (max 20 MB).');
@@ -371,7 +396,7 @@
       });
     }
 
-    async function updateAsset(user, id, { title, category, description, price, fileName, fileData } = {}) {
+    async function updateAsset(user, id, { title, category, description, price, fileName, fileData, imageUrl } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       const a = byIdIn('assets', id);
@@ -395,8 +420,13 @@
       }
       if (price !== undefined) {
         price = Number(price);
-        if (!Number.isFinite(price) || price <= 0 || price > 999999) return fail('invalid', 'Price must be a positive number of Robux.');
+        if (!Number.isFinite(price) || price <= 0 || price > 999999) return fail('invalid', 'Price must be a positive number of USD.');
         a.price = price;
+      }
+      if (imageUrl !== undefined) {
+        const img = normalizeImageUrl(imageUrl);
+        if (img === null && String(imageUrl || '').trim()) return fail('invalid', 'Image link must be a valid http(s) URL.');
+        a.imageUrl = img;
       }
       const file = normalizeFile(fileData, fileName);
       if (file) {
@@ -494,8 +524,9 @@
       if (all('purchases').some(p => p.assetId === a.id && p.buyerId === u.id)) return fail('owned', 'You already own this asset.');
       if (all('orders').some(o => o.buyerId === u.id && o.assetId === a.id && (o.status === 'created' || o.status === 'paid')))
         return fail('pending', 'You already have a pending order for this asset.');
-      const amount = Math.max(1, Math.round((a.price || 0) * cfg.priceMultiplier));
-      const order = { id: 'o' + uid(), buyerId: u.id, assetId: a.id, method, amount, currency: cfg.currency, status: 'created', providerRef: null, licenseKey: null, createdAt: now(), paidAt: null, updatedAt: now() };
+      const currency = currencyOf(u.country);
+      const amount = convertPrice(a.price, u.country);
+      const order = { id: 'o' + uid(), buyerId: u.id, assetId: a.id, method, amount, currency, status: 'created', providerRef: null, licenseKey: null, createdAt: now(), paidAt: null, updatedAt: now() };
       store.put('orders', order);
       flush();
       return ok({ orderId: order.id, amount: order.amount, currency: order.currency });
@@ -844,8 +875,9 @@
       publicProfile, content,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
       adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSessions, adminEmails, adminOrders, adminCompleteOrder,
+      setFx,
     };
   }
 
-  return { createEngine, totpCode };
+  return { createEngine, totpCode, COUNTRY_CURRENCY, FX_FALLBACK, CURRENCY_SYMBOL, currencyOf: c => COUNTRY_CURRENCY[String(c || '').toUpperCase()] || 'USD' };
 });

@@ -152,6 +152,19 @@ main{flex:1;width:100%}
 .asset-thumb .thumb-bg{position:absolute;inset:0;opacity:.9}
 .asset-thumb .thumb-icon{position:relative;color:#fff;filter:drop-shadow(0 6px 16px rgba(0,0,0,.5))}
 .asset-thumb .thumb-icon svg{width:44px;height:44px;opacity:.92}
+.thumb-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.asset-hero-thumb .thumb-img{position:relative;object-fit:cover}
+
+/* floating social + post buttons */
+.social-dock{position:fixed;left:18px;bottom:18px;z-index:60;display:flex;flex-direction:column;gap:10px}
+.social-dock .s-btn{width:42px;height:42px;border-radius:50%;border:1px solid rgba(212,175,55,.28);background:linear-gradient(180deg, rgba(40,40,48,.9), rgba(22,22,27,.92));color:var(--text-1);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .18s,box-shadow .18s,border-color .18s;box-shadow:0 4px 14px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06);backdrop-filter:blur(8px)}
+.social-dock .s-btn:hover{transform:translateY(-2px);border-color:rgba(212,175,55,.55);box-shadow:0 6px 20px rgba(212,175,55,.18),inset 0 1px 0 rgba(255,255,255,.08)}
+.social-dock .s-btn svg{width:19px;height:19px}
+.social-dock .s-btn.help{font-weight:800;font-size:16px;color:var(--gold);background:linear-gradient(180deg, rgba(60,52,20,.95), rgba(26,23,14,.95))}
+.post-fab{position:fixed;right:18px;bottom:18px;z-index:60;width:52px;height:52px;border-radius:50%;border:1px solid rgba(212,175,55,.5);background:linear-gradient(180deg, #3a3220, #1d1910);color:var(--gold);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 6px 22px rgba(212,175,55,.28),inset 0 1px 0 rgba(255,255,255,.12);transition:transform .18s,box-shadow .18s}
+.post-fab:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 8px 26px rgba(212,175,55,.4)}
+.post-fab svg{width:22px;height:22px}
+.post-fab.locked{cursor:not-allowed;border-color:rgba(255,255,255,.18);background:linear-gradient(180deg, #2c2c33, #17171b);color:#8b8b94;box-shadow:0 6px 22px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.08)}
 .asset-rank{position:absolute;top:12px;left:12px;background:rgba(12,12,14,.78);backdrop-filter:blur(6px);border:1px solid var(--border-strong);color:var(--text);border-radius:8px;padding:3px 9px;font-size:12px;font-weight:700}
 .asset-cat{position:absolute;top:12px;right:12px}
 .asset-body{padding:15px 16px 16px;display:flex;flex-direction:column;gap:9px;flex:1}
@@ -395,13 +408,18 @@ main{flex:1;width:100%}
   --glow-gold:0 0 0 1px rgba(212,175,55,.14),0 18px 44px rgba(0,0,0,.55),0 0 34px rgba(212,175,55,.08);
 }
 
-/* ambient lighting — fixed gradient glow that follows the viewport */
+/* ambient lighting — richer fixed gradient glow that follows the viewport */
 body{background:
-  radial-gradient(1100px 560px at 50% -8%, rgba(212,175,55,.085), transparent 60%),
-  radial-gradient(900px 480px at 88% 6%, rgba(77,141,255,.035), transparent 55%),
-  radial-gradient(860px 540px at 6% 34%, rgba(212,175,55,.032), transparent 55%),
+  radial-gradient(1200px 620px at 50% -8%, rgba(212,175,55,.11), transparent 62%),
+  radial-gradient(1000px 560px at 90% 2%, rgba(96,145,255,.06), transparent 55%),
+  radial-gradient(760px 520px at 4% 18%, rgba(212,175,55,.05), transparent 58%),
+  radial-gradient(900px 620px at 78% 78%, rgba(120,80,220,.045), transparent 60%),
+  radial-gradient(700px 500px at 20% 88%, rgba(212,175,55,.04), transparent 58%),
   var(--bg);
   background-attachment:fixed}
+/* subtle animated aurora shimmer across the whole viewport */
+body::before{content:"";position:fixed;inset:-40%;z-index:0;pointer-events:none;background:conic-gradient(from 190deg at 50% 0%, transparent 0deg, rgba(212,175,55,.05) 40deg, transparent 90deg, rgba(96,145,255,.04) 150deg, transparent 220deg, rgba(212,175,55,.045) 300deg, transparent 360deg);animation:kp-aurora 34s linear infinite;filter:blur(30px)}
+@keyframes kp-aurora{from{transform:rotate(0)}to{transform:rotate(360deg)}}
 
 /* header — deeper blur, gold hairline that catches the light */
 .site-header{background:linear-gradient(180deg, rgba(20,20,24,.94), rgba(12,12,14,.86));backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
@@ -410,19 +428,25 @@ body{background:
 
 /* hero — the crown glows and lights the room */
 .hero{background:
-  radial-gradient(1000px 560px at 50% -14%, rgba(212,175,55,.13), transparent 62%),
-  radial-gradient(680px 380px at 50% 6%, rgba(212,175,55,.06), transparent 60%),
+  radial-gradient(1100px 620px at 50% -14%, rgba(212,175,55,.16), transparent 62%),
+  radial-gradient(760px 420px at 50% 8%, rgba(212,175,55,.08), transparent 60%),
+  radial-gradient(500px 260px at 50% 22%, rgba(212,175,55,.05), transparent 62%),
   var(--bg)}
-.hero::before{content:"";position:absolute;inset:0;background:radial-gradient(440px 240px at 50% 4%, rgba(212,175,55,.18), transparent 66%);pointer-events:none}
-.hero .crown svg{width:48px;height:48px;filter:drop-shadow(0 0 26px rgba(212,175,55,.55)) drop-shadow(0 0 70px rgba(212,175,55,.28))}
-.hero h1{background:linear-gradient(180deg,#ffffff 30%,#c6c6cc 82%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero::before{content:"";position:absolute;inset:0;background:radial-gradient(480px 260px at 50% 4%, rgba(212,175,55,.22), transparent 66%);animation:kp-breathe 5.5s ease-in-out infinite;pointer-events:none}
+@keyframes kp-breathe{0%,100%{opacity:.75}50%{opacity:1}}
+.hero .crown svg{width:48px;height:48px;filter:drop-shadow(0 0 30px rgba(212,175,55,.6)) drop-shadow(0 0 90px rgba(212,175,55,.32));animation:kp-breathe 5.5s ease-in-out infinite}
+.hero h1{background:linear-gradient(180deg,#ffffff 28%,#d9d9e0 70%,#8f8f9a 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
 .hero-tag{color:var(--text-2)}
 
 /* surfaces — cards catch the light */
-.card{background:linear-gradient(180deg, rgba(255,255,255,.032), rgba(255,255,255,0) 46%), var(--surface);box-shadow:inset 0 1px 0 rgba(255,255,255,.045)}
+.card{background:linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,0) 46%), var(--surface);box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
 .card-hover:hover{transform:translateY(-4px);box-shadow:var(--glow-gold)}
-.asset-card{background:linear-gradient(180deg, rgba(255,255,255,.034), rgba(255,255,255,0) 48%), var(--surface)}
-.asset-thumb{background:radial-gradient(120% 120% at 50% 0%, rgba(212,175,55,.10), transparent 55%)}
+.asset-card{background:linear-gradient(180deg, rgba(255,255,255,.037), rgba(255,255,255,0) 48%), var(--surface)}
+.asset-card:hover .asset-title{background:linear-gradient(90deg,#fff,#e8c96a);-webkit-background-clip:text;background-clip:text;color:transparent}
+.asset-thumb{background:radial-gradient(120% 120% at 50% 0%, rgba(212,175,55,.12), transparent 55%)}
+.asset-card:hover .asset-thumb{background:radial-gradient(120% 120% at 50% 0%, rgba(212,175,55,.2), transparent 60%)}
+.asset-thumb::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg, transparent 55%, rgba(0,0,0,.38));pointer-events:none}
+.price{color:var(--gold);text-shadow:0 0 14px rgba(212,175,55,.28)}
 .approve-card{background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,0) 52%), var(--surface);box-shadow:inset 0 1px 0 rgba(255,255,255,.04);transition:border-color .2s,box-shadow .2s}
 .approve-card:hover{border-color:rgba(212,175,55,.25);box-shadow:var(--glow-gold)}
 .tier{background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,0) 50%), var(--surface);box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
@@ -495,7 +519,18 @@ const IDB_STORE = 'files';
 const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-5);
 const now = () => Date.now();
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const fmtMoney = n => 'R$ ' + Number(n || 0).toLocaleString('en-US');
+const CUR_OF = c => (KPEngine.COUNTRY_CURRENCY[String(c || '').toUpperCase()] || 'USD');
+const CUR_SYM = c => KPEngine.CURRENCY_SYMBOL[CUR_OF(c)] || (CUR_OF(c) + ' ');
+function localRate() {
+  const cur = CUR_OF(STATE.user ? STATE.user.country : 'US');
+  const rates = STATE.rates || KPEngine.FX_FALLBACK;
+  return { cur, r: Number(rates[cur] || 1) };
+}
+const fmtMoney = n => {
+  const { cur, r } = localRate();
+  return (KPEngine.CURRENCY_SYMBOL[cur] || (cur + ' ')) + ' ' + Math.round((Number(n) || 0) * r).toLocaleString('en-US');
+};
+const fmtUsd = n => '$ ' + Number(n || 0).toLocaleString('en-US');
 const fmtDate = t => new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 const fmtDateFull = t => new Date(t).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 const initials = name => String(name || '?').trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
@@ -539,7 +574,9 @@ const ICON = {
   model: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 2.8 20 7.4v9.2L12 21.2 4 16.6V7.4L12 2.8Z"/><path d="M12 2.8v9.2m0 0L4 7.4m8 4.6 8-4.6M12 21.2v-9.2"/></svg>',
   plugin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M8 4a1 1 0 0 1 2 0v1h4V4a1 1 0 0 1 2 0v1a2 2 0 0 0 2 2h1v4h-1a1 1 0 0 0 0 2h1v4h-1a2 2 0 0 0-2 2v1h-4v-1a1 1 0 0 0-2 0v1H6v-1a2 2 0 0 0-2-2H3v-4h1a1 1 0 0 0 0-2H3V7h1a2 2 0 0 0 2-2V4h2Z"/></svg>',
   system: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.5M12 18.7v2.5M2.8 12h2.5M18.7 12h2.5M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8"/></svg>',
-  flag: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 4.5c4.5-2 7 2 11 0v8.5c-4.5 2-7-2-11 0"/><path d="M5 13c4.5-2 7 2 11 0"/></svg>'
+  flag: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 4.5c4.5-2 7 2 11 0v8.5c-4.5 2-7-2-11 0"/><path d="M5 13c4.5-2 7 2 11 0"/></svg>',
+  discord: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.6 5.4A17 17 0 0 0 15.2 4l-.6 1.2a13.7 13.7 0 0 1 4.3 1.6 12 12 0 0 0-13.8 0A13.7 13.7 0 0 1 9.4 5.2L8.8 4a17 17 0 0 0-4.4 1.4A17.6 17.6 0 0 0 1.2 18a17 17 0 0 0 5.2 2.6l1-1.7a11 11 0 0 1-1.8-.9l.4-.3a12.2 12.2 0 0 0 10.2 0l.4.3c-.6.4-1.2.7-1.8.9l1 1.7A17 17 0 0 0 21 18a17.6 17.6 0 0 0-1.4-12.6ZM8.7 15.3c-1 0-1.9-.9-1.9-2s.8-2 1.9-2 1.9.9 1.9 2-.9 2-1.9 2Zm6.6 0c-1 0-1.9-.9-1.9-2s.8-2 1.9-2 1.9.9 1.9 2-.9 2-1.9 2Z"/></svg>',
+  youtube: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.6 7.2a2.5 2.5 0 0 0-1.8-1.8C18.2 5 12 5 12 5s-6.2 0-7.8.4A2.5 2.5 0 0 0 2.4 7.2 26.4 26.4 0 0 0 2 12a26.4 26.4 0 0 0 .4 4.8 2.5 2.5 0 0 0 1.8 1.8C5.8 19 12 19 12 19s6.2 0 7.8-.4a2.5 2.5 0 0 0 1.8-1.8A26.4 26.4 0 0 0 22 12a26.4 26.4 0 0 0-.4-4.8ZM10 15.2V8.8L15.4 12 10 15.2Z"/></svg>'
 };
 const CATEGORIES = ['animation', 'model', 'plugin', 'system'];
 const CAT_LABEL = { animation: 'Animation', model: 'Model', plugin: 'Plugin', system: 'System' };
@@ -657,6 +694,11 @@ const API = {};
   const CAT_LABEL = { animation: 'Animation', model: 'Model', plugin: 'Plugin', system: 'System' };
   const ROLES = ['member', 'vip', 'admin'];
 
+  /* ---- regional pricing: base USD, converted to the buyer's country ---- */
+  const COUNTRY_CURRENCY = { US: 'USD', PH: 'PHP', GB: 'GBP', CA: 'CAD', AU: 'AUD', DE: 'EUR', FR: 'EUR', ES: 'EUR', IT: 'EUR', NL: 'EUR', PT: 'EUR', IE: 'EUR', JP: 'JPY', KR: 'KRW', IN: 'INR', SG: 'SGD', MY: 'MYR', ID: 'IDR', BR: 'BRL', MX: 'MXN', AE: 'AED', SA: 'SAR', ZA: 'ZAR', NG: 'NGN', GH: 'GHS', KE: 'KES', EG: 'EGP', TR: 'TRY', RU: 'RUB', CN: 'CNY', HK: 'HKD', TW: 'TWD', TH: 'THB', VN: 'VND', AR: 'ARS', CL: 'CLP', CO: 'COP', PE: 'PEN' };
+  const FX_FALLBACK = { USD: 1, PHP: 56.5, GBP: 0.79, CAD: 1.36, AUD: 1.5, EUR: 0.92, JPY: 150, KRW: 1330, INR: 83.5, SGD: 1.35, MYR: 4.7, IDR: 15800, BRL: 5.1, MXN: 17.2, AED: 3.67, SAR: 3.75, ZAR: 18.5, NGN: 1480, GHS: 15.4, KES: 129, EGP: 48, TRY: 32.5, RUB: 92, CNY: 7.2, HKD: 7.8, TWD: 32, THB: 36.5, VND: 25400, ARS: 890, CLP: 940, COP: 3900, PEN: 3.7 };
+  const CURRENCY_SYMBOL = { USD: '$', PHP: '₱', GBP: '£', CAD: 'C$', AUD: 'A$', EUR: '€', JPY: '¥', KRW: '₩', INR: '₹', SGD: 'S$', MYR: 'RM', IDR: 'Rp', BRL: 'R$', MXN: 'Mex$', AED: 'د.إ', SAR: '﷼', ZAR: 'R', NGN: '₦', GHS: 'GH₵', KES: 'KSh', EGP: 'E£', TRY: '₺', RUB: '₽', CNY: '¥', HKD: 'HK$', TWD: 'NT$', THB: '฿', VND: '₫', ARS: '$', CLP: '$', COP: '$', PEN: 'S/' };
+
   /* ---- crypto (WebCrypto — works in Node >= 19 and browsers) ---- */
   const TE = new TextEncoder();
   const hex = b => [...b].map(x => x.toString(16).padStart(2, '0')).join('');
@@ -719,7 +761,7 @@ const API = {};
   const canPost = u => !!(u && (u.role === 'vip' || u.role === 'admin') && !isBanned(u) && !isTimedOut(u));
   const isAdmin = u => !!(u && u.role === 'admin');
   const publicUser = u => u ? ({ id: u.id, handle: u.handle, displayName: u.displayName, role: u.role, pfp: u.pfp, bio: u.bio, createdAt: u.createdAt }) : null;
-  const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled }) : null;
+  const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled, country: u.country }) : null;
   function timeoutText(u) {
     if (!u || !u.timeoutUntil) return null;
     const ms = u.timeoutUntil - now();
@@ -753,9 +795,14 @@ const API = {};
   function createEngine(deps) {
     const store = deps.store, files = deps.files, mail = deps.mail;
     const cfg = Object.assign(
-      { autoAdminFirstUser: true, devMail: true, onlineWindowMs: 10 * 6e4, sessionTtlMs: 30 * 24 * 36e5, maxUploadBytes: 20 * 1024 * 1024, currency: 'PHP', priceMultiplier: 1 },
+      { autoAdminFirstUser: true, devMail: true, onlineWindowMs: 10 * 6e4, sessionTtlMs: 30 * 24 * 36e5, maxUploadBytes: 20 * 1024 * 1024, currency: 'USD', priceMultiplier: 1 },
       deps.config || {}
     );
+    const fx = Object.assign({}, FX_FALLBACK, cfg.fx || {});
+    const currencyOf = c => COUNTRY_CURRENCY[String(c || '').toUpperCase()] || 'USD';
+    const fxRate = cur => Number(fx[cur] || 1);
+    const convertPrice = (usd, country) => Math.max(1, Math.round((Number(usd) || 0) * fxRate(currencyOf(country))));
+    function setFx(rates) { if (rates && typeof rates === 'object') Object.assign(fx, rates); }
     const all = t => store.all(t);
     const byIdIn = (t, id) => store.get(t, id);
     const flush = () => { if (store.flush) store.flush(); };
@@ -789,7 +836,7 @@ const API = {};
       const o = dbUser(a.ownerId);
       const rv = all('reviews').filter(r => r.assetId === a.id);
       const rating = rv.length ? Math.round((rv.reduce((s, r) => s + r.rating, 0) / rv.length) * 10) / 10 : null;
-      return { id: a.id, title: a.title, category: a.category, price: a.price, sales: a.sales, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, owner: o ? publicUser(o) : null, rating, ratingCount: rv.length };
+      return { id: a.id, title: a.title, category: a.category, price: a.price, sales: a.sales, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, imageUrl: a.imageUrl, owner: o ? publicUser(o) : null, rating, ratingCount: rv.length };
     }
     function sendEmail(rec) {
       const row = { id: 'e' + uid(), to: rec.to, subject: rec.subject, action: rec.action, body: rec.body, link: rec.link || null, createdAt: now(), read: false };
@@ -800,7 +847,7 @@ const API = {};
     }
 
     /* ============ AUTH ============ */
-    async function register({ handle, displayName, email, password } = {}) {
+    async function register({ handle, displayName, email, password, country } = {}) {
       handle = String(handle || '').trim();
       displayName = String(displayName || '').trim();
       email = String(email || '').trim().toLowerCase();
@@ -810,11 +857,13 @@ const API = {};
       if (!okEmail(email)) return fail('invalid', 'Please enter a valid email address.');
       if (all('users').some(u => u.email.toLowerCase() === email)) return fail('taken', 'An account with that email already exists.');
       if (String(password || '').length < 6) return fail('invalid', 'Password must be at least 6 characters.');
+      country = String(country || '').trim().toUpperCase().slice(0, 2);
+      if (!COUNTRY_CURRENCY[country]) country = 'US';
       const isFirst = cfg.autoAdminFirstUser && all('users').length === 0;
       const user = {
         id: 'u' + uid(), handle, displayName, email, role: isFirst ? 'admin' : 'member',
         passHash: await hashPassword(password), bio: '', pfp: null,
-        totpSecret: null, totpEnabled: false, banned: false, banReason: null, timeoutUntil: null, createdAt: now(), updatedAt: now(),
+        totpSecret: null, totpEnabled: false, banned: false, banReason: null, timeoutUntil: null, country, createdAt: now(), updatedAt: now(),
       };
       store.put('users', user);
       const s = createSession(user.id);
@@ -889,7 +938,7 @@ const API = {};
     }
 
     /* ============ PROFILE & 2FA ============ */
-    async function updateProfile(user, { displayName, handle, bio, pfp } = {}) {
+    async function updateProfile(user, { displayName, handle, bio, pfp, country } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'Account not found.');
       displayName = String(displayName || '').trim();
@@ -902,6 +951,10 @@ const API = {};
       u.handle = handle;
       if (bio !== undefined) u.bio = String(bio || '').slice(0, 300);
       if (pfp !== undefined) u.pfp = pfp || null;
+      if (country !== undefined) {
+        country = String(country || '').trim().toUpperCase().slice(0, 2);
+        if (COUNTRY_CURRENCY[country]) u.country = country;
+      }
       u.updatedAt = now();
       store.put('users', u);
       flush();
@@ -941,7 +994,14 @@ const API = {};
       return null;
     }
 
-    async function createAsset(user, { title, category, description, price, fileName, fileData } = {}) {
+    function normalizeImageUrl(v) {
+      v = String(v || '').trim();
+      if (!v) return null;
+      if (!/^https?:\/\//i.test(v)) return null;
+      if (v.length > 2000) return null;
+      return v;
+    }
+    async function createAsset(user, { title, category, description, price, fileName, fileData, imageUrl } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to post assets.');
       if (!canPost(u)) {
@@ -956,13 +1016,15 @@ const API = {};
       if (title.length < 3 || title.length > 60) return fail('invalid', 'Title must be 3–60 characters.');
       if (!CATEGORIES.includes(category)) return fail('invalid', 'Choose a valid category: Animation, Model, Plugin, or System.');
       if (description.length < 10) return fail('invalid', 'A full description is required (at least 10 characters).');
-      if (!Number.isFinite(price) || price <= 0 || price > 999999) return fail('invalid', 'Price must be a positive number of Robux.');
+      if (!Number.isFinite(price) || price <= 0 || price > 999999) return fail('invalid', 'Price must be a positive number of USD.');
+      const img = normalizeImageUrl(imageUrl);
+      if (img === null && String(imageUrl || '').trim()) return fail('invalid', 'Image link must be a valid http(s) URL.');
       const file = normalizeFile(fileData, fileName);
-      if (!fileName && !file) return fail('invalid', 'Please upload the asset file.');
+      if (!img && !fileName && !file) return fail('invalid', 'Please add an image link (or upload the asset file).');
       const asset = {
         id: 'a' + uid(), ownerId: u.id, title, category, description, price,
         fileName: file ? file.name : fileName, fileMime: file ? file.mime : 'application/octet-stream', fileSize: file ? file.size : 0,
-        status: 'pending', rejectReason: null, sales: 0, createdAt: now(), updatedAt: now(), approvedAt: null,
+        imageUrl: img, status: 'pending', rejectReason: null, sales: 0, createdAt: now(), updatedAt: now(), approvedAt: null,
       };
       if (file) {
         if (file.size > cfg.maxUploadBytes) return fail('invalid', 'File is too large (max 20 MB).');
@@ -998,7 +1060,7 @@ const API = {};
       });
     }
 
-    async function updateAsset(user, id, { title, category, description, price, fileName, fileData } = {}) {
+    async function updateAsset(user, id, { title, category, description, price, fileName, fileData, imageUrl } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       const a = byIdIn('assets', id);
@@ -1022,8 +1084,13 @@ const API = {};
       }
       if (price !== undefined) {
         price = Number(price);
-        if (!Number.isFinite(price) || price <= 0 || price > 999999) return fail('invalid', 'Price must be a positive number of Robux.');
+        if (!Number.isFinite(price) || price <= 0 || price > 999999) return fail('invalid', 'Price must be a positive number of USD.');
         a.price = price;
+      }
+      if (imageUrl !== undefined) {
+        const img = normalizeImageUrl(imageUrl);
+        if (img === null && String(imageUrl || '').trim()) return fail('invalid', 'Image link must be a valid http(s) URL.');
+        a.imageUrl = img;
       }
       const file = normalizeFile(fileData, fileName);
       if (file) {
@@ -1121,8 +1188,9 @@ const API = {};
       if (all('purchases').some(p => p.assetId === a.id && p.buyerId === u.id)) return fail('owned', 'You already own this asset.');
       if (all('orders').some(o => o.buyerId === u.id && o.assetId === a.id && (o.status === 'created' || o.status === 'paid')))
         return fail('pending', 'You already have a pending order for this asset.');
-      const amount = Math.max(1, Math.round((a.price || 0) * cfg.priceMultiplier));
-      const order = { id: 'o' + uid(), buyerId: u.id, assetId: a.id, method, amount, currency: cfg.currency, status: 'created', providerRef: null, licenseKey: null, createdAt: now(), paidAt: null, updatedAt: now() };
+      const currency = currencyOf(u.country);
+      const amount = convertPrice(a.price, u.country);
+      const order = { id: 'o' + uid(), buyerId: u.id, assetId: a.id, method, amount, currency, status: 'created', providerRef: null, licenseKey: null, createdAt: now(), paidAt: null, updatedAt: now() };
       store.put('orders', order);
       flush();
       return ok({ orderId: order.id, amount: order.amount, currency: order.currency });
@@ -1471,10 +1539,11 @@ const API = {};
       publicProfile, content,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
       adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSessions, adminEmails, adminOrders, adminCompleteOrder,
+      setFx,
     };
   }
 
-  return { createEngine, totpCode };
+  return { createEngine, totpCode, COUNTRY_CURRENCY, FX_FALLBACK, CURRENCY_SYMBOL, currencyOf: c => COUNTRY_CURRENCY[String(c || '').toUpperCase()] || 'USD' };
 });
 
 /* ==== KP-ENGINE-END ==== */
@@ -1527,7 +1596,15 @@ async function _wrap(fn) {
 }
 function _authPair(r) { if (r.ok && r.data && r.data.token) { _setToken(r.data.token); return { ok: true, data: r.data.user }; } return r; }
 
-API.boot = async () => { await _detectTransport(); };
+API.boot = async () => {
+  await _detectTransport();
+  if (_mode !== 'local') {
+    try {
+      const r = await _call('GET', '/api/rates');
+      if (r.ok && r.data && r.data.rates) STATE.rates = r.data.rates;
+    } catch (e) { /* fall back to the engine's static table */ }
+  }
+};
 
 /* ---- auth ---- */
 API.register = args => _wrap(async () => _authPair(_mode === 'local' ? await _engine.register(args) : await _call('POST', '/api/auth/register', args)));
@@ -1557,6 +1634,7 @@ API.disable2fa = (user, a) => _wrap(async () => _mode === 'local' ? await _engin
 async function _assetForm(a, withFile) {
   const fd = new FormData();
   fd.append('title', a.title || ''); fd.append('category', a.category || ''); fd.append('description', a.description || ''); fd.append('price', a.price);
+  if (a.imageUrl) fd.append('imageUrl', a.imageUrl);
   if (withFile && a.fileData) fd.append('file', await (await fetch(a.fileData)).blob(), a.fileName || 'asset-file');
   return fd;
 }
@@ -1664,12 +1742,14 @@ function statusBadge(status, rejectReason) {
   return `<span class="status-pill status-rejected" title="${esc(rejectReason || '')}">Rejected</span>`;
 }
 function catBadge(cat) { return `<span class="badge plain"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${CAT_ICON[cat].replace(/<svg[^>]*>/i, '').replace(/<\/svg>/i, '')}</svg>${CAT_LABEL[cat]}</span>`; }
-function thumbHtml(cat, size = 44) {
+function thumbHtml(a, size = 44) {
+  if (a && a.imageUrl) return `<img class="thumb-img" src="${esc(a.imageUrl)}" alt="" loading="lazy" onerror="this.remove()">`;
+  const cat = a && a.category;
   return `<div class="thumb-bg ${CAT_THUMB[cat] || 'thumb-default'}"></div><span class="thumb-icon" style="width:${size}px;height:${size}px">${CAT_ICON[cat]}</span>`;
 }
 function assetCardHtml(a, rank) {
   return `<article class="card card-hover asset-card" data-id="${a.id}" onclick="go('#/asset/${a.id}')">
-    <div class="asset-thumb">${rank !== undefined ? `<span class="asset-rank">#${rank + 1}</span>` : ''}<span class="asset-cat">${catBadge(a.category)}</span>${thumbHtml(a.category, 40)}</div>
+    <div class="asset-thumb">${rank !== undefined ? `<span class="asset-rank">#${rank + 1}</span>` : ''}<span class="asset-cat">${catBadge(a.category)}</span>${thumbHtml(a, 40)}</div>
     <div class="asset-body">
       <h3 class="asset-title">${esc(a.title)}</h3>
       <div class="asset-owner">${avatarHtml(a.owner, 22)}<a href="#/profile/${esc(a.owner.handle)}" onclick="event.stopPropagation()">${esc(a.owner.displayName)}</a>${badgeHtml(a.owner.role)}</div>
@@ -1736,7 +1816,17 @@ function parseHash() {
   return { path: segs[0] || 'home', params: segs.slice(1), query: Object.fromEntries(new URLSearchParams(queryPart || '')) };
 }
 
-let STATE = { user: null, adminTab: 'overview', catalogQ: '', catalogCat: '' };
+let STATE = { user: null, adminTab: 'overview', catalogQ: '', catalogCat: '', rates: null };
+const COUNTRIES = [
+  ['US', 'United States'], ['PH', 'Philippines'], ['GB', 'United Kingdom'], ['CA', 'Canada'], ['AU', 'Australia'],
+  ['DE', 'Germany'], ['FR', 'France'], ['ES', 'Spain'], ['IT', 'Italy'], ['NL', 'Netherlands'], ['PT', 'Portugal'], ['IE', 'Ireland'],
+  ['JP', 'Japan'], ['KR', 'South Korea'], ['IN', 'India'], ['SG', 'Singapore'], ['MY', 'Malaysia'], ['ID', 'Indonesia'],
+  ['BR', 'Brazil'], ['MX', 'Mexico'], ['AE', 'UAE'], ['SA', 'Saudi Arabia'], ['ZA', 'South Africa'], ['NG', 'Nigeria'],
+  ['GH', 'Ghana'], ['KE', 'Kenya'], ['EG', 'Egypt'], ['TR', 'Turkey'], ['RU', 'Russia'], ['CN', 'China'], ['HK', 'Hong Kong'],
+  ['TW', 'Taiwan'], ['TH', 'Thailand'], ['VN', 'Vietnam'], ['AR', 'Argentina'], ['CL', 'Chile'], ['CO', 'Colombia'], ['PE', 'Peru'],
+];
+const countrySelect = (sel) => `<select class="select" name="country" required><option value="">Select your country</option>${COUNTRIES.map(([c, l]) => `<option value="${c}" ${sel === c ? 'selected' : ''}>${l} (${KPEngine.CURRENCY_SYMBOL[KPEngine.COUNTRY_CURRENCY[c]] || KPEngine.COUNTRY_CURRENCY[c]})</option>`).join('')}</select>`;
+const SOCIAL = { discord: 'https://discord.gg/', youtube: 'https://www.youtube.com/' };
 
 /* ---- shell ---- */
 function headerHtml(user) {
@@ -1748,7 +1838,7 @@ function headerHtml(user) {
         <div class="dropdown-menu hidden" id="user-menu">
           <a href="#/profile/${esc(user.handle)}">${ICON.user} My Profile</a>
           <a href="#/my-assets">${ICON.edit} My Assets</a>
-          ${canPost(user) ? `<a href="#/upload">${ICON.plus} Upload Asset</a>` : ''}
+          ${canPost(user) ? `<a href="#/upload">${ICON.plus} Upload Asset</a>` : `<a href="#/my-assets" onclick="event.preventDefault();onPostFab()">${ICON.lock} Upload Asset (VIP)</a>`}
           ${user.role === 'admin' ? `<a href="#/admin">${ICON.shield} Admin Panel</a>` : ''}
           <a href="#/settings">${ICON.clock} Settings</a>
           <div class="sep"></div>
@@ -1778,7 +1868,13 @@ function footerHtml() {
 }
 function renderShell() {
   const app = document.getElementById('app');
-  app.innerHTML = headerHtml(null) + `<main id="main"></main>` + footerHtml() + `<div id="toasts"></div>`;
+  app.innerHTML = headerHtml(null) + `<main id="main"></main>` + footerHtml() + `<div id="toasts"></div>`
+    + `<div class="social-dock" aria-label="Social links">
+        <a class="s-btn" href="${esc(SOCIAL.discord)}" target="_blank" rel="noopener" title="Join our Discord">${ICON.discord}</a>
+        <a class="s-btn" href="${esc(SOCIAL.youtube)}" target="_blank" rel="noopener" title="Watch on YouTube">${ICON.youtube}</a>
+        <button class="s-btn help" type="button" title="Legal & help" onclick="openLegal()">!</button>
+      </div>`
+    + `<button class="post-fab" type="button" id="post-fab" title="Post an asset">${ICON.plus}</button>`;
   app.querySelector('#user-btn') && app.querySelector('#user-btn').addEventListener('click', e => {
     e.stopPropagation(); document.getElementById('user-menu').classList.toggle('hidden');
   });
@@ -1788,6 +1884,21 @@ function renderShell() {
   });
   const lo = document.getElementById('logout-btn');
   if (lo) lo.addEventListener('click', async () => { await API.logout(); STATE.user = null; renderHeader(); toast('Logged out.'); go('/'); });
+  const fab = document.getElementById('post-fab');
+  if (fab) fab.addEventListener('click', onPostFab);
+}
+function onPostFab() {
+  const u = STATE.user;
+  if (!u) { toast('Log in to post assets.', 'err'); go('/login'); return; }
+  if (canPost(u)) { go('/upload'); return; }
+  modal({ title: 'VIP / Licensed creators only', confirmLabel: 'View license options',
+    body: `<p>Posting assets is a <b style="color:var(--vip)">VIP / Licensed</b> creator feature. Members can browse, comment, and purchase — but to sell your own assets, grab a license.</p><p class="muted small">Every purchase of any asset issues a license key and upgrades your account to VIP / Licensed automatically.</p>`,
+    onConfirm: () => go('/license') });
+}
+function openLegal() {
+  modal({ title: 'Legal & help', confirmLabel: 'Close', cancelLabel: '',
+    body: `<p>Choose a document:</p><div class="row" style="gap:10px;margin-top:6px"><a class="btn btn-ghost btn-sm" href="#/terms">Terms of Use</a><a class="btn btn-ghost btn-sm" href="#/privacy">Privacy Policy</a></div>`,
+    onConfirm: () => {} });
 }
 function renderHeader() {
   const app = document.getElementById('app');
@@ -2039,7 +2150,7 @@ VIEWS.asset = async ({ params }) => {
 
   return `<div class="page page-narrow">
     <div class="asset-hero">
-      <div class="asset-hero-thumb">${thumbHtml(a.category, 84)}</div>
+      <div class="asset-hero-thumb">${thumbHtml(a, 84)}</div>
       <div>
         <div class="asset-meta">${catBadge(a.category)}${ownerView ? statusBadge(a.status, a.rejectReason) : ''}<span class="sales">${ICON.cart}${a.sales} sold</span>${a.ratingCount ? `${starsHtml(a.rating)}<span class="muted small">${a.rating} · ${a.ratingCount}</span>` : ''}</div>
         <h1 style="font-family:var(--font-display);font-size:clamp(26px,4vw,38px);font-weight:700;letter-spacing:-.02em;margin-top:10px">${esc(a.title)}</h1>
@@ -2214,6 +2325,7 @@ VIEWS.register = async () => `
       <div class="field"><label>Display name</label><input class="input" name="displayName" placeholder="How you appear publicly" maxlength="40" required></div>
       <div class="field"><label>Handle</label><input class="input" name="handle" placeholder="3–20 chars, letters/numbers/_" pattern="[a-zA-Z0-9_]{3,20}" required><div class="hint">Your public username — shown as @handle.</div></div>
       <div class="field"><label>Email</label><input class="input" name="email" type="email" placeholder="you@example.com" required></div>
+      <div class="field"><label>Country<span class="req">*</span></label>${countrySelect()}<div class="hint">Prices are shown in your local currency — you can change this anytime in Settings.</div></div>
       <div class="field"><label>Password</label><input class="input" name="password" type="password" minlength="6" placeholder="At least 6 characters" required autocomplete="new-password"></div>
       <button class="btn btn-primary btn-lg" style="width:100%" type="submit">Create account</button>
     </form>
@@ -2264,7 +2376,7 @@ async function onVerify2fa(e) {
 async function handleRegister(e) {
   e.preventDefault();
   const f = e.target;
-  const res = await API.register({ handle: f.handle.value, displayName: f.displayName.value, email: f.email.value, password: f.password.value });
+  const res = await API.register({ handle: f.handle.value, displayName: f.displayName.value, email: f.email.value, password: f.password.value, country: f.country ? f.country.value : 'US' });
   if (!res.ok) { toast(res.error, 'err'); return; }
   STATE.user = res.data; renderHeader(); toast('Account created — welcome to Kings Production!'); go('/');
 }
@@ -2306,6 +2418,7 @@ VIEWS.settings = async () => {
             <div class="field"><label>Display name</label><input class="input" name="displayName" value="${esc(u.displayName)}" maxlength="40" required></div>
             <div class="field"><label>Handle</label><input class="input" name="handle" value="${esc(u.handle)}" pattern="[a-zA-Z0-9_]{3,20}" required><div class="hint">Public username — @${esc(u.handle)}</div></div>
             <div class="field"><label>Bio</label><textarea class="textarea" name="bio" maxlength="300" placeholder="A short line about you…">${esc(u.bio || '')}</textarea></div>
+            <div class="field"><label>Country<span class="req">*</span></label>${countrySelect(u.country || 'US')}<div class="hint">Your local currency — prices across the marketplace convert to it.</div></div>
           </div>
         </div>
         <button class="btn btn-primary" type="submit">Save changes</button>
@@ -2341,7 +2454,7 @@ function onPfpPick(e) {
 async function handleSaveProfile(e) {
   e.preventDefault();
   const f = e.target;
-  const res = await API.updateProfile(STATE.user, { displayName: f.displayName.value, handle: f.handle.value, bio: f.bio.value, pfp: _pfpData });
+  const res = await API.updateProfile(STATE.user, { displayName: f.displayName.value, handle: f.handle.value, bio: f.bio.value, pfp: _pfpData, country: f.country ? f.country.value : undefined });
   if (!res.ok) { toast(res.error, 'err'); return; }
   _pfpData = null;
   STATE.user = { ...STATE.user, ...res.data };
@@ -2424,12 +2537,16 @@ VIEWS.upload = async ({ query }) => {
         <div class="field"><label>Title<span class="req">*</span></label><input class="input" name="title" maxlength="60" placeholder="e.g. Onyx Admin Commands" value="${esc(a ? a.title : '')}" required></div>
         <div class="row" style="align-items:flex-start">
           <div class="field" style="flex:1;min-width:200px"><label>Category<span class="req">*</span></label><select class="select" name="category" required>${CATEGORIES.map(c => `<option value="${c}" ${a && a.category === c ? 'selected' : ''}>${CAT_LABEL[c]}</option>`).join('')}</select><div class="hint">Roblox categories only.</div></div>
-          <div class="field" style="flex:1;min-width:160px"><label>Price (Robux)<span class="req">*</span></label><input class="input" name="price" type="number" min="1" max="999999" step="1" placeholder="499" value="${a ? a.price : ''}" required></div>
+          <div class="field" style="flex:1;min-width:160px"><label>Price (USD)<span class="req">*</span></label><input class="input" name="price" type="number" min="0.5" max="999999" step="0.01" placeholder="9.99" value="${a ? a.price : ''}" required><div class="hint">Stored in USD — buyers see it in their own currency.</div></div>
         </div>
         <div class="field"><label>Full description<span class="req">*</span></label><textarea class="textarea" name="description" placeholder="Describe the asset in detail — what it includes, how it works, what it is built for…" required>${esc(a ? a.description : '')}</textarea></div>
-        <div class="field"><label>Asset file${a ? '' : '<span class="req">*</span>'}</label>
-          <input class="input" type="file" name="file" ${a ? '' : 'required'} accept=".rbxl,.rbxm,.rbxmx,.lua,.luau,.zip,.txt">
-          ${a ? `<div class="hint">Current file: ${esc(a.fileName)} — choose a new file to replace it.</div>` : '<div class="hint">The actual Roblox file (.rbxl, .rbxm, .rbxmx, .lua, .luau, .zip).</div>'}
+        <div class="field"><label>Image link<span class="req">*</span></label>
+          <input class="input" name="imageUrl" type="url" placeholder="https://i.imgur.com/…" value="${esc(a ? (a.imageUrl || '') : '')}" ${a ? '' : 'required'}>
+          <div class="hint">Paste a direct image URL for your asset's cover — no file upload needed, so nothing gets stored.</div>
+        </div>
+        <div class="field"><label>Asset file (optional)</label>
+          <input class="input" type="file" name="file" accept=".rbxl,.rbxm,.rbxmx,.lua,.luau,.zip,.txt">
+          ${a ? `<div class="hint">Current file: ${esc(a.fileName)} — choose a new file to replace it.</div>` : '<div class="hint">Optional — attach the actual Roblox file (.rbxl, .rbxm, .rbxmx, .lua, .luau, .zip) if you deliver downloads.'}</div>
         </div>
         <div class="row"><button class="btn btn-primary" type="submit">${a ? 'Save & resubmit' : 'Submit for approval'}</button>${a ? '<a class="btn btn-ghost" href="#/my-assets">Cancel</a>' : ''}</div>
       </form>
@@ -2441,23 +2558,23 @@ async function onSubmitAsset(e) {
   const f = e.target;
   const fileInput = f.file;
   const file = fileInput.files && fileInput.files[0];
-  if (!file && !f.id.value) { toast('Please upload the asset file.', 'err'); return; }
   if (file && file.size > 20 * 1024 * 1024) { toast('File is too large (max 20 MB).', 'err'); return; }
   const btn = f.querySelector('button[type=submit]');
   const origLabel = btn.textContent;
-  btn.disabled = true; btn.textContent = 'Uploading…';
+  btn.disabled = true; btn.textContent = 'Submitting…';
   try {
     let fileData = null, fileName = null;
     if (file) { fileData = await readFileAsDataURL(file); fileName = file.name; }
+    const payload = { title: f.title.value, category: f.category.value, description: f.description.value, price: f.price.value, imageUrl: f.imageUrl.value.trim(), fileName, fileData };
     const res = f.id.value
-      ? await API.updateAsset(STATE.user, f.id.value, { title: f.title.value, category: f.category.value, description: f.description.value, price: f.price.value, fileName, fileData })
-      : await API.createAsset(STATE.user, { title: f.title.value, category: f.category.value, description: f.description.value, price: f.price.value, fileName, fileData });
+      ? await API.updateAsset(STATE.user, f.id.value, payload)
+      : await API.createAsset(STATE.user, payload);
     if (!res.ok) { toast(res.error, 'err'); return; }
     toast(f.id.value ? 'Changes submitted — back in the approval queue.' : 'Asset submitted for admin approval.');
     go('/my-assets');
   } catch (err) {
     console.error(err);
-    toast('Upload failed — please try again.', 'err');
+    toast('Submit failed — please try again.', 'err');
   } finally {
     btn.disabled = false;
     btn.textContent = origLabel;
@@ -2473,7 +2590,7 @@ VIEWS['my-assets'] = async () => {
     <div class="section-head"><div><span class="section-eyebrow">Creator</span><h2>My Assets</h2><p>Everything you have posted — ${list.filter(a => a.status === 'approved').length} live, ${list.filter(a => a.status === 'pending').length} pending approval.</p></div>${canPost(STATE.user) ? '<a class="btn btn-primary btn-sm" href="#/upload">' + ICON.plus + ' New asset</a>' : ''}</div>
     ${list.length ? `<div class="card" style="padding:6px 0">${list.map(a => `
       <div class="row" style="padding:14px 20px;border-bottom:1px solid var(--border);gap:14px">
-        <div style="width:46px;height:46px;border-radius:9px;border:1px solid var(--border);overflow:hidden;position:relative;flex-shrink:0">${thumbHtml(a.category, 22)}</div>
+        <div style="width:46px;height:46px;border-radius:9px;border:1px solid var(--border);overflow:hidden;position:relative;flex-shrink:0">${thumbHtml(a, 22)}</div>
         <div style="flex:1;min-width:0"><div class="bold" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.title)}</div><div class="muted small">${catBadge(a.category)} ${ICON.cart}${a.sales} sold · posted ${fmtDate(a.createdAt)}</div></div>
         <div>${statusBadge(a.status, a.rejectReason)}</div>
         <div class="row" style="gap:8px"><button class="btn btn-ghost btn-sm" onclick="onEditAsset('${a.id}')">${ICON.edit} Edit</button><button class="btn btn-danger btn-sm" onclick="onDeleteAsset('${a.id}')">${ICON.trash}</button></div>
@@ -2699,7 +2816,7 @@ async function adminTabHtml(tab) {
     return `<h3 style="font-family:var(--font-display);font-size:17px;margin-bottom:14px">Pending submissions (${pend.length})</h3>
       ${pend.length ? pend.map(a => `
         <div class="approve-card mb">
-          <div class="thumb">${thumbHtml(a.category, 26)}</div>
+          <div class="thumb">${thumbHtml(a, 26)}</div>
           <div class="info">
             <h4>${esc(a.title)} <span class="muted small" style="font-weight:400">· ${fmtMoney(a.price)}</span></h4>
             <div class="muted small mb">by <a href="#/profile/${esc(a.owner.handle)}">${esc(a.owner.displayName)}</a> ${badgeHtml(a.owner.role)} · ${catBadge(a.category)} · posted ${timeAgo(a.createdAt)}</div>
@@ -2713,7 +2830,7 @@ async function adminTabHtml(tab) {
           </div></div>`).join('')
       : emptyHtml('Queue is clear', 'No assets are waiting for approval.')}
       <h3 class="mt2" style="font-family:var(--font-display);font-size:17px;margin-bottom:14px">Rejected submissions (${rej.length})</h3>
-      ${rej.length ? rej.map(a => `<div class="approve-card mb"><div class="thumb">${thumbHtml(a.category, 26)}</div><div class="info"><h4>${esc(a.title)}</h4><div class="muted small mb">by ${esc(a.owner.displayName)} · ${timeAgo(a.createdAt)}</div><div class="desc" style="color:var(--text-2)">${esc(a.rejectReason)}</div></div></div>`).join('')
+      ${rej.length ? rej.map(a => `<div class="approve-card mb"><div class="thumb">${thumbHtml(a, 26)}</div><div class="info"><h4>${esc(a.title)}</h4><div class="muted small mb">by ${esc(a.owner.displayName)} · ${timeAgo(a.createdAt)}</div><div class="desc" style="color:var(--text-2)">${esc(a.rejectReason)}</div></div></div>`).join('')
       : `<p class="muted small">No rejected submissions.</p>`}`;
   }
   if (tab === 'assets') {
@@ -2722,7 +2839,7 @@ async function adminTabHtml(tab) {
     return `<div class="table-wrap"><table class="table">
       <thead><tr><th>Asset</th><th>Owner</th><th>Category</th><th>Price</th><th>Sales</th><th>Status</th><th></th></tr></thead>
       <tbody>${list.map(a => `<tr>
-        <td><div class="row" style="gap:10px"><span style="width:34px;height:26px;border-radius:6px;overflow:hidden;position:relative;flex-shrink:0;border:1px solid var(--border)">${thumbHtml(a.category, 14)}</span><a href="#/asset/${a.id}" class="bold">${esc(a.title)}</a></div></td>
+        <td><div class="row" style="gap:10px"><span style="width:34px;height:26px;border-radius:6px;overflow:hidden;position:relative;flex-shrink:0;border:1px solid var(--border)">${thumbHtml(a, 14)}</span><a href="#/asset/${a.id}" class="bold">${esc(a.title)}</a></div></td>
         <td><a href="#/profile/${esc(a.owner.handle)}">${esc(a.owner.displayName)}</a></td>
         <td>${CAT_LABEL[a.category]}</td><td>${fmtMoney(a.price)}</td><td>${a.sales}</td><td>${statusBadge(a.status, a.rejectReason)}</td>
         <td><div class="row-actions"><button class="btn btn-ghost btn-sm" title="Access file" onclick="onAdminDownload('${a.id}')">${ICON.download}</button><button class="btn btn-danger btn-sm" title="Delete post" onclick="onAdminDelete('${a.id}')">${ICON.trash}</button></div></td>

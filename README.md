@@ -39,6 +39,15 @@ checkout, pay, and the license + VIP upgrade are issued the moment payment
 confirms. Until a payment gateway is connected, checkout runs in **test mode**
 and completes instantly without moving money.
 
+**Regional pricing.** Asset prices are stored in **USD** and shown in each
+buyer's own currency — pick your country when you create your account (or
+change it anytime in Settings), and every price on the site converts to your
+local currency with live exchange rates.
+
+**Post with an image link, not a file.** Creators post assets by pasting a
+direct image URL for the cover — no upload, no storage cost. Attaching the
+actual downloadable file is optional.
+
 **Built by the community, for the community.** Every asset, comment, and
 profile has a **report** action so the team can act on misconduct — with bans
 and timeouts for repeat offenders, and full protection for admin accounts.
@@ -50,9 +59,10 @@ browse the studio's own shipped projects on the Portfolio page.
 
 ## Design
 
-A dark, minimalist theme — grey and black, with gold reserved exclusively for
-the crown (logo, hero, admin badge, empty states). Clean, fast, and built to
-feel like a studio, not a template.
+A dark, premium theme — deep blacks and gradients lit by ambient gold
+glow, the crown as the light source, light-catching surfaces, and a floating
+social dock (Discord · YouTube · legal) that stays with you on every page.
+Clean, fast, and built to feel like a high-end studio, not a template.
 
 ## Technology
 
