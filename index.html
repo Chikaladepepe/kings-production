@@ -386,6 +386,93 @@ main{flex:1;width:100%}
 .icon-btn:hover{color:var(--text);border-color:#4a4a55;background:rgba(255,255,255,.03)}
 .icon-btn.danger:hover{color:#ff7b80;border-color:rgba(229,72,77,.5);background:rgba(229,72,77,.1)}
 
+/* ============================================================================
+   POLISH — “the crown is the light source”: dark gradient lighting, ambient
+   gold glow, refined surfaces, high-end admin + global UI details.
+   ============================================================================ */
+:root{
+  --gold-soft:rgba(212,175,55,.14);
+  --glow-gold:0 0 0 1px rgba(212,175,55,.14),0 18px 44px rgba(0,0,0,.55),0 0 34px rgba(212,175,55,.08);
+}
+
+/* ambient lighting — fixed gradient glow that follows the viewport */
+body{background:
+  radial-gradient(1100px 560px at 50% -8%, rgba(212,175,55,.085), transparent 60%),
+  radial-gradient(900px 480px at 88% 6%, rgba(77,141,255,.035), transparent 55%),
+  radial-gradient(860px 540px at 6% 34%, rgba(212,175,55,.032), transparent 55%),
+  var(--bg);
+  background-attachment:fixed}
+
+/* header — deeper blur, gold hairline that catches the light */
+.site-header{background:linear-gradient(180deg, rgba(20,20,24,.94), rgba(12,12,14,.86));backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.site-header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;background:linear-gradient(90deg,transparent,rgba(212,175,55,.38),transparent);opacity:.65;pointer-events:none}
+.main-nav a.active{color:#fff;background:linear-gradient(180deg,rgba(212,175,55,.16),rgba(212,175,55,.04));box-shadow:inset 0 0 0 1px rgba(212,175,55,.2)}
+
+/* hero — the crown glows and lights the room */
+.hero{background:
+  radial-gradient(1000px 560px at 50% -14%, rgba(212,175,55,.13), transparent 62%),
+  radial-gradient(680px 380px at 50% 6%, rgba(212,175,55,.06), transparent 60%),
+  var(--bg)}
+.hero::before{content:"";position:absolute;inset:0;background:radial-gradient(440px 240px at 50% 4%, rgba(212,175,55,.18), transparent 66%);pointer-events:none}
+.hero .crown svg{width:48px;height:48px;filter:drop-shadow(0 0 26px rgba(212,175,55,.55)) drop-shadow(0 0 70px rgba(212,175,55,.28))}
+.hero h1{background:linear-gradient(180deg,#ffffff 30%,#c6c6cc 82%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero-tag{color:var(--text-2)}
+
+/* surfaces — cards catch the light */
+.card{background:linear-gradient(180deg, rgba(255,255,255,.032), rgba(255,255,255,0) 46%), var(--surface);box-shadow:inset 0 1px 0 rgba(255,255,255,.045)}
+.card-hover:hover{transform:translateY(-4px);box-shadow:var(--glow-gold)}
+.asset-card{background:linear-gradient(180deg, rgba(255,255,255,.034), rgba(255,255,255,0) 48%), var(--surface)}
+.asset-thumb{background:radial-gradient(120% 120% at 50% 0%, rgba(212,175,55,.10), transparent 55%)}
+.approve-card{background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,0) 52%), var(--surface);box-shadow:inset 0 1px 0 rgba(255,255,255,.04);transition:border-color .2s,box-shadow .2s}
+.approve-card:hover{border-color:rgba(212,175,55,.25);box-shadow:var(--glow-gold)}
+.tier{background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,0) 50%), var(--surface);box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+.tier.featured{background:linear-gradient(180deg, rgba(212,175,55,.10), rgba(255,255,255,0) 55%), var(--surface-2);border-color:rgba(212,175,55,.35);box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 0 30px rgba(212,175,55,.08)}
+.profile-hero{background:linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,0) 55%), var(--surface);box-shadow:inset 0 1px 0 rgba(255,255,255,.05),var(--shadow-1)}
+
+/* admin panel */
+.stat-card{background:linear-gradient(180deg, rgba(255,255,255,.038), rgba(255,255,255,0) 56%), var(--surface);box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 8px 24px rgba(0,0,0,.22);transition:transform .18s,border-color .2s,box-shadow .2s;position:relative;overflow:hidden}
+.stat-card::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(212,175,55,.5),transparent);opacity:0;transition:opacity .2s}
+.stat-card:hover{transform:translateY(-2px);border-color:rgba(212,175,55,.3);box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 14px 34px rgba(0,0,0,.4),0 0 26px rgba(212,175,55,.09)}
+.stat-card:hover::before{opacity:1}
+.stat-card b{background:linear-gradient(180deg,#fff 35%,#d5d5da);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+/* tables */
+.table th{background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,0));color:var(--text-2)}
+.table tbody tr:hover{background:linear-gradient(90deg, rgba(212,175,55,.055), rgba(255,255,255,.015))}
+.table-wrap{background:linear-gradient(180deg, rgba(255,255,255,.015), rgba(255,255,255,0)), var(--surface)}
+
+/* tabs */
+.tab{transition:color .16s,border-color .16s,text-shadow .16s}
+.tab:hover{color:#fff}
+.tab.active{color:#fff;border-color:var(--gold);text-shadow:0 0 16px rgba(212,175,55,.4)}
+
+/* badges — a soft glow for the roles */
+.badge.admin{box-shadow:0 0 14px rgba(212,175,55,.28)}
+.badge.vip{box-shadow:0 0 12px rgba(77,141,255,.22)}
+.status-approved{box-shadow:0 0 12px rgba(70,167,88,.18)}
+.status-pending{box-shadow:0 0 12px rgba(163,163,173,.12)}
+
+/* buttons */
+.btn-primary{background:linear-gradient(180deg,#fbfbfd,#e7e7ec);box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 6px 18px rgba(0,0,0,.35);transition:transform .15s,box-shadow .2s,background .18s}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 10px 26px rgba(0,0,0,.45),0 0 26px rgba(212,175,55,.25)}
+.btn-ghost:hover{box-shadow:0 0 0 1px rgba(212,175,55,.22),0 0 18px rgba(212,175,55,.09)}
+
+/* inputs — gold focus ring */
+.input,.select,.textarea{background:linear-gradient(180deg, rgba(255,255,255,.022), rgba(255,255,255,0)), var(--surface-2);box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
+.input:focus,.select:focus,.textarea:focus{border-color:rgba(212,175,55,.55);box-shadow:0 0 0 3px rgba(212,175,55,.12)}
+
+/* eyebrows — the muted gold voice of the system */
+.section-eyebrow{color:rgba(212,175,55,.68)}
+
+/* overlays */
+.modal{background:linear-gradient(180deg,var(--surface-2),var(--surface));box-shadow:0 40px 90px rgba(0,0,0,.65),0 0 44px rgba(212,175,55,.07)}
+.dropdown-menu{background:linear-gradient(180deg,var(--surface-2),var(--surface));box-shadow:0 30px 70px rgba(0,0,0,.6),0 0 30px rgba(212,175,55,.05)}
+.toast{background:linear-gradient(180deg,var(--surface-2),var(--surface))}
+
+/* focus + empty state */
+:focus-visible{outline:2px solid rgba(212,175,55,.7);outline-offset:2px}
+.empty .crown svg{filter:drop-shadow(0 0 16px rgba(212,175,55,.35))}
+
 </style>
 </head>
 <body>
