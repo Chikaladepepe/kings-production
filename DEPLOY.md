@@ -10,8 +10,10 @@ This runbook takes the app from this folder to a **live site on
 4. Verify everything works from the live domain
 
 > **What the app is:** one Node process serving the SPA (`index.html`) and the
-> `/api/*` surface, with data in a single SQLite file and asset uploads on disk.
-> Any platform that can run `node server.js` works. Requirements: **Node ≥ 23.4**
+> `/api/*` surface. Storage is pluggable: the database is **local SQLite** by
+> default or **Turso** (free cloud SQLite) when `TURSO_URL` is set; uploads are
+> **local disk** by default or **Cloudflare R2** when `R2_*` vars are set. Any
+> platform that can run `node server.js` works. Requirements: **Node ≥ 23.4**
 > (`node:sqlite` is built in and unflagged) or Node 22.13+ with
 > `NODE_OPTIONS=--experimental-sqlite node server.js`. Node 24 is ideal.
 
@@ -74,15 +76,63 @@ for persistent storage + a custom Dockerfile.
 > (`data/uploads`) live on an **ephemeral disk that resets on every redeploy**
 > (and Render may recycle the instance at any time). Great for trying the app;
 > **not** for real customers yet. Two ways to make data permanent:
+> - **Recommended, free forever:** point the app at **Turso** (cloud SQLite)
+>   and **Cloudflare R2** (object storage) — see the section below. No monthly
+>   bill, no code changes needed (the app already supports both).
 > - **Upgrade the Render service to a paid plan** and uncomment the `disk:`
 >   block in `render.yaml` (one redeploy; the blueprint provisions a 1 GB disk
 >   at `/opt/render/project/src/data`).
-> - **Free external storage:** wire a free SQLite host such as **Turso** for
->   the DB (and external object storage for uploads).
 >
 > Also on the free tier, the service **spins down after ~15 minutes of
 > inactivity** — the first visit after idle takes 30–60 s to wake up. That's
 > normal, not a crash.
+
+#### Free forever storage: Turso (database) + Cloudflare R2 (uploads)
+
+The app auto-detects these env vars — when set, the database and uploads live
+in the cloud and survive redeploys, restarts, and instance recycling.
+
+**1. Create the Turso database (the DB):**
+
+1. Go to **https://turso.tech** → **Sign up** (GitHub login is fastest).
+2. In the dashboard click **Create database** → name it `kings-production` →
+   **Create**. Pick a location close to you.
+3. On the database page, copy the **database URL** (starts with
+   `libsql://…`) → that's `TURSO_URL`.
+4. Click **Settings / Tokens** → **Generate token** (type: *Read/write*) →
+   copy it → that's `TURSO_AUTH_TOKEN`. Store it somewhere safe.
+
+**2. Create the Cloudflare R2 bucket (the uploads):**
+
+1. Cloudflare dashboard → **R2** → **Create bucket** → name it
+   `kings-production-uploads` (any name) → **Create**. *(R2 gives 10 GB for
+   free with zero egress fees.)*
+2. **Manage R2 API Tokens** → **Create API token** → permission **Object
+   Read & Write** → **Create**. Copy the **Access Key ID** and **Secret
+   Access Key** (shown once).
+3. Your **Account ID** is on the R2 overview page (top-right).
+
+**3. Point Render at them:**
+
+Render → your service → **Environment**, add (then the service redeploys
+automatically):
+
+```
+TURSO_URL=libsql://your-db-your-org.turso.io
+TURSO_AUTH_TOKEN=eyJ...
+R2_ACCOUNT_ID=<your Cloudflare account id>
+R2_ACCESS_KEY_ID=<access key id>
+R2_SECRET_ACCESS_KEY=<secret access key>
+R2_BUCKET=kings-production-uploads
+```
+
+Verify: open `https://your-service.onrender.com/api/health` → `"store":"turso"`.
+Every write is confirmed persisted to Turso before the API answers, so
+purchases and registrations survive even if Render restarts the app.
+
+> Note: the cloud store keeps a full in-memory cache, so this setup is built
+> for a **single app instance** (the Render free tier runs one). Don't scale
+> to multiple replicas without migrating the DB layer first.
 
 ### Railway
 
@@ -334,7 +384,8 @@ Run through this from `https://kingsproduction.cc` (not localhost):
 | Cloudflare **521 / 522** | Origin unreachable. Check the host is running, the service URL works directly, and DNS targets the right hostname/IP. |
 | **525 SSL handshake** | SSL mode mismatch. Use **Full (strict)** with an HTTPS origin; **Full** if the origin is plain HTTP. |
 | Site loads but **API 404s / "network error"** | The app fell back to the in-browser engine (no `/api/health` on this origin). Confirm the host runs `node server.js` and `PUBLIC_URL` is set. |
-| **DB resets on redeploy** | On Render's free tier there's no persistent disk — data resets by design. Upgrade to a paid plan and uncomment the `disk:` block in `render.yaml`, or use a VPS / external SQLite host. |
+| **DB resets on redeploy** | On Render's free tier there's no persistent disk — data resets by design. Set `TURSO_URL` + `TURSO_AUTH_TOKEN` (free cloud SQLite, see “Free forever storage” above), or upgrade to a paid plan and uncomment the `disk:` block in `render.yaml`. |
+| **Uploads lost / downloads 404** | Uploads live on disk by default. Set the `R2_*` env vars (free 10 GB object storage) so files persist too. |
 | **Login not persisting** | Sessions are Bearer tokens stored in the browser, not cookies — nothing domain-specific to fix; clear site data and retry. |
 | **Reset link 404s** | `PUBLIC_URL` is wrong/missing, so emailed links point at the wrong origin. Set it to `https://kingsproduction.cc`. |
 | **Uploads fail** | Files > 20 MB are rejected by design; also confirm the origin's upload folder is writable and persistent. |

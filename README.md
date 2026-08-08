@@ -18,6 +18,11 @@ npm start          # → http://localhost:3000
 That's it. The server creates `data/kings.db` (SQLite) and `uploads/` on first run,
 seeds the studio content (Portfolio + Creators pages), and serves the app at `/`.
 
+**Storage is pluggable:** set `TURSO_URL` + `TURSO_AUTH_TOKEN` to keep the database
+in Turso (free cloud SQLite), and `R2_*` vars to keep uploads in Cloudflare R2
+(free object storage) — see the env table below and `DEPLOY.md` for the free
+forever setup.
+
 > **No demo accounts exist.** On a fresh install the **first account to register
 > becomes an Admin** (disable with `AUTO_ADMIN=false`). Admins can promote Members
 > to VIP / Licensed creators from the Admin Panel → Users tab.
@@ -27,11 +32,13 @@ seeds the studio content (Portfolio + Creators pages), and serves the app at `/`
 ```
 index.html               — the entire SPA (styles + views + router + API client)
 shared/engine.js         — ONE business-logic engine, used by BOTH:
-                             • the Node server (require'd)   over SQLite + disk
+                             • the Node server (require'd)   over SQLite/Turso + disk/R2
                              • the browser (inlined copy)    over localStorage + IndexedDB
 server.js                — Express app: serves index.html + the /api/* surface
-server/sqlite-store.js   — store adapter on node:sqlite (real tables, parameterized SQL)
-server/disk-files.js     — uploads land on disk (uploads/<assetId>.bin)
+server/sqlite-store.js   — local store adapter on node:sqlite (default)
+server/turso-store.js    — cloud store adapter on Turso (free SQLite, set TURSO_URL)
+server/disk-files.js     — uploads land on disk by default (uploads/<assetId>.bin)
+server/r2-files.js       — uploads land in Cloudflare R2 when R2_* vars are set
 server/mail.js           — logs emails + optional SMTP delivery (nodemailer)
 scripts/build.mjs        — `node scripts/build.mjs` re-inlines engine.js into index.html
 ```
@@ -94,8 +101,10 @@ login/register/2FA). See `server.js` for the full route list:
 | `PORT`         | `3000`              | HTTP port                                          |
 | `PUBLIC_URL`   | `http://localhost:3000` | Absolute base for email reset links            |
 | `AUTO_ADMIN`   | `true`              | First registered user becomes Admin                |
-| `DATA_DIR`     | `./data`            | SQLite file location                               |
-| `UPLOAD_DIR`   | `./uploads`         | Asset file location                                |
+| `DATA_DIR`     | `./data`            | SQLite file location (only when `TURSO_URL` unset) |
+| `UPLOAD_DIR`   | `./uploads`         | Asset file location (only when `R2_*` unset)       |
+| `TURSO_URL` / `TURSO_AUTH_TOKEN` | — | Cloud SQLite (Turso) — persistent DB, free tier 5 GB |
+| `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET` | — | Cloudflare R2 — persistent uploads, free tier 10 GB |
 | `SMTP_HOST/USER/PASS/PORT/SECURE` | — | Real email delivery (optional) |
 
 ## Development

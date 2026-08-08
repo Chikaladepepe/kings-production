@@ -142,4 +142,4 @@ function createSqliteStore(file) {
   };
 }
 
-module.exports = { createSqliteStore };
+module.exports = { createSqliteStore, SCHEMA, BOOLS, DDL };
