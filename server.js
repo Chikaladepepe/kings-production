@@ -244,8 +244,8 @@ async function main() {
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD } });
   const bodyFile = req => (req.file ? { name: req.file.originalname, data: req.file.buffer, mime: req.file.mimetype, size: req.file.size } : null);
 
-  app.get('/api/assets', h(async (req, res) => send(res, await engine.listApproved())));
-  app.get('/api/assets/top', h(async (req, res) => send(res, await engine.topSelling(Number(req.query.n) || 6))));
+  app.get('/api/assets', h(async (req, res) => { const u = await authUser(req); send(res, await engine.listApproved(u && u.id)); }));
+  app.get('/api/assets/top', h(async (req, res) => { const u = await authUser(req); send(res, await engine.topSelling(Number(req.query.n) || 6, u && u.id)); }));
   app.get('/api/assets/mine', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.myAssets(u)); }));
   app.get('/api/assets/:id', h(async (req, res) => { const u = await authUser(req); send(res, await engine.getAsset(req.params.id, u && u.id)); }));
   app.post('/api/assets', upload.single('file'), h(async (req, res) => {
@@ -282,10 +282,14 @@ async function main() {
     res.send(f.data);
   }));
   app.post('/api/assets/:id/purchase', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.purchase(u, req.params.id)); }));
+  app.post('/api/assets/:id/like', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.toggleLike(u, req.params.id)); }));
+
+  /* ---- post cooldown status ---- */
+  app.get('/api/post-status', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.postStatus(u)); }));
 
   /* ---- comments ---- */
   app.get('/api/assets/:id/comments', h(async (req, res) => send(res, await engine.listComments(req.params.id))));
-  app.post('/api/assets/:id/comments', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.addComment(u, req.params.id, (req.body || {}).body)); }));
+  app.post('/api/assets/:id/comments', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.addComment(u, req.params.id, req.body || {})); }));
 
   /* ---- reviews & ratings ---- */
   app.get('/api/assets/:id/reviews', h(async (req, res) => send(res, await engine.listReviews(req.params.id))));
@@ -297,6 +301,16 @@ async function main() {
 
   /* ---- purchases & licenses ---- */
   app.get('/api/purchases/mine', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.myPurchases(u)); }));
+
+  /* ---- license security (called by the asset file itself at runtime) ---- */
+  app.post('/api/license/activate', h(async (req, res) => send(res, await engine.licenseActivate(req.body || {}))));
+  app.post('/api/license/heartbeat', h(async (req, res) => send(res, await engine.licenseHeartbeat(req.body || {}))));
+
+  /* ---- creator dashboard (VIP / Licensed +) ---- */
+  app.get('/api/dashboard', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.creatorDashboard(u)); }));
+  app.get('/api/dashboard/licenses', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.creatorLicenses(u, req.query.asset || null)); }));
+  app.post('/api/dashboard/licenses/:id/status', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.setLicenseStatus(u, req.params.id, (req.body || {}).status)); }));
+  app.post('/api/dashboard/devices/:id/revoke', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.revokeDevice(u, req.params.id)); }));
   app.post('/api/licenses/assign', h(async (req, res) => {
     const u = await needAuth(req, res); if (!u) return;
     const b = req.body || {};

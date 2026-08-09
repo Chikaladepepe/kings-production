@@ -149,6 +149,25 @@
       if (actor.role !== 'admin') return fail('adminOnly', 'You do not have permission to do that.');
       return null;
     };
+    /* Posting cooldown — one new post per 24h for creators (admins are exempt). */
+    const POST_COOLDOWN_MS = cfg.postCooldownMs || 24 * 36e5;
+    function cooldownInfo(u) {
+      if (!u || isAdmin(u) || !canPost(u)) return null;
+      const posts = all('assets').filter(a => a.ownerId === u.id).sort((x, y) => y.createdAt - x.createdAt);
+      if (!posts.length) return null;
+      const last = posts[0].createdAt;
+      const remainingMs = POST_COOLDOWN_MS - (now() - last);
+      if (remainingMs <= 0) return null;
+      const h = Math.floor(remainingMs / 36e5), m = Math.floor((remainingMs % 36e5) / 6e4);
+      return { allowed: false, nextPostAt: last + POST_COOLDOWN_MS, remainingMs, text: (h > 0 ? h + 'h ' : '') + m + 'm' };
+    }
+    async function postStatus(user) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      if (!canPost(u)) return ok({ allowed: false, reason: u.role === 'member' ? 'member' : 'restricted' });
+      const c = cooldownInfo(u);
+      return ok(c ? { allowed: false, reason: 'cooldown', ...c } : { allowed: true });
+    }
 
     function seedContent() {
       if (all('portfolio').length) return;
@@ -168,11 +187,34 @@
       return s;
     }
 
-    function summarize(a) {
+    /* Rating = the most recent star rating per user, taken from either a
+       review or a rated comment (comments now require stars). */
+    function assetRating(a) {
+      const map = {};
+      all('comments').filter(c => c.assetId === a.id && c.rating).forEach(c => {
+        if (!map[c.userId] || c.createdAt > map[c.userId].t) map[c.userId] = { t: c.createdAt, r: c.rating };
+      });
+      all('reviews').filter(r => r.assetId === a.id).forEach(r => {
+        if (!map[r.userId] || r.updatedAt > map[r.userId].t) map[r.userId] = { t: r.updatedAt, r: r.rating };
+      });
+      const vals = Object.keys(map).map(k => map[k]);
+      if (!vals.length) return null;
+      return { rating: Math.round((vals.reduce((s, v) => s + v.r, 0) / vals.length) * 10) / 10, count: vals.length };
+    }
+    const likeCount = id => all('likes').filter(l => l.assetId === id).length;
+    const likedBy = (id, userId) => !!(userId && all('likes').some(l => l.assetId === id && l.userId === userId));
+    /* Trending score — likes + ratings + sales, decayed by age so fresh
+       engagement rises to the top of the front page. */
+    function hotScore(a) {
+      const rv = assetRating(a);
+      const hours = Math.max(0.1, (now() - (a.createdAt || now())) / 36e5);
+      const pop = (a.sales || 0) * 42 + likeCount(a.id) * 20 + (rv ? rv.count * 7 + (rv.rating || 0) * 6 : 0);
+      return pop / Math.pow(hours + 3, 0.5);
+    }
+    function summarize(a, viewerId) {
       const o = dbUser(a.ownerId);
-      const rv = all('reviews').filter(r => r.assetId === a.id);
-      const rating = rv.length ? Math.round((rv.reduce((s, r) => s + r.rating, 0) / rv.length) * 10) / 10 : null;
-      return { id: a.id, title: a.title, category: a.category, price: a.price, sales: a.sales, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, imageUrl: a.imageUrl, owner: o ? publicUser(o) : null, rating, ratingCount: rv.length };
+      const rv = assetRating(a);
+      return { id: a.id, title: a.title, category: a.category, price: a.price, sales: a.sales, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, imageUrl: a.imageUrl, owner: o ? publicUser(o) : null, rating: rv ? rv.rating : null, ratingCount: rv ? rv.count : 0, likes: likeCount(a.id), liked: likedBy(a.id, viewerId) };
     }
     function sendEmail(rec) {
       const row = { id: 'e' + uid(), to: rec.to, subject: rec.subject, action: rec.action, body: rec.body, link: rec.link || null, createdAt: now(), read: false };
@@ -345,6 +387,8 @@
         if (isTimedOut(u)) return fail('timeout', 'You are currently timed out and cannot post assets.');
         return fail('auth', 'You must be logged in to post assets.');
       }
+      const cd = cooldownInfo(u);
+      if (cd) return fail('cooldown', 'Posting cooldown active — you can post again in ' + cd.text + '.');
       title = String(title || '').trim();
       description = String(description || '').trim();
       price = Number(price);
@@ -372,11 +416,11 @@
       return ok({ id: asset.id, status: 'pending' });
     }
 
-    async function listApproved() {
-      return ok(all('assets').filter(a => a.status === 'approved').sort((x, y) => y.createdAt - x.createdAt).map(summarize));
+    async function listApproved(viewerId) {
+      return ok(all('assets').filter(a => a.status === 'approved').sort((x, y) => hotScore(y) - hotScore(x)).map(a => summarize(a, viewerId)));
     }
-    async function topSelling(n = 6) {
-      return ok(all('assets').filter(a => a.status === 'approved').sort((x, y) => y.sales - x.sales).slice(0, n).map(summarize));
+    async function topSelling(n = 6, viewerId) {
+      return ok(all('assets').filter(a => a.status === 'approved').sort((x, y) => y.sales - x.sales).slice(0, n).map(a => summarize(a, viewerId)));
     }
     async function getAsset(id, viewerId) {
       const a = byIdIn('assets', id);
@@ -387,7 +431,7 @@
       if (a.status !== 'approved' && !isOwner && !isAdminView) return fail('notfound', 'This asset is not available yet.');
       const purchase = viewer ? all('purchases').find(p => p.assetId === id && p.buyerId === viewer.id) : null;
       return ok({
-        ...summarize(a),
+        ...summarize(a, viewerId),
         description: a.description,
         isOwner,
         hasPurchased: !!purchase,
@@ -444,8 +488,11 @@
 
     function cascadeDelete(id) {
       const commentIds = all('comments').filter(c => c.assetId === id).map(c => c.id);
+      const purchaseIds = all('purchases').filter(p => p.assetId === id).map(p => p.id);
       all('comments').filter(c => c.assetId === id).forEach(c => store.del('comments', c.id));
       all('purchases').filter(p => p.assetId === id).forEach(p => store.del('purchases', p.id));
+      all('likes').filter(l => l.assetId === id).forEach(l => store.del('likes', l.id));
+      all('devices').filter(d => d.assetId === id || purchaseIds.includes(d.purchaseId)).forEach(d => store.del('devices', d.id));
       all('reviews').filter(r => r.assetId === id).forEach(r => store.del('reviews', r.id));
       all('reports').filter(rp => (rp.targetType === 'asset' && rp.targetId === id) || (rp.targetType === 'comment' && commentIds.includes(rp.targetId))).forEach(rp => store.del('reports', rp.id));
       files.del(id);
@@ -613,8 +660,143 @@
       return ok(true);
     }
 
+    /* ============ LICENSE SECURITY (creator-side protection) ============
+       Every purchase already carries a unique KP- license key. These APIs let
+       the creator's asset verify itself at runtime: the file calls
+       licenseActivate on first run and licenseHeartbeat while it runs. The
+       creator can disable a license (kill switch — the file shuts down) or
+       revoke a single device (that device can no longer use the file). */
+    async function licenseActivate({ licenseKey, deviceId, deviceName } = {}) {
+      licenseKey = String(licenseKey || '').trim().toUpperCase();
+      deviceId = String(deviceId || '').trim();
+      if (!/^KP-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(licenseKey)) return fail('invalid', 'Invalid license key format.');
+      if (!deviceId || deviceId.length > 128) return fail('invalid', 'A device identifier is required to activate this license.');
+      const p = all('purchases').find(x => x.licenseKey === licenseKey);
+      if (!p) return fail('invalid', 'This license key does not exist.');
+      if (p.status === 'disabled') return fail('denied', 'This license has been disabled by the creator and can no longer be used.');
+      const asset = byIdIn('assets', p.assetId);
+      if (!asset) return fail('denied', 'The asset for this license no longer exists.');
+      const t = now();
+      const existing = all('devices').find(d => d.purchaseId === p.id && d.deviceId === deviceId);
+      if (existing) {
+        if (existing.status === 'revoked') return fail('denied', 'This device has been revoked and is not authorized to use the file.');
+        existing.lastSeen = t;
+        existing.deviceName = String(deviceName || '').trim().slice(0, 80) || existing.deviceName;
+        store.put('devices', existing);
+      } else {
+        store.put('devices', { id: 'dv' + uid(), purchaseId: p.id, assetId: p.assetId, deviceId, deviceName: String(deviceName || '').trim().slice(0, 80), status: 'active', createdAt: t, lastSeen: t });
+      }
+      p.activatedAt = p.activatedAt || t;
+      p.deviceId = deviceId;
+      p.deviceName = String(deviceName || '').trim().slice(0, 80);
+      p.lastSeen = t;
+      store.put('purchases', p);
+      flush();
+      return ok({ status: 'active', licenseKey, asset: asset.title, activatedAt: p.activatedAt });
+    }
+    async function licenseHeartbeat({ licenseKey, deviceId } = {}) {
+      licenseKey = String(licenseKey || '').trim().toUpperCase();
+      deviceId = String(deviceId || '').trim();
+      const p = all('purchases').find(x => x.licenseKey === licenseKey);
+      if (!p) return fail('invalid', 'License key not found.');
+      if (p.status === 'disabled') return fail('denied', 'This license has been disabled by the creator.');
+      const d = all('devices').find(x => x.purchaseId === p.id && x.deviceId === deviceId);
+      if (!d || d.status === 'revoked') return fail('denied', 'This device is not authorized to use the file.');
+      d.lastSeen = now();
+      p.lastSeen = d.lastSeen;
+      store.put('devices', d);
+      store.put('purchases', p);
+      flush();
+      return ok({ status: 'active', licenseKey });
+    }
+    /* The creator's own dashboard: their assets, sales-by-day for the chart,
+       license/device stats, and the latest device activity. */
+    async function creatorDashboard(user) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      if (!canPost(u)) return fail('vipOnly', 'Only VIP / Licensed creators have a dashboard.');
+      const assets = all('assets').filter(a => a.ownerId === u.id).sort((x, y) => y.createdAt - x.createdAt);
+      const ids = new Set(assets.map(a => a.id));
+      const purchases = all('purchases').filter(p => ids.has(p.assetId));
+      const devices = all('devices').filter(d => ids.has(d.assetId));
+      const dayMs = 864e5, days = 30;
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const start = today.getTime() - (days - 1) * dayMs;
+      const buckets = [];
+      for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(today.getTime() - i * dayMs);
+        buckets.push({ day: d.toISOString().slice(0, 10), label: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), sales: 0, revenue: 0 });
+      }
+      purchases.forEach(p => {
+        const idx = Math.floor((p.createdAt - start) / dayMs);
+        if (idx >= 0 && idx < days) { buckets[idx].sales += 1; buckets[idx].revenue += p.price; }
+      });
+      return ok({
+        assets: assets.map(a => ({ ...summarize(a, u.id), likes: likeCount(a.id) })),
+        salesByDay: buckets,
+        stats: {
+          totalSales: purchases.length,
+          revenue: purchases.reduce((s, p) => s + p.price, 0),
+          licenseKeys: purchases.length,
+          activeLicenses: purchases.filter(p => p.status !== 'disabled').length,
+          disabledLicenses: purchases.filter(p => p.status === 'disabled').length,
+          activeDevices: devices.filter(d => d.status === 'active').length,
+          revokedDevices: devices.filter(d => d.status === 'revoked').length,
+        },
+        recentActivity: devices.slice().sort((x, y) => y.lastSeen - x.lastSeen).slice(0, 12).map(d => {
+          const p = byIdIn('purchases', d.purchaseId);
+          const a = byIdIn('assets', d.assetId);
+          return { id: d.id, deviceId: d.deviceId, deviceName: d.deviceName, status: d.status, lastSeen: d.lastSeen, asset: a ? summarize(a, u.id) : null, buyer: p ? publicUser(dbUser(p.buyerId)) : null };
+        }),
+      });
+    }
+    async function creatorLicenses(user, assetId) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      if (!canPost(u)) return fail('vipOnly', 'Only VIP / Licensed creators can manage licenses.');
+      const assets = all('assets').filter(a => a.ownerId === u.id);
+      const ids = new Set(assets.map(a => a.id));
+      const list = all('purchases').filter(p => ids.has(p.assetId) && (!assetId || p.assetId === assetId))
+        .sort((x, y) => y.createdAt - x.createdAt)
+        .map(p => ({
+          ...p,
+          buyer: publicUser(dbUser(p.buyerId)),
+          asset: summarize(byIdIn('assets', p.assetId), u.id),
+          devices: all('devices').filter(d => d.purchaseId === p.id).sort((a, b) => b.lastSeen - a.lastSeen),
+        }));
+      return ok(list);
+    }
+    async function setLicenseStatus(user, purchaseId, status) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      if (!canPost(u)) return fail('vipOnly', 'Only the creator can manage this license.');
+      const p = byIdIn('purchases', purchaseId);
+      if (!p) return fail('notfound', 'License not found.');
+      const a = byIdIn('assets', p.assetId);
+      if (!a || a.ownerId !== u.id) return fail('forbidden', 'Only the creator of the asset can manage this license.');
+      status = String(status || '');
+      if (!['active', 'disabled'].includes(status)) return fail('invalid', 'Invalid license status.');
+      p.status = status;
+      store.put('purchases', p);
+      flush();
+      return ok(true);
+    }
+    async function revokeDevice(user, deviceId) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      if (!canPost(u)) return fail('vipOnly', 'Only the creator can revoke devices.');
+      const d = byIdIn('devices', deviceId);
+      if (!d) return fail('notfound', 'Device not found.');
+      const a = byIdIn('assets', d.assetId);
+      if (!a || a.ownerId !== u.id) return fail('forbidden', 'Only the creator of the asset can revoke this device.');
+      d.status = 'revoked';
+      store.put('devices', d);
+      flush();
+      return ok(true);
+    }
+
     /* ============ COMMENTS ============ */
-    async function addComment(user, assetId, body) {
+    async function addComment(user, assetId, { body, rating } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       if (isTimedOut(u)) return fail('timeout', 'You are currently timed out and cannot comment.');
@@ -625,7 +807,9 @@
       body = String(body || '').trim();
       if (!body) return fail('invalid', 'Write a comment first.');
       if (body.length > 1000) return fail('invalid', 'Comments are limited to 1000 characters.');
-      store.put('comments', { id: 'c' + uid(), assetId, userId: u.id, body, createdAt: now() });
+      rating = Number(rating);
+      if (!Number.isInteger(rating) || rating < 1 || rating > 5) return fail('rating', 'Pick a star rating (1–5) to post your comment.');
+      store.put('comments', { id: 'c' + uid(), assetId, userId: u.id, body, rating, createdAt: now() });
       flush();
       return ok(true);
     }
@@ -633,6 +817,20 @@
       const a = byIdIn('assets', assetId);
       if (!a || a.status !== 'approved') return ok([]);
       return ok(all('comments').filter(c => c.assetId === assetId).sort((x, y) => y.createdAt - x.createdAt).map(c => ({ ...c, user: publicUser(dbUser(c.userId)) })));
+    }
+
+    /* ============ LIKES ============ */
+    async function toggleLike(user, assetId) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to like assets.');
+      const a = byIdIn('assets', assetId);
+      if (!a) return fail('notfound', 'Asset not found.');
+      if (a.status !== 'approved') return fail('notfound', 'This asset is not available yet.');
+      const existing = all('likes').find(l => l.assetId === assetId && l.userId === u.id);
+      if (existing) { store.del('likes', existing.id); flush(); return ok({ liked: false, count: likeCount(assetId) }); }
+      store.put('likes', { id: 'l' + uid(), assetId, userId: u.id, createdAt: now() });
+      flush();
+      return ok({ liked: true, count: likeCount(assetId) });
     }
 
     /* ============ REVIEWS & RATINGS ============ */
@@ -755,6 +953,8 @@
         revenue: all('purchases').reduce((s, p) => s + p.price, 0),
         comments: all('comments').length,
         reviews: all('reviews').length,
+        likes: all('likes').length,
+        devices: all('devices').filter(d => d.status === 'active').length,
         reports: all('reports').filter(x => x.status === 'open').length,
         online: all('sessions').filter(s => now() - s.lastSeen < cfg.onlineWindowMs).length,
         banned: all('users').filter(u => u.banned).length,
@@ -867,11 +1067,12 @@
     return {
       register, login, verify2fa, requestReset, resetPassword, logout, me,
       updateProfile, setup2fa, enable2fa, disable2fa,
-      createAsset, listApproved, topSelling, getAsset, updateAsset, deleteAsset, myAssets, download,
+      createAsset, postStatus, listApproved, topSelling, getAsset, updateAsset, deleteAsset, myAssets, download,
       purchase, myPurchases, assignLicense, createOrder, completeOrder, settleOrder, cancelOrder, myOrders, adminOrders, adminCompleteOrder,
-      addComment, listComments,
+      addComment, listComments, toggleLike,
       listReviews, addReview, deleteReview,
       createReport, adminReports, adminResolveReport,
+      licenseActivate, licenseHeartbeat, creatorDashboard, creatorLicenses, setLicenseStatus, revokeDevice,
       publicProfile, content,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
       adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSessions, adminEmails, adminOrders, adminCompleteOrder,

@@ -25,13 +25,36 @@ moderation from a dedicated Admin Panel.
 
 **Creators are the heart of it.** Members can browse, comment, review, and
 purchase. VIP / Licensed creators post assets — every submission enters the
-**approval queue**, and admins approve or reject with a reason.
+**approval queue**, and admins approve or reject with a reason. A **24-hour
+posting cooldown** keeps the marketplace fresh: creators can post one new
+asset per day (admins are exempt), with the countdown shown right on the
+upload page.
+
+**Posts that rank.** Every asset is **clickable** — open the full description,
+like it, and leave **star-rated comments** (comments require a 1–5 star pick
+before posting, so every piece of feedback feeds the asset's score). The more
+likes and the higher the ratings, the higher the post ranks: the front page
+and shop are sorted by a **trending score** (likes + ratings + sales, decayed
+by age), with Newest and Top-selling sort options too.
+
+**A Creator Dashboard for VIP / Licensed +.** A dedicated dashboard tab
+shows your **sales graph** (revenue per day over the last 30 days), your
+license keys, and device-level security for everything you post.
 
 **Purchases with license keys — and a VIP upgrade included.** Buying any asset
 issues a **license key** tied to your account, and **instantly upgrades your
 account to VIP / Licensed** — meaning you can start posting and selling your
 own assets right after your first purchase. Assign your key to your own Roblox
 game from the License page, and download your file whenever you need it.
+
+**License security — advanced protection for your files.** Even if a file
+gets leaked, the key inside it stays bound to the buyer: nobody else can use
+it. Your asset's file can call the **activation API** on first run and send a
+**heartbeat** while running, so creators see exactly which devices are using
+their work. From the Dashboard, a creator can **disable a license** (the kill
+switch — the file refuses to run everywhere) or **revoke a single device**
+(that device alone is cut off on its next check). Unauthorized devices get
+`denied` and the file shuts itself down.
 
 **Payments: Stripe · PayPal · GCash.** Checkout is powered by **Stripe**
 (cards), **PayPal**, and **GCash** (via PayMongo). Choose your method at
@@ -63,6 +86,12 @@ A dark, premium theme — deep blacks and gradients lit by ambient gold
 glow, the crown as the light source, light-catching surfaces, and a floating
 social dock (Discord · YouTube · legal) that stays with you on every page.
 Clean, fast, and built to feel like a high-end studio, not a template.
+
+The site opens with an animated **loading screen** — the crown spinning in a
+ring of gold light above the studio tagline — and then stays alive: a soft
+gold glow follows your cursor, light particles drift up through the hero,
+cards tilt gently in 3D as you move over them, buttons sweep with light, and
+the headline stats count up as they appear.
 
 ## Technology
 

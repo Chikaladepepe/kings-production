@@ -28,8 +28,10 @@ const SCHEMA = {
   users: ['id', 'handle', 'email', 'displayName', 'passHash', 'bio', 'pfp', 'role', 'banned', 'banReason', 'timeoutUntil', 'totpSecret', 'totpEnabled', 'country', 'createdAt', 'updatedAt'],
   sessions: ['id', 'userId', 'label', 'createdAt', 'lastSeen', 'expiresAt'],
   assets: ['id', 'ownerId', 'title', 'category', 'description', 'price', 'fileName', 'fileMime', 'fileSize', 'imageUrl', 'status', 'rejectReason', 'sales', 'createdAt', 'updatedAt', 'approvedAt'],
-  purchases: ['id', 'assetId', 'buyerId', 'price', 'licenseKey', 'gameId', 'gameName', 'createdAt'],
-  comments: ['id', 'assetId', 'userId', 'body', 'createdAt'],
+  purchases: ['id', 'assetId', 'buyerId', 'price', 'licenseKey', 'gameId', 'gameName', 'status', 'activatedAt', 'deviceId', 'deviceName', 'lastSeen', 'createdAt'],
+  comments: ['id', 'assetId', 'userId', 'body', 'rating', 'createdAt'],
+  likes: ['id', 'assetId', 'userId', 'createdAt'],
+  devices: ['id', 'purchaseId', 'assetId', 'deviceId', 'deviceName', 'status', 'createdAt', 'lastSeen'],
   reviews: ['id', 'assetId', 'userId', 'rating', 'body', 'createdAt', 'updatedAt'],
   reports: ['id', 'reporterId', 'targetType', 'targetId', 'reason', 'details', 'status', 'resolvedBy', 'resolvedAt', 'createdAt'],
   tokens: ['id', 'userId', 'token', 'purpose', 'expiresAt', 'used', 'createdAt'],
@@ -61,10 +63,21 @@ CREATE TABLE IF NOT EXISTS assets (
 );
 CREATE TABLE IF NOT EXISTS purchases (
   id TEXT PRIMARY KEY, assetId TEXT NOT NULL, buyerId TEXT NOT NULL, price INTEGER NOT NULL,
-  licenseKey TEXT NOT NULL, gameId TEXT, gameName TEXT, createdAt INTEGER NOT NULL
+  licenseKey TEXT NOT NULL, gameId TEXT, gameName TEXT,
+  status TEXT NOT NULL DEFAULT 'active', activatedAt INTEGER, deviceId TEXT, deviceName TEXT, lastSeen INTEGER,
+  createdAt INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS comments (
-  id TEXT PRIMARY KEY, assetId TEXT NOT NULL, userId TEXT NOT NULL, body TEXT NOT NULL, createdAt INTEGER NOT NULL
+  id TEXT PRIMARY KEY, assetId TEXT NOT NULL, userId TEXT NOT NULL, body TEXT NOT NULL,
+  rating INTEGER, createdAt INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS likes (
+  id TEXT PRIMARY KEY, assetId TEXT NOT NULL, userId TEXT NOT NULL, createdAt INTEGER NOT NULL,
+  UNIQUE (assetId, userId)
+);
+CREATE TABLE IF NOT EXISTS devices (
+  id TEXT PRIMARY KEY, purchaseId TEXT NOT NULL, assetId TEXT NOT NULL, deviceId TEXT NOT NULL,
+  deviceName TEXT, status TEXT NOT NULL DEFAULT 'active', createdAt INTEGER NOT NULL, lastSeen INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS reviews (
   id TEXT PRIMARY KEY, assetId TEXT NOT NULL, userId TEXT NOT NULL, rating INTEGER NOT NULL,
@@ -104,6 +117,8 @@ CREATE INDEX IF NOT EXISTS idx_comments_asset ON comments (assetId);
 CREATE INDEX IF NOT EXISTS idx_reviews_asset ON reviews (assetId);
 CREATE INDEX IF NOT EXISTS idx_reports_status ON reports (status);
 CREATE INDEX IF NOT EXISTS idx_purchases_buyer ON purchases (buyerId);
+CREATE INDEX IF NOT EXISTS idx_likes_asset ON likes (assetId);
+CREATE INDEX IF NOT EXISTS idx_devices_asset ON devices (assetId);
 `;
 
 function createSqliteStore(file) {
@@ -156,6 +171,12 @@ function createSqliteStore(file) {
 const MIGRATIONS = [
   "ALTER TABLE users ADD COLUMN country TEXT",
   "ALTER TABLE assets ADD COLUMN imageUrl TEXT",
+  "ALTER TABLE comments ADD COLUMN rating INTEGER",
+  "ALTER TABLE purchases ADD COLUMN status TEXT NOT NULL DEFAULT 'active'",
+  "ALTER TABLE purchases ADD COLUMN activatedAt INTEGER",
+  "ALTER TABLE purchases ADD COLUMN deviceId TEXT",
+  "ALTER TABLE purchases ADD COLUMN deviceName TEXT",
+  "ALTER TABLE purchases ADD COLUMN lastSeen INTEGER",
 ];
 function runMigrations(db) {
   for (const sql of MIGRATIONS) {

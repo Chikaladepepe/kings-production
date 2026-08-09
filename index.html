@@ -500,12 +500,123 @@ body::before{content:"";position:fixed;inset:-40%;z-index:0;pointer-events:none;
 .pm-list{display:flex;flex-direction:column;gap:10px}
 .pm-card{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:13px 14px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,0)),var(--surface-2);border:1px solid var(--border-strong);cursor:pointer;transition:border-color .16s,transform .16s,box-shadow .16s;font-family:inherit;color:var(--text)}
 .pm-card:hover{border-color:rgba(212,175,55,.4);transform:translateY(-1px);box-shadow:0 0 18px rgba(212,175,55,.08)}
-.pm-card small{display:block;color:var(--text-3);font-size:12px;margin-top:2px}
-.pm-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:17px;background:linear-gradient(150deg,#2a2a33,#1a1a20);border:1px solid var(--border-strong);color:var(--gold);flex-shrink:0}
+.pm-card small{display:block;color:var(--text-3);font-size:12px;margin-top:2px}.pm-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:17px;background:linear-gradient(150deg,#2a2a33,#1a1a20);border:1px solid var(--border-strong);color:var(--gold);flex-shrink:0}
+
+/* ============ CHUNK Z: LOADER · INTERACTIVE FX · WOW ============ */
+
+/* ---- loading screen ---- */
+.loader{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:radial-gradient(1200px 700px at 50% 0%,#17171d 0%,#0c0c0e 55%,#070709 100%);transition:opacity .55s ease,visibility .55s ease}
+.loader.done{opacity:0;visibility:hidden;pointer-events:none}
+.loader-bg{position:absolute;inset:0;overflow:hidden}
+.loader-bg::before,.loader-bg::after{content:'';position:absolute;border-radius:50%;filter:blur(90px);opacity:.5;animation:loaderDrift 9s ease-in-out infinite alternate}
+.loader-bg::before{width:460px;height:460px;left:-80px;top:-120px;background:radial-gradient(circle,rgba(212,175,55,.22),transparent 65%);animation-duration:11s}
+.loader-bg::after{width:520px;height:520px;right:-140px;bottom:-160px;background:radial-gradient(circle,rgba(77,141,255,.16),transparent 65%)}
+@keyframes loaderDrift{from{transform:translate3d(0,0,0) scale(1)}to{transform:translate3d(40px,30px,0) scale(1.12)}}
+.loader-inner{position:relative;text-align:center;padding:0 24px;animation:loaderIn .7s cubic-bezier(.2,.7,.3,1)}
+@keyframes loaderIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.loader-orb{width:118px;height:118px;margin:0 auto 26px;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative}
+.loader-orb::before{content:'';position:absolute;inset:-8px;border-radius:50%;background:conic-gradient(from 0deg,rgba(212,175,55,0),rgba(212,175,55,.85),rgba(255,255,255,.25),rgba(212,175,55,0));animation:orbSpin 1.6s linear infinite;filter:blur(.4px)}
+.loader-orb::after{content:'';position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 50% 38%,#1d1d24,#101014 70%);box-shadow:0 0 46px rgba(212,175,55,.22),inset 0 0 22px rgba(212,175,55,.07)}
+.loader-crown{position:relative;z-index:1;color:var(--gold);display:inline-flex;animation:crownPulse 1.6s ease-in-out infinite}
+.loader-crown svg{width:52px;height:52px;filter:drop-shadow(0 0 18px rgba(212,175,55,.65))}
+@keyframes orbSpin{to{transform:rotate(360deg)}}
+@keyframes crownPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.09);opacity:.92}}
+.loader-title{font-family:var(--font-display);font-size:clamp(26px,5vw,38px);font-weight:700;letter-spacing:-.02em;background:linear-gradient(100deg,#fff 20%,#e8c96a 45%,#fff 70%);-webkit-background-clip:text;background-clip:text;color:transparent;background-size:200% 100%;animation:titleShimmer 2.6s linear infinite}
+.loader-title em{font-style:normal;color:var(--gold)}
+@keyframes titleShimmer{to{background-position:-200% 0}}
+.loader-sub{margin-top:8px;font-size:11.5px;letter-spacing:.34em;text-transform:uppercase;color:var(--text-3);font-weight:600}
+.loader-bar{width:min(320px,72vw);height:3px;margin:30px auto 14px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden}
+.loader-fill{height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,#8a6d1f,#e8c96a,#fff 55%,#e8c96a);background-size:200% 100%;animation:titleShimmer 1.8s linear infinite;transition:width .12s ease}
+.loader-pct{font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--text-2);font-variant-numeric:tabular-nums}
+.loader-tag{margin-top:26px;font-size:12px;color:var(--text-3);letter-spacing:.06em}
+.loader-tag::before,.loader-tag::after{content:'·';margin:0 8px;color:rgba(212,175,55,.6)}
+
+/* ---- cursor glow ---- */
+.cursor-glow{position:fixed;top:0;left:0;width:520px;height:520px;border-radius:50%;pointer-events:none;z-index:3;transform:translate(-50%,-50%);background:radial-gradient(circle,rgba(212,175,55,.09) 0%,rgba(255,255,255,.035) 32%,transparent 62%);mix-blend-mode:screen;opacity:0;transition:opacity .4s ease}
+.cursor-glow.on{opacity:1}
+@media (hover:none),(pointer:coarse){.cursor-glow{display:none}}
+@media (prefers-reduced-motion:reduce){.cursor-glow{display:none}}
+
+/* ---- hero life ---- */
+.hero{background:radial-gradient(1100px 500px at 50% -10%,rgba(255,255,255,.055),transparent 60%),radial-gradient(900px 420px at 82% 8%,rgba(212,175,55,.07),transparent 60%),radial-gradient(800px 420px at 12% 14%,rgba(77,141,255,.05),transparent 60%)}
+.hero h1{background:linear-gradient(180deg,#fff 30%,#d8d8de 72%);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
+.hero-em{background:linear-gradient(90deg,#e8c96a,#fff,#e8c96a);background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:titleShimmer 3.2s linear infinite}
+.hero-particles{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.particle{position:absolute;bottom:-12px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff,transparent 70%);box-shadow:0 0 10px rgba(212,175,55,.5);opacity:0;animation:floatUp linear infinite}
+@keyframes floatUp{0%{transform:translateY(0);opacity:0}12%{opacity:.85}88%{opacity:.6}100%{transform:translateY(-110vh);opacity:0}}
+@media (prefers-reduced-motion:reduce){.hero-particles{display:none}}
+.hero-stat b{background:linear-gradient(180deg,#fff,#cfb45c);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+/* ---- card tilt ---- */
+.card-hover:hover{transform:perspective(900px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) translateY(var(--ty,-4px));transition:transform .18s ease-out,box-shadow .25s ease,border-color .25s ease;will-change:transform}
+@media (prefers-reduced-motion:reduce){.card-hover:hover{transform:translateY(-4px);transition:none}}
+.card-hover:hover .asset-thumb .thumb-bg{filter:brightness(1.08)}
+
+/* ---- shine sweep ---- */
+.btn-primary{position:relative;overflow:hidden}
+.btn-primary::after{content:'';position:absolute;top:0;left:-80%;width:60%;height:100%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.5),transparent);transform:skewX(-20deg);transition:left .55s ease}
+.btn-primary:hover::after{left:130%}
+.card-hover{position:relative;overflow:hidden}
+.card-hover::before{content:'';position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.07) 50%,transparent 65%);transform:translateX(-120%);transition:transform .8s ease;pointer-events:none;z-index:2}
+.card-hover:hover::before{transform:translateX(120%)}
+
+/* ---- like button ---- */
+.like-btn{display:inline-flex;align-items:center;gap:5px;background:transparent;border:1px solid var(--border-strong);color:var(--text-3);border-radius:99px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;transition:color .18s,border-color .18s,transform .18s,box-shadow .18s;font-family:inherit;line-height:1}
+.like-btn svg{width:13px;height:13px;transition:transform .25s cubic-bezier(.3,1.6,.5,1)}
+.like-btn:hover{color:#ff8fa3;border-color:rgba(229,72,77,.5);transform:translateY(-1px)}
+.like-btn.on{color:#ff5c7a;border-color:rgba(229,72,77,.65);background:rgba(229,72,77,.08);box-shadow:0 0 14px rgba(229,72,77,.18)}
+.like-btn.on svg{fill:currentColor;transform:scale(1.15)}
+.like-btn.pop{animation:likePop .4s cubic-bezier(.3,1.6,.5,1)}
+@keyframes likePop{0%{transform:scale(1)}40%{transform:scale(1.28)}100%{transform:scale(1)}}
+.like-btn.lg{padding:8px 16px;font-size:13.5px}
+.like-btn.lg svg{width:17px;height:17px}
+
+/* ---- dashboard ---- */
+.dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:22px}
+.dash-stat{background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,0)),var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;transition:transform .18s,box-shadow .25s,border-color .25s}
+.dash-stat:hover{transform:translateY(-2px);border-color:rgba(212,175,55,.35);box-shadow:0 14px 34px rgba(0,0,0,.4),0 0 22px rgba(212,175,55,.06)}
+.dash-stat .k{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-3);font-weight:600}
+.dash-stat .v{font-family:var(--font-display);font-size:clamp(20px,3vw,26px);font-weight:700;margin-top:4px;background:linear-gradient(180deg,#fff,#cfb45c);-webkit-background-clip:text;background-clip:text;color:transparent}
+.dash-stat .v.blue{background:linear-gradient(180deg,#fff,#6ea8ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.dash-stat .v.red{background:linear-gradient(180deg,#fff,#ff8f94);-webkit-background-clip:text;background-clip:text;color:transparent}
+.chart-box{position:relative;height:190px;margin-top:8px}
+.chart-box canvas{position:absolute;inset:0;width:100%;height:100%}
+.chart-tip{position:absolute;z-index:5;pointer-events:none;background:linear-gradient(180deg,var(--surface-3),var(--surface-2));border:1px solid var(--border-strong);border-radius:9px;padding:7px 11px;font-size:12px;color:var(--text);box-shadow:0 12px 30px rgba(0,0,0,.5);opacity:0;transition:opacity .12s;white-space:nowrap}
+.chart-tip b{color:var(--gold)}
+.lic-row{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--border)}
+.lic-row:last-child{border-bottom:none}
+.lic-key{font-family:var(--font-display);font-weight:700;font-size:13px;color:var(--gold);letter-spacing:.05em;white-space:nowrap}
+.lic-device{font-size:12.5px;color:var(--text-2)}
+.lic-device .off{color:var(--danger)}
+.badge.soft-ok{background:rgba(70,167,88,.14);color:#7fd6a0;border-color:rgba(70,167,88,.35)}
+.badge.soft-red{background:rgba(229,72,77,.13);color:#ff9ba0;border-color:rgba(229,72,77,.4)}
+.badge.soft-blue{background:rgba(77,141,255,.13);color:#9cc2ff;border-color:rgba(77,141,255,.4)}
+.sec-note{border:1px solid rgba(212,175,55,.28);background:linear-gradient(180deg,rgba(212,175,55,.06),rgba(212,175,55,.015));border-radius:var(--radius);padding:16px 18px;font-size:13.5px;color:var(--text-2)}
+.sec-note b{color:var(--text)}
+.cooldown-banner{display:flex;align-items:center;gap:12px;border:1px solid rgba(212,175,55,.35);background:linear-gradient(180deg,rgba(212,175,55,.09),rgba(212,175,55,.02));border-radius:var(--radius);padding:14px 18px;margin-bottom:18px;color:var(--text)}
+.cooldown-banner .crown{animation:crownPulse 1.8s ease-in-out infinite}
+.sort-chip{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:99px;border:1px solid var(--border-strong);background:transparent;color:var(--text-2);font-size:12.5px;font-weight:600;cursor:pointer;transition:all .18s;font-family:inherit}
+.sort-chip.active{color:#141414;background:linear-gradient(90deg,#f2e6b8,#e8c96a);border-color:transparent;box-shadow:0 4px 16px rgba(212,175,55,.22)}
+.sort-chip:hover:not(.active){color:var(--text);border-color:#4a4a55}
+.fa-badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:99px;background:rgba(212,175,55,.14);color:var(--gold);font-size:11px;font-weight:700;border:1px solid rgba(212,175,55,.3)}
+.composer-main{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0}
+.star-btn.on{color:var(--gold)}
+.star-btn:hover{color:var(--gold)}
 
 </style>
 </head>
 <body>
+<div id="loader" class="loader" role="status" aria-label="Loading Kings Production">
+  <div class="loader-bg"></div>
+  <div class="loader-inner">
+    <div class="loader-orb" aria-hidden="true"><span class="loader-crown"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 16.5V10l4.2 3.6L12 6.5l3.8 7.1L20 10v6.5a1.6 1.6 0 0 1-1.6 1.6H5.6A1.6 1.6 0 0 1 4 16.5Z"/><rect x="5.2" y="19" width="13.6" height="1.8" rx="0.9"/></svg></span></div>
+    <div class="loader-title">Kings <em>Production</em></div>
+    <div class="loader-sub">Where Excellence Meets Innovation</div>
+    <div class="loader-bar"><div class="loader-fill" id="loader-fill"></div></div>
+    <div class="loader-pct" id="loader-pct">0%</div>
+    <div class="loader-tag">Forging premium Roblox systems</div>
+  </div>
+</div>
 <div id="app" aria-live="polite"></div>
 <noscript><div style="padding:40px;font-family:sans-serif;color:#fff;background:#0c0c0e;min-height:100vh">Kings Production requires JavaScript to run.</div></noscript>
 <script>
@@ -575,6 +686,9 @@ const ICON = {
   plugin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M8 4a1 1 0 0 1 2 0v1h4V4a1 1 0 0 1 2 0v1a2 2 0 0 0 2 2h1v4h-1a1 1 0 0 0 0 2h1v4h-1a2 2 0 0 0-2 2v1h-4v-1a1 1 0 0 0-2 0v1H6v-1a2 2 0 0 0-2-2H3v-4h1a1 1 0 0 0 0-2H3V7h1a2 2 0 0 0 2-2V4h2Z"/></svg>',
   system: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.5M12 18.7v2.5M2.8 12h2.5M18.7 12h2.5M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8"/></svg>',
   flag: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 4.5c4.5-2 7 2 11 0v8.5c-4.5 2-7-2-11 0"/><path d="M5 13c4.5-2 7 2 11 0"/></svg>',
+  heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.5S3.5 15.4 3.5 9.6A4.6 4.6 0 0 1 12 7a4.6 4.6 0 0 1 8.5 2.6c0 5.8-8.5 10.9-8.5 10.9Z"/></svg>',
+  chart: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/></svg>',
+  zap: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H13L13 2Z"/></svg>',
   discord: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.6 5.4A17 17 0 0 0 15.2 4l-.6 1.2a13.7 13.7 0 0 1 4.3 1.6 12 12 0 0 0-13.8 0A13.7 13.7 0 0 1 9.4 5.2L8.8 4a17 17 0 0 0-4.4 1.4A17.6 17.6 0 0 0 1.2 18a17 17 0 0 0 5.2 2.6l1-1.7a11 11 0 0 1-1.8-.9l.4-.3a12.2 12.2 0 0 0 10.2 0l.4.3c-.6.4-1.2.7-1.8.9l1 1.7A17 17 0 0 0 21 18a17.6 17.6 0 0 0-1.4-12.6ZM8.7 15.3c-1 0-1.9-.9-1.9-2s.8-2 1.9-2 1.9.9 1.9 2-.9 2-1.9 2Zm6.6 0c-1 0-1.9-.9-1.9-2s.8-2 1.9-2 1.9.9 1.9 2-.9 2-1.9 2Z"/></svg>',
   youtube: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.6 7.2a2.5 2.5 0 0 0-1.8-1.8C18.2 5 12 5 12 5s-6.2 0-7.8.4A2.5 2.5 0 0 0 2.4 7.2 26.4 26.4 0 0 0 2 12a26.4 26.4 0 0 0 .4 4.8 2.5 2.5 0 0 0 1.8 1.8C5.8 19 12 19 12 19s6.2 0 7.8-.4a2.5 2.5 0 0 0 1.8-1.8A26.4 26.4 0 0 0 22 12a26.4 26.4 0 0 0-.4-4.8ZM10 15.2V8.8L15.4 12 10 15.2Z"/></svg>'
 };
@@ -599,7 +713,7 @@ async function idbDel(key) { const db = await idbOpen(); return new Promise((res
 /* ---- browser storage backend (fallback when the Express/SQLite server is unreachable) ----
    The engine in shared/engine.js talks to `store` (metadata) + `Files` (blobs).
    The same engine runs inside the Node server against SQLite + disk. */
-const DB_TABLES = ['users', 'assets', 'purchases', 'comments', 'sessions', 'tokens', 'emails', 'reviews', 'reports', 'portfolio', 'creators', 'orders'];
+const DB_TABLES = ['users', 'assets', 'purchases', 'comments', 'likes', 'devices', 'sessions', 'tokens', 'emails', 'reviews', 'reports', 'portfolio', 'creators', 'orders'];
 const Files = {
   put: (id, file) => idbPut(id, file),
   get: id => idbGet(id).then(v => v || null),
@@ -813,6 +927,25 @@ const API = {};
       if (actor.role !== 'admin') return fail('adminOnly', 'You do not have permission to do that.');
       return null;
     };
+    /* Posting cooldown — one new post per 24h for creators (admins are exempt). */
+    const POST_COOLDOWN_MS = cfg.postCooldownMs || 24 * 36e5;
+    function cooldownInfo(u) {
+      if (!u || isAdmin(u) || !canPost(u)) return null;
+      const posts = all('assets').filter(a => a.ownerId === u.id).sort((x, y) => y.createdAt - x.createdAt);
+      if (!posts.length) return null;
+      const last = posts[0].createdAt;
+      const remainingMs = POST_COOLDOWN_MS - (now() - last);
+      if (remainingMs <= 0) return null;
+      const h = Math.floor(remainingMs / 36e5), m = Math.floor((remainingMs % 36e5) / 6e4);
+      return { allowed: false, nextPostAt: last + POST_COOLDOWN_MS, remainingMs, text: (h > 0 ? h + 'h ' : '') + m + 'm' };
+    }
+    async function postStatus(user) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      if (!canPost(u)) return ok({ allowed: false, reason: u.role === 'member' ? 'member' : 'restricted' });
+      const c = cooldownInfo(u);
+      return ok(c ? { allowed: false, reason: 'cooldown', ...c } : { allowed: true });
+    }
 
     function seedContent() {
       if (all('portfolio').length) return;
@@ -832,11 +965,34 @@ const API = {};
       return s;
     }
 
-    function summarize(a) {
+    /* Rating = the most recent star rating per user, taken from either a
+       review or a rated comment (comments now require stars). */
+    function assetRating(a) {
+      const map = {};
+      all('comments').filter(c => c.assetId === a.id && c.rating).forEach(c => {
+        if (!map[c.userId] || c.createdAt > map[c.userId].t) map[c.userId] = { t: c.createdAt, r: c.rating };
+      });
+      all('reviews').filter(r => r.assetId === a.id).forEach(r => {
+        if (!map[r.userId] || r.updatedAt > map[r.userId].t) map[r.userId] = { t: r.updatedAt, r: r.rating };
+      });
+      const vals = Object.keys(map).map(k => map[k]);
+      if (!vals.length) return null;
+      return { rating: Math.round((vals.reduce((s, v) => s + v.r, 0) / vals.length) * 10) / 10, count: vals.length };
+    }
+    const likeCount = id => all('likes').filter(l => l.assetId === id).length;
+    const likedBy = (id, userId) => !!(userId && all('likes').some(l => l.assetId === id && l.userId === userId));
+    /* Trending score — likes + ratings + sales, decayed by age so fresh
+       engagement rises to the top of the front page. */
+    function hotScore(a) {
+      const rv = assetRating(a);
+      const hours = Math.max(0.1, (now() - (a.createdAt || now())) / 36e5);
+      const pop = (a.sales || 0) * 42 + likeCount(a.id) * 20 + (rv ? rv.count * 7 + (rv.rating || 0) * 6 : 0);
+      return pop / Math.pow(hours + 3, 0.5);
+    }
+    function summarize(a, viewerId) {
       const o = dbUser(a.ownerId);
-      const rv = all('reviews').filter(r => r.assetId === a.id);
-      const rating = rv.length ? Math.round((rv.reduce((s, r) => s + r.rating, 0) / rv.length) * 10) / 10 : null;
-      return { id: a.id, title: a.title, category: a.category, price: a.price, sales: a.sales, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, imageUrl: a.imageUrl, owner: o ? publicUser(o) : null, rating, ratingCount: rv.length };
+      const rv = assetRating(a);
+      return { id: a.id, title: a.title, category: a.category, price: a.price, sales: a.sales, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, imageUrl: a.imageUrl, owner: o ? publicUser(o) : null, rating: rv ? rv.rating : null, ratingCount: rv ? rv.count : 0, likes: likeCount(a.id), liked: likedBy(a.id, viewerId) };
     }
     function sendEmail(rec) {
       const row = { id: 'e' + uid(), to: rec.to, subject: rec.subject, action: rec.action, body: rec.body, link: rec.link || null, createdAt: now(), read: false };
@@ -1009,6 +1165,8 @@ const API = {};
         if (isTimedOut(u)) return fail('timeout', 'You are currently timed out and cannot post assets.');
         return fail('auth', 'You must be logged in to post assets.');
       }
+      const cd = cooldownInfo(u);
+      if (cd) return fail('cooldown', 'Posting cooldown active — you can post again in ' + cd.text + '.');
       title = String(title || '').trim();
       description = String(description || '').trim();
       price = Number(price);
@@ -1036,11 +1194,11 @@ const API = {};
       return ok({ id: asset.id, status: 'pending' });
     }
 
-    async function listApproved() {
-      return ok(all('assets').filter(a => a.status === 'approved').sort((x, y) => y.createdAt - x.createdAt).map(summarize));
+    async function listApproved(viewerId) {
+      return ok(all('assets').filter(a => a.status === 'approved').sort((x, y) => hotScore(y) - hotScore(x)).map(a => summarize(a, viewerId)));
     }
-    async function topSelling(n = 6) {
-      return ok(all('assets').filter(a => a.status === 'approved').sort((x, y) => y.sales - x.sales).slice(0, n).map(summarize));
+    async function topSelling(n = 6, viewerId) {
+      return ok(all('assets').filter(a => a.status === 'approved').sort((x, y) => y.sales - x.sales).slice(0, n).map(a => summarize(a, viewerId)));
     }
     async function getAsset(id, viewerId) {
       const a = byIdIn('assets', id);
@@ -1051,7 +1209,7 @@ const API = {};
       if (a.status !== 'approved' && !isOwner && !isAdminView) return fail('notfound', 'This asset is not available yet.');
       const purchase = viewer ? all('purchases').find(p => p.assetId === id && p.buyerId === viewer.id) : null;
       return ok({
-        ...summarize(a),
+        ...summarize(a, viewerId),
         description: a.description,
         isOwner,
         hasPurchased: !!purchase,
@@ -1108,8 +1266,11 @@ const API = {};
 
     function cascadeDelete(id) {
       const commentIds = all('comments').filter(c => c.assetId === id).map(c => c.id);
+      const purchaseIds = all('purchases').filter(p => p.assetId === id).map(p => p.id);
       all('comments').filter(c => c.assetId === id).forEach(c => store.del('comments', c.id));
       all('purchases').filter(p => p.assetId === id).forEach(p => store.del('purchases', p.id));
+      all('likes').filter(l => l.assetId === id).forEach(l => store.del('likes', l.id));
+      all('devices').filter(d => d.assetId === id || purchaseIds.includes(d.purchaseId)).forEach(d => store.del('devices', d.id));
       all('reviews').filter(r => r.assetId === id).forEach(r => store.del('reviews', r.id));
       all('reports').filter(rp => (rp.targetType === 'asset' && rp.targetId === id) || (rp.targetType === 'comment' && commentIds.includes(rp.targetId))).forEach(rp => store.del('reports', rp.id));
       files.del(id);
@@ -1277,8 +1438,143 @@ const API = {};
       return ok(true);
     }
 
+    /* ============ LICENSE SECURITY (creator-side protection) ============
+       Every purchase already carries a unique KP- license key. These APIs let
+       the creator's asset verify itself at runtime: the file calls
+       licenseActivate on first run and licenseHeartbeat while it runs. The
+       creator can disable a license (kill switch — the file shuts down) or
+       revoke a single device (that device can no longer use the file). */
+    async function licenseActivate({ licenseKey, deviceId, deviceName } = {}) {
+      licenseKey = String(licenseKey || '').trim().toUpperCase();
+      deviceId = String(deviceId || '').trim();
+      if (!/^KP-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(licenseKey)) return fail('invalid', 'Invalid license key format.');
+      if (!deviceId || deviceId.length > 128) return fail('invalid', 'A device identifier is required to activate this license.');
+      const p = all('purchases').find(x => x.licenseKey === licenseKey);
+      if (!p) return fail('invalid', 'This license key does not exist.');
+      if (p.status === 'disabled') return fail('denied', 'This license has been disabled by the creator and can no longer be used.');
+      const asset = byIdIn('assets', p.assetId);
+      if (!asset) return fail('denied', 'The asset for this license no longer exists.');
+      const t = now();
+      const existing = all('devices').find(d => d.purchaseId === p.id && d.deviceId === deviceId);
+      if (existing) {
+        if (existing.status === 'revoked') return fail('denied', 'This device has been revoked and is not authorized to use the file.');
+        existing.lastSeen = t;
+        existing.deviceName = String(deviceName || '').trim().slice(0, 80) || existing.deviceName;
+        store.put('devices', existing);
+      } else {
+        store.put('devices', { id: 'dv' + uid(), purchaseId: p.id, assetId: p.assetId, deviceId, deviceName: String(deviceName || '').trim().slice(0, 80), status: 'active', createdAt: t, lastSeen: t });
+      }
+      p.activatedAt = p.activatedAt || t;
+      p.deviceId = deviceId;
+      p.deviceName = String(deviceName || '').trim().slice(0, 80);
+      p.lastSeen = t;
+      store.put('purchases', p);
+      flush();
+      return ok({ status: 'active', licenseKey, asset: asset.title, activatedAt: p.activatedAt });
+    }
+    async function licenseHeartbeat({ licenseKey, deviceId } = {}) {
+      licenseKey = String(licenseKey || '').trim().toUpperCase();
+      deviceId = String(deviceId || '').trim();
+      const p = all('purchases').find(x => x.licenseKey === licenseKey);
+      if (!p) return fail('invalid', 'License key not found.');
+      if (p.status === 'disabled') return fail('denied', 'This license has been disabled by the creator.');
+      const d = all('devices').find(x => x.purchaseId === p.id && x.deviceId === deviceId);
+      if (!d || d.status === 'revoked') return fail('denied', 'This device is not authorized to use the file.');
+      d.lastSeen = now();
+      p.lastSeen = d.lastSeen;
+      store.put('devices', d);
+      store.put('purchases', p);
+      flush();
+      return ok({ status: 'active', licenseKey });
+    }
+    /* The creator's own dashboard: their assets, sales-by-day for the chart,
+       license/device stats, and the latest device activity. */
+    async function creatorDashboard(user) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      if (!canPost(u)) return fail('vipOnly', 'Only VIP / Licensed creators have a dashboard.');
+      const assets = all('assets').filter(a => a.ownerId === u.id).sort((x, y) => y.createdAt - x.createdAt);
+      const ids = new Set(assets.map(a => a.id));
+      const purchases = all('purchases').filter(p => ids.has(p.assetId));
+      const devices = all('devices').filter(d => ids.has(d.assetId));
+      const dayMs = 864e5, days = 30;
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const start = today.getTime() - (days - 1) * dayMs;
+      const buckets = [];
+      for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(today.getTime() - i * dayMs);
+        buckets.push({ day: d.toISOString().slice(0, 10), label: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), sales: 0, revenue: 0 });
+      }
+      purchases.forEach(p => {
+        const idx = Math.floor((p.createdAt - start) / dayMs);
+        if (idx >= 0 && idx < days) { buckets[idx].sales += 1; buckets[idx].revenue += p.price; }
+      });
+      return ok({
+        assets: assets.map(a => ({ ...summarize(a, u.id), likes: likeCount(a.id) })),
+        salesByDay: buckets,
+        stats: {
+          totalSales: purchases.length,
+          revenue: purchases.reduce((s, p) => s + p.price, 0),
+          licenseKeys: purchases.length,
+          activeLicenses: purchases.filter(p => p.status !== 'disabled').length,
+          disabledLicenses: purchases.filter(p => p.status === 'disabled').length,
+          activeDevices: devices.filter(d => d.status === 'active').length,
+          revokedDevices: devices.filter(d => d.status === 'revoked').length,
+        },
+        recentActivity: devices.slice().sort((x, y) => y.lastSeen - x.lastSeen).slice(0, 12).map(d => {
+          const p = byIdIn('purchases', d.purchaseId);
+          const a = byIdIn('assets', d.assetId);
+          return { id: d.id, deviceId: d.deviceId, deviceName: d.deviceName, status: d.status, lastSeen: d.lastSeen, asset: a ? summarize(a, u.id) : null, buyer: p ? publicUser(dbUser(p.buyerId)) : null };
+        }),
+      });
+    }
+    async function creatorLicenses(user, assetId) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      if (!canPost(u)) return fail('vipOnly', 'Only VIP / Licensed creators can manage licenses.');
+      const assets = all('assets').filter(a => a.ownerId === u.id);
+      const ids = new Set(assets.map(a => a.id));
+      const list = all('purchases').filter(p => ids.has(p.assetId) && (!assetId || p.assetId === assetId))
+        .sort((x, y) => y.createdAt - x.createdAt)
+        .map(p => ({
+          ...p,
+          buyer: publicUser(dbUser(p.buyerId)),
+          asset: summarize(byIdIn('assets', p.assetId), u.id),
+          devices: all('devices').filter(d => d.purchaseId === p.id).sort((a, b) => b.lastSeen - a.lastSeen),
+        }));
+      return ok(list);
+    }
+    async function setLicenseStatus(user, purchaseId, status) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      if (!canPost(u)) return fail('vipOnly', 'Only the creator can manage this license.');
+      const p = byIdIn('purchases', purchaseId);
+      if (!p) return fail('notfound', 'License not found.');
+      const a = byIdIn('assets', p.assetId);
+      if (!a || a.ownerId !== u.id) return fail('forbidden', 'Only the creator of the asset can manage this license.');
+      status = String(status || '');
+      if (!['active', 'disabled'].includes(status)) return fail('invalid', 'Invalid license status.');
+      p.status = status;
+      store.put('purchases', p);
+      flush();
+      return ok(true);
+    }
+    async function revokeDevice(user, deviceId) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      if (!canPost(u)) return fail('vipOnly', 'Only the creator can revoke devices.');
+      const d = byIdIn('devices', deviceId);
+      if (!d) return fail('notfound', 'Device not found.');
+      const a = byIdIn('assets', d.assetId);
+      if (!a || a.ownerId !== u.id) return fail('forbidden', 'Only the creator of the asset can revoke this device.');
+      d.status = 'revoked';
+      store.put('devices', d);
+      flush();
+      return ok(true);
+    }
+
     /* ============ COMMENTS ============ */
-    async function addComment(user, assetId, body) {
+    async function addComment(user, assetId, { body, rating } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       if (isTimedOut(u)) return fail('timeout', 'You are currently timed out and cannot comment.');
@@ -1289,7 +1585,9 @@ const API = {};
       body = String(body || '').trim();
       if (!body) return fail('invalid', 'Write a comment first.');
       if (body.length > 1000) return fail('invalid', 'Comments are limited to 1000 characters.');
-      store.put('comments', { id: 'c' + uid(), assetId, userId: u.id, body, createdAt: now() });
+      rating = Number(rating);
+      if (!Number.isInteger(rating) || rating < 1 || rating > 5) return fail('rating', 'Pick a star rating (1–5) to post your comment.');
+      store.put('comments', { id: 'c' + uid(), assetId, userId: u.id, body, rating, createdAt: now() });
       flush();
       return ok(true);
     }
@@ -1297,6 +1595,20 @@ const API = {};
       const a = byIdIn('assets', assetId);
       if (!a || a.status !== 'approved') return ok([]);
       return ok(all('comments').filter(c => c.assetId === assetId).sort((x, y) => y.createdAt - x.createdAt).map(c => ({ ...c, user: publicUser(dbUser(c.userId)) })));
+    }
+
+    /* ============ LIKES ============ */
+    async function toggleLike(user, assetId) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to like assets.');
+      const a = byIdIn('assets', assetId);
+      if (!a) return fail('notfound', 'Asset not found.');
+      if (a.status !== 'approved') return fail('notfound', 'This asset is not available yet.');
+      const existing = all('likes').find(l => l.assetId === assetId && l.userId === u.id);
+      if (existing) { store.del('likes', existing.id); flush(); return ok({ liked: false, count: likeCount(assetId) }); }
+      store.put('likes', { id: 'l' + uid(), assetId, userId: u.id, createdAt: now() });
+      flush();
+      return ok({ liked: true, count: likeCount(assetId) });
     }
 
     /* ============ REVIEWS & RATINGS ============ */
@@ -1419,6 +1731,8 @@ const API = {};
         revenue: all('purchases').reduce((s, p) => s + p.price, 0),
         comments: all('comments').length,
         reviews: all('reviews').length,
+        likes: all('likes').length,
+        devices: all('devices').filter(d => d.status === 'active').length,
         reports: all('reports').filter(x => x.status === 'open').length,
         online: all('sessions').filter(s => now() - s.lastSeen < cfg.onlineWindowMs).length,
         banned: all('users').filter(u => u.banned).length,
@@ -1531,11 +1845,12 @@ const API = {};
     return {
       register, login, verify2fa, requestReset, resetPassword, logout, me,
       updateProfile, setup2fa, enable2fa, disable2fa,
-      createAsset, listApproved, topSelling, getAsset, updateAsset, deleteAsset, myAssets, download,
+      createAsset, postStatus, listApproved, topSelling, getAsset, updateAsset, deleteAsset, myAssets, download,
       purchase, myPurchases, assignLicense, createOrder, completeOrder, settleOrder, cancelOrder, myOrders, adminOrders, adminCompleteOrder,
-      addComment, listComments,
+      addComment, listComments, toggleLike,
       listReviews, addReview, deleteReview,
       createReport, adminReports, adminResolveReport,
+      licenseActivate, licenseHeartbeat, creatorDashboard, creatorLicenses, setLicenseStatus, revokeDevice,
       publicProfile, content,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
       adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSessions, adminEmails, adminOrders, adminCompleteOrder,
@@ -1646,8 +1961,9 @@ API.updateAsset = (user, id, a) => _wrap(async () => {
   if (_mode === 'local') return await _engine.updateAsset(user, id, a);
   return await _call('PATCH', '/api/assets/' + _e(id), await _assetForm(a, true));
 });
-API.listApproved = () => _wrap(async () => _mode === 'local' ? await _engine.listApproved() : await _call('GET', '/api/assets'));
-API.topSelling = (n = 6) => _wrap(async () => _mode === 'local' ? await _engine.topSelling(n) : await _call('GET', '/api/assets/top?n=' + n));
+API.listApproved = (viewer) => _wrap(async () => _mode === 'local' ? await _engine.listApproved(viewer && viewer.id) : await _call('GET', '/api/assets'));
+API.topSelling = (n = 6, viewer) => _wrap(async () => _mode === 'local' ? await _engine.topSelling(n, viewer && viewer.id) : await _call('GET', '/api/assets/top?n=' + n));
+API.postStatus = (user) => _wrap(async () => _mode === 'local' ? await _engine.postStatus(user) : await _call('GET', '/api/post-status'));
 API.getAsset = (id, viewerId) => _wrap(async () => _mode === 'local' ? await _engine.getAsset(id, viewerId) : await _call('GET', '/api/assets/' + _e(id)));
 API.deleteAsset = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.deleteAsset(user, id) : await _call('DELETE', '/api/assets/' + _e(id)));
 API.myAssets = user => _wrap(async () => _mode === 'local' ? await _engine.myAssets(user) : await _call('GET', '/api/assets/mine'));
@@ -1679,14 +1995,23 @@ API.adminCompleteOrder = (user, orderId) => _wrap(async () => _mode === 'local' 
 API.myPurchases = user => _wrap(async () => _mode === 'local' ? await _engine.myPurchases(user) : await _call('GET', '/api/purchases/mine'));
 API.assignLicense = (user, purchaseId, a) => _wrap(async () => _mode === 'local' ? await _engine.assignLicense(user, purchaseId, a) : await _call('POST', '/api/licenses/assign', { purchaseId, ...a }));
 
-/* ---- comments ---- */
-API.addComment = (user, assetId, body) => _wrap(async () => _mode === 'local' ? await _engine.addComment(user, assetId, body) : await _call('POST', '/api/assets/' + _e(assetId) + '/comments', { body }));
+/* ---- comments & likes ---- */
+API.addComment = (user, assetId, a) => _wrap(async () => _mode === 'local' ? await _engine.addComment(user, assetId, a) : await _call('POST', '/api/assets/' + _e(assetId) + '/comments', a));
 API.listComments = assetId => _wrap(async () => _mode === 'local' ? await _engine.listComments(assetId) : await _call('GET', '/api/assets/' + _e(assetId) + '/comments'));
+API.toggleLike = (user, assetId) => _wrap(async () => _mode === 'local' ? await _engine.toggleLike(user, assetId) : await _call('POST', '/api/assets/' + _e(assetId) + '/like'));
 
 /* ---- reviews & ratings ---- */
 API.listReviews = assetId => _wrap(async () => _mode === 'local' ? await _engine.listReviews(assetId) : await _call('GET', '/api/assets/' + _e(assetId) + '/reviews'));
 API.addReview = (user, assetId, a) => _wrap(async () => _mode === 'local' ? await _engine.addReview(user, assetId, a) : await _call('POST', '/api/assets/' + _e(assetId) + '/reviews', a));
 API.deleteReview = (user, reviewId) => _wrap(async () => _mode === 'local' ? await _engine.deleteReview(user, reviewId) : await _call('DELETE', '/api/reviews/' + _e(reviewId)));
+
+/* ---- license security (used by the dashboard and by asset files at runtime) ---- */
+API.licenseActivate = a => _wrap(async () => _mode === 'local' ? await _engine.licenseActivate(a) : await _call('POST', '/api/license/activate', a));
+API.licenseHeartbeat = a => _wrap(async () => _mode === 'local' ? await _engine.licenseHeartbeat(a) : await _call('POST', '/api/license/heartbeat', a));
+API.dashboard = user => _wrap(async () => _mode === 'local' ? await _engine.creatorDashboard(user) : await _call('GET', '/api/dashboard'));
+API.dashboardLicenses = (user, assetId) => _wrap(async () => _mode === 'local' ? await _engine.creatorLicenses(user, assetId) : await _call('GET', '/api/dashboard/licenses' + (assetId ? '?asset=' + _e(assetId) : '')));
+API.setLicenseStatus = (user, purchaseId, status) => _wrap(async () => _mode === 'local' ? await _engine.setLicenseStatus(user, purchaseId, status) : await _call('POST', '/api/dashboard/licenses/' + _e(purchaseId) + '/status', { status }));
+API.revokeDevice = (user, deviceId) => _wrap(async () => _mode === 'local' ? await _engine.revokeDevice(user, deviceId) : await _call('POST', '/api/dashboard/devices/' + _e(deviceId) + '/revoke'));
 
 /* ---- reports ---- */
 API.createReport = (user, a) => _wrap(async () => _mode === 'local' ? await _engine.createReport(user, a) : await _call('POST', '/api/reports', a));
@@ -1754,8 +2079,22 @@ function assetCardHtml(a, rank) {
       <h3 class="asset-title">${esc(a.title)}</h3>
       <div class="asset-owner">${avatarHtml(a.owner, 22)}<a href="#/profile/${esc(a.owner.handle)}" onclick="event.stopPropagation()">${esc(a.owner.displayName)}</a>${badgeHtml(a.owner.role)}</div>
       ${a.ratingCount ? `<div class="asset-rating">${starsHtml(a.rating)}<span class="muted small">${a.rating} · ${a.ratingCount}</span></div>` : ''}
-      <div class="asset-foot"><span class="price">${fmtMoney(a.price)}</span><span class="sales">${ICON.cart}${a.sales || 0} sold</span></div>
+      <div class="asset-foot">
+        <span class="price">${fmtMoney(a.price)}</span>
+        <span class="row" style="gap:8px"><span class="sales">${ICON.cart}${a.sales || 0}</span><button class="like-btn ${a.liked ? 'on' : ''}" data-count="${a.likes || 0}" title="Like this asset" onclick="onLike(event,'${a.id}',this)">${ICON.heart}<span>${a.likes || 0}</span></button></span>
+      </div>
     </div></article>`;
+}
+async function onLike(e, id, btn) {
+  e.stopPropagation();
+  if (!STATE.user) { toast('Log in to like assets.', 'err'); go('/login'); return; }
+  const res = await API.toggleLike(STATE.user, id);
+  if (!res.ok) { toast(res.error, 'err'); return; }
+  const span = btn.querySelector('span');
+  if (span) span.textContent = res.data.count;
+  btn.classList.toggle('on', !!res.data.liked);
+  btn.dataset.count = res.data.count;
+  btn.classList.remove('pop'); void btn.offsetWidth; btn.classList.add('pop');
 }
 function emptyHtml(title, sub) {
   return `<div class="empty"><span class="crown">${ICON.crown}</span><h3>${esc(title)}</h3>${sub ? `<p>${esc(sub)}</p>` : ''}</div>`;
@@ -1816,7 +2155,7 @@ function parseHash() {
   return { path: segs[0] || 'home', params: segs.slice(1), query: Object.fromEntries(new URLSearchParams(queryPart || '')) };
 }
 
-let STATE = { user: null, adminTab: 'overview', catalogQ: '', catalogCat: '', rates: null };
+let STATE = { user: null, adminTab: 'overview', catalogQ: '', catalogCat: '', catalogSort: 'trending', rates: null };
 const COUNTRIES = [
   ['US', 'United States'], ['PH', 'Philippines'], ['GB', 'United Kingdom'], ['CA', 'Canada'], ['AU', 'Australia'],
   ['DE', 'Germany'], ['FR', 'France'], ['ES', 'Spain'], ['IT', 'Italy'], ['NL', 'Netherlands'], ['PT', 'Portugal'], ['IE', 'Ireland'],
@@ -1826,12 +2165,12 @@ const COUNTRIES = [
   ['TW', 'Taiwan'], ['TH', 'Thailand'], ['VN', 'Vietnam'], ['AR', 'Argentina'], ['CL', 'Chile'], ['CO', 'Colombia'], ['PE', 'Peru'],
 ];
 const countrySelect = (sel) => `<select class="select" name="country" required><option value="">Select your country</option>${COUNTRIES.map(([c, l]) => `<option value="${c}" ${sel === c ? 'selected' : ''}>${l} (${KPEngine.CURRENCY_SYMBOL[KPEngine.COUNTRY_CURRENCY[c]] || KPEngine.COUNTRY_CURRENCY[c]})</option>`).join('')}</select>`;
-const SOCIAL = { discord: 'https://discord.gg/', youtube: 'https://www.youtube.com/' };
+const SOCIAL = { discord: 'https://discord.gg/syQfqmaA28', youtube: 'https://youtube.com/@kingsproductionw' };
 
 /* ---- shell ---- */
 function headerHtml(user) {
-  const nav = [['portfolio', 'Portfolio'], ['shop', 'Shop'], ['license', 'License'], ['creators', 'Creators']]
-    .map(([p, l]) => `<a href="#/${p}" data-nav="${p}">${l}</a>`).join('');
+  const nav = [...(user && canPost(user) ? [['dashboard', 'Dashboard']] : []), ['portfolio', 'Portfolio'], ['shop', 'Shop'], ['license', 'License'], ['creators', 'Creators']]
+    .map(([p, l]) => `<a href="#/${p}" data-nav="${p}">${l}${p === 'dashboard' ? '<span class="fa-badge" style="margin-left:7px">VIP</span>' : ''}</a>`).join('');
   const right = user
     ? `<div class="dropdown">
         <button class="btn btn-ghost" id="user-btn" style="gap:10px">${avatarHtml(user, 30)}<span class="hide-sm">${esc(user.displayName)}</span>${ICON.chevron}</button>
@@ -1923,12 +2262,12 @@ const TITLES = {
   home: 'Kings Production — Premium Roblox Development Studio', shop: 'Shop — Kings Production',
   portfolio: 'Portfolio — Kings Production', license: 'License — Kings Production', creators: 'Creators — Kings Production',
   login: 'Log in — Kings Production', register: 'Create account — Kings Production',
-  settings: 'Settings — Kings Production', admin: 'Admin Panel — Kings Production',
+  settings: 'Settings — Kings Production', admin: 'Admin Panel — Kings Production', dashboard: 'Dashboard — Kings Production',
   privacy: 'Privacy Policy — Kings Production', terms: 'Terms of Use — Kings Production',
 };
 async function router() {
   const { path, params, query } = parseHash();
-  if (!['home', 'shop', 'portfolio', 'license', 'creators', 'asset', 'profile', 'login', 'register', 'forgot', 'reset', 'settings', 'upload', 'my-assets', 'admin', 'privacy', 'terms'].includes(path)) { location.hash = '#/'; return; }
+  if (!['home', 'shop', 'portfolio', 'license', 'creators', 'asset', 'profile', 'login', 'register', 'forgot', 'reset', 'settings', 'upload', 'my-assets', 'dashboard', 'admin', 'privacy', 'terms'].includes(path)) { location.hash = '#/'; return; }
   const me = await API.me();
   STATE.user = me.ok ? me.data : null;
   renderHeader();
@@ -1951,6 +2290,7 @@ function catalogSectionHtml(insidePage) {
     <div class="toolbar">
       <div class="search">${ICON.search}<input class="input" id="cat-q" placeholder="Search assets…" value="${esc(STATE.catalogQ)}"></div>
       <div class="row" id="cat-chips">${['', ...CATEGORIES].map(c => `<button class="chip ${STATE.catalogCat === c ? 'active' : ''}" data-cat="${c}">${c ? CAT_LABEL[c] : 'All'}</button>`).join('')}</div>
+      <div class="row" id="cat-sort" style="gap:8px;flex-wrap:wrap">${[['trending', 'Trending', ICON.zap], ['newest', 'Newest', ICON.clock], ['top', 'Top selling', ICON.cart]].map(([k, l, ic]) => `<button class="sort-chip ${STATE.catalogSort === k ? 'active' : ''}" data-sort="${k}">${ic}${l}</button>`).join('')}</div>
     </div>
     <div id="cat-grid">${loadingHtml()}</div>`;
   return insidePage ? inner : `<section class="page" style="padding-top:8px">${inner}</section>`;
@@ -1959,12 +2299,14 @@ function refreshCatalog() {
   const grid = document.getElementById('cat-grid');
   if (!grid) return;
   grid.innerHTML = loadingHtml();
-  API.listApproved().then(res => {
+  API.listApproved(STATE.user).then(res => {
     if (!res.ok) { grid.innerHTML = emptyHtml('Could not load assets', res.error); return; }
     const q = STATE.catalogQ.toLowerCase();
     const list = res.data.filter(a =>
       (!STATE.catalogCat || a.category === STATE.catalogCat) &&
       (!q || (a.title + ' ' + a.description + ' ' + (a.owner && a.owner.displayName)).toLowerCase().includes(q)));
+    if (STATE.catalogSort === 'newest') list.sort((x, y) => y.createdAt - x.createdAt);
+    else if (STATE.catalogSort === 'top') list.sort((x, y) => (y.sales || 0) - (x.sales || 0));
     grid.innerHTML = list.length
       ? `<div class="grid grid-assets">${list.map(a => assetCardHtml(a)).join('')}</div>`
       : emptyHtml('No assets found', 'Try a different search or category.');
@@ -1980,6 +2322,13 @@ function bindCatalog() {
     chips.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.cat === b.dataset.cat));
     refreshCatalog();
   });
+  const sort = document.getElementById('cat-sort');
+  sort && sort.addEventListener('click', e => {
+    const b = e.target.closest('[data-sort]'); if (!b) return;
+    STATE.catalogSort = b.dataset.sort;
+    sort.querySelectorAll('.sort-chip').forEach(c => c.classList.toggle('active', c.dataset.sort === b.dataset.sort));
+    refreshCatalog();
+  });
   refreshCatalog();
 }
 
@@ -1987,21 +2336,21 @@ function bindCatalog() {
 const VIEWS = {};
 
 VIEWS.home = async () => {
-  const top = await API.topSelling(4);
-  const statRows = await Promise.all([API.listApproved(), API.content()]);
+  const top = await API.topSelling(4, STATE.user);
+  const statRows = await Promise.all([API.listApproved(STATE.user), API.content()]);
   const approvedCount = statRows[0].data && statRows[0].data.length ? statRows[0].data.length : 0;
   const content = statRows[1].data || { portfolio: [], creators: [] };
   return `
-  <section class="hero"><div class="hero-inner">
+  <section class="hero"><div class="hero-particles" aria-hidden="true"></div><div class="hero-inner">
     <span class="crown">${ICON.crown}</span>
     <div class="hero-eyebrow">Premium Roblox Development Studio</div>
     <h1>Kings Production</h1>
     <p class="hero-tag">“Where <span class="hero-em">Excellence</span> Meets <span class="hero-em">Innovation</span>”</p>
     <div class="hero-cta"><a class="btn btn-primary btn-lg" href="#/shop">Enter Shop</a><a class="btn btn-ghost btn-lg" href="#/portfolio">View Portfolio</a></div>
     <div class="hero-stats">
-      <div class="hero-stat"><b>${content.portfolio.length}+</b><span>Projects shipped</span></div>
-      <div class="hero-stat"><b>${approvedCount}+</b><span>Products available</span></div>
-      <div class="hero-stat"><b>${content.creators.length}</b><span>Elite creators</span></div>
+      <div class="hero-stat"><b class="count-up" data-count="${content.portfolio.length}">0</b><span>Projects shipped</span></div>
+      <div class="hero-stat"><b class="count-up" data-count="${approvedCount}">0</b><span>Products available</span></div>
+      <div class="hero-stat"><b class="count-up" data-count="${content.creators.length}">0</b><span>Elite creators</span></div>
     </div>
   </div></section>
   <div class="page">
@@ -2013,14 +2362,14 @@ VIEWS.home = async () => {
 
 VIEWS.shop = async () => {
   return `<div class="page">
-    <div class="section-head"><div><span class="section-eyebrow">Shop</span><h2>Marketplace</h2><p>Browse and purchase premium Roblox assets.</p></div></div>
+    <div class="section-head"><div><span class="section-eyebrow">Shop</span><h2>Marketplace</h2><p>Browse and purchase premium Roblox assets. Trending posts — ranked by likes, ratings, and sales — rise to the top.</p></div></div>
     ${catalogSectionHtml(true)}
   </div>`;
 };
 
 /* ================= CHUNK 5: ASSET · PROFILE · AUTH · SETTINGS · UPLOAD · MY-ASSETS ================= */
 const VIEWS_BIND = {};
-VIEWS_BIND.home = () => bindCatalog();
+VIEWS_BIND.home = () => { bindCatalog(); spawnParticles(); document.querySelectorAll('.count-up').forEach(el => countUp(el, el.dataset.count)); };
 VIEWS_BIND.shop = () => bindCatalog();
 function readFileAsDataURL(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
 
@@ -2116,13 +2465,17 @@ VIEWS.asset = async ({ params }) => {
   const commentHtml = comments.ok ? comments.data.map(c => `
     <div class="comment">${avatarHtml(c.user, 38)}
       <div class="comment-body">
-        <div class="comment-head"><a class="comment-name" href="#/profile/${esc(c.user.handle)}">${esc(c.user.displayName)}</a>${badgeHtml(c.user.role)}<span class="comment-time">${timeAgo(c.createdAt)}</span>${me && c.user && c.user.id !== me.id ? `<button class="icon-btn" title="Report comment" onclick="onReport('comment','${c.id}')">${ICON.flag}</button>` : ''}</div>
+        <div class="comment-head"><a class="comment-name" href="#/profile/${esc(c.user.handle)}">${esc(c.user.displayName)}</a>${badgeHtml(c.user.role)}${c.rating ? starsHtml(c.rating) : ''}<span class="comment-time">${timeAgo(c.createdAt)}</span>${me && c.user && c.user.id !== me.id ? `<button class="icon-btn" title="Report comment" onclick="onReport('comment','${c.id}')">${ICON.flag}</button>` : ''}</div>
         <div class="comment-text">${esc(c.body)}</div>
       </div></div>`).join('') : '';
 
   const composerHtml = me
     ? (isTimedOut(me) ? `<div class="form-error">Commenting is disabled while you are timed out (${esc(timeoutText(me))} remaining).</div>`
-      : `<form class="composer" onsubmit="onComment(event)" data-asset="${a.id}">${avatarHtml(me, 40)}<textarea class="textarea" name="body" placeholder="Share your thoughts on this asset…" maxlength="1000" required></textarea><button class="btn btn-primary btn-sm" type="submit">Comment</button></form>`)
+      : `<form class="composer" onsubmit="onComment(event)" data-asset="${a.id}">${avatarHtml(me, 40)}<div class="composer-main">
+          <div class="stars-pick" title="Rate this asset to post">${[1, 2, 3, 4, 5].map(i => `<button type="button" class="star-btn" data-r="${i}" onclick="pickStars('rp-c-${a.id}', ${i})">★</button>`).join('')}</div>
+          <textarea class="textarea" name="body" placeholder="Rate it (1–5 stars) and share your feedback…" maxlength="1000" required></textarea>
+          <div class="row" style="gap:10px"><button class="btn btn-primary btn-sm" type="submit">${ICON.mail} Comment</button><span class="muted small" style="align-self:center">Comments require a star rating — they power each asset's score.</span></div>
+        </div></form>`)
     : `<p class="muted"><a href="#/login">Log in</a> to join the discussion.</p>`;
 
   /* reviews & ratings */
@@ -2155,6 +2508,7 @@ VIEWS.asset = async ({ params }) => {
         <div class="asset-meta">${catBadge(a.category)}${ownerView ? statusBadge(a.status, a.rejectReason) : ''}<span class="sales">${ICON.cart}${a.sales} sold</span>${a.ratingCount ? `${starsHtml(a.rating)}<span class="muted small">${a.rating} · ${a.ratingCount}</span>` : ''}</div>
         <h1 style="font-family:var(--font-display);font-size:clamp(26px,4vw,38px);font-weight:700;letter-spacing:-.02em;margin-top:10px">${esc(a.title)}</h1>
         <div class="asset-meta"><span class="price" style="font-size:22px">${fmtMoney(a.price)}</span><span class="muted small">· posted ${fmtDate(a.createdAt)}</span></div>
+        <div class="row" style="gap:12px;margin-top:10px"><button class="like-btn lg ${a.liked ? 'on' : ''}" title="Like this asset" onclick="onLike(event,'${a.id}',this)">${ICON.heart}<span>${a.likes || 0}</span></button><span class="muted small" style="align-self:center">${a.likes || 0} like${a.likes === 1 ? '' : 's'} — the more likes and higher ratings, the higher it ranks.</span></div>
         <div class="asset-desc">${esc(a.description)}</div>
         <div class="buy-box">${buyHtml || `<span class="muted small">This asset is not for sale yet.</span>`}</div>
       </div>
@@ -2187,8 +2541,12 @@ VIEWS_BIND.asset = () => { };
 
 async function onComment(e) {
   e.preventDefault();
-  const res = await API.addComment(STATE.user, e.target.dataset.asset, e.target.body.value);
-  if (res.ok) { toast('Comment posted.'); await router(); } else toast(res.error, 'err');
+  const f = e.target;
+  const picked = f.querySelector('.stars-pick .on:last-of-type');
+  const rating = picked ? Number(picked.dataset.r) : 0;
+  if (!rating || rating < 1 || rating > 5) { toast('Pick a star rating (1–5) to post your comment.', 'err'); return; }
+  const res = await API.addComment(STATE.user, f.dataset.asset, { body: f.body.value, rating });
+  if (res.ok) { toast('Comment posted — thanks for the feedback!'); await router(); } else toast(res.error, 'err');
 }
 async function onEditAsset(id) { go('/upload?edit=' + id); }
 async function onDeleteAsset(id) {
@@ -2203,6 +2561,11 @@ function starsHtml(avg) {
   let s = '<span class="stars">';
   for (let i = 1; i <= 5; i++) s += `<span class="${i <= r ? '' : 'off'}">★</span>`;
   return s + '</span>';
+}
+function pickStars(boxId, r) {
+  const box = document.getElementById(boxId);
+  if (!box) return;
+  box.querySelectorAll('.star-btn').forEach(b => b.classList.toggle('on', Number(b.dataset.r) <= r));
 }
 function pickStar(assetId, r) {
   const box = document.getElementById('rp-' + assetId);
@@ -2523,14 +2886,19 @@ VIEWS.upload = async ({ query }) => {
       : `<div class="page">${emptyHtml('Currently restricted', 'Your account is timed out and cannot post assets right now.')}</div>`}</div>`;
   }
   let a = null;
+  let cooldown = null;
   if (query.edit) {
     const r = await API.getAsset(query.edit, STATE.user.id);
     if (!r.ok) return `<div class="page">${emptyHtml('Asset not found', r.error)}</div>`;
     if (!r.data.isOwner) return `<div class="page">${emptyHtml('Not your asset', 'Only the creator can edit this asset.')}</div>`;
     a = r.data;
+  } else {
+    const ps = await API.postStatus(STATE.user);
+    cooldown = ps.ok && ps.data && !ps.data.allowed && ps.data.reason === 'cooldown' ? ps.data : null;
   }
   return `<div class="page page-narrow">
-    <div class="section-head"><div><span class="section-eyebrow">${a ? 'Edit' : 'Sell'}</span><h2>${a ? 'Edit asset' : 'Upload a new asset'}</h2><p>${a ? 'Changes send the asset back into the pending approval queue.' : 'VIP / Licensed creators can post assets. Submissions are reviewed by an admin before going live.'}</p></div></div>
+    ${cooldown ? `<div class="cooldown-banner"><span class="crown">${ICON.clock}</span><div><b>Posting cooldown active</b><br><span class="muted small">You can post again in <b style="color:var(--gold)">${esc(cooldown.text)}</b> — this keeps the marketplace fresh and spam-free. You can still edit your existing posts.</span></div></div>` : ''}
+    <div class="section-head"><div><span class="section-eyebrow">${a ? 'Edit' : 'Sell'}</span><h2>${a ? 'Edit asset' : 'Upload a new asset'}</h2><p>${a ? 'Changes send the asset back into the pending approval queue.' : cooldown ? 'Your next post unlocks when the cooldown ends.' : 'VIP / Licensed creators can post one new asset every 24 hours. Submissions are reviewed by an admin before going live.'}</p></div></div>
     <div class="card card-pad">
       <form onsubmit="onSubmitAsset(event)">
         <input type="hidden" name="id" value="${a ? a.id : ''}">
@@ -2548,7 +2916,8 @@ VIEWS.upload = async ({ query }) => {
           <input class="input" type="file" name="file" accept=".rbxl,.rbxm,.rbxmx,.lua,.luau,.zip,.txt">
           ${a ? `<div class="hint">Current file: ${esc(a.fileName)} — choose a new file to replace it.</div>` : '<div class="hint">Optional — attach the actual Roblox file (.rbxl, .rbxm, .rbxmx, .lua, .luau, .zip) if you deliver downloads.'}</div>
         </div>
-        <div class="row"><button class="btn btn-primary" type="submit">${a ? 'Save & resubmit' : 'Submit for approval'}</button>${a ? '<a class="btn btn-ghost" href="#/my-assets">Cancel</a>' : ''}</div>
+        <div class="row"><button class="btn btn-primary" type="submit" ${cooldown ? 'disabled' : ''}>${a ? 'Save & resubmit' : 'Submit for approval'}</button>${a ? '<a class="btn btn-ghost" href="#/my-assets">Cancel</a>' : ''}</div>
+        ${cooldown ? `<p class="muted small mt">Submit is locked while the cooldown runs. Come back in ${esc(cooldown.text)}.</p>` : ''}
       </form>
     </div>
   </div>`;
@@ -2598,6 +2967,180 @@ VIEWS['my-assets'] = async () => {
     : emptyHtml('No assets yet', canPost(STATE.user) ? 'Upload your first asset — it will be reviewed before going live.' : 'Members cannot post assets. Upgrade to a VIP / Licensed creator to sell on the marketplace.')}
   </div>`;
 };
+
+/* ================= CREATOR DASHBOARD (VIP / Licensed +) ================= */
+VIEWS.dashboard = async () => {
+  if (!STATE.user) return `<div class="page">${emptyHtml('Not logged in', 'Log in to view your creator dashboard.')}<div class="center mt2"><a class="btn btn-primary" href="#/login">Log in</a></div></div>`;
+  if (!canPost(STATE.user)) {
+    return `<div class="page page-narrow">${STATE.user.role === 'member'
+      ? `<div class="card card-pad center" style="padding:56px 30px"><span class="crown" style="font-size:34px">${ICON.crown}</span><h2 style="font-family:var(--font-display);font-size:24px;margin:14px 0 8px">The Dashboard is a VIP / Licensed feature</h2><p class="muted" style="max-width:440px;margin:0 auto">Buy any asset from the shop and you instantly become <b style="color:var(--vip)">VIP / Licensed</b> — unlocking your creator dashboard with a live sales graph and license security for everything you post.</p></div><div class="center mt2"><a class="btn btn-primary" href="#/shop">${ICON.cart} Browse the shop</a></div>`
+      : `<div class="page">${emptyHtml('Restricted', 'Your account is currently restricted.')}</div>`}</div>`;
+  }
+  const d = await API.dashboard(STATE.user);
+  if (!d.ok) return `<div class="page">${emptyHtml('Dashboard unavailable', d.error)}</div>`;
+  const { assets, salesByDay, stats, recentActivity } = d.data;
+  STATE.dashBuckets = salesByDay;
+  const lics = await API.dashboardLicenses(STATE.user);
+  const licenses = lics.ok ? lics.data : [];
+  const byAsset = {};
+  licenses.forEach(l => { (byAsset[l.assetId] = byAsset[l.assetId] || []).push(l); });
+  const statCards = [
+    { k: 'Total sales', v: String(stats.totalSales), cls: '' },
+    { k: 'Revenue (USD)', v: fmtUsd(stats.revenue), cls: '' },
+    { k: 'License keys issued', v: String(stats.licenseKeys), cls: 'blue' },
+    { k: 'Active licenses', v: String(stats.activeLicenses), cls: '' },
+    { k: 'Shut down (kill switch)', v: String(stats.disabledLicenses), cls: 'red' },
+    { k: 'Devices · active / revoked', v: `${stats.activeDevices} / ${stats.revokedDevices}`, cls: 'blue' },
+  ];
+  const assetPanels = assets.length ? assets.map(a => {
+    const l = byAsset[a.id] || [];
+    const rev = l.reduce((s, p) => s + (p.price || 0), 0);
+    return `<div class="card" style="margin-bottom:16px;overflow:hidden">
+      <div class="row" style="padding:16px 20px;gap:14px;border-bottom:1px solid var(--border);flex-wrap:wrap">
+        <div style="width:52px;height:52px;border-radius:11px;border:1px solid var(--border);overflow:hidden;position:relative;flex-shrink:0">${thumbHtml(a, 26)}</div>
+        <div style="flex:1;min-width:180px">
+          <a href="#/asset/${a.id}" class="bold" style="font-family:var(--font-display);font-size:16px">${esc(a.title)}</a>
+          <div class="muted small">${catBadge(a.category)} ${a.status === 'approved' ? statusBadge('approved') : statusBadge(a.status, a.rejectReason)}</div>
+        </div>
+        <div class="row" style="gap:18px;flex-wrap:wrap">
+          <div class="muted small" style="text-align:center"><b style="color:var(--text);font-size:15px">${a.sales || 0}</b><br>sales</div>
+          <div class="muted small" style="text-align:center"><b style="color:var(--text);font-size:15px">${a.likes || 0}</b><br>likes</div>
+          <div class="muted small" style="text-align:center"><b style="color:var(--text);font-size:15px">${a.ratingCount ? a.rating : '—'}</b><br>rating</div>
+          <div class="muted small" style="text-align:center"><b style="color:var(--gold);font-size:15px">${fmtUsd(rev)}</b><br>earned</div>
+        </div>
+        ${l.length ? `<button class="btn btn-danger btn-sm" onclick="onShutdownAsset('${a.id}')" title="Disable every license key for this asset — all copies stop working">${ICON.ban} Shut down all</button>` : ''}
+      </div>
+      ${l.length ? `<div>${l.map(p => licenseRowHtml(p)).join('')}</div>` : `<div class="muted small" style="padding:14px 20px">No licenses issued for this asset yet — when someone buys it, their key and devices show up here.</div>`}
+    </div>`;
+  }).join('') : emptyHtml('No assets yet', 'Post your first asset — its sales, licenses, and device security will appear here.');
+  return `<div class="page" style="max-width:1080px">
+    <div class="section-head"><div><span class="section-eyebrow">Creator</span><h2>Dashboard</h2><p>Your sales, licenses, and device-level security — everything you post, protected.</p></div></div>
+    <div class="dash-grid">${statCards.map(s => `<div class="dash-stat"><div class="k">${s.k}</div><div class="v ${s.cls}">${s.v}</div></div>`).join('')}</div>
+    <div class="card card-pad" style="margin-bottom:22px">
+      <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:8px"><h3 style="font-family:var(--font-display);font-size:17px">${ICON.chart} Sales — last 30 days</h3><span class="muted small">Revenue per day (USD)</span></div>
+      <div class="chart-box"><canvas id="sales-chart"></canvas><div class="chart-tip" id="chart-tip"></div></div>
+      ${salesByDay.reduce((s, b) => s + b.sales, 0) ? '' : '<div class="muted small" style="margin-top:6px">No sales yet — the graph fills in as buyers purchase your assets.</div>'}
+    </div>
+    <div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+      <div class="section-head" style="margin:0"><div><h2 style="font-size:22px">Licenses &amp; devices</h2><p>Disable a license to shut the file down, or revoke a device to block it.</p></div></div>
+    </div>
+    ${assetPanels}
+    <div class="sec-note" style="margin-bottom:22px">
+      <b>${ICON.shield} How license security works</b><br>
+      Every sale issues a unique <b>KP-</b> key. Your asset's file calls the activation API on first run and sends a heartbeat while running, so you can see exactly which devices are using it. If a file leaks or a device looks unauthorized: <b>disable the license</b> (the file refuses to run everywhere) or <b>revoke a device</b> (that device alone is cut off). If someone steals a file, the key inside it stays bound to the buyer — nobody else can use it.
+    </div>
+    ${recentActivity.length ? `<div class="card" style="padding:6px 0">
+      <div style="padding:14px 20px;border-bottom:1px solid var(--border)"><b style="font-family:var(--font-display)">Recent device activity</b></div>
+      ${recentActivity.map(ev => `<div class="row" style="padding:11px 20px;border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap">
+        <span class="badge ${ev.status === 'revoked' ? 'soft-red' : 'soft-ok'}">${ev.status === 'revoked' ? ICON.ban + ' Revoked' : ICON.check + ' Active'}</span>
+        <span class="muted small" style="min-width:0;flex:1"><b style="color:var(--text)">${esc(ev.deviceName || ev.deviceId || 'Unknown device')}</b> ${esc(ev.asset && ev.asset.title || '')} · ${ev.buyer ? esc('@' + ev.buyer.handle) : 'unknown buyer'} · last seen ${timeAgo(ev.lastSeen)}</span>
+      </div>`).join('')}
+    </div>` : ''}
+  </div>`;
+};
+function licenseRowHtml(p) {
+  const active = p.status !== 'disabled';
+  return `<div class="lic-row" style="flex-wrap:wrap">
+    <span class="lic-key">${esc(p.licenseKey)}</span>
+    <span class="badge ${active ? 'soft-ok' : 'soft-red'}">${active ? ICON.check + ' Active' : ICON.ban + ' Disabled'}</span>
+    <span class="lic-device" style="flex:1;min-width:150px">
+      <b style="color:var(--text)">${p.buyer ? esc(p.buyer.displayName) : 'Buyer'}</b> ${p.gameName ? esc('· ' + p.gameName) : ''}<br>
+      ${p.deviceName ? esc(p.deviceName) : ''}${p.deviceId ? `<span class="muted"> (${esc(p.deviceId.slice(0, 18))}…)</span>` : ''}${p.lastSeen ? ` · <span class="muted">seen ${timeAgo(p.lastSeen)}</span>` : ' · <span class="muted">never activated</span>'}
+    </span>
+    <span class="row" style="gap:8px">
+      ${active ? `<button class="btn btn-danger btn-sm" onclick="onSetLicenseStatus('${p.id}','disabled')" title="Kill switch — this file stops running everywhere">${ICON.ban} Disable</button>` : `<button class="btn btn-ghost btn-sm" onclick="onSetLicenseStatus('${p.id}','active')">${ICON.check} Re-enable</button>`}
+    </span>
+    <div style="width:100%;display:flex;flex-direction:column;gap:6px;padding-left:2px">
+      ${p.devices && p.devices.length ? p.devices.map(dev => `<div class="row" style="gap:8px;flex-wrap:wrap">
+        <span class="lic-device">${ICON.system} <b>${esc(dev.deviceName || dev.deviceId || 'Device')}</b>${dev.status === 'revoked' ? ' <span class="off">· revoked</span>' : ` · last seen ${timeAgo(dev.lastSeen)}`}</span>
+        ${dev.status === 'active' ? `<button class="btn btn-ghost btn-sm" style="padding:3px 10px;font-size:12px" onclick="onRevokeDevice('${dev.id}')">Revoke device</button>` : ''}
+      </div>`).join('') : ''}
+    </div>
+  </div>`;
+}
+async function onSetLicenseStatus(purchaseId, status) {
+  const r = await API.setLicenseStatus(STATE.user, purchaseId, status);
+  r.ok ? (toast(status === 'disabled' ? 'License disabled — that file can no longer run anywhere.' : 'License re-enabled — the buyer can use the file again.'), await router()) : toast(r.error, 'err');
+}
+async function onRevokeDevice(deviceId) {
+  modal({ title: 'Revoke this device?', danger: true, confirmLabel: 'Revoke device',
+    body: '<p>This device is cut off on its next check — the file refuses to run and can self-destruct. The license itself stays valid on other devices.</p>',
+    onConfirm: async () => { const r = await API.revokeDevice(STATE.user, deviceId); r.ok ? (toast('Device revoked.'), await router()) : toast(r.error, 'err'); } });
+}
+async function onShutdownAsset(assetId) {
+  modal({ title: 'Shut down this asset?', danger: true, confirmLabel: 'Shut down everything',
+    body: '<p>Disables <b>every</b> license key for this asset. All copies stop running everywhere — the kill switch. Re-enable keys one by one from the list.</p>',
+    onConfirm: async () => {
+      const lics = await API.dashboardLicenses(STATE.user, assetId);
+      if (!lics.ok) { toast(lics.error, 'err'); return; }
+      let bad = 0;
+      for (const l of lics.data) { if (l.status !== 'disabled') { const r = await API.setLicenseStatus(STATE.user, l.id, 'disabled'); if (!r.ok) bad++; } }
+      bad ? toast('Some licenses could not be disabled.', 'err') : toast('All licenses shut down — the asset is fully disabled.');
+      await router();
+    } });
+}
+VIEWS_BIND.dashboard = () => {
+  const c = document.getElementById('sales-chart');
+  if (c) drawSalesChart(c);
+};
+function drawSalesChart(canvas) {
+  const tip = document.getElementById('chart-tip');
+  const box = canvas.parentElement;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = box.getBoundingClientRect();
+  const W = Math.max(200, rect.width), H = Math.max(120, rect.height);
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  /* gather data from the rendered buckets — re-fetch via the view's cached value is
+     not available here, so read the buckets from the DOM-less store: the dashboard
+     view re-renders into a fresh canvas each navigation, so we grab the buckets from
+     the last dashboard payload kept on STATE. */
+  const buckets = STATE.dashBuckets || [];
+  const pad = { t: 12, r: 8, b: 22, l: 44 };
+  const maxV = Math.max(1, ...buckets.map(b => b.revenue || 0));
+  const n = buckets.length || 1;
+  const bw = (W - pad.l - pad.r) / n;
+  ctx.clearRect(0, 0, W, H);
+  ctx.font = '10px Inter, sans-serif';
+  ctx.textAlign = 'left';
+  for (let g = 0; g <= 3; g++) {
+    const y = pad.t + (H - pad.t - pad.b) * (1 - g / 3);
+    ctx.strokeStyle = 'rgba(255,255,255,.05)'; ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
+    ctx.fillStyle = '#65656e';
+    ctx.fillText('$' + Math.round(maxV * g / 3).toLocaleString(), 2, y + 3);
+  }
+  const hits = [];
+  buckets.forEach((b, i) => {
+    const h = (H - pad.t - pad.b) * ((b.revenue || 0) / maxV);
+    const x = pad.l + i * bw + bw * 0.16, w = Math.max(2, bw * 0.68);
+    const y = H - pad.b - h;
+    const grad = ctx.createLinearGradient(0, y, 0, H - pad.b);
+    grad.addColorStop(0, 'rgba(212,175,55,.95)'); grad.addColorStop(1, 'rgba(212,175,55,.14)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x, y, w, h, [2, 2, 0, 0]); else ctx.rect(x, y, w, h);
+    ctx.fill();
+    if (i % 5 === 0 || i === n - 1) {
+      ctx.fillStyle = '#65656e'; ctx.textAlign = 'center';
+      ctx.fillText(b.label, x + w / 2, H - 6);
+    }
+    hits.push({ x, y, w, h, b });
+  });
+  canvas.onmousemove = e => {
+    const r = canvas.getBoundingClientRect();
+    const mx = e.clientX - r.left, my = e.clientY - r.top;
+    const hit = hits.find(hh => mx >= hh.x && mx <= hh.x + hh.w && my >= hh.y && my <= H - pad.b + 8);
+    if (!hit) { tip.style.opacity = 0; return; }
+    tip.innerHTML = `<b>${hit.b.label}</b> · ${hit.b.sales} sale${hit.b.sales === 1 ? '' : 's'} · <b>${fmtUsd(hit.b.revenue)}</b>`;
+    tip.style.opacity = 1;
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    tip.style.left = Math.min(W - tw - 6, Math.max(6, hit.x + hit.w / 2 - tw / 2)) + 'px';
+    tip.style.top = Math.max(4, hit.y - th - 8) + 'px';
+  };
+  canvas.onmouseleave = () => { tip.style.opacity = 0; };
+}
 
 /* ================= CHUNK 6: PORTFOLIO · CREATORS · LICENSE · ADMIN · BOOT ================= */
 /* ---- portfolio ---- */
@@ -2962,8 +3505,102 @@ function onAdminClear(id) {
     onConfirm: async () => { const r = await API.adminClearTimeout(STATE.user, id); r.ok ? (toast('Timeout cleared.'), await router()) : toast(r.error, 'err'); } });
 }
 
+/* ---- loading screen + boot ---- */
+function runLoaderProgress() {
+  const fill = document.getElementById('loader-fill');
+  const pct = document.getElementById('loader-pct');
+  if (!fill) return;
+  const start = performance.now(), dur = 1400;
+  function tick(t) {
+    const p = Math.min(1, (t - start) / dur);
+    const v = Math.round((1 - Math.pow(1 - p, 3)) * 92);
+    fill.style.width = v + '%';
+    if (pct) pct.textContent = v + '%';
+    if (p < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+function finishLoader() {
+  const l = document.getElementById('loader');
+  if (!l) return;
+  const fill = document.getElementById('loader-fill');
+  const pct = document.getElementById('loader-pct');
+  if (fill) fill.style.width = '100%';
+  if (pct) pct.textContent = '100%';
+  l.classList.add('done');
+  setTimeout(() => l.remove(), 700);
+}
+
+/* ---- interactive effects: cursor glow + card tilt ---- */
+function setupWow() {
+  const fine = window.matchMedia('(hover:hover) and (pointer:fine)').matches;
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!fine || reduce) return;
+  const glow = document.createElement('div');
+  glow.className = 'cursor-glow';
+  document.body.appendChild(glow);
+  let x = innerWidth / 2, y = innerHeight / 2, tx = x, ty = y, raf = null;
+  document.addEventListener('mousemove', e => {
+    tx = e.clientX; ty = e.clientY;
+    glow.classList.add('on');
+    if (!raf) raf = requestAnimationFrame(loop);
+  }, { passive: true });
+  document.addEventListener('mouseleave', () => glow.classList.remove('on'));
+  function loop() {
+    x += (tx - x) * 0.13; y += (ty - y) * 0.13;
+    glow.style.transform = `translate(${x - 260}px, ${y - 260}px)`;
+    if (Math.abs(tx - x) > 0.5 || Math.abs(ty - y) > 0.5) raf = requestAnimationFrame(loop);
+    else { raf = null; glow.classList.remove('on'); }
+  }
+  const TILT = '.asset-card, .project-card, .creator-card';
+  document.addEventListener('mousemove', e => {
+    const card = e.target.closest(TILT);
+    if (!card) return;
+    const r = card.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width - 0.5;
+    const py = (e.clientY - r.top) / r.height - 0.5;
+    card.style.setProperty('--rx', (-py * 4).toFixed(2) + 'deg');
+    card.style.setProperty('--ry', (px * 5).toFixed(2) + 'deg');
+    card.style.setProperty('--ty', '-5px');
+  }, { passive: true });
+  document.addEventListener('mouseout', e => {
+    const card = e.target.closest(TILT);
+    if (card) { card.style.setProperty('--rx', '0deg'); card.style.setProperty('--ry', '0deg'); card.style.setProperty('--ty', '-4px'); }
+  });
+}
+
+/* ---- hero particles + stat counters ---- */
+function spawnParticles() {
+  const host = document.querySelector('.hero-particles');
+  if (!host || host.childElementCount) return;
+  const n = Math.min(22, Math.max(10, Math.floor(innerWidth / 80)));
+  for (let i = 0; i < n; i++) {
+    const s = document.createElement('span');
+    s.className = 'particle';
+    const size = 2 + Math.random() * 4;
+    s.style.cssText = `left:${Math.random() * 100}%;width:${size}px;height:${size}px;animation-duration:${7 + Math.random() * 9}s;animation-delay:${Math.random() * 8}s;opacity:${0.3 + Math.random() * 0.6}`;
+    host.appendChild(s);
+  }
+}
+function countUp(el, target) {
+  if (!el) return;
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const t = Number(target) || 0;
+  if (reduce) { el.textContent = t.toLocaleString(); return; }
+  const start = performance.now(), dur = 900;
+  function tick(nowMs) {
+    const p = Math.min(1, (nowMs - start) / dur);
+    el.textContent = Math.round(t * (1 - Math.pow(1 - p, 3))).toLocaleString();
+    if (p < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
 /* ---- boot ---- */
 async function init() {
+  const started = performance.now();
+  runLoaderProgress();
+  setupWow();
   try {
     await API.boot();
     renderShell();
@@ -2972,6 +3609,8 @@ async function init() {
   } catch (err) {
     console.error('Boot failed', err);
     document.getElementById('app').innerHTML = `<div class="page">${emptyHtml('Could not start', 'The storage or server this app relies on could not be reached.')}</div>`;
+  } finally {
+    setTimeout(finishLoader, Math.max(0, 1500 - (performance.now() - started)));
   }
 }
 init();
