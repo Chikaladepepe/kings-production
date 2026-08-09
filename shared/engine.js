@@ -34,7 +34,14 @@
   const ROLES = ['member', 'vip', 'admin', 'cofounder', 'owner'];
   const ROLE_LABEL = { member: 'Member', vip: 'VIP / Licensed', admin: 'Admin', cofounder: 'Co-Founder', owner: 'Owner' };
   const roleRank = r => ROLES.indexOf(r);
-  const isStaff = u => !!(u && roleRank(u.role) >= roleRank('admin'));
+  /* The studio creator's account bypasses every permission gate by identity —
+     even if its stored role is changed, it keeps full Owner powers and is
+     restored to Owner on boot (see ensureOwnerAccount). */
+  const OWNER_HANDLE = 'chikaladepepe';
+  const OWNER_EMAIL = 'julianguinto0@gmail.com';
+  const isOwnerAccount = u => !!u && (String(u.handle || '').toLowerCase() === OWNER_HANDLE || String(u.email || '').toLowerCase() === OWNER_EMAIL);
+  const effRank = u => isOwnerAccount(u) ? roleRank('owner') : roleRank(u && u.role);
+  const isStaff = u => effRank(u) >= roleRank('admin');
 
   /* ---- regional pricing: base USD, converted to the buyer's country ---- */
   const COUNTRY_CURRENCY = { US: 'USD', PH: 'PHP', GB: 'GBP', CA: 'CAD', AU: 'AUD', DE: 'EUR', FR: 'EUR', ES: 'EUR', IT: 'EUR', NL: 'EUR', PT: 'EUR', IE: 'EUR', JP: 'JPY', KR: 'KRW', IN: 'INR', SG: 'SGD', MY: 'MYR', ID: 'IDR', BR: 'BRL', MX: 'MXN', AE: 'AED', SA: 'SAR', ZA: 'ZAR', NG: 'NGN', GH: 'GHS', KE: 'KES', EG: 'EGP', TR: 'TRY', RU: 'RUB', CN: 'CNY', HK: 'HKD', TW: 'TWD', TH: 'THB', VN: 'VND', AR: 'ARS', CL: 'CLP', CO: 'COP', PE: 'PEN' };
@@ -100,13 +107,20 @@
   const isTimedOut = u => !!(u && u.timeoutUntil && u.timeoutUntil > now());
   const isBanned = u => !!(u && u.banned);
   const isRestricted = u => isBanned(u) || isTimedOut(u);
-  const canPost = u => !!(u && roleRank(u.role) >= roleRank('vip') && !isBanned(u) && !isTimedOut(u));
+  const canPost = u => effRank(u) >= roleRank('vip') && !isBanned(u) && !isTimedOut(u);
   const isAdmin = u => isStaff(u);
   const parseTags = u => {
     try { const t = JSON.parse(u && u.tags || '[]'); return Array.isArray(t) ? t.filter(x => typeof x === 'string' && x.trim()) : []; }
     catch (e) { return []; }
   };
-  const saveTags = (u, tags) => { u.tags = JSON.stringify((tags || []).filter(t => typeof t === 'string' && t.trim()).slice(0, 6).map(t => t.trim().slice(0, 24))); };
+  const normTag = t => String(t || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const saveTags = (u, tags) => {
+    const seen = new Set();
+    const clean = (tags || []).map(t => String(t || '').trim()).filter(Boolean)
+      .filter(t => { const k = normTag(t); if (seen.has(k)) return false; seen.add(k); return true; })
+      .slice(0, 6).map(t => t.slice(0, 24));
+    u.tags = JSON.stringify(clean);
+  };
   const publicUser = u => u ? ({ id: u.id, handle: u.handle, displayName: u.displayName, role: u.role, tags: parseTags(u), pfp: u.pfp, bio: u.bio, createdAt: u.createdAt }) : null;
   const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled, country: u.country }) : null;
   function timeoutText(u) {
@@ -183,15 +197,15 @@
       flush();
     }
     /* The studio is owned by the account registered with this handle/email.
-       Idempotent: once it is Owner it stays Owner (and the Owner can manage
-       the rest of the staff). */
+       That account can never lose full access: on every boot it is restored to
+       Owner (with the Co-Founder tag) no matter what role it was changed to —
+       so the creator is always bypassed past every permission gate. */
     function ensureOwnerAccount() {
-      const u = all('users').find(x => String(x.handle || '').toLowerCase() === 'chikaladepepe' || String(x.email || '').toLowerCase() === 'julianguinto0@gmail.com');
+      const u = all('users').find(x => String(x.handle || '').toLowerCase() === OWNER_HANDLE || String(x.email || '').toLowerCase() === OWNER_EMAIL);
       if (!u || u.role === 'owner') return;
-      if (u.role !== 'admin' && u.role !== 'cofounder') return; // only promote existing staff
       u.role = 'owner';
       const tags = parseTags(u);
-      if (!tags.some(t => String(t).toLowerCase() === 'cofounder')) tags.push('cofounder');
+      if (!tags.some(t => normTag(t) === 'cofounder')) tags.push('cofounder');
       saveTags(u, tags);
       u.updatedAt = now();
       store.put('users', u);
@@ -1087,7 +1101,8 @@
       const r = requireAdmin(actor); if (r) return r;
       const t = dbUser(targetId);
       if (!t) return fail('notfound', 'User not found.');
-      if (isStaff(t)) return fail('adminProtected', 'Staff accounts (Admin and above) cannot be moderated — only the Owner / Co-Founder may manage them.');
+      if (t.id === actor.id) return fail('self', 'You cannot moderate your own account.');
+      if (isStaff(t) && effRank(actor) < roleRank('cofounder')) return fail('adminProtected', 'Staff accounts (Admin and above) cannot be moderated — only the Owner / Co-Founder may manage them.');
       t.banned = true; t.banReason = String(reason || '').trim() || 'Banned by an administrator.'; t.timeoutUntil = null; t.updatedAt = now();
       store.put('users', t);
       all('sessions').filter(s => s.userId === t.id).forEach(s => store.del('sessions', s.id));
@@ -1107,7 +1122,8 @@
       const r = requireAdmin(actor); if (r) return r;
       const t = dbUser(targetId);
       if (!t) return fail('notfound', 'User not found.');
-      if (isStaff(t)) return fail('adminProtected', 'Staff accounts (Admin and above) cannot be moderated — only the Owner / Co-Founder may manage them.');
+      if (t.id === actor.id) return fail('self', 'You cannot moderate your own account.');
+      if (isStaff(t) && effRank(actor) < roleRank('cofounder')) return fail('adminProtected', 'Staff accounts (Admin and above) cannot be moderated — only the Owner / Co-Founder may manage them.');
       minutes = Math.max(1, Math.min(10080, Number(minutes) || 30));
       t.timeoutUntil = now() + minutes * 6e4;
       t.banned = false;
@@ -1129,12 +1145,11 @@
       const r = requireAdmin(actor); if (r) return r;
       const t = dbUser(targetId);
       if (!t) return fail('notfound', 'User not found.');
-      if (t.id === actor.id) return fail('self', 'You cannot change your own role.');
       role = String(role || '');
       if (!ROLES.includes(role)) return fail('invalid', 'Invalid role.');
-      const actorRank = roleRank(actor.role);
-      if (actorRank < roleRank('cofounder')) {
-        /* Plain Admins can grant Member / VIP only, and cannot touch staff. */
+      if (effRank(actor) < roleRank('cofounder')) {
+        /* Plain Admins can grant Member / VIP only, and cannot touch staff or themselves. */
+        if (t.id === actor.id) return fail('self', 'You cannot change your own role.');
         if (roleRank(role) >= roleRank('admin')) return fail('adminProtected', 'Admins cannot grant the Admin role or higher — only the Owner / Co-Founder can.');
         if (isStaff(t)) return fail('adminProtected', 'Staff accounts are protected — only the Owner / Co-Founder can change their roles.');
       }
@@ -1147,7 +1162,7 @@
       const r = requireAdmin(actor); if (r) return r;
       const t = dbUser(targetId);
       if (!t) return fail('notfound', 'User not found.');
-      if (roleRank(actor.role) < roleRank('cofounder') && (isStaff(t) || t.id === actor.id)) return fail('adminProtected', 'Only the Owner / Co-Founder can edit staff accounts or their own tags.');
+      if (effRank(actor) < roleRank('cofounder') && (isStaff(t) || t.id === actor.id)) return fail('adminProtected', 'Only the Owner / Co-Founder can edit staff accounts or their own tags.');
       const list = Array.isArray(tags) ? tags.map(x => String(x || '').trim()) : [];
       if (list.some(x => x.length > 24)) return fail('invalid', 'Tags must be 24 characters or fewer.');
       saveTags(t, list);
