@@ -25,7 +25,7 @@ const fs = require('node:fs');
    map only — never from untrusted input — so the dynamic INSERT/REPLACE below
    cannot be injection points. */
 const SCHEMA = {
-  users: ['id', 'handle', 'email', 'displayName', 'passHash', 'bio', 'pfp', 'role', 'banned', 'banReason', 'timeoutUntil', 'totpSecret', 'totpEnabled', 'country', 'createdAt', 'updatedAt'],
+  users: ['id', 'handle', 'email', 'displayName', 'passHash', 'bio', 'pfp', 'role', 'banned', 'banReason', 'timeoutUntil', 'totpSecret', 'totpEnabled', 'country', 'tags', 'createdAt', 'updatedAt'],
   sessions: ['id', 'userId', 'label', 'createdAt', 'lastSeen', 'expiresAt'],
   assets: ['id', 'ownerId', 'title', 'category', 'description', 'price', 'fileName', 'fileMime', 'fileSize', 'imageUrl', 'status', 'rejectReason', 'sales', 'createdAt', 'updatedAt', 'approvedAt'],
   purchases: ['id', 'assetId', 'buyerId', 'price', 'licenseKey', 'gameId', 'gameName', 'status', 'activatedAt', 'deviceId', 'deviceName', 'lastSeen', 'createdAt'],
@@ -36,12 +36,12 @@ const SCHEMA = {
   reports: ['id', 'reporterId', 'targetType', 'targetId', 'reason', 'details', 'status', 'resolvedBy', 'resolvedAt', 'createdAt'],
   tokens: ['id', 'userId', 'token', 'purpose', 'expiresAt', 'used', 'createdAt'],
   emails: ['id', 'to', 'subject', 'action', 'body', 'link', 'createdAt', 'read'],
-  portfolio: ['id', 'title', 'category', 'desc', 'stat', 'status', 'imageUrl', 'links', 'createdAt'],
+  portfolio: ['id', 'title', 'category', 'desc', 'stat', 'status', 'imageUrl', 'links', 'featured', 'createdAt'],
   creators: ['id', 'name', 'role', 'bio'],
   orders: ['id', 'buyerId', 'assetId', 'method', 'amount', 'currency', 'status', 'providerRef', 'licenseKey', 'createdAt', 'paidAt', 'updatedAt'],
 };
 /* Booleans are persisted as 0/1 integers and restored on read. */
-const BOOLS = { users: ['banned', 'totpEnabled'], tokens: ['used'], emails: ['read'] };
+const BOOLS = { users: ['banned', 'totpEnabled'], tokens: ['used'], emails: ['read'], portfolio: ['featured'] };
 
 const DDL = `
 CREATE TABLE IF NOT EXISTS users (
@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS users (
   displayName TEXT NOT NULL, passHash TEXT NOT NULL, bio TEXT, pfp TEXT,
   role TEXT NOT NULL DEFAULT 'member', banned INTEGER NOT NULL DEFAULT 0, banReason TEXT,
   timeoutUntil INTEGER, totpSecret TEXT, totpEnabled INTEGER NOT NULL DEFAULT 0,
-  country TEXT, createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL
+  country TEXT, tags TEXT, createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY, userId TEXT NOT NULL, label TEXT,
@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS emails (
 );
 CREATE TABLE IF NOT EXISTS portfolio (
   id TEXT PRIMARY KEY, title TEXT NOT NULL, category TEXT, "desc" TEXT, stat TEXT, status TEXT,
-  imageUrl TEXT, links TEXT, createdAt INTEGER
+  imageUrl TEXT, links TEXT, featured INTEGER NOT NULL DEFAULT 0, createdAt INTEGER
 );
 CREATE TABLE IF NOT EXISTS creators (
   id TEXT PRIMARY KEY, name TEXT NOT NULL, role TEXT, bio TEXT
@@ -181,6 +181,8 @@ const MIGRATIONS = [
   "ALTER TABLE portfolio ADD COLUMN imageUrl TEXT",
   "ALTER TABLE portfolio ADD COLUMN links TEXT",
   "ALTER TABLE portfolio ADD COLUMN createdAt INTEGER",
+  "ALTER TABLE portfolio ADD COLUMN featured INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE users ADD COLUMN tags TEXT",
 ];
 function runMigrations(db) {
   for (const sql of MIGRATIONS) {

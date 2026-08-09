@@ -131,12 +131,19 @@ main{flex:1;width:100%}
 .badge.vip{background:rgba(77,141,255,.14);color:#7fb0ff;border:1px solid rgba(77,141,255,.4)}
 .badge.admin{background:rgba(212,175,55,.13);color:var(--gold);border:1px solid rgba(212,175,55,.45)}
 .badge.admin .crown svg{width:11px;height:11px}
+.badge.owner{background:linear-gradient(135deg,rgba(212,175,55,.24),rgba(212,175,55,.08));color:#ffd97a;border:1px solid rgba(255,199,84,.55);box-shadow:0 0 16px rgba(212,175,55,.32),inset 0 1px 0 rgba(255,255,255,.12)}
+.badge.owner .crown svg{width:11px;height:11px;filter:drop-shadow(0 0 4px rgba(255,199,84,.8))}
+.badge.cofounder{background:linear-gradient(135deg,rgba(167,139,250,.22),rgba(167,139,250,.07));color:#c9b8ff;border:1px solid rgba(167,139,250,.5);box-shadow:0 0 14px rgba(167,139,250,.24),inset 0 1px 0 rgba(255,255,255,.1)}
+.badge.tag{background:rgba(255,255,255,.07);color:var(--text-2);border:1px dashed var(--border-strong);text-transform:none;letter-spacing:.03em;font-weight:600}
+.badge.tag::before{content:'#';opacity:.6}
 .badge.plain{background:rgba(255,255,255,.06);color:var(--text-2);border:1px solid var(--border-strong)}
 .badge.ok{background:rgba(70,167,88,.13);color:#7fd18d;border:1px solid rgba(70,167,88,.4)}
 .badge.warn{background:rgba(163,163,173,.12);color:#b9b9c2;border:1px solid rgba(163,163,173,.4)}
 .badge.err{background:rgba(229,72,77,.12);color:#ff9aa0;border:1px solid rgba(229,72,77,.4)}
 
 .chip{display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border-radius:999px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text-2);font-size:13px;font-weight:500;cursor:pointer;transition:all .16s}
+.chip-x{background:none;border:none;color:inherit;cursor:pointer;font-size:15px;line-height:1;padding:0 0 0 3px;opacity:.65;transition:opacity .15s}
+.chip-x:hover{opacity:1;color:#ff9aa0}
 .chip:hover{color:var(--text);border-color:#4a4a55}
 .chip.active{color:#0c0c0e;background:#f2f2f4;border-color:#f2f2f4;font-weight:600}
 
@@ -165,6 +172,16 @@ main{flex:1;width:100%}
 .post-fab:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 8px 26px rgba(212,175,55,.4)}
 .post-fab svg{width:22px;height:22px}
 .post-fab.locked{cursor:not-allowed;border-color:rgba(255,255,255,.18);background:linear-gradient(180deg, #2c2c33, #17171b);color:#8b8b94;box-shadow:0 6px 22px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.08)}
+.site-status{position:fixed;right:18px;bottom:84px;z-index:60;display:flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;border:1px solid var(--border-strong);background:linear-gradient(180deg, rgba(34,34,41,.92), rgba(18,18,22,.94));backdrop-filter:blur(8px);box-shadow:0 4px 14px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.05);font-size:11.5px;font-weight:700;letter-spacing:.04em;color:var(--text-2);white-space:nowrap;cursor:default}
+.site-status .dot{width:8px;height:8px;border-radius:50%;background:#8b8b94;box-shadow:0 0 0 0 rgba(139,139,148,.5);transition:background .25s}
+.site-status.online{color:#7fd18d;border-color:rgba(70,167,88,.45)}
+.site-status.online .dot{background:#54d97a;box-shadow:0 0 8px rgba(84,217,122,.9);animation:statusPulse 2.4s ease-out infinite}
+.site-status.waking{color:#ffd97a;border-color:rgba(255,199,84,.5)}
+.site-status.waking .dot{background:#ffcf5c;box-shadow:0 0 8px rgba(255,207,92,.9);animation:statusBlink 1s ease-in-out infinite}
+.site-status.asleep{color:#a9a9b3;border-color:rgba(125,125,136,.4)}
+.site-status.asleep .dot{background:#5a5a63}
+@keyframes statusPulse{0%{box-shadow:0 0 0 0 rgba(84,217,122,.55)}70%{box-shadow:0 0 0 7px rgba(84,217,122,0)}100%{box-shadow:0 0 0 0 rgba(84,217,122,0)}}
+@keyframes statusBlink{0%,100%{opacity:1}50%{opacity:.35}}
 .asset-rank{position:absolute;top:12px;left:12px;background:rgba(12,12,14,.78);backdrop-filter:blur(6px);border:1px solid var(--border-strong);color:var(--text);border-radius:8px;padding:3px 9px;font-size:12px;font-weight:700}
 .asset-cat{position:absolute;top:12px;right:12px}
 .asset-body{padding:15px 16px 16px;display:flex;flex-direction:column;gap:9px;flex:1}
@@ -315,6 +332,13 @@ main{flex:1;width:100%}
 .portfolio-grid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
 .project-card{overflow:hidden}
 .project-banner{height:150px;position:relative;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--border);overflow:hidden}
+.portfolio-grid .project-card.spotlight{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);overflow:hidden;border-color:rgba(212,175,55,.35);box-shadow:0 0 0 1px rgba(212,175,55,.16),0 18px 44px rgba(0,0,0,.4)}
+.portfolio-grid .project-card.spotlight .project-banner{height:auto;min-height:250px;border-bottom:none;border-right:1px solid var(--border)}
+.portfolio-grid .project-card.spotlight .project-body{padding:26px 28px;justify-content:center;gap:13px}
+.portfolio-grid .project-card.spotlight h3{font-size:24px}
+.portfolio-grid .project-card.spotlight p{font-size:14.5px;color:var(--text-2)}
+.portfolio-grid .project-card.spotlight .project-foot{margin-top:4px}
+@media (max-width:760px){.portfolio-grid .project-card.spotlight{grid-template-columns:1fr}.portfolio-grid .project-card.spotlight .project-banner{min-height:170px;border-right:none;border-bottom:1px solid var(--border)}}
 .project-banner svg{width:52px;height:52px;color:rgba(255,255,255,.9)}
 .project-body{padding:18px 20px 20px}
 .project-body h3{font-family:var(--font-display);font-size:17.5px;font-weight:700;margin-bottom:6px}
@@ -472,6 +496,8 @@ body::before{content:"";position:fixed;inset:-40%;z-index:0;pointer-events:none;
 /* badges — a soft glow for the roles */
 .badge.admin{box-shadow:0 0 14px rgba(212,175,55,.28)}
 .badge.vip{box-shadow:0 0 12px rgba(77,141,255,.22)}
+.badge.owner{box-shadow:0 0 18px rgba(212,175,55,.4),inset 0 1px 0 rgba(255,255,255,.14)}
+.badge.cofounder{box-shadow:0 0 16px rgba(167,139,250,.32),inset 0 1px 0 rgba(255,255,255,.12)}
 .status-approved{box-shadow:0 0 12px rgba(70,167,88,.18)}
 .status-pending{box-shadow:0 0 12px rgba(163,163,173,.12)}
 
@@ -861,9 +887,12 @@ function createLocalStore() {
    browser or SQLite/disk on the Node server. The client wrapper further below
    attaches the normalized API surface to `API`. These role helpers are still
    used directly by the views for UI decisions. */
+const UI_ROLES = ['member', 'vip', 'admin', 'cofounder', 'owner'];
+const roleRank = r => UI_ROLES.indexOf(r);
+const isStaff = u => !!(u && roleRank(u.role) >= roleRank('admin'));
 const isTimedOut = u => !!(u && u.timeoutUntil && u.timeoutUntil > now());
 const isBanned = u => !!(u && u.banned);
-const canPost = u => !!(u && (u.role === 'vip' || u.role === 'admin') && !isBanned(u) && !isTimedOut(u));
+const canPost = u => !!(u && roleRank(u.role) >= roleRank('vip') && !isBanned(u) && !isTimedOut(u));
 function timeoutText(u) {
   if (!u || !u.timeoutUntil) return null;
   const ms = u.timeoutUntil - now();
@@ -905,7 +934,13 @@ const API = {};
 
   const CATEGORIES = ['animation', 'model', 'plugin', 'system'];
   const CAT_LABEL = { animation: 'Animation', model: 'Model', plugin: 'Plugin', system: 'System' };
-  const ROLES = ['member', 'vip', 'admin'];
+  /* Role hierarchy (index = rank). Owner and Co-Founder can do everything;
+     Admin can do everything except grant roles at admin level or higher;
+     VIP / Licensed creators can post; Members browse, buy, comment, rate. */
+  const ROLES = ['member', 'vip', 'admin', 'cofounder', 'owner'];
+  const ROLE_LABEL = { member: 'Member', vip: 'VIP / Licensed', admin: 'Admin', cofounder: 'Co-Founder', owner: 'Owner' };
+  const roleRank = r => ROLES.indexOf(r);
+  const isStaff = u => !!(u && roleRank(u.role) >= roleRank('admin'));
 
   /* ---- regional pricing: base USD, converted to the buyer's country ---- */
   const COUNTRY_CURRENCY = { US: 'USD', PH: 'PHP', GB: 'GBP', CA: 'CAD', AU: 'AUD', DE: 'EUR', FR: 'EUR', ES: 'EUR', IT: 'EUR', NL: 'EUR', PT: 'EUR', IE: 'EUR', JP: 'JPY', KR: 'KRW', IN: 'INR', SG: 'SGD', MY: 'MYR', ID: 'IDR', BR: 'BRL', MX: 'MXN', AE: 'AED', SA: 'SAR', ZA: 'ZAR', NG: 'NGN', GH: 'GHS', KE: 'KES', EG: 'EGP', TR: 'TRY', RU: 'RUB', CN: 'CNY', HK: 'HKD', TW: 'TWD', TH: 'THB', VN: 'VND', AR: 'ARS', CL: 'CLP', CO: 'COP', PE: 'PEN' };
@@ -971,9 +1006,14 @@ const API = {};
   const isTimedOut = u => !!(u && u.timeoutUntil && u.timeoutUntil > now());
   const isBanned = u => !!(u && u.banned);
   const isRestricted = u => isBanned(u) || isTimedOut(u);
-  const canPost = u => !!(u && (u.role === 'vip' || u.role === 'admin') && !isBanned(u) && !isTimedOut(u));
-  const isAdmin = u => !!(u && u.role === 'admin');
-  const publicUser = u => u ? ({ id: u.id, handle: u.handle, displayName: u.displayName, role: u.role, pfp: u.pfp, bio: u.bio, createdAt: u.createdAt }) : null;
+  const canPost = u => !!(u && roleRank(u.role) >= roleRank('vip') && !isBanned(u) && !isTimedOut(u));
+  const isAdmin = u => isStaff(u);
+  const parseTags = u => {
+    try { const t = JSON.parse(u && u.tags || '[]'); return Array.isArray(t) ? t.filter(x => typeof x === 'string' && x.trim()) : []; }
+    catch (e) { return []; }
+  };
+  const saveTags = (u, tags) => { u.tags = JSON.stringify((tags || []).filter(t => typeof t === 'string' && t.trim()).slice(0, 6).map(t => t.trim().slice(0, 24))); };
+  const publicUser = u => u ? ({ id: u.id, handle: u.handle, displayName: u.displayName, role: u.role, tags: parseTags(u), pfp: u.pfp, bio: u.bio, createdAt: u.createdAt }) : null;
   const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled, country: u.country }) : null;
   function timeoutText(u) {
     if (!u || !u.timeoutUntil) return null;
@@ -1017,7 +1057,7 @@ const API = {};
     const resolveUser = user => (user && user.id) ? dbUser(user.id) : null;
     const requireAdmin = actor => {
       if (!actor) return fail('auth', 'You must be logged in as an admin.');
-      if (actor.role !== 'admin') return fail('adminOnly', 'You do not have permission to do that.');
+      if (!isStaff(actor)) return fail('adminOnly', 'You do not have permission to do that.');
       return null;
     };
     /* Posting cooldown — one new post per 24h for creators (admins are exempt). */
@@ -1046,6 +1086,21 @@ const API = {};
       ['pp1', 'pp2', 'pp3', 'pp4', 'pp5', 'pp6'].forEach(id => { if (byIdIn('portfolio', id)) store.del('portfolio', id); });
       if (all('creators').length) return;
       CONTENT.creators.forEach(r => store.put('creators', r));
+      flush();
+    }
+    /* The studio is owned by the account registered with this handle/email.
+       Idempotent: once it is Owner it stays Owner (and the Owner can manage
+       the rest of the staff). */
+    function ensureOwnerAccount() {
+      const u = all('users').find(x => String(x.handle || '').toLowerCase() === 'chikaladepepe' || String(x.email || '').toLowerCase() === 'julianguinto0@gmail.com');
+      if (!u || u.role === 'owner') return;
+      if (u.role !== 'admin' && u.role !== 'cofounder') return; // only promote existing staff
+      u.role = 'owner';
+      const tags = parseTags(u);
+      if (!tags.some(t => String(t).toLowerCase() === 'cofounder')) tags.push('cofounder');
+      saveTags(u, tags);
+      u.updatedAt = now();
+      store.put('users', u);
       flush();
     }
 
@@ -1300,7 +1355,7 @@ const API = {};
       if (!a) return fail('notfound', 'This asset could not be found.');
       const viewer = viewerId ? dbUser(viewerId) : null;
       const isOwner = !!viewer && viewer.id === a.ownerId;
-      const isAdminView = !!viewer && viewer.role === 'admin';
+      const isAdminView = !!viewer && isStaff(viewer);
       if (a.status !== 'approved' && !isOwner && !isAdminView) return fail('notfound', 'This asset is not available yet.');
       const purchase = viewer ? all('purchases').find(p => p.assetId === id && p.buyerId === viewer.id) : null;
       return ok({
@@ -1394,7 +1449,7 @@ const API = {};
       if (!a) return fail('notfound', 'Asset not found.');
       const v = resolveUser(user);
       const isOwner = v && v.id === a.ownerId;
-      const isAdminView = v && v.role === 'admin';
+      const isAdminView = v && isStaff(v);
       const hasPurchased = v && all('purchases').some(p => p.assetId === id && p.buyerId === v.id);
       if (!isOwner && !isAdminView && !hasPurchased) return fail('forbidden', 'Purchase this asset to download the file.');
       return ok({ fileName: a.fileName, mime: a.fileMime, size: a.fileSize });
@@ -1812,7 +1867,7 @@ const API = {};
     }
     async function content() {
       const parseLinks = it => { try { const l = JSON.parse(it.links || '[]'); return Array.isArray(l) ? l : []; } catch (e) { return []; } };
-      const portfolio = all('portfolio').slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).map(it => ({ ...it, links: parseLinks(it) }));
+      const portfolio = all('portfolio').slice().sort((a, b) => ((b.featured ? 1 : 0) - (a.featured ? 1 : 0)) || ((b.createdAt || 0) - (a.createdAt || 0))).map(it => ({ ...it, links: parseLinks(it) }));
       return ok({ portfolio, creators: all('creators').slice().sort((a, b) => a.id < b.id ? -1 : 1) });
     }
 
@@ -1821,7 +1876,7 @@ const API = {};
       if (!Array.isArray(links)) return [];
       return links.map(l => ({ url: String((l && l.url) || '').trim() })).filter(l => /^https?:\/\//i.test(l.url)).slice(0, 12).map(l => ({ url: l.url.slice(0, 500) }));
     }
-    async function createPortfolio(actor, { title, category, desc, stat, status, imageUrl, links } = {}) {
+    async function createPortfolio(actor, { title, category, desc, stat, status, imageUrl, links, featured } = {}) {
       const r = requireAdmin(actor); if (r) return r;
       title = String(title || '').trim();
       desc = String(desc || '').trim();
@@ -1831,8 +1886,9 @@ const API = {};
       const item = {
         id: 'pp' + uid(), title, category: String(category || '').trim().slice(0, 40),
         desc, stat: String(stat || '').trim().slice(0, 60), status: String(status || 'Live').trim().slice(0, 24),
-        imageUrl: img, links: JSON.stringify(cleanPortfolioLinks(links)), createdAt: now(),
+        imageUrl: img, links: JSON.stringify(cleanPortfolioLinks(links)), featured: !!featured, createdAt: now(),
       };
+      if (item.featured) all('portfolio').filter(x => x.featured && x.id !== item.id).forEach(x => { x.featured = false; store.put('portfolio', x); });
       store.put('portfolio', item);
       flush();
       return ok({ id: item.id });
@@ -1860,6 +1916,10 @@ const API = {};
         it.imageUrl = img;
       }
       if (patch.links !== undefined) it.links = JSON.stringify(cleanPortfolioLinks(patch.links));
+      if (patch.featured !== undefined) {
+        it.featured = !!patch.featured;
+        if (it.featured) all('portfolio').filter(x => x.featured && x.id !== it.id).forEach(x => { x.featured = false; store.put('portfolio', x); });
+      }
       store.put('portfolio', it);
       flush();
       return ok(true);
@@ -1933,7 +1993,7 @@ const API = {};
       const r = requireAdmin(actor); if (r) return r;
       const t = dbUser(targetId);
       if (!t) return fail('notfound', 'User not found.');
-      if (t.role === 'admin') return fail('adminProtected', 'Admins cannot be moderated. Admin accounts are protected from bans and timeouts.');
+      if (isStaff(t)) return fail('adminProtected', 'Staff accounts (Admin and above) cannot be moderated — only the Owner / Co-Founder may manage them.');
       t.banned = true; t.banReason = String(reason || '').trim() || 'Banned by an administrator.'; t.timeoutUntil = null; t.updatedAt = now();
       store.put('users', t);
       all('sessions').filter(s => s.userId === t.id).forEach(s => store.del('sessions', s.id));
@@ -1953,7 +2013,7 @@ const API = {};
       const r = requireAdmin(actor); if (r) return r;
       const t = dbUser(targetId);
       if (!t) return fail('notfound', 'User not found.');
-      if (t.role === 'admin') return fail('adminProtected', 'Admins cannot be moderated. Admin accounts are protected from bans and timeouts.');
+      if (isStaff(t)) return fail('adminProtected', 'Staff accounts (Admin and above) cannot be moderated — only the Owner / Co-Founder may manage them.');
       minutes = Math.max(1, Math.min(10080, Number(minutes) || 30));
       t.timeoutUntil = now() + minutes * 6e4;
       t.banned = false;
@@ -1976,9 +2036,28 @@ const API = {};
       const t = dbUser(targetId);
       if (!t) return fail('notfound', 'User not found.');
       if (t.id === actor.id) return fail('self', 'You cannot change your own role.');
-      if (t.role === 'admin') return fail('adminProtected', 'Admins are protected — you cannot change another admin\u2019s role.');
-      if (!ROLES.includes(String(role || ''))) return fail('invalid', 'Invalid role.');
+      role = String(role || '');
+      if (!ROLES.includes(role)) return fail('invalid', 'Invalid role.');
+      const actorRank = roleRank(actor.role);
+      if (actorRank < roleRank('cofounder')) {
+        /* Plain Admins can grant Member / VIP only, and cannot touch staff. */
+        if (roleRank(role) >= roleRank('admin')) return fail('adminProtected', 'Admins cannot grant the Admin role or higher — only the Owner / Co-Founder can.');
+        if (isStaff(t)) return fail('adminProtected', 'Staff accounts are protected — only the Owner / Co-Founder can change their roles.');
+      }
       t.role = role; t.updatedAt = now();
+      store.put('users', t);
+      flush();
+      return ok(true);
+    }
+    async function adminSetTags(actor, targetId, tags) {
+      const r = requireAdmin(actor); if (r) return r;
+      const t = dbUser(targetId);
+      if (!t) return fail('notfound', 'User not found.');
+      if (roleRank(actor.role) < roleRank('cofounder') && (isStaff(t) || t.id === actor.id)) return fail('adminProtected', 'Only the Owner / Co-Founder can edit staff accounts or their own tags.');
+      const list = Array.isArray(tags) ? tags.map(x => String(x || '').trim()) : [];
+      if (list.some(x => x.length > 24)) return fail('invalid', 'Tags must be 24 characters or fewer.');
+      saveTags(t, list);
+      t.updatedAt = now();
       store.put('users', t);
       flush();
       return ok(true);
@@ -1995,6 +2074,7 @@ const API = {};
     }
 
     seedContent();
+    ensureOwnerAccount();
 
     return {
       register, login, verify2fa, requestReset, resetPassword, logout, me,
@@ -2007,12 +2087,12 @@ const API = {};
       licenseActivate, licenseHeartbeat, creatorDashboard, creatorLicenses, setLicenseStatus, revokeDevice,
       publicProfile, content, createPortfolio, updatePortfolio, deletePortfolio,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
-      adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSessions, adminEmails, adminOrders, adminCompleteOrder,
+      adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSessions, adminEmails, adminOrders, adminCompleteOrder,
       setFx,
     };
   }
 
-  return { createEngine, totpCode, COUNTRY_CURRENCY, FX_FALLBACK, CURRENCY_SYMBOL, currencyOf: c => COUNTRY_CURRENCY[String(c || '').toUpperCase()] || 'USD' };
+  return { createEngine, totpCode, COUNTRY_CURRENCY, FX_FALLBACK, CURRENCY_SYMBOL, currencyOf: c => COUNTRY_CURRENCY[String(c || '').toUpperCase()] || 'USD', ROLES, ROLE_LABEL };
 });
 
 /* ==== KP-ENGINE-END ==== */
@@ -2199,6 +2279,7 @@ API.adminUnban = (user, id) => _wrap(async () => _mode === 'local' ? await _engi
 API.adminTimeout = (user, id, minutes) => _wrap(async () => _mode === 'local' ? await _engine.adminTimeout(user, id, minutes) : await _call('POST', '/api/admin/users/' + _e(id) + '/timeout', { minutes }));
 API.adminClearTimeout = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.adminClearTimeout(user, id) : await _call('POST', '/api/admin/users/' + _e(id) + '/clear-timeout'));
 API.adminSetRole = (user, id, role) => _wrap(async () => _mode === 'local' ? await _engine.adminSetRole(user, id, role) : await _call('POST', '/api/admin/users/' + _e(id) + '/role', { role }));
+API.adminSetTags = (user, id, tags) => _wrap(async () => _mode === 'local' ? await _engine.adminSetTags(user, id, tags) : await _call('POST', '/api/admin/users/' + _e(id) + '/tags', { tags }));
 API.adminSessions = user => _wrap(async () => _mode === 'local' ? await _engine.adminSessions(user) : await _call('GET', '/api/admin/sessions'));
 API.adminEmails = user => _wrap(async () => _mode === 'local' ? await _engine.adminEmails(user) : await _call('GET', '/api/admin/emails'));
 API.adminReports = user => _wrap(async () => _mode === 'local' ? await _engine.adminReports(user) : await _call('GET', '/api/admin/reports'));
@@ -2213,10 +2294,15 @@ function avatarHtml(u, px = 36) {
   if (u && u.pfp) return `<span class="avatar" style="width:${px}px;height:${px}px"><img src="${esc(u.pfp)}" alt=""></span>`;
   return `<span class="avatar" style="width:${px}px;height:${px}px;font-size:${Math.round(px * 0.38)}px">${esc(initials(u && u.displayName))}</span>`;
 }
-function badgeHtml(role) {
-  if (role === 'admin') return `<span class="badge admin" title="Administrator"><span class="crown">${ICON.crown}</span>Admin</span>`;
-  if (role === 'vip') return `<span class="badge vip" title="VIP / Licensed creator">VIP</span>`;
-  return `<span class="badge member" title="Member">Member</span>`;
+function badgeHtml(role, tags) {
+  let main = '';
+  if (role === 'owner') main = `<span class="badge owner" title="Owner — can do everything"><span class="crown">${ICON.crown}</span>Owner</span>`;
+  else if (role === 'cofounder') main = `<span class="badge cofounder" title="Co-Founder — can do everything">Co-Founder</span>`;
+  else if (role === 'admin') main = `<span class="badge admin" title="Administrator"><span class="crown">${ICON.crown}</span>Admin</span>`;
+  else if (role === 'vip') main = `<span class="badge vip" title="VIP / Licensed creator">VIP</span>`;
+  else main = `<span class="badge member" title="Member">Member</span>`;
+  const extra = (tags || []).filter(t => String(t || '').trim() && String(t).toLowerCase() !== String(role || '').toLowerCase()).map(t => `<span class="badge tag" title="Tag">${esc(t)}</span>`).join('');
+  return main + extra;
 }
 function statusBadge(status, rejectReason) {
   if (status === 'approved') return `<span class="status-pill status-approved">Approved</span>`;
@@ -2234,7 +2320,7 @@ function assetCardHtml(a, rank) {
     <div class="asset-thumb">${rank !== undefined ? `<span class="asset-rank">#${rank + 1}</span>` : ''}<span class="asset-cat">${catBadge(a.category)}</span>${thumbHtml(a, 40)}</div>
     <div class="asset-body">
       <h3 class="asset-title">${esc(a.title)}</h3>
-      <div class="asset-owner">${avatarHtml(a.owner, 22)}<a href="#/profile/${esc(a.owner.handle)}" onclick="event.stopPropagation()">${esc(a.owner.displayName)}</a>${badgeHtml(a.owner.role)}</div>
+      <div class="asset-owner">${avatarHtml(a.owner, 22)}<a href="#/profile/${esc(a.owner.handle)}" onclick="event.stopPropagation()">${esc(a.owner.displayName)}</a>${badgeHtml(a.owner.role, a.owner.tags)}</div>
       ${a.ratingCount ? `<div class="asset-rating">${starsHtml(a.rating)}<span class="muted small">${a.rating} · ${a.ratingCount}</span></div>` : ''}
       <div class="asset-foot">
         <span class="price">${fmtMoney(a.price)}</span>
@@ -2335,7 +2421,7 @@ function headerHtml(user) {
           <a href="#/profile/${esc(user.handle)}">${ICON.user} My Profile</a>
           <a href="#/my-assets">${ICON.edit} My Assets</a>
           ${canPost(user) ? `<a href="#/upload">${ICON.plus} Upload Asset</a>` : `<a href="#/my-assets" onclick="event.preventDefault();onPostFab()">${ICON.lock} Upload Asset (VIP)</a>`}
-          ${user.role === 'admin' ? `<a href="#/admin">${ICON.shield} Admin Panel</a>` : ''}
+          ${isStaff(user) ? `<a href="#/admin">${ICON.shield} Admin Panel</a>` : ''}
           <a href="#/settings">${ICON.clock} Settings</a>
           <div class="sep"></div>
           <button id="logout-btn">${ICON.logout} Log out</button>
@@ -2370,7 +2456,8 @@ function renderShell() {
         <a class="s-btn" href="${esc(SOCIAL.youtube)}" target="_blank" rel="noopener" title="Watch on YouTube">${ICON.youtube}</a>
         <button class="s-btn help" type="button" title="Legal & help" onclick="openLegal()">!</button>
       </div>`
-    + `<button class="post-fab" type="button" id="post-fab" title="Post an asset">${ICON.plus}</button>`;
+    + `<button class="post-fab" type="button" id="post-fab" title="Post an asset">${ICON.plus}</button>`
+    + `<div class="site-status" id="site-status" title="Server status — awake and ready, or still waking up"><span class="dot"></span><span id="site-status-txt">Checking…</span></div>`;
   app.querySelector('#user-btn') && app.querySelector('#user-btn').addEventListener('click', e => {
     e.stopPropagation(); document.getElementById('user-menu').classList.toggle('hidden');
   });
@@ -2528,6 +2615,7 @@ VIEWS.shop = async () => {
 const VIEWS_BIND = {};
 VIEWS_BIND.home = () => { bindCatalog(); spawnParticles(); document.querySelectorAll('.count-up').forEach(el => countUp(el, el.dataset.count)); };
 VIEWS_BIND.shop = () => bindCatalog();
+VIEWS_BIND.profile = () => { initProfileTags((STATE._pfUser && STATE._pfUser.tags) || []); };
 function readFileAsDataURL(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
 
 /* ---- shared actions ---- */
@@ -2601,7 +2689,7 @@ VIEWS.asset = async ({ params }) => {
   const me = STATE.user;
   const comments = await API.listComments(a.id);
   const reviews = await API.listReviews(a.id);
-  const ownerView = a.isOwner || (me && me.role === 'admin');
+  const ownerView = a.isOwner || (me && isStaff(me));
 
   let buyHtml = '';
   if (me && a.isOwner) {
@@ -2616,13 +2704,13 @@ VIEWS.asset = async ({ params }) => {
     buyHtml = `<a class="btn btn-primary btn-lg" href="#/login">Log in to purchase</a>`;
   } else if (a.status === 'approved') {
     buyHtml = `<button class="btn btn-primary btn-lg" onclick="onBuy('${a.id}')">${ICON.cart} Purchase · ${fmtMoney(a.price)}</button>
-      ${me && me.role !== 'vip' && me.role !== 'admin' ? `<p class="muted small" style="margin-top:10px">Every purchase upgrades you to <b style="color:var(--vip)">VIP / Licensed</b> — you can post your own assets right after.</p>` : ''}`;
+      ${me && !canPost(me) ? `<p class="muted small" style="margin-top:10px">Every purchase upgrades you to <b style="color:var(--vip)">VIP / Licensed</b> — you can post your own assets right after.</p>` : ''}`;
   }
 
   const commentHtml = comments.ok ? comments.data.map(c => `
     <div class="comment">${avatarHtml(c.user, 38)}
       <div class="comment-body">
-        <div class="comment-head"><a class="comment-name" href="#/profile/${esc(c.user.handle)}">${esc(c.user.displayName)}</a>${badgeHtml(c.user.role)}${c.rating ? starsHtml(c.rating) : ''}<span class="comment-time">${timeAgo(c.createdAt)}</span>${me && c.user && c.user.id !== me.id ? `<button class="icon-btn" title="Report comment" onclick="onReport('comment','${c.id}')">${ICON.flag}</button>` : ''}</div>
+        <div class="comment-head"><a class="comment-name" href="#/profile/${esc(c.user.handle)}">${esc(c.user.displayName)}</a>${badgeHtml(c.user.role, c.user.tags)}${c.rating ? starsHtml(c.rating) : ''}<span class="comment-time">${timeAgo(c.createdAt)}</span>${me && c.user && c.user.id !== me.id ? `<button class="icon-btn" title="Report comment" onclick="onReport('comment','${c.id}')">${ICON.flag}</button>` : ''}</div>
         <div class="comment-text">${esc(c.body)}</div>
       </div></div>`).join('') : '';
 
@@ -2653,7 +2741,7 @@ VIEWS.asset = async ({ params }) => {
     ? reviewData.items.map(r => `
       <div class="review">${avatarHtml(r.user, 36)}
         <div class="review-body" style="flex:1;min-width:0">
-          <div class="comment-head"><a class="comment-name" href="#/profile/${esc(r.user.handle)}">${esc(r.user.displayName)}</a>${badgeHtml(r.user.role)}${starsHtml(r.rating)}<span class="comment-time">${timeAgo(r.createdAt)}</span>${me && r.user && r.user.id === me.id ? `<button class="icon-btn danger" title="Delete review" onclick="onDeleteReview('${r.id}')">${ICON.trash}</button>` : ''}</div>
+          <div class="comment-head"><a class="comment-name" href="#/profile/${esc(r.user.handle)}">${esc(r.user.displayName)}</a>${badgeHtml(r.user.role, r.user.tags)}${starsHtml(r.rating)}<span class="comment-time">${timeAgo(r.createdAt)}</span>${me && r.user && r.user.id === me.id ? `<button class="icon-btn danger" title="Delete review" onclick="onDeleteReview('${r.id}')">${ICON.trash}</button>` : ''}</div>
           ${r.body ? `<div class="review-text">${esc(r.body)}</div>` : ''}
         </div></div>`).join('')
     : emptyHtml('No reviews yet', 'Be the first to rate this asset.');
@@ -2672,7 +2760,7 @@ VIEWS.asset = async ({ params }) => {
     </div>
     <div class="poster-row">
       ${avatarHtml(a.owner, 44)}
-      <div style="flex:1"><div class="row" style="gap:8px"><a href="#/profile/${esc(a.owner.handle)}" class="bold">${esc(a.owner.displayName)}</a>${badgeHtml(a.owner.role)}</div><div class="muted small">Creator · joined ${fmtDate(a.owner.createdAt)}</div></div>
+      <div style="flex:1"><div class="row" style="gap:8px"><a href="#/profile/${esc(a.owner.handle)}" class="bold">${esc(a.owner.displayName)}</a>${badgeHtml(a.owner.role, a.owner.tags)}</div><div class="muted small">Creator · joined ${fmtDate(a.owner.createdAt)}</div></div>
       ${me && !a.isOwner ? `<button class="btn btn-ghost btn-sm" onclick="onReport('asset','${a.id}')">${ICON.flag} Report</button>` : ''}
     </div>
     <div class="reviews" style="margin-top:44px">
@@ -2784,11 +2872,13 @@ VIEWS.profile = async ({ params }) => {
   const { user, assetCount, assets, purchases, comments } = res.data;
   const me = STATE.user;
   const boughtTotal = purchases.reduce((s, p) => s + p.price, 0);
+  STATE._pfUser = user;
+  const staffPanel = me && isStaff(me) ? profileRolesPanel(user) : '';
   return `<div class="page page-narrow">
     <div class="profile-hero">
       ${avatarHtml(user, 104)}
       <div style="flex:1;min-width:240px">
-        <div class="profile-name">${esc(user.displayName)} ${badgeHtml(user.role)}</div>
+        <div class="profile-name">${esc(user.displayName)} ${badgeHtml(user.role, user.tags)}</div>
         <div class="profile-handle">@${esc(user.handle)} · joined ${fmtDateFull(user.createdAt)}</div>
         <div class="profile-meta">
           <div><b>${assetCount}</b><span>Assets</span></div>
@@ -2800,8 +2890,9 @@ VIEWS.profile = async ({ params }) => {
         ${me && me.id !== user.id ? `<div class="mt"><button class="btn btn-ghost btn-sm" onclick="onReport('user','${user.id}')">${ICON.flag} Report user</button></div>` : ''}
       </div>
     </div>
+    ${staffPanel}
     <div class="section-head"><div><span class="section-eyebrow">Portfolio</span><h2>Assets posted</h2><p>Approved assets by ${esc(user.displayName)}.</p></div></div>
-    ${assets.length ? `<div class="grid grid-assets">${assets.map(a => assetCardHtml(a)).join('')}</div>` : emptyHtml('No assets posted', user.role === 'vip' || user.role === 'admin' ? 'This creator has not published any approved assets yet.' : 'Members can purchase and comment — only VIP / Licensed creators can post assets.')}
+    ${assets.length ? `<div class="grid grid-assets">${assets.map(a => assetCardHtml(a)).join('')}</div>` : emptyHtml('No assets posted', canPost(user) ? 'This creator has not published any approved assets yet.' : 'Members can purchase and comment — only VIP / Licensed creators can post assets.')}
     <div class="section-head"><div><span class="section-eyebrow">Activity</span><h2>Recent purchases</h2><p>What ${esc(user.displayName)} has bought recently.</p></div></div>
     ${purchases.length ? `<div class="card card-pad" style="padding:6px 0">${purchases.map(p => `
       <div class="row" style="padding:12px 20px;border-bottom:1px solid var(--border);gap:12px">
@@ -2815,6 +2906,53 @@ VIEWS.profile = async ({ params }) => {
         <div class="comment-body"><div class="comment-head"><span class="comment-time">${timeAgo(c.createdAt)}</span>${c.asset ? `on <a href="#/asset/${c.asset.id}" class="muted">${esc(c.asset.title)}</a>` : ''}</div><div class="comment-text">${esc(c.body)}</div></div></div>`).join('')}</div>` : emptyHtml('No comments yet', 'No public comments from this user yet.')}
   </div>`;
 };
+
+/* ---- staff tools: manage roles & tags from any profile ---- */
+const ROLE_LABEL_UI = { member: 'Member', vip: 'VIP / Licensed', admin: 'Admin', cofounder: 'Co-Founder', owner: 'Owner' };
+function profileRolesPanel(u) {
+  const actor = STATE.user;
+  const canGrantAll = roleRank(actor.role) >= roleRank('cofounder');
+  const opts = (canGrantAll ? UI_ROLES : ['member', 'vip']).map(r => `<option value="${r}" ${u.role === r ? 'selected' : ''}>${ROLE_LABEL_UI[r]}</option>`).join('');
+  const quick = canGrantAll ? ['Owner', 'Co-Founder', 'Admin', 'VIP', 'Member'] : ['VIP', 'Member'];
+  return `<div class="card card-pad mt2" style="border-color:rgba(212,175,55,.32);box-shadow:0 0 0 1px rgba(212,175,55,.07),0 14px 34px rgba(0,0,0,.3)">
+    <div style="margin-bottom:14px"><span class="section-eyebrow">Staff tools</span><h3 style="font-family:var(--font-display);font-size:18px;margin:4px 0 4px">Manage roles &amp; tags</h3><p class="muted small" style="margin:0">Set the role — which grants permissions — and add extra display tags for <b style="color:var(--text)">${esc(u.displayName)}</b>.${canGrantAll ? '' : ' As an Admin you can only grant Member / VIP.'}</p></div>
+    <div class="row" style="align-items:flex-end;gap:14px;flex-wrap:wrap">
+      <div class="field" style="min-width:200px"><label>Role</label><select class="select" id="pr-role">${opts}</select><div class="hint">Owner &amp; Co-Founder can do everything; Admin can do everything except grant admin roles or higher.</div></div>
+      <div class="field" style="flex:1;min-width:250px"><label>Extra tags <span class="muted small" style="font-weight:400">(max 6, shown next to the role badge)</span></label>
+        <div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:8px">${quick.map(t => `<button type="button" class="chip" style="padding:4px 11px;font-size:11.5px" onclick="addProfileTag('${t}')">+ ${t}</button>`).join('')}<button type="button" class="chip" style="padding:4px 11px;font-size:11.5px" onclick="addProfileTag(document.getElementById('pr-tag-input').value)">+ Custom…</button></div>
+        <input class="input" id="pr-tag-input" placeholder="Type a custom tag and press Enter…" maxlength="24" onkeydown="if(event.key==='Enter'){event.preventDefault();addProfileTag(this.value);this.value='';}">
+        <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:10px" id="pf-tags-box"></div>
+      </div>
+    </div>
+    <div class="row mt" style="justify-content:flex-end"><button class="btn btn-primary btn-sm" onclick="onSaveProfileRoles('${u.id}')">${ICON.check} Save roles &amp; tags</button></div>
+  </div>`;
+}
+function initProfileTags(tags) { STATE._pfTags = (tags || []).filter(t => String(t).trim()); renderProfileTags(); }
+function renderProfileTags() {
+  const box = document.getElementById('pf-tags-box');
+  if (!box) return;
+  box.innerHTML = STATE._pfTags.length ? STATE._pfTags.map(t => `<span class="chip" style="padding:4px 10px;font-size:11.5px;cursor:default">#${esc(t)}<button type="button" class="chip-x" onclick="removeProfileTag('${esc(t)}')" aria-label="Remove tag">×</button></span>`).join('') : '<span class="muted small">No extra tags yet.</span>';
+}
+function addProfileTag(t) {
+  t = String(t || '').trim();
+  if (!t) { toast('Type a tag first.', 'err'); return; }
+  if (STATE._pfTags.length >= 6) { toast('Maximum of 6 tags.', 'err'); return; }
+  if (STATE._pfTags.some(x => x.toLowerCase() === t.toLowerCase())) { toast('That tag is already added.', 'err'); return; }
+  STATE._pfTags.push(t);
+  renderProfileTags();
+}
+function removeProfileTag(t) {
+  STATE._pfTags = STATE._pfTags.filter(x => x.toLowerCase() !== String(t).toLowerCase());
+  renderProfileTags();
+}
+async function onSaveProfileRoles(id) {
+  const role = document.getElementById('pr-role').value;
+  const [r1, r2] = await Promise.all([API.adminSetRole(STATE.user, id, role), API.adminSetTags(STATE.user, id, STATE._pfTags)]);
+  if (!r1.ok) { toast(r1.error, 'err'); return; }
+  if (!r2.ok) { toast(r2.error, 'err'); return; }
+  toast('Roles & tags updated.');
+  await router();
+}
 
 /* ---- auth ---- */
 VIEWS.login = async () => {
@@ -2954,7 +3092,7 @@ VIEWS.settings = async () => {
     <div class="card card-pad">
       <h3 style="font-family:var(--font-display);font-size:17px;margin-bottom:6px">Account</h3>
       <div class="row" style="justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)"><span class="muted">Email</span><span>${esc(u.email)}</span></div>
-      <div class="row" style="justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)"><span class="muted">Role</span><span>${badgeHtml(u.role)}</span></div>
+      <div class="row" style="justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)"><span class="muted">Role</span><span>${badgeHtml(u.role, u.tags)}</span></div>
       <div class="row" style="justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)"><span class="muted">Member since</span><span>${fmtDateFull(u.createdAt)}</span></div>
       <div class="row" style="justify-content:space-between;padding:9px 0"><span class="muted">Status</span><span>${u.banned ? '<span class="status-pill status-rejected">Banned</span>' : isTimedOut(u) ? `<span class="status-pill status-pending">Timed out (${esc(timeoutText(u))})</span>` : '<span class="status-pill status-approved">Active</span>'}</span></div>
     </div>
@@ -3304,30 +3442,40 @@ function drawSalesChart(canvas) {
 VIEWS.portfolio = async () => {
   const c = await API.content();
   const list = c.ok && c.data && c.data.portfolio ? c.data.portfolio : [];
-  const isAdmin = STATE.user && STATE.user.role === 'admin';
+  const isAdmin = isStaff(STATE.user);
   STATE._pfItems = {};
   list.forEach(p => { STATE._pfItems[p.id] = p; });
-  const cards = list.map(p => `
-    <article class="card card-hover project-card">
+  const cardFor = p => {
+    const adminRow = isAdmin ? `<div class="row" style="gap:8px;margin-top:14px"><button class="btn btn-ghost btn-sm" onclick="openPortfolioEditor('${p.id}')">${ICON.edit} Edit</button><button class="btn btn-ghost btn-sm" onclick="onToggleSpotlight('${p.id}')" title="Pin / unpin at the top">${p.featured ? `★ Unpin spotlight` : `★ Spotlight`}</button><button class="btn btn-danger btn-sm" onclick="onDeletePortfolio('${p.id}')">${ICON.trash}</button></div>` : '';
+    return `<article class="card card-hover project-card${p.featured ? ' spotlight' : ''}">
       <div class="project-banner">${p.imageUrl ? `<img class="proj-img" src="${esc(p.imageUrl)}" alt="" loading="lazy" onerror="this.remove()">` : `<div class="thumb-bg thumb-default"></div><span style="position:relative">${ICON.model}</span>`}</div>
       <div class="project-body">
-        <div class="project-tags"><span class="badge plain">${esc(p.category || 'Project')}</span><span class="badge ${p.status === 'Live' ? 'ok' : 'plain'}">${esc(p.status || 'Live')}</span></div>
+        <div class="project-tags">${p.featured ? `<span class="badge owner">★ Spotlight</span>` : ''}<span class="badge plain">${esc(p.category || 'Project')}</span><span class="badge ${p.status === 'Live' ? 'ok' : 'plain'}">${esc(p.status || 'Live')}</span></div>
         <h3>${esc(p.title)}</h3>
         <p>${esc(p.desc)}</p>
         <div class="project-foot"><b>${esc(p.stat || '—')}</b></div>
         ${p.links && p.links.length ? `<div class="project-links" aria-label="Project links">${p.links.map(l => linkIconHtml(l)).join('')}</div>` : ''}
-        ${isAdmin ? `<div class="row" style="gap:8px;margin-top:14px"><button class="btn btn-ghost btn-sm" onclick="openPortfolioEditor('${p.id}')">${ICON.edit} Edit</button><button class="btn btn-danger btn-sm" onclick="onDeletePortfolio('${p.id}')">${ICON.trash}</button></div>` : ''}
-      </div></article>`).join('');
+        ${adminRow}
+      </div></article>`;
+  };
+  const cards = list.map(cardFor).join('');
   return `<div class="page">
     <div class="section-head"><div><span class="section-eyebrow">Portfolio</span><h2>Our finest creations</h2><p>Premium Roblox experiences and case studies shipped by the studio${isAdmin ? ' — only admins can publish here' : ''}.</p></div>
       ${isAdmin ? `<button class="btn btn-primary btn-sm" onclick="openPortfolioEditor()">${ICON.plus} New project</button>` : ''}</div>
     ${list.length ? `<div class="grid portfolio-grid">${cards}</div>` : emptyHtml('The portfolio is empty', 'Projects published by the Kings Production team will appear here.')}
   </div>`;
 };
+async function onToggleSpotlight(id) {
+  if (!isStaff(STATE.user)) { toast('Only staff can manage the portfolio.', 'err'); return; }
+  const item = STATE._pfItems[id];
+  if (!item) return;
+  const r = await API.updatePortfolio(STATE.user, id, { featured: !item.featured });
+  r.ok ? (toast(item.featured ? 'Spotlight removed.' : 'Pinned to the top as Spotlight.'), await router()) : toast(r.error, 'err');
+}
 
 /* ---- admin portfolio publishing (admin-only) ---- */
 function openPortfolioEditor(id) {
-  if (!STATE.user || STATE.user.role !== 'admin') { toast('Only admins can publish portfolio projects.', 'err'); return; }
+  if (!isStaff(STATE.user)) { toast('Only admins can publish portfolio projects.', 'err'); return; }
   const item = id ? (STATE._pfItems[id] || null) : null;
   const isEdit = !!item;
   const ov = modal({
@@ -3348,7 +3496,8 @@ function openPortfolioEditor(id) {
       </div>
       <div class="field"><label>Links <span class="muted small" style="font-weight:400">— auto-detected: Discord, YouTube, Twitch, X, Roblox, MediaFire, GitHub, Spotify, Telegram, Drive…</span></label>
         <div id="pf-links" style="display:flex;flex-direction:column;gap:8px"></div>
-        <button class="btn btn-ghost btn-sm" type="button" id="pf-add-link" style="margin-top:8px">${ICON.plus} Add link</button></div>`,
+        <button class="btn btn-ghost btn-sm" type="button" id="pf-add-link" style="margin-top:8px">${ICON.plus} Add link</button></div>
+      <label style="display:flex;align-items:flex-start;gap:9px;margin:16px 0 2px;cursor:pointer;font-size:13.5px;color:var(--text-2);line-height:1.45"><input type="checkbox" id="pf-featured" ${item && item.featured ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--gold);margin-top:1px;flex-shrink:0"> <span><b style="color:var(--gold)">★ Pin to top as Spotlight</b> — the featured project renders larger at the top of the portfolio. Only one project can be spotlighted at a time.</span></label>`,
     validate: async o => {
       const title = o.querySelector('#pf-title').value.trim();
       const desc = o.querySelector('#pf-desc').value.trim();
@@ -3357,7 +3506,7 @@ function openPortfolioEditor(id) {
       const img = o.querySelector('#pf-img').value.trim();
       if (img && !/^https?:\/\//i.test(img)) { toast('Cover image must be a valid http(s) URL.', 'err'); return false; }
       const links = [...o.querySelectorAll('.pf-link-row')].map(r => ({ url: r.querySelector('input').value.trim() })).filter(l => l.url);
-      const payload = { title, category: o.querySelector('#pf-cat').value.trim(), desc, stat: o.querySelector('#pf-stat').value.trim(), status: o.querySelector('#pf-status').value.trim() || 'Live', imageUrl: img, links };
+      const payload = { title, category: o.querySelector('#pf-cat').value.trim(), desc, stat: o.querySelector('#pf-stat').value.trim(), status: o.querySelector('#pf-status').value.trim() || 'Live', imageUrl: img, links, featured: !!o.querySelector('#pf-featured').checked };
       const res = isEdit ? await API.updatePortfolio(STATE.user, item.id, payload) : await API.createPortfolio(STATE.user, payload);
       if (!res.ok) { toast(res.error, 'err'); return false; }
       toast(isEdit ? 'Project updated.' : 'Project published!');
@@ -3405,7 +3554,7 @@ function addPfLinkRow(box, url) {
   inp.focus();
 }
 async function onDeletePortfolio(id) {
-  if (!STATE.user || STATE.user.role !== 'admin') { toast('Only admins can manage the portfolio.', 'err'); return; }
+  if (!isStaff(STATE.user)) { toast('Only admins can manage the portfolio.', 'err'); return; }
   modal({ title: 'Delete this project?', danger: true, confirmLabel: 'Delete',
     body: '<p>Removes the project from the portfolio permanently. This cannot be undone.</p>',
     onConfirm: async () => { const r = await API.deletePortfolio(STATE.user, id); r.ok ? (toast('Project deleted.'), await router()) : toast(r.error, 'err'); } });
@@ -3546,7 +3695,7 @@ async function onAssignLicense(purchaseId, e) {
 
 /* ---- admin ---- */
 VIEWS.admin = async () => {
-  if (!STATE.user || STATE.user.role !== 'admin') {
+  if (!STATE.user || !isStaff(STATE.user)) {
     return `<div class="page">${emptyHtml('Admins only', 'This is a separate interface for administrators.')}</div>`;
   }
   const tabs = [['overview', 'Overview'], ['approvals', 'Approvals'], ['assets', 'Assets'], ['users', 'Users'], ['reports', 'Reports'], ['orders', 'Orders'], ['online', 'Online'], ['mailbox', 'Mailbox']];
@@ -3612,7 +3761,7 @@ async function adminTabHtml(tab) {
           <div class="thumb">${thumbHtml(a, 26)}</div>
           <div class="info">
             <h4>${esc(a.title)} <span class="muted small" style="font-weight:400">· ${fmtMoney(a.price)}</span></h4>
-            <div class="muted small mb">by <a href="#/profile/${esc(a.owner.handle)}">${esc(a.owner.displayName)}</a> ${badgeHtml(a.owner.role)} · ${catBadge(a.category)} · posted ${timeAgo(a.createdAt)}</div>
+            <div class="muted small mb">by <a href="#/profile/${esc(a.owner.handle)}">${esc(a.owner.displayName)}</a> ${badgeHtml(a.owner.role, a.owner.tags)} · ${catBadge(a.category)} · posted ${timeAgo(a.createdAt)}</div>
             <div class="desc">${esc(a.description)}</div>
             <div class="muted small mt">File: <span class="mono">${esc(a.fileName)}</span></div>
           </div>
@@ -3644,20 +3793,26 @@ async function adminTabHtml(tab) {
     return `<div class="table-wrap"><table class="table">
       <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Status</th><th>Moderation</th></tr></thead>
       <tbody>${list.map(u => {
-        const isAdminUser = u.role === 'admin';
+        const isStaffUser = roleRank(u.role) >= roleRank('admin');
+        const canGrantAll = roleRank(STATE.user.role) >= roleRank('cofounder');
+        const isMe = u.id === STATE.user.id;
+        const canManage = !isMe && (canGrantAll ? true : !isStaffUser);
         const status = u.banned ? `<span class="status-pill status-rejected">Banned${u.banReason ? ' — ' + esc(u.banReason) : ''}</span>`
           : u.timeoutUntil && u.timeoutUntil > now() ? `<span class="status-pill status-pending">Timed out (${esc(timeoutText(u))})</span>`
           : '<span class="status-pill status-approved">Active</span>';
-        const actions = isAdminUser
-          ? `<span class="muted small">${ICON.shield} Protected — admins cannot be moderated</span>`
+        const actions = isStaffUser
+          ? `<span class="muted small">${ICON.shield} Protected — staff cannot be moderated</span>`
           : `<div class="row-actions">
               ${u.banned ? `<button class="btn btn-ghost btn-sm" onclick="onAdminUnban('${u.id}')">Unban</button>` : `<button class="btn btn-danger btn-sm" onclick="onAdminBan('${u.id}')">${ICON.ban} Ban</button>`}
               ${u.timeoutUntil && u.timeoutUntil > now() ? `<button class="btn btn-ghost btn-sm" onclick="onAdminClear('${u.id}')">Clear timeout</button>` : `<button class="btn btn-ghost btn-sm" onclick="onAdminTimeout('${u.id}')">${ICON.clock} Timeout</button>`}
             </div>`;
+        const roleCell = isMe ? badgeHtml(u.role, u.tags) + ' <span class="muted small">(you)</span>'
+          : !canManage ? badgeHtml(u.role, u.tags) + ' <span class="muted small">Protected</span>'
+          : `<select class="select" style="width:auto;padding:6px 30px 6px 10px;font-size:12.5px;border-radius:8px" onchange="onAdminRole('${u.id}', this.value)" title="Change role">${(canGrantAll ? UI_ROLES : ['member', 'vip']).map(r => `<option value="${r}" ${u.role === r ? 'selected' : ''}>${ROLE_LABEL_UI[r]}</option>`).join('')}</select>`;
         return `<tr>
-          <td><div class="user-row">${avatarHtml(u, 34)}<div><a class="bold" href="#/profile/${esc(u.handle)}">${esc(u.displayName)}</a><div class="muted small">@${esc(u.handle)} ${badgeHtml(u.role)}</div></div></div></td>
+          <td><div class="user-row">${avatarHtml(u, 34)}<div><a class="bold" href="#/profile/${esc(u.handle)}">${esc(u.displayName)}</a><div class="muted small">@${esc(u.handle)} ${badgeHtml(u.role, u.tags)}</div></div></div></td>
           <td class="muted">${esc(u.email)}</td>
-          <td>${u.id === STATE.user.id ? badgeHtml(u.role) + ' <span class="muted small">(you)</span>' : u.role === 'admin' ? badgeHtml(u.role) + ' <span class="muted small">Protected</span>' : `<select class="select" style="width:auto;padding:6px 30px 6px 10px;font-size:12.5px;border-radius:8px" onchange="onAdminRole('${u.id}', this.value)" title="Change role">${['member', 'vip', 'admin'].map(r => `<option value="${r}" ${u.role === r ? 'selected' : ''}>${r === 'vip' ? 'VIP / Licensed' : r.charAt(0).toUpperCase() + r.slice(1)}</option>`).join('')}</select>`}</td>
+          <td>${roleCell}</td>
           <td>${status}</td>
           <td>${actions}</td></tr>`;
       }).join('')}</tbody></table></div>`;
@@ -3676,9 +3831,9 @@ async function adminTabHtml(tab) {
         ctx = `<span class="muted small">on ${rep.comment && rep.comment.assetTitle ? esc(rep.comment.assetTitle) : 'a deleted asset'}</span>`;
       } else {
         title = `User: ${rep.user ? rep.user.displayName : '(deleted)'}`;
-        ctx = rep.user && rep.user.role !== 'admin'
+        ctx = rep.user && !isStaff(rep.user)
           ? `<button class="btn btn-danger btn-sm" onclick="onAdminBan('${rep.user.id}')">${ICON.ban} Ban</button><button class="btn btn-ghost btn-sm" onclick="onAdminTimeout('${rep.user.id}')">${ICON.clock} Timeout</button><a class="btn btn-ghost btn-sm" href="#/profile/${esc(rep.user.handle)}">${ICON.eye} Profile</a>`
-          : (rep.user ? `<span class="muted small">${ICON.shield} Admin target — protected</span>` : '');
+          : (rep.user ? `<span class="muted small">${ICON.shield} Staff target — protected</span>` : '');
       }
       return `<div class="approve-card mb">
         <div class="thumb">${repIconHtml(rep.targetType)}</div>
@@ -3703,7 +3858,7 @@ async function adminTabHtml(tab) {
         <div class="row" style="padding:12px 20px;border-bottom:1px solid var(--border);gap:12px">
           <span class="dot ${s.online ? 'on' : 'off'}"></span>
           ${avatarHtml(s.user, 32)}
-          <div style="flex:1;min-width:0"><a class="bold" href="#/profile/${esc(s.user.handle)}">${esc(s.user.displayName)}</a> ${badgeHtml(s.user.role)}<div class="muted small">${esc(s.label)}</div></div>
+          <div style="flex:1;min-width:0"><a class="bold" href="#/profile/${esc(s.user.handle)}">${esc(s.user.displayName)}</a> ${badgeHtml(s.user.role, s.user.tags)}<div class="muted small">${esc(s.label)}</div></div>
           <span class="muted small">${s.online ? 'active ' + timeAgo(s.lastSeen) : 'last seen ' + timeAgo(s.lastSeen)}</span>
         </div>`).join('') || emptyHtml('No sessions', 'Sessions appear here after users log in.')}</div>`;
   }
@@ -3846,6 +4001,28 @@ function countUp(el, target) {
   requestAnimationFrame(tick);
 }
 
+/* ---- site status: awake vs asleep (Render free tier sleeps when idle) ---- */
+function startStatusPinger() {
+  const el = document.getElementById('site-status');
+  const txt = document.getElementById('site-status-txt');
+  if (!el) return;
+  async function ping() {
+    const t0 = performance.now();
+    let state = 'asleep';
+    try {
+      const ctrl = new AbortController();
+      const to = setTimeout(() => ctrl.abort(), 4000);
+      const res = await fetch('/api/health', { signal: ctrl.signal, cache: 'no-store' });
+      clearTimeout(to);
+      if (res.ok) state = (performance.now() - t0) > 1500 ? 'waking' : 'online';
+    } catch (e) { state = 'asleep'; }
+    el.className = 'site-status ' + state;
+    if (txt) txt.textContent = state === 'online' ? 'Online · Ready' : state === 'waking' ? 'Waking up…' : 'Asleep · cold start on visit';
+  }
+  ping();
+  setInterval(ping, 20000);
+}
+
 /* ---- boot ---- */
 async function init() {
   const started = performance.now();
@@ -3854,6 +4031,7 @@ async function init() {
   try {
     await API.boot();
     renderShell();
+    startStatusPinger();
     window.addEventListener('hashchange', router);
     await router();
   } catch (err) {

@@ -436,6 +436,7 @@ async function main() {
   app.post('/api/admin/users/:id/timeout', admin(async (u, req) => engine.adminTimeout(u, req.params.id, (req.body || {}).minutes)));
   app.post('/api/admin/users/:id/clear-timeout', admin(async (u, req) => engine.adminClearTimeout(u, req.params.id)));
   app.post('/api/admin/users/:id/role', admin(async (u, req) => engine.adminSetRole(u, req.params.id, (req.body || {}).role)));
+  app.post('/api/admin/users/:id/tags', admin(async (u, req) => engine.adminSetTags(u, req.params.id, (req.body || {}).tags)));
   app.get('/api/admin/sessions', admin(async u => engine.adminSessions(u)));
   app.get('/api/admin/emails', admin(async u => engine.adminEmails(u)));
   app.get('/api/admin/reports', admin(async u => engine.adminReports(u)));

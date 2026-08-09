@@ -73,10 +73,29 @@ actual downloadable file is optional.
 
 **Built by the community, for the community.** Every asset, comment, and
 profile has a **report** action so the team can act on misconduct — with bans
-and timeouts for repeat offenders, and full protection for admin accounts.
+and timeouts for repeat offenders, and full protection for staff accounts.
+
+**A real role hierarchy.** Accounts carry one of five roles — **Member**,
+**VIP / Licensed**, **Admin**, **Co-Founder**, or **Owner** — each shown as a
+badge next to the name across the whole site. Owner and Co-Founder can do
+everything, Admin can do everything except grant roles at Admin level or
+higher, VIP / Licensed creators can post, and Members browse, buy, and rate.
+Staff go to **any profile** (even their own) and open the *Manage roles &
+tags* panel to change someone's role or add up to six extra display tags —
+like `#VIP`, `#Founder`, `#Designer` — which render as badges everywhere.
+
+**A live status badge.** A small pill in the corner pings the server so
+buyers always know the site's state: a green **Online · Ready** dot when it's
+awake, an amber **Waking up…** pulse while a sleeping instance spins back up,
+and a grey **Asleep** state when it's idle.
 
 **Studio showcase.** Meet the team behind the studio on the Creators page and
-browse the studio's own shipped projects on the Portfolio page.
+browse the studio's own shipped projects on the Portfolio page. The portfolio
+is **admin-published only** — admins post projects with auto-detected brand
+links (Discord, YouTube, Twitch, X, Roblox, MediaFire, GitHub, Spotify,
+Telegram, Drive and more render as their own icons) and a live cover-image
+preview. One project can be pinned as the **★ Spotlight** — it renders larger
+at the top of the portfolio, and only one can be featured at a time.
 
 ---
 
@@ -84,8 +103,9 @@ browse the studio's own shipped projects on the Portfolio page.
 
 A dark, premium theme — deep blacks and gradients lit by ambient gold
 glow, the crown as the light source, light-catching surfaces, and a floating
-social dock (Discord · YouTube · legal) that stays with you on every page.
-Clean, fast, and built to feel like a high-end studio, not a template.
+social dock (Discord · YouTube · legal) that stays with you on every page,
+plus the live server-status pill. Clean, fast, and built to feel like a
+high-end studio, not a template.
 
 The site opens with an animated **loading screen** — the crown spinning in a
 ring of gold light above the studio tagline — and then stays alive: a soft

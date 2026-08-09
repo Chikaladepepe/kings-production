@@ -28,7 +28,13 @@
 
   const CATEGORIES = ['animation', 'model', 'plugin', 'system'];
   const CAT_LABEL = { animation: 'Animation', model: 'Model', plugin: 'Plugin', system: 'System' };
-  const ROLES = ['member', 'vip', 'admin'];
+  /* Role hierarchy (index = rank). Owner and Co-Founder can do everything;
+     Admin can do everything except grant roles at admin level or higher;
+     VIP / Licensed creators can post; Members browse, buy, comment, rate. */
+  const ROLES = ['member', 'vip', 'admin', 'cofounder', 'owner'];
+  const ROLE_LABEL = { member: 'Member', vip: 'VIP / Licensed', admin: 'Admin', cofounder: 'Co-Founder', owner: 'Owner' };
+  const roleRank = r => ROLES.indexOf(r);
+  const isStaff = u => !!(u && roleRank(u.role) >= roleRank('admin'));
 
   /* ---- regional pricing: base USD, converted to the buyer's country ---- */
   const COUNTRY_CURRENCY = { US: 'USD', PH: 'PHP', GB: 'GBP', CA: 'CAD', AU: 'AUD', DE: 'EUR', FR: 'EUR', ES: 'EUR', IT: 'EUR', NL: 'EUR', PT: 'EUR', IE: 'EUR', JP: 'JPY', KR: 'KRW', IN: 'INR', SG: 'SGD', MY: 'MYR', ID: 'IDR', BR: 'BRL', MX: 'MXN', AE: 'AED', SA: 'SAR', ZA: 'ZAR', NG: 'NGN', GH: 'GHS', KE: 'KES', EG: 'EGP', TR: 'TRY', RU: 'RUB', CN: 'CNY', HK: 'HKD', TW: 'TWD', TH: 'THB', VN: 'VND', AR: 'ARS', CL: 'CLP', CO: 'COP', PE: 'PEN' };
@@ -94,9 +100,14 @@
   const isTimedOut = u => !!(u && u.timeoutUntil && u.timeoutUntil > now());
   const isBanned = u => !!(u && u.banned);
   const isRestricted = u => isBanned(u) || isTimedOut(u);
-  const canPost = u => !!(u && (u.role === 'vip' || u.role === 'admin') && !isBanned(u) && !isTimedOut(u));
-  const isAdmin = u => !!(u && u.role === 'admin');
-  const publicUser = u => u ? ({ id: u.id, handle: u.handle, displayName: u.displayName, role: u.role, pfp: u.pfp, bio: u.bio, createdAt: u.createdAt }) : null;
+  const canPost = u => !!(u && roleRank(u.role) >= roleRank('vip') && !isBanned(u) && !isTimedOut(u));
+  const isAdmin = u => isStaff(u);
+  const parseTags = u => {
+    try { const t = JSON.parse(u && u.tags || '[]'); return Array.isArray(t) ? t.filter(x => typeof x === 'string' && x.trim()) : []; }
+    catch (e) { return []; }
+  };
+  const saveTags = (u, tags) => { u.tags = JSON.stringify((tags || []).filter(t => typeof t === 'string' && t.trim()).slice(0, 6).map(t => t.trim().slice(0, 24))); };
+  const publicUser = u => u ? ({ id: u.id, handle: u.handle, displayName: u.displayName, role: u.role, tags: parseTags(u), pfp: u.pfp, bio: u.bio, createdAt: u.createdAt }) : null;
   const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled, country: u.country }) : null;
   function timeoutText(u) {
     if (!u || !u.timeoutUntil) return null;
@@ -140,7 +151,7 @@
     const resolveUser = user => (user && user.id) ? dbUser(user.id) : null;
     const requireAdmin = actor => {
       if (!actor) return fail('auth', 'You must be logged in as an admin.');
-      if (actor.role !== 'admin') return fail('adminOnly', 'You do not have permission to do that.');
+      if (!isStaff(actor)) return fail('adminOnly', 'You do not have permission to do that.');
       return null;
     };
     /* Posting cooldown — one new post per 24h for creators (admins are exempt). */
@@ -169,6 +180,21 @@
       ['pp1', 'pp2', 'pp3', 'pp4', 'pp5', 'pp6'].forEach(id => { if (byIdIn('portfolio', id)) store.del('portfolio', id); });
       if (all('creators').length) return;
       CONTENT.creators.forEach(r => store.put('creators', r));
+      flush();
+    }
+    /* The studio is owned by the account registered with this handle/email.
+       Idempotent: once it is Owner it stays Owner (and the Owner can manage
+       the rest of the staff). */
+    function ensureOwnerAccount() {
+      const u = all('users').find(x => String(x.handle || '').toLowerCase() === 'chikaladepepe' || String(x.email || '').toLowerCase() === 'julianguinto0@gmail.com');
+      if (!u || u.role === 'owner') return;
+      if (u.role !== 'admin' && u.role !== 'cofounder') return; // only promote existing staff
+      u.role = 'owner';
+      const tags = parseTags(u);
+      if (!tags.some(t => String(t).toLowerCase() === 'cofounder')) tags.push('cofounder');
+      saveTags(u, tags);
+      u.updatedAt = now();
+      store.put('users', u);
       flush();
     }
 
@@ -423,7 +449,7 @@
       if (!a) return fail('notfound', 'This asset could not be found.');
       const viewer = viewerId ? dbUser(viewerId) : null;
       const isOwner = !!viewer && viewer.id === a.ownerId;
-      const isAdminView = !!viewer && viewer.role === 'admin';
+      const isAdminView = !!viewer && isStaff(viewer);
       if (a.status !== 'approved' && !isOwner && !isAdminView) return fail('notfound', 'This asset is not available yet.');
       const purchase = viewer ? all('purchases').find(p => p.assetId === id && p.buyerId === viewer.id) : null;
       return ok({
@@ -517,7 +543,7 @@
       if (!a) return fail('notfound', 'Asset not found.');
       const v = resolveUser(user);
       const isOwner = v && v.id === a.ownerId;
-      const isAdminView = v && v.role === 'admin';
+      const isAdminView = v && isStaff(v);
       const hasPurchased = v && all('purchases').some(p => p.assetId === id && p.buyerId === v.id);
       if (!isOwner && !isAdminView && !hasPurchased) return fail('forbidden', 'Purchase this asset to download the file.');
       return ok({ fileName: a.fileName, mime: a.fileMime, size: a.fileSize });
@@ -935,7 +961,7 @@
     }
     async function content() {
       const parseLinks = it => { try { const l = JSON.parse(it.links || '[]'); return Array.isArray(l) ? l : []; } catch (e) { return []; } };
-      const portfolio = all('portfolio').slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).map(it => ({ ...it, links: parseLinks(it) }));
+      const portfolio = all('portfolio').slice().sort((a, b) => ((b.featured ? 1 : 0) - (a.featured ? 1 : 0)) || ((b.createdAt || 0) - (a.createdAt || 0))).map(it => ({ ...it, links: parseLinks(it) }));
       return ok({ portfolio, creators: all('creators').slice().sort((a, b) => a.id < b.id ? -1 : 1) });
     }
 
@@ -944,7 +970,7 @@
       if (!Array.isArray(links)) return [];
       return links.map(l => ({ url: String((l && l.url) || '').trim() })).filter(l => /^https?:\/\//i.test(l.url)).slice(0, 12).map(l => ({ url: l.url.slice(0, 500) }));
     }
-    async function createPortfolio(actor, { title, category, desc, stat, status, imageUrl, links } = {}) {
+    async function createPortfolio(actor, { title, category, desc, stat, status, imageUrl, links, featured } = {}) {
       const r = requireAdmin(actor); if (r) return r;
       title = String(title || '').trim();
       desc = String(desc || '').trim();
@@ -954,8 +980,9 @@
       const item = {
         id: 'pp' + uid(), title, category: String(category || '').trim().slice(0, 40),
         desc, stat: String(stat || '').trim().slice(0, 60), status: String(status || 'Live').trim().slice(0, 24),
-        imageUrl: img, links: JSON.stringify(cleanPortfolioLinks(links)), createdAt: now(),
+        imageUrl: img, links: JSON.stringify(cleanPortfolioLinks(links)), featured: !!featured, createdAt: now(),
       };
+      if (item.featured) all('portfolio').filter(x => x.featured && x.id !== item.id).forEach(x => { x.featured = false; store.put('portfolio', x); });
       store.put('portfolio', item);
       flush();
       return ok({ id: item.id });
@@ -983,6 +1010,10 @@
         it.imageUrl = img;
       }
       if (patch.links !== undefined) it.links = JSON.stringify(cleanPortfolioLinks(patch.links));
+      if (patch.featured !== undefined) {
+        it.featured = !!patch.featured;
+        if (it.featured) all('portfolio').filter(x => x.featured && x.id !== it.id).forEach(x => { x.featured = false; store.put('portfolio', x); });
+      }
       store.put('portfolio', it);
       flush();
       return ok(true);
@@ -1056,7 +1087,7 @@
       const r = requireAdmin(actor); if (r) return r;
       const t = dbUser(targetId);
       if (!t) return fail('notfound', 'User not found.');
-      if (t.role === 'admin') return fail('adminProtected', 'Admins cannot be moderated. Admin accounts are protected from bans and timeouts.');
+      if (isStaff(t)) return fail('adminProtected', 'Staff accounts (Admin and above) cannot be moderated — only the Owner / Co-Founder may manage them.');
       t.banned = true; t.banReason = String(reason || '').trim() || 'Banned by an administrator.'; t.timeoutUntil = null; t.updatedAt = now();
       store.put('users', t);
       all('sessions').filter(s => s.userId === t.id).forEach(s => store.del('sessions', s.id));
@@ -1076,7 +1107,7 @@
       const r = requireAdmin(actor); if (r) return r;
       const t = dbUser(targetId);
       if (!t) return fail('notfound', 'User not found.');
-      if (t.role === 'admin') return fail('adminProtected', 'Admins cannot be moderated. Admin accounts are protected from bans and timeouts.');
+      if (isStaff(t)) return fail('adminProtected', 'Staff accounts (Admin and above) cannot be moderated — only the Owner / Co-Founder may manage them.');
       minutes = Math.max(1, Math.min(10080, Number(minutes) || 30));
       t.timeoutUntil = now() + minutes * 6e4;
       t.banned = false;
@@ -1099,9 +1130,28 @@
       const t = dbUser(targetId);
       if (!t) return fail('notfound', 'User not found.');
       if (t.id === actor.id) return fail('self', 'You cannot change your own role.');
-      if (t.role === 'admin') return fail('adminProtected', 'Admins are protected — you cannot change another admin\u2019s role.');
-      if (!ROLES.includes(String(role || ''))) return fail('invalid', 'Invalid role.');
+      role = String(role || '');
+      if (!ROLES.includes(role)) return fail('invalid', 'Invalid role.');
+      const actorRank = roleRank(actor.role);
+      if (actorRank < roleRank('cofounder')) {
+        /* Plain Admins can grant Member / VIP only, and cannot touch staff. */
+        if (roleRank(role) >= roleRank('admin')) return fail('adminProtected', 'Admins cannot grant the Admin role or higher — only the Owner / Co-Founder can.');
+        if (isStaff(t)) return fail('adminProtected', 'Staff accounts are protected — only the Owner / Co-Founder can change their roles.');
+      }
       t.role = role; t.updatedAt = now();
+      store.put('users', t);
+      flush();
+      return ok(true);
+    }
+    async function adminSetTags(actor, targetId, tags) {
+      const r = requireAdmin(actor); if (r) return r;
+      const t = dbUser(targetId);
+      if (!t) return fail('notfound', 'User not found.');
+      if (roleRank(actor.role) < roleRank('cofounder') && (isStaff(t) || t.id === actor.id)) return fail('adminProtected', 'Only the Owner / Co-Founder can edit staff accounts or their own tags.');
+      const list = Array.isArray(tags) ? tags.map(x => String(x || '').trim()) : [];
+      if (list.some(x => x.length > 24)) return fail('invalid', 'Tags must be 24 characters or fewer.');
+      saveTags(t, list);
+      t.updatedAt = now();
       store.put('users', t);
       flush();
       return ok(true);
@@ -1118,6 +1168,7 @@
     }
 
     seedContent();
+    ensureOwnerAccount();
 
     return {
       register, login, verify2fa, requestReset, resetPassword, logout, me,
@@ -1130,10 +1181,10 @@
       licenseActivate, licenseHeartbeat, creatorDashboard, creatorLicenses, setLicenseStatus, revokeDevice,
       publicProfile, content, createPortfolio, updatePortfolio, deletePortfolio,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
-      adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSessions, adminEmails, adminOrders, adminCompleteOrder,
+      adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSessions, adminEmails, adminOrders, adminCompleteOrder,
       setFx,
     };
   }
 
-  return { createEngine, totpCode, COUNTRY_CURRENCY, FX_FALLBACK, CURRENCY_SYMBOL, currencyOf: c => COUNTRY_CURRENCY[String(c || '').toUpperCase()] || 'USD' };
+  return { createEngine, totpCode, COUNTRY_CURRENCY, FX_FALLBACK, CURRENCY_SYMBOL, currencyOf: c => COUNTRY_CURRENCY[String(c || '').toUpperCase()] || 'USD', ROLES, ROLE_LABEL };
 });
