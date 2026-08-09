@@ -632,6 +632,12 @@ body::before{content:"";position:fixed;inset:-40%;z-index:0;pointer-events:none;
 .lk.itch:hover{color:#FA5C5C;background:rgba(250,92,92,.15)}
 .lk.gumroad:hover{color:#FF90E8;background:rgba(255,144,232,.15)}
 .lk.link:hover{color:var(--gold);background:rgba(212,175,55,.13)}
+.pf-img-preview{position:relative;height:104px;margin-top:8px;border:1px solid var(--border-strong);border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:repeating-linear-gradient(45deg,rgba(255,255,255,.015),rgba(255,255,255,.015) 8px,rgba(255,255,255,0) 8px,rgba(255,255,255,0) 16px);color:var(--text-3);font-size:12.5px}
+.pf-img-preview img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none}
+.pf-img-preview img.show{display:block}
+.pf-img-preview .ph{display:inline-flex;align-items:center;gap:7px;padding:0 12px;text-align:center}
+.pf-img-preview.err{border-color:rgba(229,72,77,.45)}
+.pf-img-preview.err .ph{color:#ff8f94}
 .pf-link-row{display:flex;gap:8px;align-items:center}
 .pf-link-row .input{flex:1}
 .pf-link-icon{width:36px;height:36px;flex-shrink:0;border-radius:9px;border:1px solid var(--border-strong);display:inline-flex;align-items:center;justify-content:center;color:var(--gold);background:rgba(255,255,255,.02)}
@@ -723,6 +729,7 @@ const ICON = {
   heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.5S3.5 15.4 3.5 9.6A4.6 4.6 0 0 1 12 7a4.6 4.6 0 0 1 8.5 2.6c0 5.8-8.5 10.9-8.5 10.9Z"/></svg>',
   chart: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/></svg>',
   zap: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H13L13 2Z"/></svg>',
+  image: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 18 5-5 3 3 4-4 4 4"/></svg>',
   discord: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.6 5.4A17 17 0 0 0 15.2 4l-.6 1.2a13.7 13.7 0 0 1 4.3 1.6 12 12 0 0 0-13.8 0A13.7 13.7 0 0 1 9.4 5.2L8.8 4a17 17 0 0 0-4.4 1.4A17.6 17.6 0 0 0 1.2 18a17 17 0 0 0 5.2 2.6l1-1.7a11 11 0 0 1-1.8-.9l.4-.3a12.2 12.2 0 0 0 10.2 0l.4.3c-.6.4-1.2.7-1.8.9l1 1.7A17 17 0 0 0 21 18a17.6 17.6 0 0 0-1.4-12.6ZM8.7 15.3c-1 0-1.9-.9-1.9-2s.8-2 1.9-2 1.9.9 1.9 2-.9 2-1.9 2Zm6.6 0c-1 0-1.9-.9-1.9-2s.8-2 1.9-2 1.9.9 1.9 2-.9 2-1.9 2Z"/></svg>',
   youtube: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.6 7.2a2.5 2.5 0 0 0-1.8-1.8C18.2 5 12 5 12 5s-6.2 0-7.8.4A2.5 2.5 0 0 0 2.4 7.2 26.4 26.4 0 0 0 2 12a26.4 26.4 0 0 0 .4 4.8 2.5 2.5 0 0 0 1.8 1.8C5.8 19 12 19 12 19s6.2 0 7.8-.4a2.5 2.5 0 0 0 1.8-1.8A26.4 26.4 0 0 0 22 12a26.4 26.4 0 0 0-.4-4.8ZM10 15.2V8.8L15.4 12 10 15.2Z"/></svg>',
   twitch: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4.3 1 1 6.4v16h5.2v2.8h3.3l2.9-2.8h4.4l6.9-6.9V1H4.3Zm15.8 13.7-3.6 3.6h-4.9l-2.9 2.9v-2.9H4.9V3.4h15.2v11.3Zm-3.3-8.5v6.4h-2V6.2h2Zm-4.8 0v6.4h-2V6.2h2Z"/></svg>',
@@ -3335,7 +3342,9 @@ function openPortfolioEditor(id) {
       <div class="field"><label>Description<span class="req">*</span></label><textarea class="textarea" id="pf-desc" placeholder="Describe the project — what it is, what you built, what makes it special…" required>${esc(item ? item.desc : '')}</textarea></div>
       <div class="row" style="align-items:flex-start;gap:12px">
         <div class="field" style="flex:1;min-width:140px"><label>Stat / metric</label><input class="input" id="pf-stat" placeholder="e.g. 1.2M visits" value="${esc(item ? (item.stat || '') : '')}"></div>
-        <div class="field" style="flex:1;min-width:180px"><label>Cover image link</label><input class="input" id="pf-img" type="url" placeholder="https://i.imgur.com/…" value="${esc(item ? (item.imageUrl || '') : '')}"><div class="hint">Optional — a direct image URL for the banner.</div></div>
+        <div class="field" style="flex:1;min-width:180px"><label>Cover image link</label><input class="input" id="pf-img" type="url" placeholder="https://i.imgur.com/…" value="${esc(item ? (item.imageUrl || '') : '')}">
+          <div class="pf-img-preview" id="pf-img-preview"><img alt="Cover preview" draggable="false"><span class="ph">${ICON.image} No cover yet</span></div>
+          <div class="hint">Optional — a direct image URL for the banner. Preview updates as you type.</div></div>
       </div>
       <div class="field"><label>Links <span class="muted small" style="font-weight:400">— auto-detected: Discord, YouTube, Twitch, X, Roblox, MediaFire, GitHub, Spotify, Telegram, Drive…</span></label>
         <div id="pf-links" style="display:flex;flex-direction:column;gap:8px"></div>
@@ -3360,6 +3369,29 @@ function openPortfolioEditor(id) {
   (item && item.links || []).forEach(l => addPfLinkRow(box, l.url));
   if (!box.childElementCount) addPfLinkRow(box, '');
   ov.querySelector('#pf-add-link').onclick = () => addPfLinkRow(box, '');
+  /* live cover-image preview */
+  const imgInput = ov.querySelector('#pf-img');
+  const imgPrev = ov.querySelector('#pf-img-preview');
+  const imgEl = imgPrev.querySelector('img');
+  const phEl = imgPrev.querySelector('.ph');
+  function refreshImgPreview() {
+    const v = imgInput.value.trim();
+    if (/^https?:\/\//i.test(v)) {
+      imgEl.src = v;
+      imgEl.classList.add('show');
+      imgPrev.classList.add('has');
+      phEl.textContent = 'Loading preview…';
+    } else {
+      imgEl.removeAttribute('src');
+      imgEl.classList.remove('show');
+      imgPrev.classList.remove('has', 'err');
+      phEl.innerHTML = `${ICON.image} No cover yet`;
+    }
+  }
+  imgEl.onload = () => { imgPrev.classList.remove('err'); phEl.textContent = 'Loading preview…'; };
+  imgEl.onerror = () => { imgEl.classList.remove('show'); imgPrev.classList.add('err'); phEl.innerHTML = `${ICON.x} Could not load that image`; };
+  imgInput.addEventListener('input', refreshImgPreview);
+  refreshImgPreview();
 }
 function addPfLinkRow(box, url) {
   const row = document.createElement('div');
