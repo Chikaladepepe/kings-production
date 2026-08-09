@@ -36,7 +36,7 @@ const SCHEMA = {
   reports: ['id', 'reporterId', 'targetType', 'targetId', 'reason', 'details', 'status', 'resolvedBy', 'resolvedAt', 'createdAt'],
   tokens: ['id', 'userId', 'token', 'purpose', 'expiresAt', 'used', 'createdAt'],
   emails: ['id', 'to', 'subject', 'action', 'body', 'link', 'createdAt', 'read'],
-  portfolio: ['id', 'title', 'category', 'desc', 'stat', 'status'],
+  portfolio: ['id', 'title', 'category', 'desc', 'stat', 'status', 'imageUrl', 'links', 'createdAt'],
   creators: ['id', 'name', 'role', 'bio'],
   orders: ['id', 'buyerId', 'assetId', 'method', 'amount', 'currency', 'status', 'providerRef', 'licenseKey', 'createdAt', 'paidAt', 'updatedAt'],
 };
@@ -98,7 +98,8 @@ CREATE TABLE IF NOT EXISTS emails (
   body TEXT, link TEXT, createdAt INTEGER NOT NULL, "read" INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS portfolio (
-  id TEXT PRIMARY KEY, title TEXT NOT NULL, category TEXT, "desc" TEXT, stat TEXT, status TEXT
+  id TEXT PRIMARY KEY, title TEXT NOT NULL, category TEXT, "desc" TEXT, stat TEXT, status TEXT,
+  imageUrl TEXT, links TEXT, createdAt INTEGER
 );
 CREATE TABLE IF NOT EXISTS creators (
   id TEXT PRIMARY KEY, name TEXT NOT NULL, role TEXT, bio TEXT
@@ -177,6 +178,9 @@ const MIGRATIONS = [
   "ALTER TABLE purchases ADD COLUMN deviceId TEXT",
   "ALTER TABLE purchases ADD COLUMN deviceName TEXT",
   "ALTER TABLE purchases ADD COLUMN lastSeen INTEGER",
+  "ALTER TABLE portfolio ADD COLUMN imageUrl TEXT",
+  "ALTER TABLE portfolio ADD COLUMN links TEXT",
+  "ALTER TABLE portfolio ADD COLUMN createdAt INTEGER",
 ];
 function runMigrations(db) {
   for (const sql of MIGRATIONS) {

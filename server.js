@@ -442,6 +442,10 @@ async function main() {
   app.post('/api/admin/reports/:id/resolve', admin(async (u, req) => engine.adminResolveReport(u, req.params.id)));
   app.get('/api/admin/orders', admin(async u => engine.adminOrders(u)));
   app.post('/api/admin/orders/:id/complete', admin(async (u, req) => engine.adminCompleteOrder(u, req.params.id)));
+  /* ---- portfolio is admin-published showcase content ---- */
+  app.post('/api/site/portfolio', admin(async (u, req) => engine.createPortfolio(u, req.body || {})));
+  app.patch('/api/site/portfolio/:id', admin(async (u, req) => engine.updatePortfolio(u, req.params.id, req.body || {})));
+  app.delete('/api/site/portfolio/:id', admin(async (u, req) => engine.deletePortfolio(u, req.params.id)));
 
   /* ---- the app (single-file SPA) ---- */
   app.get('/', (req, res) => res.sendFile(path.join(ROOT, 'index.html')));

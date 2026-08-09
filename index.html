@@ -214,7 +214,7 @@ main{flex:1;width:100%}
 
 /* modal */
 .modal-overlay{position:fixed;inset:0;z-index:110;background:rgba(6,6,8,.66);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .2s}
-.modal{width:100%;max-width:470px;background:var(--surface);border:1px solid var(--border-strong);border-radius:16px;box-shadow:var(--shadow-2);padding:26px;animation:popIn .24s cubic-bezier(.2,.8,.3,1)}
+.modal{width:100%;max-width:470px;background:var(--surface);border:1px solid var(--border-strong);border-radius:16px;box-shadow:var(--shadow-2);padding:26px;animation:popIn .24s cubic-bezier(.2,.8,.3,1);max-height:min(86vh,680px);overflow-y:auto}
 .modal h3{font-family:var(--font-display);font-size:19px;font-weight:700;margin-bottom:10px}
 .modal p{color:var(--text-2);font-size:14px;margin-bottom:20px}
 .modal-actions{display:flex;justify-content:flex-end;gap:10px}
@@ -603,6 +603,40 @@ body::before{content:"";position:fixed;inset:-40%;z-index:0;pointer-events:none;
 .star-btn.on{color:var(--gold)}
 .star-btn:hover{color:var(--gold)}
 
+/* ---- portfolio cards + smart links ---- */
+.proj-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.project-banner .thumb-bg{position:absolute;inset:0}
+.project-tags{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.project-links{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.project-links a{width:34px;height:34px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--border-strong);background:rgba(255,255,255,.02);color:var(--text-3);transition:transform .16s,color .16s,border-color .16s,box-shadow .16s,background .16s}
+.project-links a svg{width:16px;height:16px}
+.project-links a:hover{transform:translateY(-2px) scale(1.06);border-color:transparent;box-shadow:0 8px 18px rgba(0,0,0,.45);background:rgba(255,255,255,.05)}
+.lk.discord:hover{color:#5865F2;background:rgba(88,101,242,.16)}
+.lk.youtube:hover{color:#FF0033;background:rgba(255,0,51,.13)}
+.lk.twitch:hover{color:#9146FF;background:rgba(145,70,255,.15)}
+.lk.x:hover{color:#1DA1F2;background:rgba(29,161,242,.14)}
+.lk.roblox:hover{color:#00A2FF;background:rgba(0,162,255,.14)}
+.lk.mediafire:hover{color:#1299F3;background:rgba(18,153,243,.14)}
+.lk.github:hover{color:#C9D1D9;background:rgba(255,255,255,.1)}
+.lk.instagram:hover{color:#E4405F;background:rgba(228,64,95,.15)}
+.lk.tiktok:hover{color:#69C9D0;background:rgba(105,201,208,.14)}
+.lk.spotify:hover{color:#1DB954;background:rgba(29,185,84,.15)}
+.lk.soundcloud:hover{color:#FF5500;background:rgba(255,85,0,.14)}
+.lk.patreon:hover{color:#FF424D;background:rgba(255,66,77,.15)}
+.lk.kick:hover{color:#53FC18;background:rgba(83,252,24,.13)}
+.lk.telegram:hover{color:#26A5E4;background:rgba(38,165,228,.15)}
+.lk.drive:hover{color:#4285F4;background:rgba(66,133,244,.15)}
+.lk.dropbox:hover{color:#0061FF;background:rgba(0,97,255,.15)}
+.lk.mega:hover{color:#D9272E;background:rgba(217,39,46,.15)}
+.lk.steam:hover{color:#66C0F4;background:rgba(102,192,244,.14)}
+.lk.itch:hover{color:#FA5C5C;background:rgba(250,92,92,.15)}
+.lk.gumroad:hover{color:#FF90E8;background:rgba(255,144,232,.15)}
+.lk.link:hover{color:var(--gold);background:rgba(212,175,55,.13)}
+.pf-link-row{display:flex;gap:8px;align-items:center}
+.pf-link-row .input{flex:1}
+.pf-link-icon{width:36px;height:36px;flex-shrink:0;border-radius:9px;border:1px solid var(--border-strong);display:inline-flex;align-items:center;justify-content:center;color:var(--gold);background:rgba(255,255,255,.02)}
+.pf-link-icon svg{width:17px;height:17px}
+
 </style>
 </head>
 <body>
@@ -690,12 +724,70 @@ const ICON = {
   chart: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/></svg>',
   zap: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H13L13 2Z"/></svg>',
   discord: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.6 5.4A17 17 0 0 0 15.2 4l-.6 1.2a13.7 13.7 0 0 1 4.3 1.6 12 12 0 0 0-13.8 0A13.7 13.7 0 0 1 9.4 5.2L8.8 4a17 17 0 0 0-4.4 1.4A17.6 17.6 0 0 0 1.2 18a17 17 0 0 0 5.2 2.6l1-1.7a11 11 0 0 1-1.8-.9l.4-.3a12.2 12.2 0 0 0 10.2 0l.4.3c-.6.4-1.2.7-1.8.9l1 1.7A17 17 0 0 0 21 18a17.6 17.6 0 0 0-1.4-12.6ZM8.7 15.3c-1 0-1.9-.9-1.9-2s.8-2 1.9-2 1.9.9 1.9 2-.9 2-1.9 2Zm6.6 0c-1 0-1.9-.9-1.9-2s.8-2 1.9-2 1.9.9 1.9 2-.9 2-1.9 2Z"/></svg>',
-  youtube: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.6 7.2a2.5 2.5 0 0 0-1.8-1.8C18.2 5 12 5 12 5s-6.2 0-7.8.4A2.5 2.5 0 0 0 2.4 7.2 26.4 26.4 0 0 0 2 12a26.4 26.4 0 0 0 .4 4.8 2.5 2.5 0 0 0 1.8 1.8C5.8 19 12 19 12 19s6.2 0 7.8-.4a2.5 2.5 0 0 0 1.8-1.8A26.4 26.4 0 0 0 22 12a26.4 26.4 0 0 0-.4-4.8ZM10 15.2V8.8L15.4 12 10 15.2Z"/></svg>'
+  youtube: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.6 7.2a2.5 2.5 0 0 0-1.8-1.8C18.2 5 12 5 12 5s-6.2 0-7.8.4A2.5 2.5 0 0 0 2.4 7.2 26.4 26.4 0 0 0 2 12a26.4 26.4 0 0 0 .4 4.8 2.5 2.5 0 0 0 1.8 1.8C5.8 19 12 19 12 19s6.2 0 7.8-.4a2.5 2.5 0 0 0 1.8-1.8A26.4 26.4 0 0 0 22 12a26.4 26.4 0 0 0-.4-4.8ZM10 15.2V8.8L15.4 12 10 15.2Z"/></svg>',
+  twitch: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4.3 1 1 6.4v16h5.2v2.8h3.3l2.9-2.8h4.4l6.9-6.9V1H4.3Zm15.8 13.7-3.6 3.6h-4.9l-2.9 2.9v-2.9H4.9V3.4h15.2v11.3Zm-3.3-8.5v6.4h-2V6.2h2Zm-4.8 0v6.4h-2V6.2h2Z"/></svg>',
+  github: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.7.5.5 5.7.5 12c0 5.1 3.3 9.4 7.9 10.9.6.1.8-.2.8-.6v-2c-3.2.7-3.9-1.4-3.9-1.4-.5-1.3-1.3-1.7-1.3-1.7-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.7 1.3 3.4 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.4-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.2 1.2a11 11 0 0 1 5.8 0C17.3 4.7 18.3 5 18.3 5c.6 1.6.2 2.8.1 3.1.7.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.2c0 .3.2.7.8.6 4.6-1.5 7.9-5.8 7.9-10.9C23.5 5.7 18.3.5 12 .5Z"/></svg>',
+  x: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.9 1.2h3.7l-8.1 9.3L24 22.8h-7.5l-5.9-7.7-6.7 7.7H.2l8.7-9.9L0 1.2h7.7l5.3 7 6.1-7Z"/></svg>',
+  instagram: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5.2"/><circle cx="12" cy="12" r="4.4"/><circle cx="17.4" cy="6.6" r="1.15" fill="currentColor" stroke="none"/></svg>',
+  tiktok: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.6 3c.4 2.1 1.7 3.5 3.9 3.7v2.9c-1.4 0-2.7-.5-3.9-1.3v6.2a6.2 6.2 0 1 1-6.2-6.2c.3 0 .7 0 1 .1v3a3.2 3.2 0 1 0 2.2 3V3h3Z"/></svg>',
+  spotify: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1a11 11 0 1 0 0 22 11 11 0 0 0 0-22Zm5.1 15.9a.8.8 0 0 1-1.1.3c-3-1.9-6.9-2.3-11.4-1.2a.8.8 0 1 1-.4-1.6c4.8-1.2 9.1-.7 12.4 1.4a.8.8 0 0 1 .3 1.1Zm1.4-3a1 1 0 0 1-1.4.3c-3.5-2.1-8.8-2.8-12.9-1.5a1 1 0 1 1-.6-1.9c4.6-1.4 10.5-.6 14.5 1.8a1 1 0 0 1 .3 1.4Zm.1-3.1C14.8 9.6 9 9.5 5 10.8a1.2 1.2 0 1 1-.7-2.2C8.7 7.1 15 7.3 19.4 9.8a1.2 1.2 0 1 1-1.2 2Z"/></svg>',
+  soundcloud: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.5 13.4c.2 0 .4-.2.4-.4v-3c0-.2-.2-.4-.4-.4s-.4.2-.4.4v3c0 .2.2.4.4.4Zm2.6 1.4c.2 0 .4-.2.4-.4V9.4c0-.2-.2-.4-.4-.4s-.4.2-.4.4v5c0 .2.2.4.4.4ZM8.7 16c.2 0 .4-.2.4-.4V8.7c0-.2-.2-.4-.4-.4s-.4.2-.4.4v6.9c0 .2.2.4.4.4Zm2.6-2.7c.2 0 .4-.2.4-.4V8.5c0-.2-.2-.4-.4-.4s-.4.2-.4.4v4.4c0 .2.2.4.4.4Zm2.6-2.2v-1.9c0-.2-.2-.4-.4-.4s-.4.2-.4.4v6.8c0 .2.2.4.4.4s.4-.2.4-.4v-1.1c2.3.1 4.2 1.5 4.2 3.6 0 1.2-.8 2.1-2 2.1h-2.6c-.5 0-.9-.4-.9-.9v-9c0-.5.4-.9.9-.9.5 0 .9.4.9.9v2.3c0 .2.2.4.4.4.2 0 .5-.2.5-.4Z" transform="translate(1.5 1.5)"/></svg>',
+  patreon: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14.8 5.6a7 7 0 1 1 0 14 7 7 0 0 1 0-14ZM3 2h3.3v20H3V2Z"/></svg>',
+  telegram: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.9 2.3 2.4 10.2c-1 .4-1 1.5 0 1.9l4.8 1.5 1.8 5.6c.3 1 1.5 1.2 2.1.5l2.6-2.7 4.9 3.6c.8.6 2 .2 2.2-.9l3.4-16c.2-1.2-.9-2.1-2.1-1.9ZM8.5 13.4l9.6-6.2c.4-.3.9.3.5.7l-7.5 6.9-.3 3.1-2.3-4.5Z"/></svg>',
+  drive: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.2 2.8 2.8 13.6l4.4 7.6h9.6l4.4-7.6L14.8 2.8H9.2Z"/><path d="m2.8 13.6 6.4.8 4.6-7.4M12 14.4l4.4 6.8M14.8 2.8l1.9 8.4 4.5.4"/></svg>',
+  dropbox: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 3 1.5 6 6 9l4.5-3L6 3Zm12 0-4.5 3L18 9l4.5-3L18 3ZM1.5 12 6 15l4.5-3L6 9l-4.5 3Zm12 0 4.5 3 4.5-3-4.5-3-4.5 3ZM6 16.5 10.5 13.5 12 14.6l-1.5 1.4L12 17.4l-6 0Z"/></svg>',
+  mega: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 1 22 6v12l-10 5L2 18V6l10-5Z"/><path d="m6 9 2.2 8L12 13l3.8 4L18 9"/></svg>',
+  steam: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1a11 11 0 1 0 0 22 11 11 0 0 0 0-22Zm-8.6 14.6 2.6 1.1a3 3 0 0 0 1.2 2.4 3 3 0 0 0 2.7.4 3 3 0 0 0 2-3.3l2.9.9a1.6 1.6 0 0 0 1-3.1l-4.6-1.5A3.9 3.9 0 0 0 12.4 7 3.6 3.6 0 0 0 8.8 10.6L5.3 8.9a1.4 1.4 0 1 0-.6 2.8 1.2 1.2 0 0 1 .3 2.4 3.4 3.4 0 0 1-.9.5h-.4c-.5-.2-1-.5-1.3-1Zm4.5-1.1a2 2 0 1 1 4 0 2 2 0 0 1-4 0Z"/></svg>',
+  itch: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M2 7.5 4 5h16l2 2.5a2.5 2.5 0 0 1-2.5 3 2.3 2.3 0 0 1-2-1.1 2.5 2.5 0 0 1-4.5 0 2.5 2.5 0 0 1-4.5 0A2.3 2.3 0 0 1 4.5 10.5 2.5 2.5 0 0 1 2 7.5Zm2.2 6.6V19h15.6v-4.9a4.8 4.8 0 0 1-3.9 2 4.7 4.7 0 0 1-3.9-2 4.7 4.7 0 0 1-3.9 2 4.8 4.8 0 0 1-3.9-2Z"/></svg>',
+  roblox: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="3.5"/><path d="M7 7l4 10h6M7 17h4.5"/></svg>',
+  mediafire: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.8a6.8 6.8 0 0 1 6.6 5.1 5.4 5.4 0 0 1-.8 10.7H6.4a5.1 5.1 0 0 1-.7-10.2A6.8 6.8 0 0 1 12 2.8Z"/><path d="M12 9.5v6m0-6-2.6 2.6M12 9.5l2.6 2.6"/></svg>',
+  kick: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 2h4.4v6.6h2.1V2H15v6.6h2.1V2H20a2 2 0 0 1 2 2v2.2h-2.9v2.1H22V12h-2.9v2.1H22v2.2h-2.9v2.1H22V20a2 2 0 0 1-2 2h-2.9v-6.6H15V22h-4.5v-6.6H8.4V22H4V2Z" transform="scale(.85) translate(2 1.5)"/></svg>',
+  gumroad: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M16.5 7.2c-1.2-.9-2.6-1.3-4.1-1.2-3.2.1-5.4 2.2-5.4 5.5 0 3.2 2.3 5.4 5.5 5.4 1.6 0 3-.5 4-1.4M16.5 7.2V4.9h.1M16.5 7.2H12"/></svg>',
+  link: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5"/></svg>'
 };
 const CATEGORIES = ['animation', 'model', 'plugin', 'system'];
 const CAT_LABEL = { animation: 'Animation', model: 'Model', plugin: 'Plugin', system: 'System' };
 const CAT_ICON = { animation: ICON.anim, model: ICON.model, plugin: ICON.plugin, system: ICON.system };
 const CAT_THUMB = { animation: 'thumb-anim', model: 'thumb-model', plugin: 'thumb-plugin', system: 'thumb-system' };
+
+/* ---- smart link detection: every known site becomes its brand icon ---- */
+const LINK_TYPES = [
+  { id: 'discord', hosts: ['discord.gg', 'discord.com', 'discordapp.com'], re: /discord\.gg/i, label: 'Discord', color: '#5865F2' },
+  { id: 'youtube', hosts: ['youtube.com', 'youtu.be', 'youtube-nocookie.com'], re: /youtu\.be/i, label: 'YouTube', color: '#FF0033' },
+  { id: 'twitch', hosts: ['twitch.tv'], label: 'Twitch', color: '#9146FF' },
+  { id: 'x', hosts: ['twitter.com', 'x.com'], label: 'X (Twitter)', color: '#1DA1F2' },
+  { id: 'roblox', hosts: ['roblox.com'], re: /rbx\.link/i, label: 'Roblox', color: '#00A2FF' },
+  { id: 'mediafire', hosts: ['mediafire.com'], label: 'MediaFire', color: '#1299F3' },
+  { id: 'github', hosts: ['github.com'], label: 'GitHub', color: '#C9D1D9' },
+  { id: 'instagram', hosts: ['instagram.com'], label: 'Instagram', color: '#E4405F' },
+  { id: 'tiktok', hosts: ['tiktok.com'], label: 'TikTok', color: '#69C9D0' },
+  { id: 'spotify', hosts: ['spotify.com', 'spotify.link'], label: 'Spotify', color: '#1DB954' },
+  { id: 'soundcloud', hosts: ['soundcloud.com'], label: 'SoundCloud', color: '#FF5500' },
+  { id: 'patreon', hosts: ['patreon.com'], label: 'Patreon', color: '#FF424D' },
+  { id: 'kick', hosts: ['kick.com'], label: 'Kick', color: '#53FC18' },
+  { id: 'telegram', hosts: ['t.me', 'telegram.me', 'telegram.org'], label: 'Telegram', color: '#26A5E4' },
+  { id: 'drive', hosts: ['drive.google.com', 'docs.google.com'], label: 'Google Drive', color: '#4285F4' },
+  { id: 'dropbox', hosts: ['dropbox.com', 'db.tt'], label: 'Dropbox', color: '#0061FF' },
+  { id: 'mega', hosts: ['mega.nz'], label: 'MEGA', color: '#D9272E' },
+  { id: 'steam', hosts: ['steampowered.com', 'steamcommunity.com'], label: 'Steam', color: '#66C0F4' },
+  { id: 'itch', hosts: ['itch.io'], label: 'itch.io', color: '#FA5C5C' },
+  { id: 'gumroad', hosts: ['gumroad.com'], label: 'Gumroad', color: '#FF90E8' },
+  { id: 'link', hosts: [], label: 'External link', color: null },
+];
+function detectLink(url) {
+  const u = String(url || '').trim();
+  let host = u.toLowerCase();
+  try { host = new URL(u).hostname.replace(/^www\./, '').toLowerCase(); } catch (e) { /* not a URL — match on the raw string */ }
+  for (const t of LINK_TYPES) {
+    if (t.hosts.some(h => host === h || host.endsWith('.' + h))) return t;
+    if (t.re && t.re.test(u)) return t;
+  }
+  return LINK_TYPES[LINK_TYPES.length - 1];
+}
+function linkIconHtml(link) {
+  const t = detectLink(link && link.url);
+  return `<a class="lk ${t.id}" href="${esc(link.url)}" target="_blank" rel="noopener" title="${esc(t.label)}">${ICON[t.id] || ICON.link}</a>`;
+}
 
 /* ---- IndexedDB file store (uploads may exceed localStorage quota) ---- */
 function idbOpen() {
@@ -886,16 +978,10 @@ const API = {};
   const okHandle = h => /^[a-zA-Z0-9_]{3,20}$/.test(h || '');
   const okEmail = e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e || '');
 
-  /* ---- studio content (portfolio + creators are content rows, NOT accounts) ---- */
+  /* ---- studio content (creators are content rows, NOT accounts) ----
+     The portfolio is admin-published (see createPortfolio below) and starts
+     empty — legacy seeded demo rows are removed on boot. */
   const CONTENT = {
-    portfolio: [
-      { id: 'pp1', title: 'Kingdom Realms', category: 'Game Experience', desc: 'A medieval RPG with custom combat systems, a questing framework, and a living player economy.', stat: '1.2M visits', status: 'Live' },
-      { id: 'pp2', title: 'Neon Drift', category: 'Racing', desc: 'High-speed arcade racing built on our drift controller, with neon night circuits and time trials.', stat: '860K visits', status: 'Live' },
-      { id: 'pp3', title: 'Shadow Vault', category: 'Horror', desc: 'A co-op horror escape with dynamic lighting, proximity audio, and procedurally placed vaults.', stat: '640K visits', status: 'Live' },
-      { id: 'pp4', title: 'Pixel Harvest', category: 'Farming', desc: 'A cozy farming simulation with seasons, crops, automation, and a trading marketplace.', stat: '510K visits', status: 'Live' },
-      { id: 'pp5', title: 'Arsenal Zero', category: 'FPS Framework', desc: 'A modular FPS framework — loadouts, hit registration, and networking — shipped to 40+ experiences.', stat: '320K installs', status: 'Framework' },
-      { id: 'pp6', title: 'Lumen Isles', category: 'Adventure', desc: 'An open-world adventure with custom terrain generation and a traversal system in active development.', stat: '280K visits', status: 'Beta' }
-    ],
     creators: [
       { id: 'cr1', name: 'King', role: 'Founder · Lead Developer', bio: 'Builds the systems that hold the studio together and ships the frameworks you see in the shop.' },
       { id: 'cr2', name: 'Chika', role: 'UI / UX Designer', bio: 'Designs interfaces players actually enjoy. Behind the Chika UI Library and every shop front.' },
@@ -948,8 +1034,10 @@ const API = {};
     }
 
     function seedContent() {
-      if (all('portfolio').length) return;
-      CONTENT.portfolio.forEach(r => store.put('portfolio', r));
+      /* Clear the legacy seeded portfolio rows so the page starts empty and is
+         fully admin-published from here on. */
+      ['pp1', 'pp2', 'pp3', 'pp4', 'pp5', 'pp6'].forEach(id => { if (byIdIn('portfolio', id)) store.del('portfolio', id); });
+      if (all('creators').length) return;
       CONTENT.creators.forEach(r => store.put('creators', r));
       flush();
     }
@@ -1716,7 +1804,66 @@ const API = {};
       return ok({ user: publicUser(u), assetCount: all('assets').filter(a => a.ownerId === u.id && a.status === 'approved').length, assets, purchases, comments });
     }
     async function content() {
-      return ok({ portfolio: all('portfolio').slice().sort((a, b) => a.id < b.id ? -1 : 1), creators: all('creators').slice().sort((a, b) => a.id < b.id ? -1 : 1) });
+      const parseLinks = it => { try { const l = JSON.parse(it.links || '[]'); return Array.isArray(l) ? l : []; } catch (e) { return []; } };
+      const portfolio = all('portfolio').slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).map(it => ({ ...it, links: parseLinks(it) }));
+      return ok({ portfolio, creators: all('creators').slice().sort((a, b) => a.id < b.id ? -1 : 1) });
+    }
+
+    /* ============ PORTFOLIO (admin-published showcase) ============ */
+    function cleanPortfolioLinks(links) {
+      if (!Array.isArray(links)) return [];
+      return links.map(l => ({ url: String((l && l.url) || '').trim() })).filter(l => /^https?:\/\//i.test(l.url)).slice(0, 12).map(l => ({ url: l.url.slice(0, 500) }));
+    }
+    async function createPortfolio(actor, { title, category, desc, stat, status, imageUrl, links } = {}) {
+      const r = requireAdmin(actor); if (r) return r;
+      title = String(title || '').trim();
+      desc = String(desc || '').trim();
+      if (title.length < 3 || title.length > 80) return fail('invalid', 'Project title must be 3–80 characters.');
+      if (desc.length < 10) return fail('invalid', 'A description is required (at least 10 characters).');
+      const img = normalizeImageUrl(imageUrl);
+      const item = {
+        id: 'pp' + uid(), title, category: String(category || '').trim().slice(0, 40),
+        desc, stat: String(stat || '').trim().slice(0, 60), status: String(status || 'Live').trim().slice(0, 24),
+        imageUrl: img, links: JSON.stringify(cleanPortfolioLinks(links)), createdAt: now(),
+      };
+      store.put('portfolio', item);
+      flush();
+      return ok({ id: item.id });
+    }
+    async function updatePortfolio(actor, id, patch = {}) {
+      const r = requireAdmin(actor); if (r) return r;
+      const it = byIdIn('portfolio', id);
+      if (!it) return fail('notfound', 'Project not found.');
+      if (patch.title !== undefined) {
+        const t = String(patch.title || '').trim();
+        if (t.length < 3 || t.length > 80) return fail('invalid', 'Project title must be 3–80 characters.');
+        it.title = t;
+      }
+      if (patch.desc !== undefined) {
+        const d = String(patch.desc || '').trim();
+        if (d.length < 10) return fail('invalid', 'A description is required (at least 10 characters).');
+        it.desc = d;
+      }
+      if (patch.category !== undefined) it.category = String(patch.category || '').trim().slice(0, 40);
+      if (patch.stat !== undefined) it.stat = String(patch.stat || '').trim().slice(0, 60);
+      if (patch.status !== undefined) it.status = String(patch.status || 'Live').trim().slice(0, 24);
+      if (patch.imageUrl !== undefined) {
+        const img = normalizeImageUrl(patch.imageUrl);
+        if (img === null && String(patch.imageUrl || '').trim()) return fail('invalid', 'Image link must be a valid http(s) URL.');
+        it.imageUrl = img;
+      }
+      if (patch.links !== undefined) it.links = JSON.stringify(cleanPortfolioLinks(patch.links));
+      store.put('portfolio', it);
+      flush();
+      return ok(true);
+    }
+    async function deletePortfolio(actor, id) {
+      const r = requireAdmin(actor); if (r) return r;
+      const it = byIdIn('portfolio', id);
+      if (!it) return fail('notfound', 'Project not found.');
+      store.del('portfolio', id);
+      flush();
+      return ok(true);
     }
 
     /* ============ ADMIN ============ */
@@ -1851,7 +1998,7 @@ const API = {};
       listReviews, addReview, deleteReview,
       createReport, adminReports, adminResolveReport,
       licenseActivate, licenseHeartbeat, creatorDashboard, creatorLicenses, setLicenseStatus, revokeDevice,
-      publicProfile, content,
+      publicProfile, content, createPortfolio, updatePortfolio, deletePortfolio,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
       adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSessions, adminEmails, adminOrders, adminCompleteOrder,
       setFx,
@@ -2019,6 +2166,9 @@ API.createReport = (user, a) => _wrap(async () => _mode === 'local' ? await _eng
 /* ---- profiles & content ---- */
 API.publicProfile = handle => _wrap(async () => _mode === 'local' ? await _engine.publicProfile(handle) : await _call('GET', '/api/profile/' + _e(handle)));
 API.content = () => _wrap(async () => _mode === 'local' ? await _engine.content() : await _call('GET', '/api/site/content'));
+API.createPortfolio = (user, a) => _wrap(async () => _mode === 'local' ? await _engine.createPortfolio(user, a) : await _call('POST', '/api/site/portfolio', a));
+API.updatePortfolio = (user, id, a) => _wrap(async () => _mode === 'local' ? await _engine.updatePortfolio(user, id, a) : await _call('PATCH', '/api/site/portfolio/' + _e(id), a));
+API.deletePortfolio = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.deletePortfolio(user, id) : await _call('DELETE', '/api/site/portfolio/' + _e(id)));
 
 /* ---- admin ---- */
 API.adminOverview = user => _wrap(async () => _mode === 'local' ? await _engine.adminOverview(user) : await _call('GET', '/api/admin/overview'));
@@ -3145,21 +3295,89 @@ function drawSalesChart(canvas) {
 /* ================= CHUNK 6: PORTFOLIO · CREATORS · LICENSE · ADMIN · BOOT ================= */
 /* ---- portfolio ---- */
 VIEWS.portfolio = async () => {
-  const rot = ['system', 'model', 'anim', 'plugin'];
   const c = await API.content();
   const list = c.ok && c.data && c.data.portfolio ? c.data.portfolio : [];
+  const isAdmin = STATE.user && STATE.user.role === 'admin';
+  STATE._pfItems = {};
+  list.forEach(p => { STATE._pfItems[p.id] = p; });
+  const cards = list.map(p => `
+    <article class="card card-hover project-card">
+      <div class="project-banner">${p.imageUrl ? `<img class="proj-img" src="${esc(p.imageUrl)}" alt="" loading="lazy" onerror="this.remove()">` : `<div class="thumb-bg thumb-default"></div><span style="position:relative">${ICON.model}</span>`}</div>
+      <div class="project-body">
+        <div class="project-tags"><span class="badge plain">${esc(p.category || 'Project')}</span><span class="badge ${p.status === 'Live' ? 'ok' : 'plain'}">${esc(p.status || 'Live')}</span></div>
+        <h3>${esc(p.title)}</h3>
+        <p>${esc(p.desc)}</p>
+        <div class="project-foot"><b>${esc(p.stat || '—')}</b></div>
+        ${p.links && p.links.length ? `<div class="project-links" aria-label="Project links">${p.links.map(l => linkIconHtml(l)).join('')}</div>` : ''}
+        ${isAdmin ? `<div class="row" style="gap:8px;margin-top:14px"><button class="btn btn-ghost btn-sm" onclick="openPortfolioEditor('${p.id}')">${ICON.edit} Edit</button><button class="btn btn-danger btn-sm" onclick="onDeletePortfolio('${p.id}')">${ICON.trash}</button></div>` : ''}
+      </div></article>`).join('');
   return `<div class="page">
-    <div class="section-head"><div><span class="section-eyebrow">Portfolio</span><h2>Our finest creations</h2><p>Premium Roblox experiences and case studies shipped by the studio.</p></div></div>
-    <div class="grid portfolio-grid">${list.map((p, i) => `
-      <article class="card card-hover project-card">
-        <div class="project-banner"><div class="thumb-bg thumb-default"></div><span style="position:relative">${ICON[rot[i % 4]]}</span></div>
-        <div class="project-body">
-          <h3>${esc(p.title)}</h3>
-          <p>${esc(p.desc)}</p>
-          <div class="project-foot"><b>${esc(p.stat)}</b><span class="badge ${p.status === 'Live' ? 'ok' : 'plain'}">${esc(p.status)}</span></div>
-        </div></article>`).join('') || emptyHtml('No projects yet', 'Portfolio items will appear here.')}</div>
+    <div class="section-head"><div><span class="section-eyebrow">Portfolio</span><h2>Our finest creations</h2><p>Premium Roblox experiences and case studies shipped by the studio${isAdmin ? ' — only admins can publish here' : ''}.</p></div>
+      ${isAdmin ? `<button class="btn btn-primary btn-sm" onclick="openPortfolioEditor()">${ICON.plus} New project</button>` : ''}</div>
+    ${list.length ? `<div class="grid portfolio-grid">${cards}</div>` : emptyHtml('The portfolio is empty', 'Projects published by the Kings Production team will appear here.')}
   </div>`;
 };
+
+/* ---- admin portfolio publishing (admin-only) ---- */
+function openPortfolioEditor(id) {
+  if (!STATE.user || STATE.user.role !== 'admin') { toast('Only admins can publish portfolio projects.', 'err'); return; }
+  const item = id ? (STATE._pfItems[id] || null) : null;
+  const isEdit = !!item;
+  const ov = modal({
+    title: isEdit ? 'Edit project' : 'Publish a new project',
+    confirmLabel: isEdit ? 'Save changes' : 'Publish project',
+    body: `<p class="muted small" style="margin:0 0 14px">Only admins can post here. Paste links and they are auto-detected into brand icons.</p>
+      <div class="field"><label>Project title<span class="req">*</span></label><input class="input" id="pf-title" maxlength="80" placeholder="e.g. Kingdom Realms" value="${esc(item ? item.title : '')}" required></div>
+      <div class="row" style="align-items:flex-start;gap:12px">
+        <div class="field" style="flex:1;min-width:160px"><label>Category</label><input class="input" id="pf-cat" list="pf-cats" placeholder="e.g. Game Experience" value="${esc(item ? (item.category || '') : '')}"><datalist id="pf-cats">${['Game Experience', 'Racing', 'Horror', 'Farming', 'FPS Framework', 'Adventure', 'Simulation', 'Obby', 'Tycoon', 'Roleplay'].map(x => `<option value="${esc(x)}">`).join('')}</datalist></div>
+        <div class="field" style="flex:1;min-width:140px"><label>Status</label><input class="input" id="pf-status" list="pf-statuses" placeholder="Live" value="${esc(item ? (item.status || '') : '')}"><datalist id="pf-statuses">${['Live', 'Beta', 'In development', 'Framework', 'Archived'].map(x => `<option value="${esc(x)}">`).join('')}</datalist></div>
+      </div>
+      <div class="field"><label>Description<span class="req">*</span></label><textarea class="textarea" id="pf-desc" placeholder="Describe the project — what it is, what you built, what makes it special…" required>${esc(item ? item.desc : '')}</textarea></div>
+      <div class="row" style="align-items:flex-start;gap:12px">
+        <div class="field" style="flex:1;min-width:140px"><label>Stat / metric</label><input class="input" id="pf-stat" placeholder="e.g. 1.2M visits" value="${esc(item ? (item.stat || '') : '')}"></div>
+        <div class="field" style="flex:1;min-width:180px"><label>Cover image link</label><input class="input" id="pf-img" type="url" placeholder="https://i.imgur.com/…" value="${esc(item ? (item.imageUrl || '') : '')}"><div class="hint">Optional — a direct image URL for the banner.</div></div>
+      </div>
+      <div class="field"><label>Links <span class="muted small" style="font-weight:400">— auto-detected: Discord, YouTube, Twitch, X, Roblox, MediaFire, GitHub, Spotify, Telegram, Drive…</span></label>
+        <div id="pf-links" style="display:flex;flex-direction:column;gap:8px"></div>
+        <button class="btn btn-ghost btn-sm" type="button" id="pf-add-link" style="margin-top:8px">${ICON.plus} Add link</button></div>`,
+    validate: async o => {
+      const title = o.querySelector('#pf-title').value.trim();
+      const desc = o.querySelector('#pf-desc').value.trim();
+      if (title.length < 3) { toast('Title must be at least 3 characters.', 'err'); return false; }
+      if (desc.length < 10) { toast('Description must be at least 10 characters.', 'err'); return false; }
+      const img = o.querySelector('#pf-img').value.trim();
+      if (img && !/^https?:\/\//i.test(img)) { toast('Cover image must be a valid http(s) URL.', 'err'); return false; }
+      const links = [...o.querySelectorAll('.pf-link-row')].map(r => ({ url: r.querySelector('input').value.trim() })).filter(l => l.url);
+      const payload = { title, category: o.querySelector('#pf-cat').value.trim(), desc, stat: o.querySelector('#pf-stat').value.trim(), status: o.querySelector('#pf-status').value.trim() || 'Live', imageUrl: img, links };
+      const res = isEdit ? await API.updatePortfolio(STATE.user, item.id, payload) : await API.createPortfolio(STATE.user, payload);
+      if (!res.ok) { toast(res.error, 'err'); return false; }
+      toast(isEdit ? 'Project updated.' : 'Project published!');
+      return true;
+    },
+    onConfirm: () => router(),
+  });
+  const box = ov.querySelector('#pf-links');
+  (item && item.links || []).forEach(l => addPfLinkRow(box, l.url));
+  if (!box.childElementCount) addPfLinkRow(box, '');
+  ov.querySelector('#pf-add-link').onclick = () => addPfLinkRow(box, '');
+}
+function addPfLinkRow(box, url) {
+  const row = document.createElement('div');
+  row.className = 'pf-link-row';
+  const t = detectLink(url || '');
+  row.innerHTML = `<input class="input" type="url" placeholder="https://…" value="${esc(url)}"><span class="pf-link-icon">${ICON[t.id] || ICON.link}</span><button class="btn btn-ghost btn-sm" type="button" title="Remove link">${ICON.x}</button>`;
+  const inp = row.querySelector('input');
+  inp.addEventListener('input', () => { const d = detectLink(inp.value); row.querySelector('.pf-link-icon').innerHTML = ICON[d.id] || ICON.link; });
+  row.querySelector('button').onclick = () => row.remove();
+  box.appendChild(row);
+  inp.focus();
+}
+async function onDeletePortfolio(id) {
+  if (!STATE.user || STATE.user.role !== 'admin') { toast('Only admins can manage the portfolio.', 'err'); return; }
+  modal({ title: 'Delete this project?', danger: true, confirmLabel: 'Delete',
+    body: '<p>Removes the project from the portfolio permanently. This cannot be undone.</p>',
+    onConfirm: async () => { const r = await API.deletePortfolio(STATE.user, id); r.ok ? (toast('Project deleted.'), await router()) : toast(r.error, 'err'); } });
+}
 
 /* ---- creators ---- */
 VIEWS.creators = async () => {

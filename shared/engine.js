@@ -108,16 +108,10 @@
   const okHandle = h => /^[a-zA-Z0-9_]{3,20}$/.test(h || '');
   const okEmail = e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e || '');
 
-  /* ---- studio content (portfolio + creators are content rows, NOT accounts) ---- */
+  /* ---- studio content (creators are content rows, NOT accounts) ----
+     The portfolio is admin-published (see createPortfolio below) and starts
+     empty — legacy seeded demo rows are removed on boot. */
   const CONTENT = {
-    portfolio: [
-      { id: 'pp1', title: 'Kingdom Realms', category: 'Game Experience', desc: 'A medieval RPG with custom combat systems, a questing framework, and a living player economy.', stat: '1.2M visits', status: 'Live' },
-      { id: 'pp2', title: 'Neon Drift', category: 'Racing', desc: 'High-speed arcade racing built on our drift controller, with neon night circuits and time trials.', stat: '860K visits', status: 'Live' },
-      { id: 'pp3', title: 'Shadow Vault', category: 'Horror', desc: 'A co-op horror escape with dynamic lighting, proximity audio, and procedurally placed vaults.', stat: '640K visits', status: 'Live' },
-      { id: 'pp4', title: 'Pixel Harvest', category: 'Farming', desc: 'A cozy farming simulation with seasons, crops, automation, and a trading marketplace.', stat: '510K visits', status: 'Live' },
-      { id: 'pp5', title: 'Arsenal Zero', category: 'FPS Framework', desc: 'A modular FPS framework — loadouts, hit registration, and networking — shipped to 40+ experiences.', stat: '320K installs', status: 'Framework' },
-      { id: 'pp6', title: 'Lumen Isles', category: 'Adventure', desc: 'An open-world adventure with custom terrain generation and a traversal system in active development.', stat: '280K visits', status: 'Beta' }
-    ],
     creators: [
       { id: 'cr1', name: 'King', role: 'Founder · Lead Developer', bio: 'Builds the systems that hold the studio together and ships the frameworks you see in the shop.' },
       { id: 'cr2', name: 'Chika', role: 'UI / UX Designer', bio: 'Designs interfaces players actually enjoy. Behind the Chika UI Library and every shop front.' },
@@ -170,8 +164,10 @@
     }
 
     function seedContent() {
-      if (all('portfolio').length) return;
-      CONTENT.portfolio.forEach(r => store.put('portfolio', r));
+      /* Clear the legacy seeded portfolio rows so the page starts empty and is
+         fully admin-published from here on. */
+      ['pp1', 'pp2', 'pp3', 'pp4', 'pp5', 'pp6'].forEach(id => { if (byIdIn('portfolio', id)) store.del('portfolio', id); });
+      if (all('creators').length) return;
       CONTENT.creators.forEach(r => store.put('creators', r));
       flush();
     }
@@ -938,7 +934,66 @@
       return ok({ user: publicUser(u), assetCount: all('assets').filter(a => a.ownerId === u.id && a.status === 'approved').length, assets, purchases, comments });
     }
     async function content() {
-      return ok({ portfolio: all('portfolio').slice().sort((a, b) => a.id < b.id ? -1 : 1), creators: all('creators').slice().sort((a, b) => a.id < b.id ? -1 : 1) });
+      const parseLinks = it => { try { const l = JSON.parse(it.links || '[]'); return Array.isArray(l) ? l : []; } catch (e) { return []; } };
+      const portfolio = all('portfolio').slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).map(it => ({ ...it, links: parseLinks(it) }));
+      return ok({ portfolio, creators: all('creators').slice().sort((a, b) => a.id < b.id ? -1 : 1) });
+    }
+
+    /* ============ PORTFOLIO (admin-published showcase) ============ */
+    function cleanPortfolioLinks(links) {
+      if (!Array.isArray(links)) return [];
+      return links.map(l => ({ url: String((l && l.url) || '').trim() })).filter(l => /^https?:\/\//i.test(l.url)).slice(0, 12).map(l => ({ url: l.url.slice(0, 500) }));
+    }
+    async function createPortfolio(actor, { title, category, desc, stat, status, imageUrl, links } = {}) {
+      const r = requireAdmin(actor); if (r) return r;
+      title = String(title || '').trim();
+      desc = String(desc || '').trim();
+      if (title.length < 3 || title.length > 80) return fail('invalid', 'Project title must be 3–80 characters.');
+      if (desc.length < 10) return fail('invalid', 'A description is required (at least 10 characters).');
+      const img = normalizeImageUrl(imageUrl);
+      const item = {
+        id: 'pp' + uid(), title, category: String(category || '').trim().slice(0, 40),
+        desc, stat: String(stat || '').trim().slice(0, 60), status: String(status || 'Live').trim().slice(0, 24),
+        imageUrl: img, links: JSON.stringify(cleanPortfolioLinks(links)), createdAt: now(),
+      };
+      store.put('portfolio', item);
+      flush();
+      return ok({ id: item.id });
+    }
+    async function updatePortfolio(actor, id, patch = {}) {
+      const r = requireAdmin(actor); if (r) return r;
+      const it = byIdIn('portfolio', id);
+      if (!it) return fail('notfound', 'Project not found.');
+      if (patch.title !== undefined) {
+        const t = String(patch.title || '').trim();
+        if (t.length < 3 || t.length > 80) return fail('invalid', 'Project title must be 3–80 characters.');
+        it.title = t;
+      }
+      if (patch.desc !== undefined) {
+        const d = String(patch.desc || '').trim();
+        if (d.length < 10) return fail('invalid', 'A description is required (at least 10 characters).');
+        it.desc = d;
+      }
+      if (patch.category !== undefined) it.category = String(patch.category || '').trim().slice(0, 40);
+      if (patch.stat !== undefined) it.stat = String(patch.stat || '').trim().slice(0, 60);
+      if (patch.status !== undefined) it.status = String(patch.status || 'Live').trim().slice(0, 24);
+      if (patch.imageUrl !== undefined) {
+        const img = normalizeImageUrl(patch.imageUrl);
+        if (img === null && String(patch.imageUrl || '').trim()) return fail('invalid', 'Image link must be a valid http(s) URL.');
+        it.imageUrl = img;
+      }
+      if (patch.links !== undefined) it.links = JSON.stringify(cleanPortfolioLinks(patch.links));
+      store.put('portfolio', it);
+      flush();
+      return ok(true);
+    }
+    async function deletePortfolio(actor, id) {
+      const r = requireAdmin(actor); if (r) return r;
+      const it = byIdIn('portfolio', id);
+      if (!it) return fail('notfound', 'Project not found.');
+      store.del('portfolio', id);
+      flush();
+      return ok(true);
     }
 
     /* ============ ADMIN ============ */
@@ -1073,7 +1128,7 @@
       listReviews, addReview, deleteReview,
       createReport, adminReports, adminResolveReport,
       licenseActivate, licenseHeartbeat, creatorDashboard, creatorLicenses, setLicenseStatus, revokeDevice,
-      publicProfile, content,
+      publicProfile, content, createPortfolio, updatePortfolio, deletePortfolio,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
       adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSessions, adminEmails, adminOrders, adminCompleteOrder,
       setFx,
