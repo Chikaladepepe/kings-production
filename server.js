@@ -14,6 +14,7 @@
    Run:  npm install && npm start        (Node >= 22.13)
    ============================================================================ */
 const path = require('node:path');
+const crypto = require('node:crypto');
 const express = require('express');
 const multer = require('multer');
 const { createEngine } = require('./shared/engine.js');
@@ -233,6 +234,61 @@ async function main() {
     send(res, { ok: true, data: true });
   }));
   app.get('/api/me', h(async (req, res) => send(res, await engine.me(tokenFrom(req)))));
+
+  /* ---- Sign in with Google (enabled by GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET) ---- */
+  const GOOGLE = {
+    clientId: process.env.GOOGLE_CLIENT_ID || null,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET || null,
+    get enabled() { return !!(this.clientId && this.clientSecret); },
+  };
+  const googleStates = new Map(); // state -> { exp }  (CSRF protection)
+  app.get('/api/auth/google/config', (req, res) => res.json({ ok: true, data: { enabled: GOOGLE.enabled } }));
+  app.get('/api/auth/google', (req, res) => {
+    if (!GOOGLE.enabled) return res.status(400).json({ ok: false, code: 'config', error: 'Google sign-in is not configured yet.' });
+    const state = crypto.randomBytes(18).toString('hex');
+    googleStates.set(state, { exp: Date.now() + 5 * 6e4 });
+    const params = new URLSearchParams({
+      client_id: GOOGLE.clientId,
+      redirect_uri: PUBLIC_URL + '/api/auth/google/callback',
+      response_type: 'code',
+      scope: 'openid email profile',
+      state,
+      prompt: 'select_account',
+    });
+    res.redirect('https://accounts.google.com/o/oauth2/v2/auth?' + params.toString());
+  });
+  app.get('/api/auth/google/callback', h(async (req, res) => {
+    const failRedirect = msg => res.redirect(PUBLIC_URL + '/#/login?google=err&msg=' + encodeURIComponent(msg || 'Google sign-in failed.'));
+    const { code, state, error } = req.query;
+    if (error || !code) return failRedirect(error || 'Google sign-in was cancelled.');
+    const st = googleStates.get(String(state || ''));
+    googleStates.delete(String(state || ''));
+    if (!st || st.exp < Date.now()) return failRedirect('That sign-in link expired — please try again.');
+    try {
+      const tr = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          code: String(code),
+          client_id: GOOGLE.clientId,
+          client_secret: GOOGLE.clientSecret,
+          redirect_uri: PUBLIC_URL + '/api/auth/google/callback',
+          grant_type: 'authorization_code',
+        }).toString(),
+      });
+      const tj = await tr.json();
+      if (!tj.access_token) return failRedirect('Google did not approve the sign-in.');
+      const ir = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { authorization: 'Bearer ' + tj.access_token } });
+      const info = await ir.json();
+      if (!info || !info.email) return failRedirect('Google did not return a profile.');
+      const r = await engine.googleLogin({ googleId: String(info.sub || ''), email: info.email, displayName: info.name || info.given_name || null, picture: info.picture || null });
+      if (!r.ok) return failRedirect(r.error);
+      return res.redirect(PUBLIC_URL + '/#/login?google=1&token=' + encodeURIComponent(r.data.token));
+    } catch (e) {
+      console.error('[google] callback error:', e);
+      return failRedirect('Google sign-in hit a server error — please try again.');
+    }
+  }));
 
   /* ---- profile & 2FA ---- */
   app.patch('/api/profile', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.updateProfile(u, req.body || {})); }));

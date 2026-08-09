@@ -122,7 +122,7 @@
     u.tags = JSON.stringify(clean);
   };
   const publicUser = u => u ? ({ id: u.id, handle: u.handle, displayName: u.displayName, role: u.role, tags: parseTags(u), pfp: u.pfp, bio: u.bio, createdAt: u.createdAt }) : null;
-  const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled, country: u.country }) : null;
+  const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled, country: u.country, acceptedTermsAt: u.acceptedTermsAt || null }) : null;
   function timeoutText(u) {
     if (!u || !u.timeoutUntil) return null;
     const ms = u.timeoutUntil - now();
@@ -261,10 +261,11 @@
     }
 
     /* ============ AUTH ============ */
-    async function register({ handle, displayName, email, password, country } = {}) {
+    async function register({ handle, displayName, email, password, country, acceptTerms } = {}) {
       handle = String(handle || '').trim();
       displayName = String(displayName || '').trim();
       email = String(email || '').trim().toLowerCase();
+      if (!acceptTerms) return fail('terms', 'You must accept the Privacy Policy and Terms of Use to create an account.');
       if (!okHandle(handle)) return fail('invalid', 'Handle must be 3–20 characters (letters, numbers, underscore).');
       if (all('users').some(u => u.handle.toLowerCase() === handle.toLowerCase())) return fail('taken', 'That handle is already taken.');
       if (displayName.length < 2 || displayName.length > 40) return fail('invalid', 'Display name must be 2–40 characters.');
@@ -277,7 +278,8 @@
       const user = {
         id: 'u' + uid(), handle, displayName, email, role: isFirst ? 'admin' : 'member',
         passHash: await hashPassword(password), bio: '', pfp: null,
-        totpSecret: null, totpEnabled: false, banned: false, banReason: null, timeoutUntil: null, country, createdAt: now(), updatedAt: now(),
+        totpSecret: null, totpEnabled: false, banned: false, banReason: null, timeoutUntil: null, country,
+        googleId: null, acceptedTermsAt: now(), createdAt: now(), updatedAt: now(),
       };
       store.put('users', user);
       const s = createSession(user.id);
@@ -285,13 +287,49 @@
       return ok({ token: s.id, user: selfUser(user) });
     }
 
-    async function login({ login, password, label } = {}) {
+    async function login({ login, password, label, acceptTerms } = {}) {
       login = String(login || '').trim().toLowerCase();
       const u = all('users').find(x => x.handle.toLowerCase() === login || x.email.toLowerCase() === login);
       if (!u || !(await verifyPassword(String(password || ''), u.passHash))) return fail('bad', 'Incorrect handle/email or password.');
       if (u.banned) return fail('banned', 'This account has been banned by an administrator.');
+      if (u.acceptedTermsAt == null && !acceptTerms) return fail('terms', 'Please accept the Privacy Policy and Terms of Use to continue.');
+      if (u.acceptedTermsAt == null) { u.acceptedTermsAt = now(); u.updatedAt = now(); store.put('users', u); flush(); }
       if (u.totpEnabled) return ok({ need2fa: true, userId: u.id });
       const s = createSession(u.id, label);
+      return ok({ token: s.id, user: selfUser(u) });
+    }
+
+    /* Google OAuth sign-in: finds the account by Google id or verified email,
+       links it if needed, or creates a new one (secure random password — the
+       user authenticates through Google from then on). Terms are accepted at
+       sign-in because the Google button is gated behind the consent checkbox. */
+    async function googleLogin({ googleId, email, displayName, picture } = {}) {
+      googleId = String(googleId || '');
+      email = String(email || '').trim().toLowerCase();
+      if (!googleId || !okEmail(email)) return fail('invalid', 'Google sign-in could not get a valid profile from your Google account.');
+      let u = all('users').find(x => x.googleId === googleId) || all('users').find(x => x.email.toLowerCase() === email);
+      const isFirst = cfg.autoAdminFirstUser && all('users').length === 0;
+      if (!u) {
+        let handle = (email.split('@')[0] || 'user').replace(/[^a-zA-Z0-9_]/g, '').slice(0, 18);
+        if (!okHandle(handle)) handle = 'user' + Math.floor(Math.random() * 999);
+        const base = handle; let n = 2;
+        while (all('users').some(x => x.handle.toLowerCase() === handle.toLowerCase())) handle = base.slice(0, 18 - String(n).length) + n++;
+        u = {
+          id: 'u' + uid(), handle, displayName: String(displayName || '').trim().slice(0, 40) || email.split('@')[0],
+          email, role: isFirst ? 'admin' : 'member', passHash: await hashPassword(randomToken(16)),
+          bio: '', pfp: picture || null, totpSecret: null, totpEnabled: false, banned: false, banReason: null,
+          timeoutUntil: null, country: 'US', googleId, acceptedTermsAt: now(), createdAt: now(), updatedAt: now(),
+        };
+        store.put('users', u);
+      } else {
+        u.googleId = u.googleId || googleId;
+        if (u.acceptedTermsAt == null) u.acceptedTermsAt = now();
+        if (picture && !u.pfp) u.pfp = picture;
+        u.updatedAt = now();
+        store.put('users', u);
+      }
+      const s = createSession(u.id, 'Google');
+      flush();
       return ok({ token: s.id, user: selfUser(u) });
     }
 
@@ -1186,7 +1224,7 @@
     ensureOwnerAccount();
 
     return {
-      register, login, verify2fa, requestReset, resetPassword, logout, me,
+      register, login, googleLogin, verify2fa, requestReset, resetPassword, logout, me,
       updateProfile, setup2fa, enable2fa, disable2fa,
       createAsset, postStatus, listApproved, topSelling, getAsset, updateAsset, deleteAsset, myAssets, download,
       purchase, myPurchases, assignLicense, createOrder, completeOrder, settleOrder, cancelOrder, myOrders, adminOrders, adminCompleteOrder,

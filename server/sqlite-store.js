@@ -25,7 +25,7 @@ const fs = require('node:fs');
    map only — never from untrusted input — so the dynamic INSERT/REPLACE below
    cannot be injection points. */
 const SCHEMA = {
-  users: ['id', 'handle', 'email', 'displayName', 'passHash', 'bio', 'pfp', 'role', 'banned', 'banReason', 'timeoutUntil', 'totpSecret', 'totpEnabled', 'country', 'tags', 'createdAt', 'updatedAt'],
+  users: ['id', 'handle', 'email', 'displayName', 'passHash', 'bio', 'pfp', 'role', 'banned', 'banReason', 'timeoutUntil', 'totpSecret', 'totpEnabled', 'country', 'tags', 'googleId', 'acceptedTermsAt', 'createdAt', 'updatedAt'],
   sessions: ['id', 'userId', 'label', 'createdAt', 'lastSeen', 'expiresAt'],
   assets: ['id', 'ownerId', 'title', 'category', 'description', 'price', 'fileName', 'fileMime', 'fileSize', 'imageUrl', 'status', 'rejectReason', 'sales', 'createdAt', 'updatedAt', 'approvedAt'],
   purchases: ['id', 'assetId', 'buyerId', 'price', 'licenseKey', 'gameId', 'gameName', 'status', 'activatedAt', 'deviceId', 'deviceName', 'lastSeen', 'createdAt'],
@@ -49,7 +49,8 @@ CREATE TABLE IF NOT EXISTS users (
   displayName TEXT NOT NULL, passHash TEXT NOT NULL, bio TEXT, pfp TEXT,
   role TEXT NOT NULL DEFAULT 'member', banned INTEGER NOT NULL DEFAULT 0, banReason TEXT,
   timeoutUntil INTEGER, totpSecret TEXT, totpEnabled INTEGER NOT NULL DEFAULT 0,
-  country TEXT, tags TEXT, createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL
+  country TEXT, tags TEXT, googleId TEXT, acceptedTermsAt INTEGER,
+  createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY, userId TEXT NOT NULL, label TEXT,
@@ -183,6 +184,8 @@ const MIGRATIONS = [
   "ALTER TABLE portfolio ADD COLUMN createdAt INTEGER",
   "ALTER TABLE portfolio ADD COLUMN featured INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE users ADD COLUMN tags TEXT",
+  "ALTER TABLE users ADD COLUMN googleId TEXT",
+  "ALTER TABLE users ADD COLUMN acceptedTermsAt INTEGER",
 ];
 function runMigrations(db) {
   for (const sql of MIGRATIONS) {

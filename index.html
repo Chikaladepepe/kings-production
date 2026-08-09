@@ -669,6 +669,116 @@ body::before{content:"";position:fixed;inset:-40%;z-index:0;pointer-events:none;
 .pf-link-icon{width:36px;height:36px;flex-shrink:0;border-radius:9px;border:1px solid var(--border-strong);display:inline-flex;align-items:center;justify-content:center;color:var(--gold);background:rgba(255,255,255,.02)}
 .pf-link-icon svg{width:17px;height:17px}
 
+/* ================= UI POLISH — ambient light · glass · motion ================= */
+/* Living ambient background: drifting gold + violet light behind everything */
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background:
+  radial-gradient(60vw 46vh at 12% -8%,rgba(212,175,55,.10),transparent 62%),
+  radial-gradient(52vw 42vh at 88% 4%,rgba(120,96,255,.08),transparent 60%),
+  radial-gradient(70vw 55vh at 50% 108%,rgba(212,175,55,.07),transparent 60%);
+  animation:ambientDrift 26s ease-in-out infinite alternate}
+body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5;
+  background-image:linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px);
+  background-size:44px 44px;mask-image:radial-gradient(80vw 60vh at 50% 0%,#000 30%,transparent 85%)}
+@keyframes ambientDrift{0%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(2vw,-2vh,0) scale(1.06)}100%{transform:translate3d(-2vw,2vh,0) scale(1)}}
+#app{position:relative;z-index:1}
+::selection{background:rgba(212,175,55,.32);color:#fff}
+::-webkit-scrollbar{width:12px;height:12px}
+::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#3a3630,#2c2c33);border:3px solid var(--bg);border-radius:8px}
+::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,#4a4436,#3a3a44)}
+:focus-visible{outline:2px solid rgba(212,175,55,.75);outline-offset:2px;border-radius:5px}
+
+/* header — deeper glass with a gold hairline */
+.site-header{background:linear-gradient(180deg,rgba(14,14,17,.9),rgba(11,11,13,.78));backdrop-filter:blur(18px) saturate(1.3);-webkit-backdrop-filter:blur(18px) saturate(1.3);border-bottom:1px solid rgba(212,175,55,.16);box-shadow:0 1px 0 rgba(255,255,255,.03) inset,0 12px 34px rgba(0,0,0,.35)}
+.main-nav a:hover{background:rgba(212,175,55,.09)}
+.main-nav a.active{background:rgba(212,175,55,.13);color:var(--gold)}
+.brand .crown svg{filter:drop-shadow(0 0 10px rgba(212,175,55,.5))}
+
+/* cards — translucent glass + light-catching hover */
+.card{background:linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,0) 42%),var(--surface);box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+.card-hover:hover{border-color:rgba(212,175,55,.42);box-shadow:var(--shadow-1),0 0 0 1px rgba(212,175,55,.12),0 0 30px rgba(212,175,55,.10)}
+.asset-card:hover .asset-title,.project-card:hover h3{color:var(--gold)}
+.asset-title{transition:color .2s}
+
+/* buttons — light sweep + gold glow */
+.btn{position:relative;overflow:hidden}
+.btn::after{content:'';position:absolute;top:0;left:-80%;width:50%;height:100%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.16),transparent);transform:skewX(-22deg);transition:left .55s ease}
+.btn:hover::after{left:130%}
+.btn-primary{background:linear-gradient(180deg,#fffdf6,#e9e6da);color:#141209;box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 6px 20px rgba(0,0,0,.4),0 0 0 1px rgba(212,175,55,.35)}
+.btn-primary:hover{box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 10px 30px rgba(0,0,0,.5),0 0 30px rgba(212,175,55,.4)}
+.btn-ghost:hover{box-shadow:0 0 0 1px rgba(212,175,55,.28),0 0 20px rgba(212,175,55,.14)}
+
+/* inputs — gold focus ring */
+.input:focus,.select:focus,.textarea:focus{border-color:rgba(212,175,55,.55);box-shadow:0 0 0 3px rgba(212,175,55,.14),0 0 18px rgba(212,175,55,.08)}
+.input:hover,.select:hover,.textarea:hover{border-color:#45454f}
+
+/* hero — living light */
+.hero{background:radial-gradient(1200px 560px at 50% -12%,rgba(255,255,255,.07),transparent 58%),radial-gradient(700px 380px at 82% -20%,rgba(212,175,55,.10),transparent 60%),radial-gradient(700px 380px at 14% -16%,rgba(120,96,255,.07),transparent 60%)}
+.hero .crown svg{width:52px;height:52px;filter:drop-shadow(0 0 26px rgba(212,175,55,.55));animation:crownFloat 5s ease-in-out infinite}
+@keyframes crownFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+.hero h1{background:linear-gradient(110deg,#f4f4f6 20%,#ffd97a 45%,#f4f4f6 70%);-webkit-background-clip:text;background-clip:text;color:transparent;animation:titleShimmer 7s ease-in-out infinite;background-size:220% auto}
+@keyframes titleShimmer{0%,100%{background-position:0% center}50%{background-position:100% center}}
+.hero-cta .btn{box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 10px 30px rgba(0,0,0,.45)}
+.hero-stat b{background:linear-gradient(180deg,#fff,var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
+
+/* section reveals */
+.js-reveal .section-head,.js-reveal .profile-hero,.js-reveal .tier,.js-reveal .approve-card,.js-reveal .creator-card,.js-reveal .asset-card,.js-reveal .project-card{opacity:0;transform:translateY(16px);transition:opacity .55s cubic-bezier(.2,.7,.3,1),transform .55s cubic-bezier(.2,.7,.3,1)}
+.js-reveal .in{opacity:1;transform:none}
+
+/* auth — split royal panel */
+.auth-shell{max-width:1040px;margin:42px auto;display:grid;grid-template-columns:1fr 1fr;border:1px solid rgba(212,175,55,.22);border-radius:26px;overflow:hidden;background:var(--surface);box-shadow:0 30px 90px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.03) inset,0 0 60px rgba(212,175,55,.07)}
+.auth-brand{position:relative;display:flex;flex-direction:column;justify-content:center;gap:18px;padding:52px 46px;overflow:hidden;background:radial-gradient(120% 90% at 20% 0%,rgba(212,175,55,.16),transparent 55%),radial-gradient(120% 100% at 90% 110%,rgba(120,96,255,.12),transparent 55%),linear-gradient(180deg,#141317,#0d0d10)}
+.auth-brand .crown svg{width:40px;height:40px;filter:drop-shadow(0 0 20px rgba(212,175,55,.6))}
+.auth-brand-title{font-family:var(--font-display);font-size:clamp(24px,3vw,31px);line-height:1.15;letter-spacing:-.02em;font-weight:700;color:var(--text);position:relative;z-index:1}
+.auth-brand-sub{color:var(--text-2);font-size:14.5px;line-height:1.65;position:relative;z-index:1}
+.auth-brand-tags{display:flex;gap:9px;flex-wrap:wrap;position:relative;z-index:1}
+.auth-brand-tags span{display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border-radius:999px;border:1px solid rgba(212,175,55,.3);background:rgba(212,175,55,.07);color:var(--text-2);font-size:12px;font-weight:600;letter-spacing:.04em}
+.auth-brand-tags svg{width:13px;height:13px;color:var(--gold)}
+.gold-shimmer{background:linear-gradient(110deg,#ffd97a,#d4af37,#fff3c4,#d4af37);background-size:240% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:titleShimmer 5s linear infinite}
+.auth-brand .orb{position:absolute;border-radius:50%;filter:blur(46px);opacity:.5;animation:orbFloat 12s ease-in-out infinite alternate}
+.auth-brand .o1{width:280px;height:280px;background:rgba(212,175,55,.22);top:-70px;left:-70px}
+.auth-brand .o2{width:220px;height:220px;background:rgba(120,96,255,.2);bottom:-50px;right:-40px;animation-delay:-4s}
+.auth-brand .o3{width:150px;height:150px;background:rgba(212,175,55,.16);top:38%;right:16%;animation-delay:-8s}
+@keyframes orbFloat{0%{transform:translate(0,0) scale(1)}100%{transform:translate(18px,-22px) scale(1.12)}}
+.auth-panel{padding:46px 48px;display:flex;flex-direction:column;justify-content:center;background:linear-gradient(180deg,rgba(255,255,255,.015),rgba(255,255,255,0))}
+.auth-panel .auth-title{text-align:left;font-size:26px;margin:0 0 4px}
+.auth-panel .auth-sub{text-align:left;margin-bottom:24px}
+.auth-panel .auth-alt{text-align:left}
+.social-row{display:flex;flex-direction:column;gap:18px;margin-bottom:22px}
+.btn-google{display:flex;align-items:center;justify-content:center;gap:11px;background:linear-gradient(180deg,#fbfbfc,#e8e8ec);color:#1a1a1d;border:1px solid rgba(255,255,255,.25);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 8px 22px rgba(0,0,0,.35)}
+.btn-google:hover{background:linear-gradient(180deg,#fff,#f0f0f4);box-shadow:inset 0 1px 0 #fff,0 10px 28px rgba(0,0,0,.45),0 0 22px rgba(212,175,55,.18)}
+.divider{display:flex;align-items:center;gap:14px;color:var(--text-3);font-size:12px;letter-spacing:.14em;text-transform:uppercase}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--border-strong),transparent)}
+.terms-row{display:flex;align-items:flex-start;gap:10px;margin:14px 0 0;cursor:pointer;font-size:13px;color:var(--text-2);line-height:1.5}
+.terms-row input{width:17px;height:17px;margin-top:1px;flex-shrink:0;accent-color:var(--gold);cursor:pointer}
+.terms-row a{color:var(--gold);font-weight:600;text-decoration:underline;text-decoration-color:rgba(212,175,55,.4);text-underline-offset:2px}
+.terms-row a:hover{text-decoration-color:var(--gold)}
+@media (max-width:880px){.auth-shell{grid-template-columns:1fr;max-width:480px}.auth-brand{display:none}.auth-panel{padding:34px 26px}}
+
+/* floating bits — dock, FAB, status pill glow */
+.social-dock .s-btn{background:linear-gradient(180deg,rgba(44,44,52,.88),rgba(20,20,24,.92));border-color:rgba(212,175,55,.34);box-shadow:0 6px 18px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.08)}
+.social-dock .s-btn:hover{box-shadow:0 8px 24px rgba(212,175,55,.28),0 0 0 1px rgba(212,175,55,.4)}
+.post-fab{box-shadow:0 8px 26px rgba(212,175,55,.34),inset 0 1px 0 rgba(255,255,255,.14),0 0 0 0 rgba(212,175,55,.4);animation:fabPulse 3.2s ease-out infinite}
+@keyframes fabPulse{0%{box-shadow:0 8px 26px rgba(212,175,55,.34),inset 0 1px 0 rgba(255,255,255,.14),0 0 0 0 rgba(212,175,55,.38)}70%{box-shadow:0 8px 26px rgba(212,175,55,.34),inset 0 1px 0 rgba(255,255,255,.14),0 0 0 14px rgba(212,175,55,0)}100%{box-shadow:0 8px 26px rgba(212,175,55,.34),inset 0 1px 0 rgba(255,255,255,.14),0 0 0 0 rgba(212,175,55,0)}}
+.site-status{border-color:rgba(212,175,55,.3)}
+
+/* tables & lists — gold hover light */
+.table tbody tr:hover{background:linear-gradient(90deg,rgba(212,175,55,.075),rgba(255,255,255,.015))}
+.approve-card:hover,.tier:hover{box-shadow:0 0 0 1px rgba(212,175,55,.14),0 14px 38px rgba(0,0,0,.4)}
+
+/* owner badge — living shimmer */
+.badge.owner{position:relative;overflow:hidden}
+.badge.owner::after{content:'';position:absolute;top:0;left:-70%;width:50%;height:100%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.28),transparent);transform:skewX(-22deg);animation:badgeShine 3.4s ease-in-out infinite}
+@keyframes badgeShine{0%,60%{left:-70%}100%{left:140%}}
+
+/* modal — glass depth */
+.modal-overlay{background:rgba(8,8,10,.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.modal{background:linear-gradient(180deg,#181820,#121216);border:1px solid rgba(212,175,55,.24);box-shadow:0 34px 100px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.03) inset,0 0 50px rgba(212,175,55,.08)}
+
+@media (prefers-reduced-motion:reduce){
+  body::before,body::after,.hero .crown svg,.hero h1,.hero-stat b,.badge.owner::after,.post-fab,.auth-brand .orb,.gold-shimmer{animation:none!important;transition:none!important}
+  .js-reveal .section-head,.js-reveal .profile-hero,.js-reveal .tier,.js-reveal .approve-card,.js-reveal .creator-card,.js-reveal .asset-card,.js-reveal .project-card{opacity:1;transform:none}
+}
+
 </style>
 </head>
 <body>
@@ -1031,7 +1141,7 @@ const API = {};
     u.tags = JSON.stringify(clean);
   };
   const publicUser = u => u ? ({ id: u.id, handle: u.handle, displayName: u.displayName, role: u.role, tags: parseTags(u), pfp: u.pfp, bio: u.bio, createdAt: u.createdAt }) : null;
-  const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled, country: u.country }) : null;
+  const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled, country: u.country, acceptedTermsAt: u.acceptedTermsAt || null }) : null;
   function timeoutText(u) {
     if (!u || !u.timeoutUntil) return null;
     const ms = u.timeoutUntil - now();
@@ -1170,10 +1280,11 @@ const API = {};
     }
 
     /* ============ AUTH ============ */
-    async function register({ handle, displayName, email, password, country } = {}) {
+    async function register({ handle, displayName, email, password, country, acceptTerms } = {}) {
       handle = String(handle || '').trim();
       displayName = String(displayName || '').trim();
       email = String(email || '').trim().toLowerCase();
+      if (!acceptTerms) return fail('terms', 'You must accept the Privacy Policy and Terms of Use to create an account.');
       if (!okHandle(handle)) return fail('invalid', 'Handle must be 3–20 characters (letters, numbers, underscore).');
       if (all('users').some(u => u.handle.toLowerCase() === handle.toLowerCase())) return fail('taken', 'That handle is already taken.');
       if (displayName.length < 2 || displayName.length > 40) return fail('invalid', 'Display name must be 2–40 characters.');
@@ -1186,7 +1297,8 @@ const API = {};
       const user = {
         id: 'u' + uid(), handle, displayName, email, role: isFirst ? 'admin' : 'member',
         passHash: await hashPassword(password), bio: '', pfp: null,
-        totpSecret: null, totpEnabled: false, banned: false, banReason: null, timeoutUntil: null, country, createdAt: now(), updatedAt: now(),
+        totpSecret: null, totpEnabled: false, banned: false, banReason: null, timeoutUntil: null, country,
+        googleId: null, acceptedTermsAt: now(), createdAt: now(), updatedAt: now(),
       };
       store.put('users', user);
       const s = createSession(user.id);
@@ -1194,13 +1306,49 @@ const API = {};
       return ok({ token: s.id, user: selfUser(user) });
     }
 
-    async function login({ login, password, label } = {}) {
+    async function login({ login, password, label, acceptTerms } = {}) {
       login = String(login || '').trim().toLowerCase();
       const u = all('users').find(x => x.handle.toLowerCase() === login || x.email.toLowerCase() === login);
       if (!u || !(await verifyPassword(String(password || ''), u.passHash))) return fail('bad', 'Incorrect handle/email or password.');
       if (u.banned) return fail('banned', 'This account has been banned by an administrator.');
+      if (u.acceptedTermsAt == null && !acceptTerms) return fail('terms', 'Please accept the Privacy Policy and Terms of Use to continue.');
+      if (u.acceptedTermsAt == null) { u.acceptedTermsAt = now(); u.updatedAt = now(); store.put('users', u); flush(); }
       if (u.totpEnabled) return ok({ need2fa: true, userId: u.id });
       const s = createSession(u.id, label);
+      return ok({ token: s.id, user: selfUser(u) });
+    }
+
+    /* Google OAuth sign-in: finds the account by Google id or verified email,
+       links it if needed, or creates a new one (secure random password — the
+       user authenticates through Google from then on). Terms are accepted at
+       sign-in because the Google button is gated behind the consent checkbox. */
+    async function googleLogin({ googleId, email, displayName, picture } = {}) {
+      googleId = String(googleId || '');
+      email = String(email || '').trim().toLowerCase();
+      if (!googleId || !okEmail(email)) return fail('invalid', 'Google sign-in could not get a valid profile from your Google account.');
+      let u = all('users').find(x => x.googleId === googleId) || all('users').find(x => x.email.toLowerCase() === email);
+      const isFirst = cfg.autoAdminFirstUser && all('users').length === 0;
+      if (!u) {
+        let handle = (email.split('@')[0] || 'user').replace(/[^a-zA-Z0-9_]/g, '').slice(0, 18);
+        if (!okHandle(handle)) handle = 'user' + Math.floor(Math.random() * 999);
+        const base = handle; let n = 2;
+        while (all('users').some(x => x.handle.toLowerCase() === handle.toLowerCase())) handle = base.slice(0, 18 - String(n).length) + n++;
+        u = {
+          id: 'u' + uid(), handle, displayName: String(displayName || '').trim().slice(0, 40) || email.split('@')[0],
+          email, role: isFirst ? 'admin' : 'member', passHash: await hashPassword(randomToken(16)),
+          bio: '', pfp: picture || null, totpSecret: null, totpEnabled: false, banned: false, banReason: null,
+          timeoutUntil: null, country: 'US', googleId, acceptedTermsAt: now(), createdAt: now(), updatedAt: now(),
+        };
+        store.put('users', u);
+      } else {
+        u.googleId = u.googleId || googleId;
+        if (u.acceptedTermsAt == null) u.acceptedTermsAt = now();
+        if (picture && !u.pfp) u.pfp = picture;
+        u.updatedAt = now();
+        store.put('users', u);
+      }
+      const s = createSession(u.id, 'Google');
+      flush();
       return ok({ token: s.id, user: selfUser(u) });
     }
 
@@ -2095,7 +2243,7 @@ const API = {};
     ensureOwnerAccount();
 
     return {
-      register, login, verify2fa, requestReset, resetPassword, logout, me,
+      register, login, googleLogin, verify2fa, requestReset, resetPassword, logout, me,
       updateProfile, setup2fa, enable2fa, disable2fa,
       createAsset, postStatus, listApproved, topSelling, getAsset, updateAsset, deleteAsset, myAssets, download,
       purchase, myPurchases, assignLicense, createOrder, completeOrder, settleOrder, cancelOrder, myOrders, adminOrders, adminCompleteOrder,
@@ -2176,6 +2324,7 @@ API.boot = async () => {
 /* ---- auth ---- */
 API.register = args => _wrap(async () => _authPair(_mode === 'local' ? await _engine.register(args) : await _call('POST', '/api/auth/register', args)));
 API.login = args => _wrap(async () => _authPair(_mode === 'local' ? await _engine.login({ ...args, label: _browserLabel() }) : await _call('POST', '/api/auth/login', args)));
+API.googleConfig = () => _wrap(async () => _mode === 'local' ? { ok: true, data: { enabled: false } } : await _call('GET', '/api/auth/google/config'));
 API.verify2fa = args => _wrap(async () => _authPair(_mode === 'local' ? await _engine.verify2fa({ ...args, label: _browserLabel() }) : await _call('POST', '/api/auth/verify2fa', args)));
 API.me = () => _wrap(async () => _mode === 'local' ? await _engine.me(_getToken()) : await _call('GET', '/api/me'));
 API.logout = () => _wrap(async () => {
@@ -2545,6 +2694,7 @@ async function router() {
   const act = document.querySelector(`[data-nav="${path}"]`);
   if (act) { document.querySelectorAll('[data-nav]').forEach(a => a.classList.remove('active')); act.classList.add('active'); }
   if (VIEWS_BIND[path]) await VIEWS_BIND[path]({ params, query });
+  bindReveals();
 }
 
 /* ---- catalog component ---- */
@@ -2635,6 +2785,14 @@ const VIEWS_BIND = {};
 VIEWS_BIND.home = () => { bindCatalog(); spawnParticles(); document.querySelectorAll('.count-up').forEach(el => countUp(el, el.dataset.count)); };
 VIEWS_BIND.shop = () => bindCatalog();
 VIEWS_BIND.profile = () => { initProfileTags((STATE._pfUser && STATE._pfUser.tags) || []); };
+VIEWS_BIND.login = async ({ query } = {}) => {
+  if (query && query.google === '1' && query.token) {
+    _setToken(query.token);
+    const me = await API.me();
+    if (me.ok && me.data) { STATE.user = me.data; renderHeader(); toast('Signed in with Google — welcome, ' + me.data.displayName + '!'); go('/'); }
+    else { toast('Google signed you in, but the session could not be verified.', 'err'); go('/login'); }
+  }
+};
 function readFileAsDataURL(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
 
 /* ---- shared actions ---- */
@@ -2974,40 +3132,76 @@ async function onSaveProfileRoles(id) {
 }
 
 /* ---- auth ---- */
-VIEWS.login = async () => {
+const G_LOGO = `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="#EA4335" d="M12 5.04c1.62 0 3.06.56 4.2 1.66l3.12-3.12C17.38 1.96 14.9 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84C6.67 7.25 9.13 5.04 12 5.04z"/><path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09L2.18 7.07C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#34A853" d="M12 23c2.9 0 5.32-.96 7.09-2.61l-3.86-3c-1.06.72-2.44 1.14-3.23 1.14-2.87 0-5.33-2.21-6.15-5.18l-3.66 2.84C3.99 20.53 7.7 23 12 23z"/></svg>`;
+function googleBtnHtml(label) {
+  return `<a class="btn btn-google btn-lg" href="/api/auth/google" onclick="return onGoogleStart(event)">${G_LOGO}<span>${label}</span></a>`;
+}
+function termsRowHtml() {
+  return `<label class="terms-row"><input type="checkbox" name="acceptTerms" required><span>I agree to the <a href="#/privacy">Privacy Policy</a> and the <a href="#/terms">Terms of Use</a>.</span></label>`;
+}
+function onGoogleStart(e) {
+  const cb = document.querySelector('.auth-panel input[name="acceptTerms"]');
+  if (cb && !cb.checked) { e.preventDefault(); toast('Please accept the Privacy Policy and Terms of Use first.', 'err'); return false; }
+  return true;
+}
+function authBrandPanel() {
+  return `<div class="auth-brand" aria-hidden="true">
+    <div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div>
+    <a class="brand" href="#/" style="position:relative;z-index:1"><span class="crown">${ICON.crown}</span><span class="brand-txt">Kings Production<span class="brand-sub">Roblox Studio</span></span></a>
+    <h2 class="auth-brand-title">“Where <span class="gold-shimmer">Excellence</span> Meets Innovation.”</h2>
+    <p class="auth-brand-sub">The premium Roblox development studio — scripts, models, plugins, animations, and systems, all reviewed and approved by the Kings Production team.</p>
+    <div class="auth-brand-tags"><span>${ICON.shield} Secure</span><span>${ICON.lock} Private</span><span>${ICON.crown} Royal standards</span></div>
+  </div>`;
+}
+VIEWS.login = async ({ query } = {}) => {
   const need2fa = !!STATE.twoFactorUserId;
-  return `<div class="auth-wrap">
-    <a class="brand" href="#/" style="justify-content:center"><span class="crown">${ICON.crown}</span></a>
-    <h1 class="auth-title">${need2fa ? 'Two-factor authentication' : 'Welcome back'}</h1>
-    <p class="auth-sub">${need2fa ? 'Enter the 6-digit code from your authenticator app.' : 'Log in to your Kings Production account.'}</p>
-    ${need2fa
-      ? `<form onsubmit="onVerify2fa(event)"><div class="field"><label>Verification code</label><input class="input otp-input" name="code" inputmode="numeric" maxlength="6" placeholder="••••••" required autocomplete="one-time-code"></div><button class="btn btn-primary btn-lg" style="width:100%" type="submit">Verify & log in</button></form>`
-      : `<form onsubmit="handleLogin(event)">
-          <div class="field"><label>Handle or email</label><input class="input" name="login" placeholder="e.g. yourhandle or you@example.com" required autocomplete="username"></div>
-          <div class="field"><label>Password</label><input class="input" name="password" type="password" placeholder="••••••••" required autocomplete="current-password"></div>
-          <div class="row" style="justify-content:space-between;margin-bottom:16px"><span class="muted small">Protected with 2FA when enabled.</span><a class="small bold" href="#/forgot" style="color:var(--text-2)">Forgot password?</a></div>
-          <button class="btn btn-primary btn-lg" style="width:100%" type="submit">Log in</button>
-        </form>`}
-    ${need2fa ? '' : `<p class="auth-alt">New here? <a href="#/register">Create an account</a></p>`}
-    ${need2fa ? `<p class="auth-alt"><a href="#/login" onclick="STATE.twoFactorUserId=null">← Back to log in</a></p>` : ''}
-    <div class="demo-box"><b>Security</b><br>Passwords are stored as salted PBKDF2 hashes, and two-factor authentication uses TOTP (RFC 6238).<br>On a fresh install the first account to register is promoted to <b>Admin</b>.</div>
+  const gcfg = await API.googleConfig();
+  const gEnabled = !!(gcfg.ok && gcfg.data && gcfg.data.enabled);
+  const gErr = query && query.google === 'err' ? String(query.msg || 'Google sign-in failed.') : null;
+  const body = need2fa
+    ? `<form onsubmit="onVerify2fa(event)"><div class="field"><label>Verification code</label><input class="input otp-input" name="code" inputmode="numeric" maxlength="6" placeholder="••••••" required autocomplete="one-time-code"></div><button class="btn btn-primary btn-lg" style="width:100%" type="submit">Verify & log in</button></form>`
+    : `<form onsubmit="handleLogin(event)">
+        ${gEnabled ? `<div class="social-row">${googleBtnHtml('Continue with Google')}<div class="divider"><span>or</span></div></div>` : ''}
+        <div class="field"><label>Handle or email</label><input class="input" name="login" placeholder="e.g. yourhandle or you@example.com" required autocomplete="username"></div>
+        <div class="field"><label>Password</label><input class="input" name="password" type="password" placeholder="••••••••" required autocomplete="current-password"></div>
+        <div class="row" style="justify-content:space-between;margin-bottom:14px"><span class="muted small">Protected with 2FA when enabled.</span><a class="small bold" href="#/forgot" style="color:var(--text-2)">Forgot password?</a></div>
+        ${termsRowHtml()}
+        <button class="btn btn-primary btn-lg" style="width:100%;margin-top:16px" type="submit">Log in</button>
+      </form>`;
+  return `<div class="auth-shell">
+    ${authBrandPanel()}
+    <div class="auth-panel">
+      ${gErr ? `<div class="form-error">${esc(gErr)}</div>` : ''}
+      <h1 class="auth-title">${need2fa ? 'Two-factor authentication' : 'Welcome back'}</h1>
+      <p class="auth-sub">${need2fa ? 'Enter the 6-digit code from your authenticator app.' : 'Log in to your Kings Production account.'}</p>
+      ${body}
+      ${need2fa ? `<p class="auth-alt"><a href="#/login" onclick="STATE.twoFactorUserId=null">← Back to log in</a></p>` : `<p class="auth-alt">New here? <a href="#/register">Create an account</a></p>`}
+      ${need2fa ? '' : '<div class="demo-box"><b>Security</b><br>Passwords are stored as salted PBKDF2 hashes; two-factor authentication uses TOTP (RFC 6238).</div>'}
+    </div>
   </div>`;
 };
-VIEWS.register = async () => `
-  <div class="auth-wrap">
-    <a class="brand" href="#/" style="justify-content:center"><span class="crown">${ICON.crown}</span></a>
-    <h1 class="auth-title">Create your account</h1>
-    <p class="auth-sub">Join the Kings Production marketplace. New accounts start as Members.</p>
-    <form onsubmit="handleRegister(event)">
-      <div class="field"><label>Display name</label><input class="input" name="displayName" placeholder="How you appear publicly" maxlength="40" required></div>
-      <div class="field"><label>Handle</label><input class="input" name="handle" placeholder="3–20 chars, letters/numbers/_" pattern="[a-zA-Z0-9_]{3,20}" required><div class="hint">Your public username — shown as @handle.</div></div>
-      <div class="field"><label>Email</label><input class="input" name="email" type="email" placeholder="you@example.com" required></div>
-      <div class="field"><label>Country<span class="req">*</span></label>${countrySelect()}<div class="hint">Prices are shown in your local currency — you can change this anytime in Settings.</div></div>
-      <div class="field"><label>Password</label><input class="input" name="password" type="password" minlength="6" placeholder="At least 6 characters" required autocomplete="new-password"></div>
-      <button class="btn btn-primary btn-lg" style="width:100%" type="submit">Create account</button>
-    </form>
-    <p class="auth-alt">Already have an account? <a href="#/login">Log in</a></p>
+VIEWS.register = async () => {
+  const gcfg = await API.googleConfig();
+  const gEnabled = !!(gcfg.ok && gcfg.data && gcfg.data.enabled);
+  return `<div class="auth-shell">
+    ${authBrandPanel()}
+    <div class="auth-panel">
+      <h1 class="auth-title">Create your account</h1>
+      <p class="auth-sub">Join the Kings Production marketplace. New accounts start as Members.</p>
+      <form onsubmit="handleRegister(event)">
+        ${gEnabled ? `<div class="social-row">${googleBtnHtml('Sign up with Google')}<div class="divider"><span>or</span></div></div>` : ''}
+        <div class="field"><label>Display name</label><input class="input" name="displayName" placeholder="How you appear publicly" maxlength="40" required></div>
+        <div class="field"><label>Handle</label><input class="input" name="handle" placeholder="3–20 chars, letters/numbers/_" pattern="[a-zA-Z0-9_]{3,20}" required><div class="hint">Your public username — shown as @handle.</div></div>
+        <div class="field"><label>Email</label><input class="input" name="email" type="email" placeholder="you@example.com" required></div>
+        <div class="field"><label>Country<span class="req">*</span></label>${countrySelect()}<div class="hint">Prices are shown in your local currency — you can change this anytime in Settings.</div></div>
+        <div class="field"><label>Password</label><input class="input" name="password" type="password" minlength="6" placeholder="At least 6 characters" required autocomplete="new-password"></div>
+        ${termsRowHtml()}
+        <button class="btn btn-primary btn-lg" style="width:100%;margin-top:16px" type="submit">Create account</button>
+      </form>
+      <p class="auth-alt">Already have an account? <a href="#/login">Log in</a></p>
+    </div>
   </div>`;
+};
 VIEWS.forgot = async () => `
   <div class="auth-wrap">
     <a class="brand" href="#/" style="justify-content:center"><span class="crown">${ICON.crown}</span></a>
@@ -3039,7 +3233,7 @@ VIEWS.reset = async ({ query }) => {
 async function handleLogin(e) {
   e.preventDefault();
   const f = e.target;
-  const res = await API.login({ login: f.login.value, password: f.password.value });
+  const res = await API.login({ login: f.login.value, password: f.password.value, acceptTerms: !!(f.acceptTerms && f.acceptTerms.checked) });
   if (!res.ok) { toast(res.error, 'err'); if (res.code === 'banned') await router(); return; }
   if (res.data && res.data.need2fa) { STATE.twoFactorUserId = res.data.userId; await router(); return; }
   STATE.user = res.data; renderHeader(); toast('Welcome back, ' + res.data.displayName); go('/');
@@ -3053,7 +3247,7 @@ async function onVerify2fa(e) {
 async function handleRegister(e) {
   e.preventDefault();
   const f = e.target;
-  const res = await API.register({ handle: f.handle.value, displayName: f.displayName.value, email: f.email.value, password: f.password.value, country: f.country ? f.country.value : 'US' });
+  const res = await API.register({ handle: f.handle.value, displayName: f.displayName.value, email: f.email.value, password: f.password.value, country: f.country ? f.country.value : 'US', acceptTerms: !!(f.acceptTerms && f.acceptTerms.checked) });
   if (!res.ok) { toast(res.error, 'err'); return; }
   STATE.user = res.data; renderHeader(); toast('Account created — welcome to Kings Production!'); go('/');
 }
@@ -3993,6 +4187,23 @@ function setupWow() {
   });
 }
 
+/* ---- scroll reveals (only when JS + motion are OK) ---- */
+let _revealIO = null;
+function setupReveal() {
+  if (!('IntersectionObserver' in window) || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  document.body.classList.add('js-reveal');
+  _revealIO = new IntersectionObserver(es => es.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add('in'); _revealIO.unobserve(e.target); }
+  }), { threshold: 0.06 });
+  bindReveals();
+}
+function bindReveals() {
+  if (!_revealIO) return;
+  document.querySelectorAll('.section-head, .profile-hero, .tier, .approve-card, .creator-card, .asset-card, .project-card').forEach(el => {
+    if (!el.classList.contains('in') && !el.dataset.revealed) { el.dataset.revealed = '1'; _revealIO.observe(el); }
+  });
+}
+
 /* ---- hero particles + stat counters ---- */
 function spawnParticles() {
   const host = document.querySelector('.hero-particles');
@@ -4047,6 +4258,7 @@ async function init() {
   const started = performance.now();
   runLoaderProgress();
   setupWow();
+  setupReveal();
   try {
     await API.boot();
     renderShell();

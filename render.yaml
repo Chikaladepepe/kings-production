@@ -42,10 +42,21 @@ services:
       - key: UPLOAD_DIR
         value: ./data/uploads   # used only when R2_* are unset (ephemeral on free tier)
       # Your custom domain, once Cloudflare DNS points at this service
-      # Used for password-reset email links.
+      # Used for password-reset email links AND the Google sign-in callback.
       # Uncomment ONLY after https://kingsproduction.cc is live, then redeploy.
       # - key: PUBLIC_URL
       #   value: https://kingsproduction.cc
+      # --- Sign in with Google (optional) ----------------------------------
+      # Create a Google Cloud OAuth client ID (Web app) at
+      # console.cloud.google.com → APIs & Services → Credentials →
+      # "Create credentials → OAuth client ID". Authorized redirect URI:
+      #   https://kingsproduction.cc/api/auth/google/callback
+      # Then set these two keys (the Google button appears automatically):
+      # - key: GOOGLE_CLIENT_ID
+      #   value: xxxxx.apps.googleusercontent.com
+      # - key: GOOGLE_CLIENT_SECRET
+      #   value: GOCSPX-...
+      # ----------------------------------------------------------------------
       # Real email delivery (optional):
       # - key: SMTP_HOST
       #   value: smtp.example.com

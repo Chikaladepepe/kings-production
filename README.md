@@ -18,8 +18,12 @@ Plugin, System), search, and see top-selling assets ranked by sales. Every
 upload goes through a **review process** before it goes live, so what you buy
 is quality-checked.
 
-**Accounts that matter.** Register an account, log in securely, enable
-**two-factor authentication**, and recover your account through password
+**Accounts that matter.** Register an account or **sign in with Google** in
+one click (a Google button appears on the login and signup pages once the
+OAuth keys are configured). Every new registration requires accepting the
+**Privacy Policy and Terms of Use** — a checkbox on both the signup and login
+forms, enforced by the server and recorded on your account. Enable
+**two-factor authentication** and recover your account through password
 reset. The first registered user becomes an Admin, who then manages roles and
 moderation from a dedicated Admin Panel.
 
@@ -83,6 +87,10 @@ higher, VIP / Licensed creators can post, and Members browse, buy, and rate.
 Staff go to **any profile** (even their own) and open the *Manage roles &
 tags* panel to change someone's role or add up to six extra display tags —
 like `#VIP`, `#Founder`, `#Designer` — which render as badges everywhere.
+The studio **Owner account** is recognized by identity and bypasses every
+permission gate — it can change its own role and tags, moderate any staff
+member, and grant any role without ever being locked out, and it is restored
+to Owner on every boot.
 
 **A live status badge.** A small pill in the corner pings the server so
 buyers always know the site's state: a green **Online · Ready** dot when it's
@@ -101,17 +109,18 @@ at the top of the portfolio, and only one can be featured at a time.
 
 ## Design
 
-A dark, premium theme — deep blacks and gradients lit by ambient gold
-glow, the crown as the light source, light-catching surfaces, and a floating
-social dock (Discord · YouTube · legal) that stays with you on every page,
-plus the live server-status pill. Clean, fast, and built to feel like a
-high-end studio, not a template.
+A dark, premium theme — deep blacks lit by a living ambient glow (slowly
+drifting gold and violet light with a faint grid), glassmorphic cards and
+header, a shimmering gradient headline, and a floating social dock
+(Discord · YouTube · legal) plus the live server-status pill that stay with
+you on every page. The auth pages are a royal split layout with a glowing
+brand panel and a one-click **Continue with Google** button.
 
 The site opens with an animated **loading screen** — the crown spinning in a
 ring of gold light above the studio tagline — and then stays alive: a soft
 gold glow follows your cursor, light particles drift up through the hero,
-cards tilt gently in 3D as you move over them, buttons sweep with light, and
-the headline stats count up as they appear.
+cards tilt gently in 3D as you move over them, buttons sweep with light,
+sections reveal on scroll, and the headline stats count up as they appear.
 
 ## Technology
 
