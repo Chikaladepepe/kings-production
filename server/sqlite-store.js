@@ -37,8 +37,10 @@ const SCHEMA = {
   tokens: ['id', 'userId', 'token', 'purpose', 'expiresAt', 'used', 'createdAt'],
   emails: ['id', 'to', 'subject', 'action', 'body', 'link', 'createdAt', 'read'],
   portfolio: ['id', 'title', 'category', 'desc', 'stat', 'status', 'imageUrl', 'links', 'featured', 'createdAt'],
-  creators: ['id', 'name', 'role', 'bio'],
+  creators: ['id', 'name', 'role', 'bio', 'links', 'handle', 'createdAt'],
   orders: ['id', 'buyerId', 'assetId', 'method', 'amount', 'currency', 'status', 'providerRef', 'licenseKey', 'createdAt', 'paidAt', 'updatedAt'],
+  tickets: ['id', 'userId', 'subject', 'category', 'details', 'status', 'createdAt', 'updatedAt', 'lastActivityAt'],
+  ticket_messages: ['id', 'ticketId', 'userId', 'body', 'createdAt'],
 };
 /* Booleans are persisted as 0/1 integers and restored on read. */
 const BOOLS = { users: ['banned', 'totpEnabled'], tokens: ['used'], emails: ['read'], portfolio: ['featured'] };
@@ -111,6 +113,15 @@ CREATE TABLE IF NOT EXISTS orders (
   status TEXT NOT NULL DEFAULT 'created', providerRef TEXT, licenseKey TEXT,
   createdAt INTEGER NOT NULL, paidAt INTEGER, updatedAt INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS tickets (
+  id TEXT PRIMARY KEY, userId TEXT NOT NULL, subject TEXT NOT NULL, category TEXT,
+  details TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'open',
+  createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL, lastActivityAt INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS ticket_messages (
+  id TEXT PRIMARY KEY, ticketId TEXT NOT NULL, userId TEXT NOT NULL, body TEXT NOT NULL,
+  createdAt INTEGER NOT NULL
+);
 CREATE INDEX IF NOT EXISTS idx_orders_buyer ON orders (buyerId);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders (status);
 CREATE INDEX IF NOT EXISTS idx_assets_status ON assets (status);
@@ -130,6 +141,7 @@ function createSqliteStore(file) {
   db.exec('PRAGMA foreign_keys = ON;');
   db.exec(DDL);
   runMigrations(db);
+  ticketCleanup(db);
 
   function rowToObj(table, row) {
     if (!row) return null;
@@ -186,11 +198,24 @@ const MIGRATIONS = [
   "ALTER TABLE users ADD COLUMN tags TEXT",
   "ALTER TABLE users ADD COLUMN googleId TEXT",
   "ALTER TABLE users ADD COLUMN acceptedTermsAt INTEGER",
+  "ALTER TABLE creators ADD COLUMN links TEXT",
+  "ALTER TABLE creators ADD COLUMN handle TEXT",
+  "ALTER TABLE creators ADD COLUMN createdAt INTEGER",
 ];
+function ticketCleanup(db) {
+  const cutoff = Date.now() - 5 * 24 * 3600 * 1000;
+  try {
+    const toDelete = db.prepare('SELECT id FROM tickets WHERE lastActivityAt < ? AND status = ?').all(cutoff, 'closed');
+    for (const row of toDelete) {
+      db.prepare('DELETE FROM ticket_messages WHERE ticketId = ?').run(row.id);
+      db.prepare('DELETE FROM tickets WHERE id = ?').run(row.id);
+    }
+  } catch (e) { /* best effort */ }
+}
 function runMigrations(db) {
   for (const sql of MIGRATIONS) {
     try { db.exec(sql); } catch (e) { /* duplicate column — already migrated */ }
   }
 }
 
-module.exports = { createSqliteStore, SCHEMA, BOOLS, DDL, MIGRATIONS, runMigrations };
+module.exports = { createSqliteStore, SCHEMA, BOOLS, DDL, MIGRATIONS, runMigrations, ticketCleanup };

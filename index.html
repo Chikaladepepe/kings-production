@@ -888,11 +888,34 @@ body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opac
 .card-hover::after{content:'';position:absolute;top:0;left:15%;right:15%;height:1px;background:linear-gradient(90deg,transparent,rgba(212,175,55,.55),transparent);opacity:0;transition:opacity .25s;pointer-events:none;z-index:2}
 .card-hover:hover::after{opacity:1}
 
+/* ---- cinematic page transition (gold veil sweep) ---- */
+.view.leaving{animation:viewOut .22s ease-in forwards}
+@keyframes viewOut{to{opacity:0;transform:translateY(-10px);filter:blur(4px)}}
+.view-veil{position:fixed;inset:0;z-index:90;pointer-events:none;visibility:hidden;opacity:0;transform:translateX(-102%);background:linear-gradient(100deg,transparent 26%,rgba(212,175,55,.06) 44%,rgba(232,201,106,.2) 50%,rgba(212,175,55,.06) 56%,transparent 74%);filter:blur(1px)}
+.view-veil.go{visibility:visible;animation:veilSweep .55s cubic-bezier(.5,0,.2,1) forwards}
+@keyframes veilSweep{0%{transform:translateX(-102%);opacity:0}12%{opacity:1}88%{opacity:1}100%{transform:translateX(102%);opacity:0}}
+
+/* ---- settings: toggle switches, volume, rows ---- */
+.set-row{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--border)}
+.set-row:last-child{border-bottom:none}
+.set-row b{display:block;font-size:14px;font-weight:600}
+.set-row small{font-size:12px;color:var(--text-3)}
+.switch{position:relative;display:inline-flex;align-items:center;gap:12px;cursor:pointer;flex:1;min-width:0}
+.switch input{position:absolute;opacity:0;width:0;height:0}
+.switch .track{width:44px;height:24px;border-radius:99px;background:var(--surface-3);border:1px solid var(--border-strong);position:relative;flex-shrink:0;transition:background .2s,border-color .2s,box-shadow .2s}
+.switch .track::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#b9b9c2;transition:transform .2s cubic-bezier(.3,1.4,.5,1),background .2s,box-shadow .2s}
+.switch input:checked + .track{background:rgba(212,175,55,.22);border-color:rgba(212,175,55,.55);box-shadow:0 0 14px rgba(212,175,55,.18)}
+.switch input:checked + .track::after{transform:translateX(20px);background:var(--gold);box-shadow:0 0 10px rgba(212,175,55,.75)}
+.switch:focus-within .track{box-shadow:0 0 0 3px rgba(212,175,55,.16)}
+input[type=range].vol{width:170px;accent-color:var(--gold);cursor:pointer;background:transparent}
+input[type=range].vol::-webkit-slider-runnable-track{height:4px;border-radius:99px;background:var(--surface-3)}
+input[type=range].vol::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--gold);margin-top:-6px;box-shadow:0 0 10px rgba(212,175,55,.7)}
+
 @media (prefers-reduced-motion:reduce){
   body::before,body::after,.hero .crown svg,.hero h1,.hero-stat b,.badge.owner::after,.post-fab,.auth-brand .orb,.gold-shimmer,
-  .scroll-progress,.to-top,.marquee-track,.crown-ring,.crown-ring::before,.crown-ring::after,.hero-orb,.rotor-txt,.rotor-dot,.fx-burst,.fx-particle,.fx-sparkle,.profile-hero .avatar::after,.section-head h2,.portfolio-grid .project-card.spotlight::before{animation:none!important;transition:none!important}
+  .scroll-progress,.to-top,.marquee-track,.crown-ring,.crown-ring::before,.crown-ring::after,.hero-orb,.rotor-txt,.rotor-dot,.fx-burst,.fx-particle,.fx-sparkle,.profile-hero .avatar::after,.section-head h2,.portfolio-grid .project-card.spotlight::before,.view.leaving,.view-veil,.switch .track,.switch .track::after{animation:none!important;transition:none!important}
   .js-reveal .section-head,.js-reveal .profile-hero,.js-reveal .tier,.js-reveal .approve-card,.js-reveal .creator-card,.js-reveal .asset-card,.js-reveal .project-card{opacity:1;transform:none}
-  .ambient-dust,.scroll-progress,.to-top{display:none}
+  .ambient-dust,.scroll-progress,.to-top,.view-veil{display:none}
 }
 
 </style>
@@ -934,6 +957,14 @@ const fmtMoney = n => {
   return (KPEngine.CURRENCY_SYMBOL[cur] || (cur + ' ')) + ' ' + Math.round((Number(n) || 0) * r).toLocaleString('en-US');
 };
 const fmtUsd = n => '$ ' + Number(n || 0).toLocaleString('en-US');
+/* The VIP / Licensed plan costs 500 PHP base — shown in the user's local currency. */
+const fmtVip = () => {
+  const cur = CUR_OF(STATE.user ? STATE.user.country : 'US');
+  const rates = STATE.rates || KPEngine.FX_FALLBACK;
+  const php = Number(rates.PHP || 1);
+  const local = Math.max(1, Math.round(500 / php * Number(rates[cur] || 1)));
+  return (KPEngine.CURRENCY_SYMBOL[cur] || (cur + ' ')) + ' ' + local.toLocaleString('en-US');
+};
 const fmtDate = t => new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 const fmtDateFull = t => new Date(t).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 const initials = name => String(name || '?').trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
@@ -950,6 +981,55 @@ function timeAgo(t) {
 }
 const b64encode = str => btoa(unescape(encodeURIComponent(str)));
 const b64decode = b64 => decodeURIComponent(escape(atob(b64)));
+
+/* ---- subtle sound design (Web Audio — synthesized, no files) ---- */
+const SFX = (() => {
+  let ctx = null;
+  let muted = localStorage.getItem('kp_sfx_muted') === '1';
+  let vol = Math.min(1, Math.max(0, Number(localStorage.getItem('kp_sfx_vol')) || 0.7));
+  function ac() {
+    if (!ctx) { const C = window.AudioContext || window.webkitAudioContext; if (!C) return null; ctx = new C(); }
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    return ctx;
+  }
+  function tone({ f = 440, f2 = 0, t = 0, d = 0.09, type = 'sine', v = 1, attack = 0.004 }) {
+    const c = ac(); if (!c) return;
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(f, c.currentTime + t);
+    if (f2) o.frequency.exponentialRampToValueAtTime(Math.max(30, f2), c.currentTime + t + d);
+    const peak = Math.min(0.5, v * vol * 0.16);
+    g.gain.setValueAtTime(0.0001, c.currentTime + t);
+    g.gain.exponentialRampToValueAtTime(peak, c.currentTime + t + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + t + d);
+    o.connect(g); g.connect(c.destination);
+    o.start(c.currentTime + t); o.stop(c.currentTime + t + d + 0.03);
+  }
+  return {
+    isMuted: () => muted,
+    vol: () => vol,
+    setMuted(m) { muted = !!m; localStorage.setItem('kp_sfx_muted', muted ? '1' : '0'); },
+    setVol(v) { vol = Math.min(1, Math.max(0, Number(v) || 0)); localStorage.setItem('kp_sfx_vol', String(vol)); },
+    play(name, force = false) {
+      if (!force && muted) return;
+      const c = ac(); if (!c) return;
+      switch (name) {
+        case 'click': tone({ f: 940, f2: 1260, d: 0.045, type: 'triangle', v: 0.55 }); break;
+        case 'toggle': tone({ f: 620, f2: 880, d: 0.05, type: 'sine', v: 0.5 }); break;
+        case 'like': tone({ f: 620, d: 0.07, type: 'sine', v: 0.7 }); tone({ f: 880, t: 0.07, d: 0.09, type: 'sine', v: 0.7 }); break;
+        case 'unlike': tone({ f: 660, d: 0.07, type: 'sine', v: 0.55 }); tone({ f: 480, t: 0.06, d: 0.09, type: 'sine', v: 0.5 }); break;
+        case 'success': tone({ f: 523, d: 0.08, type: 'sine', v: 0.6 }); tone({ f: 784, t: 0.08, d: 0.12, type: 'sine', v: 0.6 }); break;
+        case 'error': tone({ f: 300, f2: 180, d: 0.14, type: 'sine', v: 0.5 }); break;
+        case 'purchase':
+          [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone({ f, t: i * 0.09, d: 0.32, type: 'sine', v: 0.8 }));
+          tone({ f: 2093, t: 0.27, d: 0.4, type: 'sine', v: 0.22 });
+          break;
+        case 'page': tone({ f: 340, f2: 780, d: 0.22, type: 'sine', v: 0.4 }); break;
+        case 'crown': tone({ f: 784, d: 0.14, type: 'triangle', v: 0.6 }); tone({ f: 1174.66, t: 0.09, d: 0.22, type: 'triangle', v: 0.5 }); break;
+      }
+    },
+  };
+})();
 
 /* ---- icon set (grey UI icons; the crown is the only gold element) ---- */
 const ICON = {
@@ -1272,14 +1352,7 @@ const API = {};
      The portfolio is admin-published (see createPortfolio below) and starts
      empty — legacy seeded demo rows are removed on boot. */
   const CONTENT = {
-    creators: [
-      { id: 'cr1', name: 'King', role: 'Founder · Lead Developer', bio: 'Builds the systems that hold the studio together and ships the frameworks you see in the shop.' },
-      { id: 'cr2', name: 'Chika', role: 'UI / UX Designer', bio: 'Designs interfaces players actually enjoy. Behind the Chika UI Library and every shop front.' },
-      { id: 'cr3', name: 'Chika', role: 'Core Scripter', bio: 'Writes the server-authoritative code behind our admin, auction, and framework systems.' },
-      { id: 'cr4', name: 'Chika', role: '3D Modeler', bio: 'Crafts the models, rigs, and environments — from character packs to modular castle kits.' },
-      { id: 'cr5', name: 'Chika', role: 'Animator', bio: 'Hand-tunes every animation clip, from combat flows to climbing and parkour.' },
-      { id: 'cr6', name: 'Chika', role: 'Systems Engineer', bio: 'Designs backend logic, data stores, and the architecture behind our largest projects.' }
-    ]
+    creators: [] // cleared — admins publish creators individually with account links
   };
 
   function createEngine(deps) {
@@ -1766,6 +1839,28 @@ const API = {};
 
     /* ---- payment orders (Stripe · PayPal · GCash) ---- */
     const PAY_METHODS = ['stripe', 'paypal', 'gcash'];
+    /* The VIP / Licensed plan is sold directly for 500 PHP (base) — converting
+       to the buyer's local currency the same way asset prices convert. */
+    const VIP_PLAN_PRICE_PHP = 500;
+    const convertFromPhp = (php, country) => Math.max(1, Math.round((Number(php) || 0) / fxRate('PHP') * fxRate(currencyOf(country))));
+    const isVipOrder = o => !!(o && o.assetId === 'vip');
+    async function createVipOrder(user, method) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      method = String(method || '').toLowerCase();
+      if (!PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, or GCash.');
+      if (isTimedOut(u)) return fail('timeout', 'You are currently timed out and cannot make purchases.');
+      if (isBanned(u)) return fail('banned', 'Your account is banned.');
+      if (effRank(u) >= roleRank('vip')) return fail('owned', 'Your account is already VIP / Licensed — no need to buy it again.');
+      if (all('orders').some(o => o.buyerId === u.id && isVipOrder(o) && (o.status === 'created' || o.status === 'paid')))
+        return fail('pending', 'You already have a pending VIP / Licensed order.');
+      const currency = currencyOf(u.country);
+      const amount = convertFromPhp(VIP_PLAN_PRICE_PHP, u.country);
+      const order = { id: 'o' + uid(), buyerId: u.id, assetId: 'vip', method, amount, currency, status: 'created', providerRef: null, licenseKey: null, createdAt: now(), paidAt: null, updatedAt: now() };
+      store.put('orders', order);
+      flush();
+      return ok({ orderId: order.id, amount: order.amount, currency: order.currency });
+    }
     async function createOrder(user, assetId, method) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
@@ -1787,17 +1882,27 @@ const API = {};
       flush();
       return ok({ orderId: order.id, amount: order.amount, currency: order.currency });
     }
-    function finalizeOrder(order, buyer, a) {
+    function finalizeOrder(order, buyer) {
       if (order.status === 'completed') return ok({ licenseKey: order.licenseKey, vipUpgrade: false });
       if (order.status !== 'paid') { order.status = 'paid'; order.paidAt = now(); }
       order.updatedAt = now();
-      const r = grantLicense(buyer, a);
+      let out;
+      if (isVipOrder(order)) {
+        let vipUpgrade = false;
+        if (effRank(buyer) < roleRank('vip')) { buyer.role = 'vip'; buyer.updatedAt = now(); store.put('users', buyer); vipUpgrade = true; }
+        out = { licenseKey: null, vipUpgrade };
+      } else {
+        const a = byIdIn('assets', order.assetId);
+        if (!a) return fail('notfound', 'The asset for this order no longer exists.');
+        const r = grantLicense(buyer, a);
+        out = { licenseKey: r.licenseKey, vipUpgrade: r.vipUpgrade };
+      }
       order.status = 'completed';
-      order.licenseKey = r.licenseKey;
+      order.licenseKey = out.licenseKey;
       order.updatedAt = now();
       store.put('orders', order);
       flush();
-      return ok({ licenseKey: r.licenseKey, vipUpgrade: r.vipUpgrade, method: order.method });
+      return ok({ licenseKey: out.licenseKey, vipUpgrade: out.vipUpgrade, method: order.method });
     }
     async function completeOrder(user, orderId, providerRef) {
       const u = resolveUser(user);
@@ -1805,9 +1910,11 @@ const API = {};
       const order = byIdIn('orders', orderId);
       if (!order || order.buyerId !== u.id) return fail('forbidden', 'Order not found.');
       if (providerRef && !order.providerRef) { order.providerRef = String(providerRef); store.put('orders', order); }
-      const a = byIdIn('assets', order.assetId);
-      if (!a) return fail('notfound', 'The asset for this order no longer exists.');
-      return finalizeOrder(order, u, a);
+      if (!isVipOrder(order)) {
+        const a = byIdIn('assets', order.assetId);
+        if (!a) return fail('notfound', 'The asset for this order no longer exists.');
+      }
+      return finalizeOrder(order, u);
     }
     /* Payment-confirmation path (webhook / provider verify / admin) — completes
        an order as its buyer without a user session. */
@@ -1816,10 +1923,12 @@ const API = {};
       if (!order) return fail('notfound', 'Order not found.');
       const buyer = dbUser(order.buyerId);
       if (!buyer) return fail('notfound', 'The buyer account no longer exists.');
-      const a = byIdIn('assets', order.assetId);
-      if (!a) return fail('notfound', 'The asset for this order no longer exists.');
+      if (!isVipOrder(order)) {
+        const a = byIdIn('assets', order.assetId);
+        if (!a) return fail('notfound', 'The asset for this order no longer exists.');
+      }
       if (providerRef && !order.providerRef) { order.providerRef = String(providerRef); store.put('orders', order); }
-      return finalizeOrder(order, buyer, a);
+      return finalizeOrder(order, buyer);
     }
     async function cancelOrder(user, orderId) {
       const u = resolveUser(user);
@@ -1832,11 +1941,11 @@ const API = {};
     async function myOrders(user) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
-      return ok(all('orders').filter(o => o.buyerId === u.id).sort((x, y) => y.createdAt - x.createdAt).map(o => ({ ...o, asset: summarize(byIdIn('assets', o.assetId)) })));
+      return ok(all('orders').filter(o => o.buyerId === u.id).sort((x, y) => y.createdAt - x.createdAt).map(o => ({ ...o, vip: isVipOrder(o), asset: isVipOrder(o) ? null : summarize(byIdIn('assets', o.assetId)) })));
     }
     async function adminOrders(actor) {
       const r = requireAdmin(actor); if (r) return r;
-      return ok(all('orders').slice().sort((x, y) => y.createdAt - x.createdAt).map(o => ({ ...o, buyer: publicUser(dbUser(o.buyerId)), asset: summarize(byIdIn('assets', o.assetId)) })));
+      return ok(all('orders').slice().sort((x, y) => y.createdAt - x.createdAt).map(o => ({ ...o, vip: isVipOrder(o), buyer: publicUser(dbUser(o.buyerId)), asset: isVipOrder(o) ? null : summarize(byIdIn('assets', o.assetId)) })));
     }
     async function adminCompleteOrder(actor, orderId) {
       const r = requireAdmin(actor); if (r) return r;
@@ -1844,9 +1953,11 @@ const API = {};
       if (!order) return fail('notfound', 'Order not found.');
       const buyer = dbUser(order.buyerId);
       if (!buyer) return fail('notfound', 'The buyer account no longer exists.');
-      const a = byIdIn('assets', order.assetId);
-      if (!a) return fail('notfound', 'The asset for this order no longer exists.');
-      return finalizeOrder(order, buyer, a);
+      if (!isVipOrder(order)) {
+        const a = byIdIn('assets', order.assetId);
+        if (!a) return fail('notfound', 'The asset for this order no longer exists.');
+      }
+      return finalizeOrder(order, buyer);
     }
 
     async function myPurchases(user) {
@@ -2149,7 +2260,8 @@ const API = {};
     async function content() {
       const parseLinks = it => { try { const l = JSON.parse(it.links || '[]'); return Array.isArray(l) ? l : []; } catch (e) { return []; } };
       const portfolio = all('portfolio').slice().sort((a, b) => ((b.featured ? 1 : 0) - (a.featured ? 1 : 0)) || ((b.createdAt || 0) - (a.createdAt || 0))).map(it => ({ ...it, links: parseLinks(it) }));
-      return ok({ portfolio, creators: all('creators').slice().sort((a, b) => a.id < b.id ? -1 : 1) });
+      const creators = all('creators').slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).map(it => ({ ...it, links: parseLinks(it) }));
+      return ok({ portfolio, creators });
     }
 
     /* ============ PORTFOLIO (admin-published showcase) ============ */
@@ -2355,6 +2467,121 @@ const API = {};
       return ok(all('emails').slice().reverse());
     }
 
+    /* ============ CREATORS (admin-published, like portfolio) ============ */
+    async function createCreator(actor, { name, role, bio, links, handle } = {}) {
+      const r = requireAdmin(actor); if (r) return r;
+      name = String(name || '').trim();
+      if (name.length < 1 || name.length > 60) return fail('invalid', 'Name is required (1–60 chars).');
+      const item = {
+        id: 'cr' + uid(), name,
+        role: String(role || '').trim().slice(0, 60),
+        bio: String(bio || '').trim().slice(0, 300),
+        links: JSON.stringify(cleanPortfolioLinks(links)),
+        handle: String(handle || '').trim().slice(0, 30),
+        createdAt: now(),
+      };
+      store.put('creators', item);
+      flush();
+      return ok({ id: item.id });
+    }
+    async function updateCreator(actor, id, patch = {}) {
+      const r = requireAdmin(actor); if (r) return r;
+      const it = byIdIn('creators', id);
+      if (!it) return fail('notfound', 'Creator not found.');
+      if (patch.name !== undefined) it.name = String(patch.name || '').trim().slice(0, 60);
+      if (patch.role !== undefined) it.role = String(patch.role || '').trim().slice(0, 60);
+      if (patch.bio !== undefined) it.bio = String(patch.bio || '').trim().slice(0, 300);
+      if (patch.handle !== undefined) it.handle = String(patch.handle || '').trim().slice(0, 30);
+      if (patch.links !== undefined) it.links = JSON.stringify(cleanPortfolioLinks(patch.links));
+      store.put('creators', it);
+      flush();
+      return ok(true);
+    }
+    async function deleteCreator(actor, id) {
+      const r = requireAdmin(actor); if (r) return r;
+      if (!byIdIn('creators', id)) return fail('notfound', 'Creator not found.');
+      store.del('creators', id);
+      flush();
+      return ok(true);
+    }
+
+    /* ============ TICKETS & SUPPORT CHAT ============ */
+    const TICKET_INACTIVITY_MS = 5 * 24 * 3600 * 1000;
+    async function createTicket(user, { subject, category, details } = {}) {
+      if (!user) return fail('notfound', 'User not found.');
+      const u = resolveUser(user); if (!u) return fail('usernotfound', 'User not found.');
+      subject = String(subject || '').trim();
+      details = String(details || '').trim();
+      if (subject.length < 3 || subject.length > 120) return fail('invalid', 'Subject must be 3–120 characters.');
+      if (details.length < 10) return fail('invalid', 'Details must be at least 10 characters.');
+      const t = now();
+      const ticket = {
+        id: 'tk' + uid(), userId: u.id, subject, category: String(category || '').trim().slice(0, 40),
+        details, status: 'open', createdAt: t, updatedAt: t, lastActivityAt: t,
+      };
+      store.put('tickets', ticket);
+      store.put('ticket_messages', { id: 'tm' + uid(), ticketId: ticket.id, userId: u.id, body: details, createdAt: t });
+      flush();
+      return ok({ id: ticket.id });
+    }
+    async function addTicketMessage(user, ticketId, body) {
+      const u = resolveUser(user); if (!u) return fail('usernotfound', 'User not found.');
+      const ticket = byIdIn('tickets', ticketId);
+      if (!ticket) return fail('notfound', 'Ticket not found.');
+      const isOwner = ticket.userId === u.id;
+      const isStaffUser = isStaff(u);
+      if (!isOwner && !isStaffUser) return fail('forbidden', 'You can only reply to your own tickets.');
+      body = String(body || '').trim();
+      if (body.length < 1) return fail('invalid', 'Message cannot be empty.');
+      if (body.length > 4000) return fail('invalid', 'Message too long (max 4000 characters).');
+      const t = now();
+      const msg = { id: 'tm' + uid(), ticketId, userId: u.id, body, createdAt: t };
+      store.put('ticket_messages', msg);
+      ticket.updatedAt = t;
+      ticket.lastActivityAt = t;
+      if (ticket.status === 'closed' && isOwner) ticket.status = 'open';
+      store.put('tickets', ticket);
+      flush();
+      return ok({ id: msg.id });
+    }
+    async function getTicket(user, ticketId) {
+      const u = resolveUser(user); if (!u) return fail('usernotfound', 'User not found.');
+      const ticket = byIdIn('tickets', ticketId);
+      if (!ticket) return fail('notfound', 'Ticket not found.');
+      const isOwner = ticket.userId === u.id;
+      const isStaffUser = isStaff(u);
+      if (!isOwner && !isStaffUser) return fail('forbidden', 'You can only view your own tickets.');
+      const messages = all('ticket_messages').filter(m => m.ticketId === ticketId).sort((a, b) => a.createdAt - b.createdAt)
+        .map(m => ({ ...m, user: publicUser(byIdIn('users', m.userId)) }));
+      return ok({ ticket, messages });
+    }
+    async function listMyTickets(user) {
+      const u = resolveUser(user); if (!u) return fail('usernotfound', 'User not found.');
+      return ok(all('tickets').filter(t => t.userId === u.id).sort((a, b) => b.lastActivityAt - a.lastActivityAt));
+    }
+    async function adminListTickets(actor) {
+      const r = requireAdmin(actor); if (r) return r;
+      return ok(all('tickets').slice().sort((a, b) => b.lastActivityAt - a.lastActivityAt).map(t => ({ ...t, user: publicUser(byIdIn('users', t.userId)) })));
+    }
+    async function adminCloseTicket(actor, ticketId) {
+      const r = requireAdmin(actor); if (r) return r;
+      const ticket = byIdIn('tickets', ticketId);
+      if (!ticket) return fail('notfound', 'Ticket not found.');
+      ticket.status = 'closed';
+      ticket.updatedAt = now();
+      store.put('tickets', ticket); flush();
+      return ok(true);
+    }
+    async function adminDeleteTicket(actor, ticketId) {
+      const r = requireAdmin(actor); if (r) return r;
+      const ticket = byIdIn('tickets', ticketId);
+      if (!ticket) return fail('notfound', 'Ticket not found.');
+      all('ticket_messages').filter(m => m.ticketId === ticketId).forEach(m => store.del('ticket_messages', m.id));
+      store.del('tickets', ticketId);
+      flush();
+      return ok(true);
+    }
+
     seedContent();
     ensureOwnerAccount();
 
@@ -2362,12 +2589,15 @@ const API = {};
       register, login, googleLogin, verify2fa, requestReset, resetPassword, logout, me,
       updateProfile, setup2fa, enable2fa, disable2fa,
       createAsset, postStatus, listApproved, topSelling, getAsset, updateAsset, deleteAsset, myAssets, download,
-      purchase, myPurchases, assignLicense, createOrder, completeOrder, settleOrder, cancelOrder, myOrders, adminOrders, adminCompleteOrder,
+      purchase, myPurchases, assignLicense, createOrder, createVipOrder, completeOrder, settleOrder, cancelOrder, myOrders, adminOrders, adminCompleteOrder,
       addComment, listComments, toggleLike,
       listReviews, addReview, deleteReview,
       createReport, adminReports, adminResolveReport,
       licenseActivate, licenseHeartbeat, creatorDashboard, creatorLicenses, setLicenseStatus, revokeDevice,
       publicProfile, content, createPortfolio, updatePortfolio, deletePortfolio,
+      createCreator, updateCreator, deleteCreator,
+      createTicket, addTicketMessage, getTicket, listMyTickets,
+      adminListTickets, adminCloseTicket, adminDeleteTicket,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
       adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSessions, adminEmails, adminOrders, adminCompleteOrder,
       setFx,
@@ -2502,15 +2732,19 @@ API.purchase = (user, id) => _wrap(async () => _mode === 'local' ? await _engine
 API.paymentMethods = () => _wrap(async () => _mode === 'local'
   ? { ok: true, data: { dev: true, currency: 'PHP', methods: [{ id: 'stripe', label: 'Stripe', enabled: true }, { id: 'paypal', label: 'PayPal', enabled: true }, { id: 'gcash', label: 'GCash', enabled: true }] } }
   : await _call('GET', '/api/payment/methods'));
-API.checkout = (user, assetId, method) => _wrap(async () => _mode === 'local'
-  ? await (async () => { const o = await _engine.createOrder(user, assetId, method); if (!o.ok) return o; return await _engine.completeOrder(user, o.data.orderId, 'dev'); })()
-  : await _call('POST', '/api/checkout', { assetId, method }));
+API.checkout = (user, assetId, method, plan) => _wrap(async () => _mode === 'local'
+  ? await (async () => { const o = plan === 'vip' ? await _engine.createVipOrder(user, method) : await _engine.createOrder(user, assetId, method); if (!o.ok) return o; return await _engine.completeOrder(user, o.data.orderId, 'dev'); })()
+  : await _call('POST', '/api/checkout', { assetId, method, plan }));
 API.confirmPayment = (orderId, providerRef) => _wrap(async () => _mode === 'local' ? { ok: true, data: {} } : await _call('POST', '/api/payments/confirm', { orderId, providerRef }));
 API.myOrders = user => _wrap(async () => _mode === 'local' ? await _engine.myOrders(user) : await _call('GET', '/api/orders/mine'));
 API.adminOrders = user => _wrap(async () => _mode === 'local' ? await _engine.adminOrders(user) : await _call('GET', '/api/admin/orders'));
 API.adminCompleteOrder = (user, orderId) => _wrap(async () => _mode === 'local' ? await _engine.adminCompleteOrder(user, orderId) : await _call('POST', '/api/admin/orders/' + _e(orderId) + '/complete'));
 API.myPurchases = user => _wrap(async () => _mode === 'local' ? await _engine.myPurchases(user) : await _call('GET', '/api/purchases/mine'));
 API.assignLicense = (user, purchaseId, a) => _wrap(async () => _mode === 'local' ? await _engine.assignLicense(user, purchaseId, a) : await _call('POST', '/api/licenses/assign', { purchaseId, ...a }));
+/* ---- admin support tickets ---- */
+API.adminListTickets = user => _wrap(async () => _mode === 'local' ? await _engine.adminListTickets(user) : await _call('GET', '/api/admin/tickets'));
+API.adminCloseTicket = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.adminCloseTicket(user, id) : await _call('POST', '/api/admin/tickets/' + _e(id) + '/close'));
+API.adminDeleteTicket = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.adminDeleteTicket(user, id) : await _call('DELETE', '/api/admin/tickets/' + _e(id)));
 
 /* ---- comments & likes ---- */
 API.addComment = (user, assetId, a) => _wrap(async () => _mode === 'local' ? await _engine.addComment(user, assetId, a) : await _call('POST', '/api/assets/' + _e(assetId) + '/comments', a));
@@ -2539,6 +2773,15 @@ API.content = () => _wrap(async () => _mode === 'local' ? await _engine.content(
 API.createPortfolio = (user, a) => _wrap(async () => _mode === 'local' ? await _engine.createPortfolio(user, a) : await _call('POST', '/api/site/portfolio', a));
 API.updatePortfolio = (user, id, a) => _wrap(async () => _mode === 'local' ? await _engine.updatePortfolio(user, id, a) : await _call('PATCH', '/api/site/portfolio/' + _e(id), a));
 API.deletePortfolio = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.deletePortfolio(user, id) : await _call('DELETE', '/api/site/portfolio/' + _e(id)));
+/* ---- creators (admin-published, like portfolio) ---- */
+API.createCreator = (user, a) => _wrap(async () => _mode === 'local' ? await _engine.createCreator(user, a) : await _call('POST', '/api/site/creators', a));
+API.updateCreator = (user, id, a) => _wrap(async () => _mode === 'local' ? await _engine.updateCreator(user, id, a) : await _call('PATCH', '/api/site/creators/' + _e(id), a));
+API.deleteCreator = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.deleteCreator(user, id) : await _call('DELETE', '/api/site/creators/' + _e(id)));
+/* ---- support tickets ---- */
+API.createTicket = (user, a) => _wrap(async () => _mode === 'local' ? await _engine.createTicket(user, a) : await _call('POST', '/api/tickets/new', a));
+API.listMyTickets = user => _wrap(async () => _mode === 'local' ? await _engine.listMyTickets(user) : await _call('GET', '/api/tickets/mine'));
+API.getTicket = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.getTicket(user, id) : await _call('GET', '/api/tickets/' + _e(id)));
+API.addTicketMessage = (user, id, body) => _wrap(async () => _mode === 'local' ? await _engine.addTicketMessage(user, id, body) : await _call('POST', '/api/tickets/' + _e(id) + '/messages', { body }));
 
 /* ---- admin ---- */
 API.adminOverview = user => _wrap(async () => _mode === 'local' ? await _engine.adminOverview(user) : await _call('GET', '/api/admin/overview'));
@@ -2622,7 +2865,7 @@ async function onLike(e, id, btn) {
   btn.classList.toggle('on', !!res.data.liked);
   btn.dataset.count = res.data.count;
   btn.classList.remove('pop'); void btn.offsetWidth; btn.classList.add('pop');
-  if (res.data.liked) burstAt(e.clientX, e.clientY, 16);
+  if (res.data.liked) { burstAt(e.clientX, e.clientY, 16); SFX.play('like'); } else SFX.play('unlike');
 }
 function emptyHtml(title, sub) {
   return `<div class="empty"><span class="crown">${ICON.crown}</span><h3>${esc(title)}</h3>${sub ? `<p>${esc(sub)}</p>` : ''}</div>`;
@@ -2631,6 +2874,7 @@ function loadingHtml() { return `<div class="loading"><span class="spinner"></sp
 
 /* ---- toast ---- */
 function toast(msg, type = 'ok') {
+  SFX.play(type === 'err' ? 'error' : 'success');
   let box = document.getElementById('toasts');
   if (!box) { box = document.createElement('div'); box.id = 'toasts'; document.body.appendChild(box); }
   const el = document.createElement('div');
@@ -2697,7 +2941,7 @@ const SOCIAL = { discord: 'https://discord.gg/syQfqmaA28', youtube: 'https://you
 
 /* ---- shell ---- */
 function headerHtml(user) {
-  const nav = [...(user && canPost(user) ? [['dashboard', 'Dashboard']] : []), ['portfolio', 'Portfolio'], ['shop', 'Shop'], ['license', 'License'], ['creators', 'Creators']]
+  const nav = [...(user && canPost(user) ? [['dashboard', 'Dashboard']] : []), ['portfolio', 'Portfolio'], ['shop', 'Shop'], ['license', 'License'], ['creators', 'Creators'], ['support', 'Support']]
     .map(([p, l]) => `<a href="#/${p}" data-nav="${p}">${l}${p === 'dashboard' ? '<span class="fa-badge" style="margin-left:7px">VIP</span>' : ''}</a>`).join('');
   const right = user
     ? `<div class="dropdown">
@@ -2790,19 +3034,26 @@ function bindHeader() {
 const TITLES = {
   home: 'Kings Production — Premium Roblox Development Studio', shop: 'Shop — Kings Production',
   portfolio: 'Portfolio — Kings Production', license: 'License — Kings Production', creators: 'Creators — Kings Production',
+  support: 'Support — Kings Production', ticket: 'Ticket — Kings Production',
   login: 'Log in — Kings Production', register: 'Create account — Kings Production',
   settings: 'Settings — Kings Production', admin: 'Admin Panel — Kings Production', dashboard: 'Dashboard — Kings Production',
   privacy: 'Privacy Policy — Kings Production', terms: 'Terms of Use — Kings Production',
 };
-async function router() {
+let _firstRoute = true;
+async function router(opts = {}) {
   const { path, params, query } = parseHash();
   /* Auth pages are full-screen and focused — hide the site chrome around them. */
   document.body.classList.toggle('auth-mode', ['login', 'register', 'forgot', 'reset'].includes(path));
-  if (!['home', 'shop', 'portfolio', 'license', 'creators', 'asset', 'profile', 'login', 'register', 'forgot', 'reset', 'settings', 'upload', 'my-assets', 'dashboard', 'admin', 'privacy', 'terms'].includes(path)) { location.hash = '#/'; return; }
+  if (!['home', 'shop', 'portfolio', 'license', 'creators', 'support', 'ticket', 'asset', 'profile', 'login', 'register', 'forgot', 'reset', 'settings', 'upload', 'my-assets', 'dashboard', 'admin', 'privacy', 'terms'].includes(path)) { location.hash = '#/'; return; }
   const me = await API.me();
   STATE.user = me.ok ? me.data : null;
   renderHeader();
   const main = document.getElementById('main');
+  /* Cinematic gold veil sweep between pages — skipped on boot, admin tab flips,
+     reduced-motion, or when the user disabled transitions in Settings. */
+  const cinematic = !_firstRoute && !opts.noVeil && !window.matchMedia('(prefers-reduced-motion: reduce)').matches && localStorage.getItem('kp_transitions') !== '0';
+  _firstRoute = false;
+  if (cinematic) await transitionSwap(main);
   let html = loadingHtml();
   main.innerHTML = `<div class="view">${html}</div>`;
   try { html = await VIEWS[path]({ params, query }); }
@@ -2814,6 +3065,19 @@ async function router() {
   if (act) { document.querySelectorAll('[data-nav]').forEach(a => a.classList.remove('active')); act.classList.add('active'); }
   if (VIEWS_BIND[path]) await VIEWS_BIND[path]({ params, query });
   bindReveals();
+}
+function transitionSwap(main) {
+  return new Promise(res => {
+    const old = main.querySelector('.view');
+    if (old) old.classList.add('leaving');
+    SFX.play('page');
+    const veil = document.createElement('div');
+    veil.className = 'view-veil';
+    document.body.appendChild(veil);
+    requestAnimationFrame(() => veil.classList.add('go'));
+    setTimeout(res, 260);   // swap content mid-sweep
+    setTimeout(() => veil.remove(), 800);
+  });
 }
 
 /* ---- catalog component ---- */
@@ -2912,7 +3176,7 @@ VIEWS_BIND.login = async ({ query } = {}) => {
   if (query && query.google === '1' && query.token) {
     _setToken(query.token);
     const me = await API.me();
-    if (me.ok && me.data) { STATE.user = me.data; renderHeader(); toast('Signed in with Google — welcome, ' + me.data.displayName + '!'); go('/'); }
+    if (me.ok && me.data) { STATE.user = me.data; renderHeader(); toast('Signed in with Google — welcome, ' + me.data.displayName + '!'); SFX.play('crown'); go('/'); }
     else { toast('Google signed you in, but the session could not be verified.', 'err'); go('/login'); }
   }
 };
@@ -2923,7 +3187,12 @@ async function onBuy(id) {
   if (!STATE.user) { go('/login'); return; }
   openCheckout(id);
 }
-async function openCheckout(assetId) {
+function onBuyVip() {
+  if (!STATE.user) { go('/login'); return; }
+  openCheckout(null, 'vip');
+}
+async function openCheckout(assetId, plan) {
+  const isVip = plan === 'vip';
   const pm = await API.paymentMethods();
   const data = pm.ok && pm.data ? pm.data : { dev: true, methods: [{ id: 'stripe', label: 'Stripe', enabled: true }, { id: 'paypal', label: 'PayPal', enabled: true }, { id: 'gcash', label: 'GCash', enabled: true }] };
   const methods = data.methods || [];
@@ -2931,10 +3200,13 @@ async function openCheckout(assetId) {
       <span class="pm-icon">${m.id === 'stripe' ? 'S' : m.id === 'paypal' ? 'P' : 'G'}</span>
       <span><b>${esc(m.label)}</b><small>${m.enabled ? 'Online payment · card / wallet' : 'Not configured yet'}</small></span>
     </button>`).join('');
+  const body = isVip
+    ? `<p class="muted small" style="margin:0 0 14px">One-time payment of <b style="color:var(--vip)">${fmtVip()}</b> — your account becomes <b style="color:var(--vip)">VIP / Licensed</b> forever, unlocking the ability to post your own assets.</p>`
+    : `<p class="muted small" style="margin:0 0 14px">Choose how to pay. Every purchase issues a <b>license key</b> and upgrades your account to <b style="color:var(--vip)">VIP / Licensed</b> so you can post your own assets.</p>`;
   const ov = modal({
-    title: 'Checkout',
+    title: isVip ? 'Get VIP / Licensed' : 'Checkout',
     cancelLabel: 'Cancel',
-    body: `<p class="muted small" style="margin:0 0 14px">Choose how to pay. Every purchase issues a <b>license key</b> and upgrades your account to <b style="color:var(--vip)">VIP / Licensed</b> so you can post your own assets.</p>
+    body: `${body}
       <div class="pm-list">${cards}</div>
       ${data.dev ? `<p class="hint" style="margin-top:12px">Test mode — no payment gateway is connected yet, so checkout completes instantly (no money moves).</p>` : ''}`,
     confirmLabel: 'Continue',
@@ -2945,12 +3217,13 @@ async function openCheckout(assetId) {
     const entry = methods.find(m => m.id === c.dataset.method);
     if (!entry || !entry.enabled) { toast('This payment method is not configured yet.', 'err'); return; }
     ov.remove();
-    const res = await API.checkout(STATE.user, assetId, entry.id);
+    const res = await API.checkout(STATE.user, assetId, entry.id, plan);
     if (!res.ok) { toast(res.error, 'err'); if (res.code === 'timeout' || res.code === 'owned' || res.code === 'banned' || res.code === 'pending') await router(); return; }
     if (res.data && res.data.redirect) { location.href = res.data.redirect; return; }
-    if (res.data && res.data.licenseKey) {
-      toast(res.data.vipUpgrade ? 'License issued! You are now VIP / Licensed — you can post assets. 👑' : 'License issued! It is on your License page.');
+    if (res.data && (res.data.licenseKey || res.data.vipUpgrade)) {
+      toast(res.data.vipUpgrade ? 'You are now VIP / Licensed — you can post assets. 👑' : 'License issued! It is on your License page.');
       burstAt(innerWidth / 2, innerHeight / 2, 30);
+      SFX.play('purchase');
       if (STATE.user) STATE.user.role = 'vip';
       await router();
       return;
@@ -3360,7 +3633,7 @@ async function handleLogin(e) {
   const res = await API.login({ login: f.login.value, password: f.password.value, acceptTerms: !!(f.acceptTerms && f.acceptTerms.checked) });
   if (!res.ok) { toast(res.error, 'err'); if (res.code === 'banned') await router(); return; }
   if (res.data && res.data.need2fa) { STATE.twoFactorUserId = res.data.userId; await router(); return; }
-  STATE.user = res.data; renderHeader(); toast('Welcome back, ' + res.data.displayName); go('/');
+  STATE.user = res.data; renderHeader(); toast('Welcome back, ' + res.data.displayName); SFX.play('crown'); go('/');
 }
 async function onVerify2fa(e) {
   e.preventDefault();
@@ -3373,7 +3646,7 @@ async function handleRegister(e) {
   const f = e.target;
   const res = await API.register({ handle: f.handle.value, displayName: f.displayName.value, email: f.email.value, password: f.password.value, country: f.country ? f.country.value : 'US', acceptTerms: !!(f.acceptTerms && f.acceptTerms.checked) });
   if (!res.ok) { toast(res.error, 'err'); return; }
-  STATE.user = res.data; renderHeader(); toast('Account created — welcome to Kings Production!'); go('/');
+  STATE.user = res.data; renderHeader(); toast('Account created — welcome to Kings Production!'); SFX.play('crown'); go('/');
 }
 async function handleForgot(e) {
   e.preventDefault();
@@ -3426,6 +3699,13 @@ VIEWS.settings = async () => {
         ? `<div class="row"><span class="badge ok">${ICON.check} 2FA enabled</span><button class="btn btn-ghost btn-sm" onclick="onDisable2fa()">Disable 2FA</button></div>`
         : `<button class="btn btn-ghost" onclick="onSetup2fa()">${ICON.lock} Set up two-factor authentication</button>`}
     </div>
+    <div class="card card-pad" style="margin-bottom:20px">
+      <h3 style="font-family:var(--font-display);font-size:17px;margin-bottom:6px">Sound &amp; experience</h3>
+      <p class="muted small mb">Subtle synthesized feedback for clicks, likes, purchases, and page changes. Nothing plays before your first interaction.</p>
+      <div class="set-row"><label class="switch"><input type="checkbox" id="sfx-on" ${SFX.isMuted() ? '' : 'checked'} onchange="onSfxToggle(this)"><span class="track"></span><span><b>Sound effects</b><small>Clicks, chimes, and page whooshes</small></span></label></div>
+      <div class="set-row"><label class="switch"><input type="checkbox" id="trans-on" ${localStorage.getItem('kp_transitions') === '0' ? '' : 'checked'} onchange="onTransToggle(this)"><span class="track"></span><span><b>Page transitions</b><small>Cinematic gold sweep between pages</small></span></label></div>
+      <div class="set-row"><span class="muted small" style="width:112px">Volume</span><input type="range" class="vol" id="sfx-vol" min="0" max="100" value="${Math.round(SFX.vol() * 100)}" oninput="onSfxVol(this)" aria-label="Sound volume"><button class="btn btn-ghost btn-sm" type="button" onclick="onTestSound()">${ICON.zap} Test</button></div>
+    </div>
     <div class="card card-pad">
       <h3 style="font-family:var(--font-display);font-size:17px;margin-bottom:6px">Account</h3>
       <div class="row" style="justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)"><span class="muted">Email</span><span>${esc(u.email)}</span></div>
@@ -3436,6 +3716,10 @@ VIEWS.settings = async () => {
   </div>`;
 };
 VIEWS_BIND.settings = () => { };
+function onSfxToggle(el) { SFX.setMuted(!el.checked); if (el.checked) SFX.play('purchase', true); }
+function onTransToggle(el) { localStorage.setItem('kp_transitions', el.checked ? '1' : '0'); if (el.checked) toast('Page transitions enabled.'); }
+function onSfxVol(el) { SFX.setVol(el.value / 100); }
+function onTestSound() { SFX.play('purchase', true); }
 let _pfpData = null;
 function onPfpPick(e) {
   const file = e.target.files && e.target.files[0];
@@ -3901,26 +4185,175 @@ async function onDeletePortfolio(id) {
 VIEWS.creators = async () => {
   const c = await API.content();
   const list = c.ok && c.data && c.data.creators ? c.data.creators : [];
+  const isAdmin = isStaff(STATE.user);
+  STATE._crItems = {};
+  list.forEach(p => { STATE._crItems[p.id] = p; });
   return `<div class="page">
-    <div class="section-head"><div><span class="section-eyebrow">Creators</span><h2>The team behind the studio</h2><p>Elite developers, designers, and artists building Kings Production.</p></div></div>
-    <div class="grid creators-grid">${list.map(cr => `
-      <div class="card card-hover creator-card">
+    <div class="section-head"><div><span class="section-eyebrow">Creators</span><h2>The team behind the studio</h2><p>Elite developers, designers, and artists building Kings Production${isAdmin ? ' — only admins can publish here' : ''}.</p></div>
+      ${isAdmin ? `<button class="btn btn-primary btn-sm" onclick="openCreatorEditor()">${ICON.plus} New creator</button>` : ''}</div>
+    <div class="grid creators-grid">${list.map(cr => {
+      const adminRow = isAdmin ? `<div class="row" style="gap:8px;margin-top:12px"><button class="btn btn-ghost btn-sm" onclick="openCreatorEditor('${cr.id}')">${ICON.edit} Edit</button><button class="btn btn-danger btn-sm" onclick="onDeleteCreator('${cr.id}')">${ICON.trash}</button></div>` : '';
+      return `<div class="card card-hover creator-card">
         <span>${avatarHtml({ displayName: cr.name }, 78)}</span>
         <h3>${esc(cr.name)}</h3>
         <div class="role">${esc(cr.role)}</div>
-        <p>${esc(cr.bio)}</p>
-      </div>`).join('') || emptyHtml('No creators yet', 'The studio team will appear here.')}</div>
+        <p>${esc(cr.bio || '')}</p>
+        ${cr.handle ? `<p class="muted small" style="margin-top:8px">@${esc(cr.handle)}</p>` : ''}
+        ${cr.links && cr.links.length ? `<div class="project-links" aria-label="Creator links" style="margin-top:10px;justify-content:center">${cr.links.map(l => linkIconHtml(l)).join('')}</div>` : ''}
+        ${adminRow}
+      </div>`;
+    }).join('') || emptyHtml('No creators yet', 'The studio team will appear here.')}</div>
   </div>`;
 };
+/* ---- admin creator publishing (admin-only, like portfolio) ---- */
+function openCreatorEditor(id) {
+  if (!isStaff(STATE.user)) { toast('Only admins can publish creators.', 'err'); return; }
+  const item = id ? (STATE._crItems[id] || null) : null;
+  const isEdit = !!item;
+  const ov = modal({
+    title: isEdit ? 'Edit creator' : 'Add a creator',
+    confirmLabel: isEdit ? 'Save changes' : 'Add creator',
+    body: `<p class="muted small" style="margin:0 0 14px">Creators are like portfolio entries — they link to a member&#39;s profile and optional external links.</p>
+      <div class="field"><label>Name<span class="req">*</span></label><input class="input" id="cr-name" maxlength="60" value="${esc(item ? item.name : '')}" required></div>
+      <div class="field"><label>Role / title</label><input class="input" id="cr-role" maxlength="60" value="${esc(item ? item.role : '')}" placeholder="e.g. Lead Developer"></div>
+      <div class="row" style="gap:12px">
+        <div class="field" style="flex:1;min-width:160px"><label>Account handle</label><input class="input" id="cr-handle" maxlength="30" value="${esc(item ? item.handle : '')}" placeholder="their @handle"><div class="hint">Links to their profile on this site.</div></div>
+      </div>
+      <div class="field"><label>Bio</label><textarea class="textarea" id="cr-bio" maxlength="300" placeholder="A short description…">${esc(item ? item.bio : '')}</textarea></div>
+      <div class="field"><label>Links <span class="muted small" style="font-weight:400">— auto-detected platform icons</span></label>
+        <div id="cr-links" style="display:flex;flex-direction:column;gap:8px"></div>
+        <button class="btn btn-ghost btn-sm" type="button" id="cr-add-link" style="margin-top:8px">${ICON.plus} Add link</button></div>`,
+    validate: async o => {
+      const name = o.querySelector('#cr-name').value.trim();
+      if (name.length < 1) { toast('Name is required.', 'err'); return false; }
+      const links = [...o.querySelectorAll('.pf-link-row')].map(r => ({ url: r.querySelector('input').value.trim() })).filter(l => l.url);
+      const payload = { name, role: o.querySelector('#cr-role').value.trim(), bio: o.querySelector('#cr-bio').value.trim(), handle: o.querySelector('#cr-handle').value.trim(), links };
+      const res = isEdit ? await API.updateCreator(STATE.user, item.id, payload) : await API.createCreator(STATE.user, payload);
+      if (!res.ok) { toast(res.error, 'err'); return false; }
+      toast(isEdit ? 'Creator updated.' : 'Creator added!');
+      return true;
+    },
+    onConfirm: () => router(),
+  });
+  const box = ov.querySelector('#cr-links');
+  (item && item.links || []).forEach(l => addPfLinkRow(box, l.url));
+  if (!box.childElementCount) addPfLinkRow(box, '');
+  ov.querySelector('#cr-add-link').onclick = () => addPfLinkRow(box, '');
+}
+async function onDeleteCreator(id) {
+  if (!isStaff(STATE.user)) { toast('Only admins can manage creators.', 'err'); return; }
+  modal({ title: 'Remove this creator?', danger: true, confirmLabel: 'Remove',
+    body: '<p>Removes the creator from the page permanently.</p>',
+    onConfirm: async () => { const r = await API.deleteCreator(STATE.user, id); r.ok ? (toast('Creator removed.'), await router()) : toast(r.error, 'err'); } });
+}
+
+/* ---- support / help (ticket system) ---- */
+VIEWS.support = async () => {
+  if (!STATE.user) return `<div class="page">${emptyHtml('Log in to contact support', 'Create a support ticket to get help from the Kings Production team.')}<a class="btn btn-primary" href="#/login">Log in</a></div>`;
+  const r = await API.listMyTickets(STATE.user);
+  const tickets = r.ok ? r.data : [];
+  const ticketRow = t => `<div class="card card-pad" style="cursor:pointer" onclick="go('/ticket/${esc(t.id)}')">
+    <div class="row" style="justify-content:space-between">
+      <div><b>${esc(t.subject)}</b><div class="muted small">${esc(t.category || 'General')} · ${timeAgo(t.lastActivityAt)}</div></div>
+      <span class="badge ${t.status === 'open' ? 'warn' : 'plain'}">${esc(t.status)}</span>
+    </div>
+  </div>`;
+  return `<div class="page page-narrow">
+    <div class="section-head"><div><span class="section-eyebrow">Support</span><h2>Help &amp; Support</h2><p>Submit a ticket if you are having trouble with a purchase, an account issue, or need help with a license. Only you and the staff can see your ticket.</p></div></div>
+    <div class="card card-pad" style="margin-bottom:22px">
+      <form onsubmit="handleNewTicket(event)">
+        <div class="row" style="gap:12px;align-items:flex-end">
+          <div class="field" style="flex:1;min-width:200px;margin:0"><label>Subject<span class="req">*</span></label><input class="input" id="tk-subject" maxlength="120" placeholder="Brief summary of your issue" required></div>
+          <div class="field" style="min-width:140px;margin:0"><label>Category</label><input class="input" id="tk-cat" list="tk-cats" placeholder="General"><datalist id="tk-cats">${['General', 'Account', 'Purchase', 'License', 'Bug', 'Report', 'Other'].map(x => `<option value="${x}">`).join('')}</datalist></div>
+        </div>
+        <div class="field"><label>Details<span class="req">*</span></label><textarea class="textarea" id="tk-details" rows="5" placeholder="Describe your issue in detail — include account info, asset names, and any steps to reproduce the problem." required></textarea></div>
+        <button class="btn btn-primary" type="submit">${ICON.mail} Submit ticket</button>
+      </form>
+    </div>
+    <div class="section-head"><div><span class="section-eyebrow">Your tickets</span><h2>My tickets</h2><p>Open and closed support tickets.</p></div></div>
+    ${tickets.length ? tickets.map(ticketRow).join('') : emptyHtml('No tickets yet', 'Your submitted support tickets will appear here.')}
+  </div>`;
+};
+VIEWS_BIND.support = () => { };
+async function handleNewTicket(e) {
+  e.preventDefault();
+  const sub = e.target.querySelector('#tk-subject').value.trim();
+  const cat = e.target.querySelector('#tk-cat').value.trim();
+  const det = e.target.querySelector('#tk-details').value.trim();
+  if (sub.length < 3) { toast('Subject must be at least 3 characters.', 'err'); return; }
+  if (det.length < 10) { toast('Please provide at least 10 characters of detail.', 'err'); return; }
+  const r = await API.createTicket(STATE.user, { subject: sub, category: cat, details: det });
+  if (!r.ok) { toast(r.error, 'err'); return; }
+  toast('Ticket submitted! We will get back to you soon.');
+  SFX.play('crown');
+  await router();
+}
+
+/* ---- ticket detail (chat between creator + staff) ---- */
+VIEWS.ticket = async ({ params }) => {
+  const id = params[0];
+  if (!id || !STATE.user) return `<div class="page">${emptyHtml('Ticket not found', 'Log in to view your ticket.')}</div>`;
+  const r = await API.getTicket(STATE.user, id);
+  if (!r.ok) return `<div class="page">${emptyHtml('Ticket not found', r.error)}</div>`;
+  const { ticket, messages } = r.data;
+  const isStaffUser = isStaff(STATE.user);
+  const msgHtml = m => `<div class="comment">
+    <span>${avatarHtml(m.user || { displayName: '?' }, 36)}</span>
+    <div class="comment-body">
+      <div class="comment-head"><span class="comment-name">${esc(m.user ? m.user.displayName : 'Unknown')} ${badgeHtml(m.user ? m.user.role : 'member', m.user ? m.user.tags : [])}</span><span class="comment-time">${timeAgo(m.createdAt)}</span></div>
+      <div class="comment-text" style="white-space:pre-wrap">${esc(m.body)}</div>
+    </div>
+  </div>`;
+  return `<div class="page page-narrow">
+    <p><a href="#/support" class="muted small">← Back to tickets</a></p>
+    <div class="section-head" style="margin-top:6px"><div><span class="section-eyebrow">Ticket · ${esc(ticket.category || 'General')}</span><h2>${esc(ticket.subject)}</h2><p><span class="badge ${ticket.status === 'open' ? 'warn' : 'plain'}">${esc(ticket.status)}</span> · Created ${fmtDate(ticket.createdAt)} · Last activity ${timeAgo(ticket.lastActivityAt)}</p></div></div>
+    <div class="comments" style="margin-top:6px">${messages.length ? messages.map(msgHtml).join('') : '<p class="muted small">No messages yet — but you submitted details.</p>'}</div>
+    <div class="composer" style="margin-top:18px">
+      <span>${avatarHtml(STATE.user, 40)}</span>
+      <div class="composer-main">
+        <form onsubmit="handleTicketReply('${ticket.id}',event)">
+          <textarea class="textarea" id="tk-reply" rows="3" placeholder="Write your reply…" required></textarea>
+          <button class="btn btn-primary btn-sm mt" type="submit">${ICON.mail} Send reply</button>
+          ${isStaffUser && ticket.status !== 'closed' ? `<button class="btn btn-ghost btn-sm mt" style="margin-left:8px" type="button" onclick="onCloseTicket('${ticket.id}')">Close ticket</button>` : ''}
+        </form>
+      </div>
+    </div>
+  </div>`;
+};
+VIEWS_BIND.ticket = () => { };
+async function handleTicketReply(id, e) {
+  e.preventDefault();
+  const body = e.target.querySelector('#tk-reply').value.trim();
+  if (!body) { toast('Write a message.', 'err'); return; }
+  const r = await API.addTicketMessage(STATE.user, id, body);
+  if (r.ok) { toast('Message sent.'); await router(); } else toast(r.error, 'err');
+}
+async function onCloseTicket(id) {
+  if (!isStaff(STATE.user)) return;
+  modal({ title: 'Close this ticket?', confirmLabel: 'Close', body: '<p>Marks the ticket as closed. The user can still reply to reopen it.</p>',
+    onConfirm: async () => { const r = await API.adminCloseTicket(STATE.user, id); r.ok ? (toast('Ticket closed.'), await router()) : toast(r.error, 'err'); } });
+}
 
 /* ---- license ---- */
 VIEWS.license = async ({ query } = {}) => {
-  if (query && query.paid) handlePaidReturn(query);
-  const tiers = [
+  if (query && query.paid) handlePaidReturn(query);    const tiers = [
     { name: 'Standard', price: 'Included', desc: 'Every purchase includes a standard license.', feats: ['1 assigned game ID', 'Personal / single experience use', 'Free updates for the asset'], featured: false },
     { name: 'Extended', price: '+50%', desc: 'For creators shipping to multiple games.', feats: ['Up to 3 assigned game IDs', 'Commercial use allowed', 'Priority support'], featured: true },
     { name: 'Studio', price: 'Contact', desc: 'For teams and studios at scale.', feats: ['Unlimited game IDs', 'White-label rights', 'Dedicated support channel'], featured: false },
   ];
+  /* The VIP / Licensed plan is sold directly (base price ₱500). */
+  const isVipUser = STATE.user && effRank(STATE.user) >= roleRank('vip');
+  const vipCard = `<div class="card card-pad mt2" style="border-color:rgba(77,141,255,.35);background:linear-gradient(180deg,rgba(77,141,255,.06),rgba(255,255,255,0) 55%),var(--surface)">
+    <div class="row" style="justify-content:space-between;gap:16px;flex-wrap:wrap">
+      <div style="flex:1;min-width:240px">
+        <div class="row" style="gap:10px"><h3 style="font-family:var(--font-display);font-size:20px">VIP / Licensed</h3><span class="badge vip">VIP</span></div>
+        <p class="muted small" style="margin-top:8px">Become a <b style="color:var(--vip)">VIP / Licensed</b> creator and post your own assets to the marketplace. One-time payment — <b>${fmtVip()}</b>. Paid via PayPal, Stripe, or GCash — your account upgrades the moment payment confirms.</p>
+      </div>
+      <div style="align-self:center">
+        ${isVipUser ? `<span class="badge ok">${ICON.check} You are VIP / Licensed</span>` : `<button class="btn btn-primary" onclick="onBuyVip()">Get VIP / Licensed · ${fmtVip()}</button>`}
+      </div>
+    </div>
+  </div>`;
   let my = '';
   if (STATE.user) {
     const r = await API.myPurchases(STATE.user);
@@ -3952,6 +4385,7 @@ VIEWS.license = async ({ query } = {}) => {
         <p class="muted small">${esc(t.desc)}</p>
         <ul>${t.feats.map(f => `<li>${esc(f)}</li>`).join('')}</ul>
       </div>`).join('')}</div>
+    ${vipCard}
     ${my}
   </div>`;
 };
@@ -4035,7 +4469,7 @@ VIEWS.admin = async () => {
   if (!STATE.user || !isStaff(STATE.user)) {
     return `<div class="page">${emptyHtml('Admins only', 'This is a separate interface for administrators.')}</div>`;
   }
-  const tabs = [['overview', 'Overview'], ['approvals', 'Approvals'], ['assets', 'Assets'], ['users', 'Users'], ['reports', 'Reports'], ['orders', 'Orders'], ['online', 'Online'], ['mailbox', 'Mailbox']];
+  const tabs = [['overview', 'Overview'], ['approvals', 'Approvals'], ['assets', 'Assets'], ['users', 'Users'], ['support', 'Support'], ['reports', 'Reports'], ['orders', 'Orders'], ['online', 'Online'], ['mailbox', 'Mailbox']];
   const tabbar = `<div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${STATE.adminTab === k ? 'active' : ''}" onclick="setAdminTab('${k}')">${l}</button>`).join('')}</div>`;
   return `<div class="page" style="max-width:1080px">
     <div class="section-head"><div><span class="section-eyebrow">Administration</span><h2>Admin Panel</h2><p>Moderate submissions, users, and review marketplace activity.</p></div></div>
@@ -4050,7 +4484,13 @@ VIEWS_BIND.admin = async () => {
   const html = await adminTabHtml(STATE.adminTab);
   body.innerHTML = html;
 };
-async function setAdminTab(tab) { STATE.adminTab = tab; await router(); }
+async function setAdminTab(tab) { STATE.adminTab = tab; await router({ noVeil: true }); }
+async function onAdminDeleteTicket(id) {
+  if (!isStaff(STATE.user)) return;
+  modal({ title: 'Delete this ticket?', danger: true, confirmLabel: 'Delete',
+    body: '<p>Removes the ticket and all its messages permanently.</p>',
+    onConfirm: async () => { const r = await API.adminDeleteTicket(STATE.user, id); r.ok ? (toast('Ticket deleted.'), await router()) : toast(r.error, 'err'); } });
+}
 async function onAdminCompleteOrder(orderId) {
   modal({
     title: 'Complete this order?', confirmLabel: 'Complete',
@@ -4079,7 +4519,7 @@ async function adminTabHtml(tab) {
     return `<div class="table-wrap"><table class="table">
       <thead><tr><th>Asset</th><th>Buyer</th><th>Method</th><th>Amount</th><th>Status</th><th>Date</th><th></th></tr></thead>
       <tbody>${list.map(o => `<tr>
-        <td>${o.asset ? `<a href="#/asset/${o.asset.id}">${esc(o.asset.title)}</a>` : '(deleted asset)'}</td>
+        <td>${o.vip ? `<span class="badge vip">VIP / Licensed</span>` : (o.asset ? `<a href="#/asset/${o.asset.id}">${esc(o.asset.title)}</a>` : '(deleted asset)')}</td>
         <td>${o.buyer ? `<a href="#/profile/${esc(o.buyer.handle)}">${esc(o.buyer.displayName)}</a>` : '—'}</td>
         <td class="muted">${esc(o.method)}</td>
         <td>${o.amount} ${esc(o.currency)}</td>
@@ -4087,6 +4527,22 @@ async function adminTabHtml(tab) {
         <td class="muted">${fmtDate(o.createdAt)}</td>
         <td>${o.status === 'created' ? `<button class="btn btn-primary btn-sm" onclick="onAdminCompleteOrder('${o.id}')">Mark paid &amp; complete</button>` : ''}</td>
       </tr>`).join('') || `<tr><td colspan="7"><div class="empty">No orders yet.</div></td></tr>`}</tbody></table></div>`;
+  }
+  if (tab === 'support') {
+    const r = await API.adminListTickets(STATE.user);
+    const list = r.ok ? r.data : [];
+    const ticketRow = t => `<tr>
+      <td><b>${esc(t.subject)}</b><div class="muted small">${esc(t.category || 'General')}</div></td>
+      <td><a href="#/profile/${esc(t.user.handle)}">${esc(t.user.displayName)}</a> ${badgeHtml(t.user.role, t.user.tags)}</td>
+      <td><span class="badge ${t.status === 'open' ? 'warn' : 'plain'}">${esc(t.status)}</span></td>
+      <td class="muted">${timeAgo(t.lastActivityAt)}</td>
+      <td>${fmtDate(t.createdAt)}</td>
+      <td><div class="row-actions"><a class="btn btn-ghost btn-sm" href="#/ticket/${esc(t.id)}">${ICON.mail} View</a><button class="btn btn-danger btn-sm" onclick="onAdminDeleteTicket('${t.id}')">${ICON.trash}</button></div></td>
+    </tr>`;
+    return `<p class="muted small mb">Support tickets created by users. Tickets with no activity for 5 days are auto-deleted. ${list.length} ticket${list.length === 1 ? '' : 's'} total.</p>
+      <div class="table-wrap"><table class="table">
+        <thead><tr><th>Subject</th><th>User</th><th>Status</th><th>Last activity</th><th>Created</th><th></th></tr></thead>
+        <tbody>${list.length ? list.map(ticketRow).join('') : `<tr><td colspan="6"><div class="empty">No tickets yet.</div></td></tr>`}</tbody></table></div>`;
   }
   if (tab === 'approvals') {
     const [p, r] = await Promise.all([API.adminPending(STATE.user), API.adminRejected(STATE.user)]);
@@ -4422,6 +4878,16 @@ function setupDust() {
   }
 }
 
+/* ---- sound feedback for interactive elements ---- */
+function setupSounds() {
+  document.addEventListener('click', e => {
+    const t = e.target.closest('button, a, .chip, .tab, input[type=checkbox], input[type=radio], select');
+    if (!t) return;
+    if (e.target.closest('.like-btn')) return; // likes play their own dedicated sound
+    SFX.play(t.matches('input[type=checkbox],input[type=radio]') ? 'toggle' : 'click');
+  }, { passive: true });
+}
+
 /* ---- click particle burst ---- */
 function setupClickBurst() {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -4522,6 +4988,7 @@ async function init() {
   setupReveal();
   setupScrollFx();
   setupDust();
+  setupSounds();
   setupClickBurst();
   setupSparkleTrail();
   setupMagnetic();

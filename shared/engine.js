@@ -137,14 +137,7 @@
      The portfolio is admin-published (see createPortfolio below) and starts
      empty — legacy seeded demo rows are removed on boot. */
   const CONTENT = {
-    creators: [
-      { id: 'cr1', name: 'King', role: 'Founder · Lead Developer', bio: 'Builds the systems that hold the studio together and ships the frameworks you see in the shop.' },
-      { id: 'cr2', name: 'Chika', role: 'UI / UX Designer', bio: 'Designs interfaces players actually enjoy. Behind the Chika UI Library and every shop front.' },
-      { id: 'cr3', name: 'Chika', role: 'Core Scripter', bio: 'Writes the server-authoritative code behind our admin, auction, and framework systems.' },
-      { id: 'cr4', name: 'Chika', role: '3D Modeler', bio: 'Crafts the models, rigs, and environments — from character packs to modular castle kits.' },
-      { id: 'cr5', name: 'Chika', role: 'Animator', bio: 'Hand-tunes every animation clip, from combat flows to climbing and parkour.' },
-      { id: 'cr6', name: 'Chika', role: 'Systems Engineer', bio: 'Designs backend logic, data stores, and the architecture behind our largest projects.' }
-    ]
+    creators: [] // cleared — admins publish creators individually with account links
   };
 
   function createEngine(deps) {
@@ -631,6 +624,28 @@
 
     /* ---- payment orders (Stripe · PayPal · GCash) ---- */
     const PAY_METHODS = ['stripe', 'paypal', 'gcash'];
+    /* The VIP / Licensed plan is sold directly for 500 PHP (base) — converting
+       to the buyer's local currency the same way asset prices convert. */
+    const VIP_PLAN_PRICE_PHP = 500;
+    const convertFromPhp = (php, country) => Math.max(1, Math.round((Number(php) || 0) / fxRate('PHP') * fxRate(currencyOf(country))));
+    const isVipOrder = o => !!(o && o.assetId === 'vip');
+    async function createVipOrder(user, method) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      method = String(method || '').toLowerCase();
+      if (!PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, or GCash.');
+      if (isTimedOut(u)) return fail('timeout', 'You are currently timed out and cannot make purchases.');
+      if (isBanned(u)) return fail('banned', 'Your account is banned.');
+      if (effRank(u) >= roleRank('vip')) return fail('owned', 'Your account is already VIP / Licensed — no need to buy it again.');
+      if (all('orders').some(o => o.buyerId === u.id && isVipOrder(o) && (o.status === 'created' || o.status === 'paid')))
+        return fail('pending', 'You already have a pending VIP / Licensed order.');
+      const currency = currencyOf(u.country);
+      const amount = convertFromPhp(VIP_PLAN_PRICE_PHP, u.country);
+      const order = { id: 'o' + uid(), buyerId: u.id, assetId: 'vip', method, amount, currency, status: 'created', providerRef: null, licenseKey: null, createdAt: now(), paidAt: null, updatedAt: now() };
+      store.put('orders', order);
+      flush();
+      return ok({ orderId: order.id, amount: order.amount, currency: order.currency });
+    }
     async function createOrder(user, assetId, method) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
@@ -652,17 +667,27 @@
       flush();
       return ok({ orderId: order.id, amount: order.amount, currency: order.currency });
     }
-    function finalizeOrder(order, buyer, a) {
+    function finalizeOrder(order, buyer) {
       if (order.status === 'completed') return ok({ licenseKey: order.licenseKey, vipUpgrade: false });
       if (order.status !== 'paid') { order.status = 'paid'; order.paidAt = now(); }
       order.updatedAt = now();
-      const r = grantLicense(buyer, a);
+      let out;
+      if (isVipOrder(order)) {
+        let vipUpgrade = false;
+        if (effRank(buyer) < roleRank('vip')) { buyer.role = 'vip'; buyer.updatedAt = now(); store.put('users', buyer); vipUpgrade = true; }
+        out = { licenseKey: null, vipUpgrade };
+      } else {
+        const a = byIdIn('assets', order.assetId);
+        if (!a) return fail('notfound', 'The asset for this order no longer exists.');
+        const r = grantLicense(buyer, a);
+        out = { licenseKey: r.licenseKey, vipUpgrade: r.vipUpgrade };
+      }
       order.status = 'completed';
-      order.licenseKey = r.licenseKey;
+      order.licenseKey = out.licenseKey;
       order.updatedAt = now();
       store.put('orders', order);
       flush();
-      return ok({ licenseKey: r.licenseKey, vipUpgrade: r.vipUpgrade, method: order.method });
+      return ok({ licenseKey: out.licenseKey, vipUpgrade: out.vipUpgrade, method: order.method });
     }
     async function completeOrder(user, orderId, providerRef) {
       const u = resolveUser(user);
@@ -670,9 +695,11 @@
       const order = byIdIn('orders', orderId);
       if (!order || order.buyerId !== u.id) return fail('forbidden', 'Order not found.');
       if (providerRef && !order.providerRef) { order.providerRef = String(providerRef); store.put('orders', order); }
-      const a = byIdIn('assets', order.assetId);
-      if (!a) return fail('notfound', 'The asset for this order no longer exists.');
-      return finalizeOrder(order, u, a);
+      if (!isVipOrder(order)) {
+        const a = byIdIn('assets', order.assetId);
+        if (!a) return fail('notfound', 'The asset for this order no longer exists.');
+      }
+      return finalizeOrder(order, u);
     }
     /* Payment-confirmation path (webhook / provider verify / admin) — completes
        an order as its buyer without a user session. */
@@ -681,10 +708,12 @@
       if (!order) return fail('notfound', 'Order not found.');
       const buyer = dbUser(order.buyerId);
       if (!buyer) return fail('notfound', 'The buyer account no longer exists.');
-      const a = byIdIn('assets', order.assetId);
-      if (!a) return fail('notfound', 'The asset for this order no longer exists.');
+      if (!isVipOrder(order)) {
+        const a = byIdIn('assets', order.assetId);
+        if (!a) return fail('notfound', 'The asset for this order no longer exists.');
+      }
       if (providerRef && !order.providerRef) { order.providerRef = String(providerRef); store.put('orders', order); }
-      return finalizeOrder(order, buyer, a);
+      return finalizeOrder(order, buyer);
     }
     async function cancelOrder(user, orderId) {
       const u = resolveUser(user);
@@ -697,11 +726,11 @@
     async function myOrders(user) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
-      return ok(all('orders').filter(o => o.buyerId === u.id).sort((x, y) => y.createdAt - x.createdAt).map(o => ({ ...o, asset: summarize(byIdIn('assets', o.assetId)) })));
+      return ok(all('orders').filter(o => o.buyerId === u.id).sort((x, y) => y.createdAt - x.createdAt).map(o => ({ ...o, vip: isVipOrder(o), asset: isVipOrder(o) ? null : summarize(byIdIn('assets', o.assetId)) })));
     }
     async function adminOrders(actor) {
       const r = requireAdmin(actor); if (r) return r;
-      return ok(all('orders').slice().sort((x, y) => y.createdAt - x.createdAt).map(o => ({ ...o, buyer: publicUser(dbUser(o.buyerId)), asset: summarize(byIdIn('assets', o.assetId)) })));
+      return ok(all('orders').slice().sort((x, y) => y.createdAt - x.createdAt).map(o => ({ ...o, vip: isVipOrder(o), buyer: publicUser(dbUser(o.buyerId)), asset: isVipOrder(o) ? null : summarize(byIdIn('assets', o.assetId)) })));
     }
     async function adminCompleteOrder(actor, orderId) {
       const r = requireAdmin(actor); if (r) return r;
@@ -709,9 +738,11 @@
       if (!order) return fail('notfound', 'Order not found.');
       const buyer = dbUser(order.buyerId);
       if (!buyer) return fail('notfound', 'The buyer account no longer exists.');
-      const a = byIdIn('assets', order.assetId);
-      if (!a) return fail('notfound', 'The asset for this order no longer exists.');
-      return finalizeOrder(order, buyer, a);
+      if (!isVipOrder(order)) {
+        const a = byIdIn('assets', order.assetId);
+        if (!a) return fail('notfound', 'The asset for this order no longer exists.');
+      }
+      return finalizeOrder(order, buyer);
     }
 
     async function myPurchases(user) {
@@ -1014,7 +1045,8 @@
     async function content() {
       const parseLinks = it => { try { const l = JSON.parse(it.links || '[]'); return Array.isArray(l) ? l : []; } catch (e) { return []; } };
       const portfolio = all('portfolio').slice().sort((a, b) => ((b.featured ? 1 : 0) - (a.featured ? 1 : 0)) || ((b.createdAt || 0) - (a.createdAt || 0))).map(it => ({ ...it, links: parseLinks(it) }));
-      return ok({ portfolio, creators: all('creators').slice().sort((a, b) => a.id < b.id ? -1 : 1) });
+      const creators = all('creators').slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).map(it => ({ ...it, links: parseLinks(it) }));
+      return ok({ portfolio, creators });
     }
 
     /* ============ PORTFOLIO (admin-published showcase) ============ */
@@ -1220,6 +1252,121 @@
       return ok(all('emails').slice().reverse());
     }
 
+    /* ============ CREATORS (admin-published, like portfolio) ============ */
+    async function createCreator(actor, { name, role, bio, links, handle } = {}) {
+      const r = requireAdmin(actor); if (r) return r;
+      name = String(name || '').trim();
+      if (name.length < 1 || name.length > 60) return fail('invalid', 'Name is required (1–60 chars).');
+      const item = {
+        id: 'cr' + uid(), name,
+        role: String(role || '').trim().slice(0, 60),
+        bio: String(bio || '').trim().slice(0, 300),
+        links: JSON.stringify(cleanPortfolioLinks(links)),
+        handle: String(handle || '').trim().slice(0, 30),
+        createdAt: now(),
+      };
+      store.put('creators', item);
+      flush();
+      return ok({ id: item.id });
+    }
+    async function updateCreator(actor, id, patch = {}) {
+      const r = requireAdmin(actor); if (r) return r;
+      const it = byIdIn('creators', id);
+      if (!it) return fail('notfound', 'Creator not found.');
+      if (patch.name !== undefined) it.name = String(patch.name || '').trim().slice(0, 60);
+      if (patch.role !== undefined) it.role = String(patch.role || '').trim().slice(0, 60);
+      if (patch.bio !== undefined) it.bio = String(patch.bio || '').trim().slice(0, 300);
+      if (patch.handle !== undefined) it.handle = String(patch.handle || '').trim().slice(0, 30);
+      if (patch.links !== undefined) it.links = JSON.stringify(cleanPortfolioLinks(patch.links));
+      store.put('creators', it);
+      flush();
+      return ok(true);
+    }
+    async function deleteCreator(actor, id) {
+      const r = requireAdmin(actor); if (r) return r;
+      if (!byIdIn('creators', id)) return fail('notfound', 'Creator not found.');
+      store.del('creators', id);
+      flush();
+      return ok(true);
+    }
+
+    /* ============ TICKETS & SUPPORT CHAT ============ */
+    const TICKET_INACTIVITY_MS = 5 * 24 * 3600 * 1000;
+    async function createTicket(user, { subject, category, details } = {}) {
+      if (!user) return fail('notfound', 'User not found.');
+      const u = resolveUser(user); if (!u) return fail('usernotfound', 'User not found.');
+      subject = String(subject || '').trim();
+      details = String(details || '').trim();
+      if (subject.length < 3 || subject.length > 120) return fail('invalid', 'Subject must be 3–120 characters.');
+      if (details.length < 10) return fail('invalid', 'Details must be at least 10 characters.');
+      const t = now();
+      const ticket = {
+        id: 'tk' + uid(), userId: u.id, subject, category: String(category || '').trim().slice(0, 40),
+        details, status: 'open', createdAt: t, updatedAt: t, lastActivityAt: t,
+      };
+      store.put('tickets', ticket);
+      store.put('ticket_messages', { id: 'tm' + uid(), ticketId: ticket.id, userId: u.id, body: details, createdAt: t });
+      flush();
+      return ok({ id: ticket.id });
+    }
+    async function addTicketMessage(user, ticketId, body) {
+      const u = resolveUser(user); if (!u) return fail('usernotfound', 'User not found.');
+      const ticket = byIdIn('tickets', ticketId);
+      if (!ticket) return fail('notfound', 'Ticket not found.');
+      const isOwner = ticket.userId === u.id;
+      const isStaffUser = isStaff(u);
+      if (!isOwner && !isStaffUser) return fail('forbidden', 'You can only reply to your own tickets.');
+      body = String(body || '').trim();
+      if (body.length < 1) return fail('invalid', 'Message cannot be empty.');
+      if (body.length > 4000) return fail('invalid', 'Message too long (max 4000 characters).');
+      const t = now();
+      const msg = { id: 'tm' + uid(), ticketId, userId: u.id, body, createdAt: t };
+      store.put('ticket_messages', msg);
+      ticket.updatedAt = t;
+      ticket.lastActivityAt = t;
+      if (ticket.status === 'closed' && isOwner) ticket.status = 'open';
+      store.put('tickets', ticket);
+      flush();
+      return ok({ id: msg.id });
+    }
+    async function getTicket(user, ticketId) {
+      const u = resolveUser(user); if (!u) return fail('usernotfound', 'User not found.');
+      const ticket = byIdIn('tickets', ticketId);
+      if (!ticket) return fail('notfound', 'Ticket not found.');
+      const isOwner = ticket.userId === u.id;
+      const isStaffUser = isStaff(u);
+      if (!isOwner && !isStaffUser) return fail('forbidden', 'You can only view your own tickets.');
+      const messages = all('ticket_messages').filter(m => m.ticketId === ticketId).sort((a, b) => a.createdAt - b.createdAt)
+        .map(m => ({ ...m, user: publicUser(byIdIn('users', m.userId)) }));
+      return ok({ ticket, messages });
+    }
+    async function listMyTickets(user) {
+      const u = resolveUser(user); if (!u) return fail('usernotfound', 'User not found.');
+      return ok(all('tickets').filter(t => t.userId === u.id).sort((a, b) => b.lastActivityAt - a.lastActivityAt));
+    }
+    async function adminListTickets(actor) {
+      const r = requireAdmin(actor); if (r) return r;
+      return ok(all('tickets').slice().sort((a, b) => b.lastActivityAt - a.lastActivityAt).map(t => ({ ...t, user: publicUser(byIdIn('users', t.userId)) })));
+    }
+    async function adminCloseTicket(actor, ticketId) {
+      const r = requireAdmin(actor); if (r) return r;
+      const ticket = byIdIn('tickets', ticketId);
+      if (!ticket) return fail('notfound', 'Ticket not found.');
+      ticket.status = 'closed';
+      ticket.updatedAt = now();
+      store.put('tickets', ticket); flush();
+      return ok(true);
+    }
+    async function adminDeleteTicket(actor, ticketId) {
+      const r = requireAdmin(actor); if (r) return r;
+      const ticket = byIdIn('tickets', ticketId);
+      if (!ticket) return fail('notfound', 'Ticket not found.');
+      all('ticket_messages').filter(m => m.ticketId === ticketId).forEach(m => store.del('ticket_messages', m.id));
+      store.del('tickets', ticketId);
+      flush();
+      return ok(true);
+    }
+
     seedContent();
     ensureOwnerAccount();
 
@@ -1227,12 +1374,15 @@
       register, login, googleLogin, verify2fa, requestReset, resetPassword, logout, me,
       updateProfile, setup2fa, enable2fa, disable2fa,
       createAsset, postStatus, listApproved, topSelling, getAsset, updateAsset, deleteAsset, myAssets, download,
-      purchase, myPurchases, assignLicense, createOrder, completeOrder, settleOrder, cancelOrder, myOrders, adminOrders, adminCompleteOrder,
+      purchase, myPurchases, assignLicense, createOrder, createVipOrder, completeOrder, settleOrder, cancelOrder, myOrders, adminOrders, adminCompleteOrder,
       addComment, listComments, toggleLike,
       listReviews, addReview, deleteReview,
       createReport, adminReports, adminResolveReport,
       licenseActivate, licenseHeartbeat, creatorDashboard, creatorLicenses, setLicenseStatus, revokeDevice,
       publicProfile, content, createPortfolio, updatePortfolio, deletePortfolio,
+      createCreator, updateCreator, deleteCreator,
+      createTicket, addTicketMessage, getTicket, listMyTickets,
+      adminListTickets, adminCloseTicket, adminDeleteTicket,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
       adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSessions, adminEmails, adminOrders, adminCompleteOrder,
       setFx,

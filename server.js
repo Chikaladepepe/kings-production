@@ -100,10 +100,13 @@ async function main() {
     paymongo: process.env.PAYMONGO_SECRET_KEY || null,
   };
   PAYMENT.dev = !(PAYMENT.stripe || PAYMENT.paypal || PAYMENT.paymongo);
+  /* Live by default; set PAYPAL_ENV=sandbox to test against the sandbox API
+     (sandbox Client ID + Secret from developer.paypal.com). */
+  const PAYPAL_BASE = process.env.PAYPAL_ENV === 'sandbox' ? 'https://api-m.sandbox.paypal.com' : 'https://api-m.paypal.com';
 
   async function paypalToken() {
     const cred = Buffer.from(`${PAYMENT.paypal.id}:${PAYMENT.paypal.secret}`).toString('base64');
-    const r = await fetch('https://api-m.paypal.com/v1/oauth2/token', {
+    const r = await fetch(`${PAYPAL_BASE}/v1/oauth2/token`, {
       method: 'POST',
       headers: { Authorization: `Basic ${cred}`, 'Content-Type': 'application/x-www-form-urlencoded' },
       body: 'grant_type=client_credentials',
@@ -113,12 +116,18 @@ async function main() {
   }
   async function paypalCreateOrder(amount, currency, title, orderId) {
     const token = await paypalToken();
-    const r = await fetch('https://api-m.paypal.com/v2/checkout/orders', {
+    const r = await fetch(`${PAYPAL_BASE}/v2/checkout/orders`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         intent: 'CAPTURE',
         purchase_units: [{ reference_id: orderId, description: String(title).slice(0, 120), amount: { currency_code: currency, value: Number(amount).toFixed(2) } }],
+        application_context: {
+          brand_name: 'Kings Production',
+          user_action: 'PAY_NOW',
+          return_url: PUBLIC_URL + '/#/license?paid=1',
+          cancel_url: PUBLIC_URL + '/#/license',
+        },
       }),
     });
     const j = await r.json();
@@ -127,7 +136,7 @@ async function main() {
   }
   async function paypalCapture(providerOrderId) {
     const token = await paypalToken();
-    const r = await fetch(`https://api-m.paypal.com/v2/checkout/orders/${providerOrderId}/capture`, {
+    const r = await fetch(`${PAYPAL_BASE}/v2/checkout/orders/${providerOrderId}/capture`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: '{}',
@@ -389,8 +398,9 @@ async function main() {
   }));
   app.post('/api/checkout', h(async (req, res) => {
     const u = await needAuth(req, res); if (!u) return;
-    const { assetId, method } = req.body || {};
-    const r = await engine.createOrder(u, assetId, method);
+    const { assetId, plan, method } = req.body || {};
+    const isVip = plan === 'vip';
+    const r = isVip ? await engine.createVipOrder(u, method) : await engine.createOrder(u, assetId, method);
     if (!r.ok) return send(res, r);
     const { orderId, amount, currency } = r.data;
     if (PAYMENT.dev) {
@@ -398,8 +408,9 @@ async function main() {
       return send(res, await engine.completeOrder(u, orderId, 'dev'));
     }
     try {
-      const asset = await engine.getAsset(u, assetId);
-      const title = (asset.ok && asset.data && asset.data.title) || 'Kings Production asset';
+      let title = 'Kings Production asset';
+      if (isVip) title = 'VIP / Licensed plan — Kings Production';
+      else { const asset = await engine.getAsset(u, assetId); title = (asset.ok && asset.data && asset.data.title) || title; }
       if (method === 'stripe' && PAYMENT.stripe) {
         const session = await PAYMENT.stripe.checkout.sessions.create({
           mode: 'payment',
@@ -503,6 +514,20 @@ async function main() {
   app.post('/api/site/portfolio', admin(async (u, req) => engine.createPortfolio(u, req.body || {})));
   app.patch('/api/site/portfolio/:id', admin(async (u, req) => engine.updatePortfolio(u, req.params.id, req.body || {})));
   app.delete('/api/site/portfolio/:id', admin(async (u, req) => engine.deletePortfolio(u, req.params.id)));
+  /* ---- creators are admin-published (like portfolio) ---- */
+  app.post('/api/site/creators', admin(async (u, req) => engine.createCreator(u, req.body || {})));
+  app.patch('/api/site/creators/:id', admin(async (u, req) => engine.updateCreator(u, req.params.id, req.body || {})));
+  app.delete('/api/site/creators/:id', admin(async (u, req) => engine.deleteCreator(u, req.params.id)));
+
+  /* ---- support tickets & chat ---- */
+  app.post('/api/tickets/new', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.createTicket(u, req.body || {})); }));
+  app.get('/api/tickets/mine', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.listMyTickets(u)); }));
+  app.get('/api/tickets/:id', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.getTicket(u, req.params.id)); }));
+  app.post('/api/tickets/:id/messages', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.addTicketMessage(u, req.params.id, (req.body || {}).body)); }));
+  /* ---- admin ticket management ---- */
+  app.get('/api/admin/tickets', admin(async u => engine.adminListTickets(u)));
+  app.post('/api/admin/tickets/:id/close', admin(async (u, req) => engine.adminCloseTicket(u, req.params.id)));
+  app.delete('/api/admin/tickets/:id', admin(async (u, req) => engine.adminDeleteTicket(u, req.params.id)));
 
   /* ---- the app (single-file SPA) ---- */
   app.get('/', (req, res) => res.sendFile(path.join(ROOT, 'index.html')));

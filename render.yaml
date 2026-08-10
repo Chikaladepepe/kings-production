@@ -57,6 +57,18 @@ services:
       # - key: GOOGLE_CLIENT_SECRET
       #   value: GOCSPX-...
       # ----------------------------------------------------------------------
+      # --- Payments: PayPal (optional) --------------------------------------
+      # Create an app at developer.paypal.com → Apps & Credentials →
+      # "Create App". Copy the Client ID + Secret below. Leave PAYPAL_ENV
+      # unset for LIVE payments, or set it to "sandbox" to test first with
+      # sandbox credentials. When set, PayPal appears in the checkout and the
+      # VIP / Licensed plan can be bought for ₱500.
+      # - key: PAYPAL_CLIENT_ID
+      #   value: A...
+      # - key: PAYPAL_CLIENT_SECRET
+      #   value: E...
+      # - key: PAYPAL_ENV
+      #   value: sandbox   # or omit for live
       # Real email delivery (optional):
       # - key: SMTP_HOST
       #   value: smtp.example.com
