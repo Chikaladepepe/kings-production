@@ -1536,6 +1536,7 @@ const API = {};
         passHash: await hashPassword(password), bio: '', pfp: null,
         totpSecret: null, totpEnabled: false, banned: false, banReason: null, timeoutUntil: null, country,
         googleId: null, acceptedTermsAt: now(), createdAt: now(), updatedAt: now(),
+        emailVerified: isFirst ? 1 : 0, // new registrations must confirm their email
       };
       store.put('users', user);
       const s = createSession(user.id);
