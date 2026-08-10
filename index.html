@@ -779,9 +779,120 @@ body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opac
 .modal-overlay{background:rgba(8,8,10,.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .modal{background:linear-gradient(180deg,#181820,#121216);border:1px solid rgba(212,175,55,.24);box-shadow:0 34px 100px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.03) inset,0 0 50px rgba(212,175,55,.08)}
 
+/* ============================================================================
+   WOW³ — ROYAL ATMOSPHERE: scroll progress, ambient dust, click bursts,
+   sparkle trail, magnetic controls, crown ring, hero rotor, marquee ticker,
+   staggered reveals, spotlight aura, avatar rings, nav underline, toast edge.
+   ============================================================================ */
+
+/* ---- scroll progress bar (gold comet across the top) ---- */
+.scroll-progress{position:fixed;top:0;left:0;height:3px;width:0;z-index:200;border-radius:0 3px 3px 0;background:linear-gradient(90deg,#8a6d1f,#e8c96a,#fff8dc,#e8c96a);background-size:220% 100%;animation:titleShimmer 2.2s linear infinite;box-shadow:0 0 12px rgba(212,175,55,.7),0 0 26px rgba(212,175,55,.35);pointer-events:none}
+
+/* ---- back-to-top crown button ---- */
+.to-top{position:fixed;right:18px;bottom:140px;z-index:70;width:46px;height:46px;border-radius:50%;border:1px solid rgba(212,175,55,.4);background:linear-gradient(180deg,rgba(46,40,22,.92),rgba(20,17,10,.94));color:var(--gold);display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;visibility:hidden;transform:translateY(12px);transition:opacity .3s,transform .3s,visibility .3s,box-shadow .2s;box-shadow:0 6px 18px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.1);backdrop-filter:blur(8px)}
+.to-top.show{opacity:1;visibility:visible;transform:none}
+.to-top:hover{box-shadow:0 8px 24px rgba(212,175,55,.3),0 0 0 1px rgba(212,175,55,.45);transform:translateY(-2px)}
+.to-top svg{width:18px;height:18px}
+
+/* ---- ambient gold dust (floating motes across the whole site) ---- */
+.ambient-dust{position:fixed;inset:0;z-index:1;pointer-events:none;overflow:hidden}
+.dust-mote{position:absolute;top:-14px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff7d6,transparent 68%);box-shadow:0 0 6px rgba(212,175,55,.55);opacity:0;animation:dustFall linear infinite}
+@keyframes dustFall{0%{transform:translateY(-4vh) translateX(0) rotate(0);opacity:0}8%{opacity:.65}80%{opacity:.38}100%{transform:translateY(108vh) translateX(6vw) rotate(200deg);opacity:0}}
+@media (prefers-reduced-motion:reduce){.ambient-dust{display:none}}
+
+/* ---- click burst particles ---- */
+.fx-burst{position:fixed;z-index:200;pointer-events:none;top:0;left:0}
+.fx-particle{position:absolute;border-radius:50%;pointer-events:none;animation:burstFly .75s cubic-bezier(.15,.7,.3,1) forwards}
+.fx-particle::after{content:'';position:absolute;inset:0;border-radius:50%;background:inherit;filter:blur(2px);opacity:.6}
+@keyframes burstFly{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(.15);opacity:0}}
+
+/* ---- cursor sparkle trail ---- */
+.fx-sparkle{position:fixed;z-index:200;pointer-events:none;color:var(--gold);animation:sparkleFade .8s ease-out forwards;filter:drop-shadow(0 0 4px rgba(212,175,55,.8))}
+@keyframes sparkleFade{0%{transform:translate(-50%,-50%) scale(.3) rotate(0);opacity:0}18%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(24deg)}100%{transform:translate(calc(-50% + var(--sx,0px)),calc(-50% + var(--sy,-18px))) scale(.1) rotate(120deg);opacity:0}}
+
+/* ---- magnetic controls (JS nudges toward the cursor) ---- */
+.mag{transition:transform .16s ease-out}
+
+/* ---- hero floating orbs ---- */
+.hero-orb{position:absolute;border-radius:50%;filter:blur(70px);pointer-events:none;opacity:.55;animation:orbFloat 13s ease-in-out infinite alternate}
+.hero-orb.o1{width:340px;height:340px;background:rgba(212,175,55,.17);top:-120px;left:-80px}
+.hero-orb.o2{width:300px;height:300px;background:rgba(120,96,255,.14);top:-90px;right:-90px;animation-delay:-5s}
+.hero-orb.o3{width:220px;height:220px;background:rgba(212,175,55,.12);bottom:-60px;left:34%;animation-delay:-9s}
+
+/* ---- crown ring: rotating gold halo behind the crown ---- */
+.crown-ring{position:relative;display:inline-flex;width:96px;height:96px;margin-top:8px;align-items:center;justify-content:center}
+.crown-ring::before{content:'';position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,rgba(212,175,55,0),rgba(212,175,55,.85),rgba(255,255,255,.5),rgba(212,175,55,.85),rgba(212,175,55,0));animation:orbSpin 5s linear infinite;filter:blur(.5px);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 2px));mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 2px))}
+.crown-ring::after{content:'';position:absolute;inset:10px;border-radius:50%;background:radial-gradient(circle,rgba(212,175,55,.14),transparent 70%);animation:kp-breathe 4.5s ease-in-out infinite}
+.crown-ring .crown{position:relative;z-index:1}
+.crown-ring .crown svg{width:42px;height:42px}
+
+/* ---- hero rotor (rotating tagline) ---- */
+.hero-rotor{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:12px;min-height:24px}
+.rotor{display:inline-flex;align-items:center;font-size:13.5px;color:var(--text-2);font-weight:600}
+.rotor-dot{width:5px;height:5px;border-radius:50%;background:var(--gold);margin:0 10px;box-shadow:0 0 8px rgba(212,175,55,.8);flex-shrink:0;animation:statusPulse 2s ease-out infinite}
+.rotor-txt{display:inline-block;transition:opacity .3s ease,transform .3s ease;animation:rotorIn .55s cubic-bezier(.2,.7,.3,1)}
+@keyframes rotorIn{from{opacity:0;transform:translateY(8px) rotateX(24deg)}to{opacity:1;transform:none}}
+
+/* ---- marquee ticker ---- */
+.marquee{position:relative;overflow:hidden;border-top:1px solid rgba(212,175,55,.16);border-bottom:1px solid rgba(212,175,55,.16);background:linear-gradient(180deg,rgba(212,175,55,.05),rgba(212,175,55,.015));padding:13px 0}
+.marquee-track{display:flex;gap:0;width:max-content;animation:marqueeScroll 32s linear infinite}
+.marquee:hover .marquee-track{animation-play-state:paused}
+.marquee-track span{display:inline-flex;align-items:center;gap:22px;padding:0 22px;font-size:12px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--text-2);white-space:nowrap}
+.marquee-track span b{color:var(--gold);font-weight:700}
+@keyframes marqueeScroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+/* ---- staggered reveals for grids ---- */
+.js-reveal .grid > *:nth-child(2){transition-delay:.05s}
+.js-reveal .grid > *:nth-child(3){transition-delay:.1s}
+.js-reveal .grid > *:nth-child(4){transition-delay:.15s}
+.js-reveal .grid > *:nth-child(5){transition-delay:.2s}
+.js-reveal .grid > *:nth-child(6){transition-delay:.25s}
+.js-reveal .grid > *:nth-child(n+7){transition-delay:.3s}
+
+/* ---- spotlight aura (rotating conic border) ---- */
+@property --ang{syntax:'<angle>';initial-value:0deg;inherits:false}
+.portfolio-grid .project-card.spotlight{position:relative}
+.portfolio-grid .project-card.spotlight::before{content:'';position:absolute;inset:0;padding:2px;border-radius:var(--radius);background:conic-gradient(from var(--ang,0deg),transparent 0deg,rgba(212,175,55,.75) 70deg,transparent 150deg,rgba(255,255,255,.3) 230deg,transparent 320deg);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:spotSpin 6s linear infinite;pointer-events:none;z-index:3}
+@keyframes spotSpin{to{--ang:360deg}}
+.portfolio-grid .project-card.spotlight .project-banner::after{content:'';position:absolute;inset:0;background:radial-gradient(120% 90% at 50% 0%,rgba(212,175,55,.16),transparent 60%);pointer-events:none}
+
+/* ---- avatar glow ring (profile hero) ---- */
+.profile-hero .avatar{position:relative;box-shadow:0 0 0 3px rgba(212,175,55,.25),0 0 30px rgba(212,175,55,.35),inset 0 1px 0 rgba(255,255,255,.15)}
+.profile-hero .avatar::after{content:'';position:absolute;inset:-7px;border-radius:50%;border:1px solid rgba(212,175,55,.5);border-top-color:transparent;animation:orbSpin 4s linear infinite}
+
+/* ---- section title flourish ---- */
+.section-head h2{background:linear-gradient(100deg,#fff 30%,#e8c96a 55%,#fff 80%);background-size:220% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:titleShimmer 7s ease-in-out infinite}
+.section-eyebrow{display:inline-flex;align-items:center;gap:8px}
+.section-eyebrow::before{content:'';width:22px;height:1px;background:linear-gradient(90deg,transparent,rgba(212,175,55,.8))}
+
+/* ---- nav underline slide ---- */
+.main-nav a{position:relative}
+.main-nav a::after{content:'';position:absolute;left:14px;right:14px;bottom:4px;height:1.5px;border-radius:2px;background:linear-gradient(90deg,var(--gold),transparent);transform:scaleX(0);transform-origin:left;transition:transform .28s cubic-bezier(.2,.7,.3,1)}
+.main-nav a:hover::after,.main-nav a.active::after{transform:scaleX(1)}
+
+/* ---- toast gold edge ---- */
+.toast{position:relative;overflow:hidden}
+.toast::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,#8a6d1f,#e8c96a,#fff)}
+.toast.ok::before{background:linear-gradient(180deg,#2f7a44,#46a758,#8fe3a5)}
+.toast.err::before{background:linear-gradient(180deg,#b33238,#e5484d,#ff9aa0)}
+
+/* ---- view transition upgrade ---- */
+.view{animation:viewIn .45s cubic-bezier(.2,.7,.3,1)}
+@keyframes viewIn{from{opacity:0;transform:translateY(18px) scale(.992);filter:blur(3px)}to{opacity:1;transform:none;filter:blur(0)}}
+
+/* ---- footer hairline ---- */
+.site-footer{border-top:none;position:relative}
+.site-footer::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(212,175,55,.45),transparent)}
+
+/* ---- card top edge light ---- */
+.card-hover::after{content:'';position:absolute;top:0;left:15%;right:15%;height:1px;background:linear-gradient(90deg,transparent,rgba(212,175,55,.55),transparent);opacity:0;transition:opacity .25s;pointer-events:none;z-index:2}
+.card-hover:hover::after{opacity:1}
+
 @media (prefers-reduced-motion:reduce){
-  body::before,body::after,.hero .crown svg,.hero h1,.hero-stat b,.badge.owner::after,.post-fab,.auth-brand .orb,.gold-shimmer{animation:none!important;transition:none!important}
+  body::before,body::after,.hero .crown svg,.hero h1,.hero-stat b,.badge.owner::after,.post-fab,.auth-brand .orb,.gold-shimmer,
+  .scroll-progress,.to-top,.marquee-track,.crown-ring,.crown-ring::before,.crown-ring::after,.hero-orb,.rotor-txt,.rotor-dot,.fx-burst,.fx-particle,.fx-sparkle,.profile-hero .avatar::after,.section-head h2,.portfolio-grid .project-card.spotlight::before{animation:none!important;transition:none!important}
   .js-reveal .section-head,.js-reveal .profile-hero,.js-reveal .tier,.js-reveal .approve-card,.js-reveal .creator-card,.js-reveal .asset-card,.js-reveal .project-card{opacity:1;transform:none}
+  .ambient-dust,.scroll-progress,.to-top{display:none}
 }
 
 </style>
@@ -2511,6 +2622,7 @@ async function onLike(e, id, btn) {
   btn.classList.toggle('on', !!res.data.liked);
   btn.dataset.count = res.data.count;
   btn.classList.remove('pop'); void btn.offsetWidth; btn.classList.add('pop');
+  if (res.data.liked) burstAt(e.clientX, e.clientY, 16);
 }
 function emptyHtml(title, sub) {
   return `<div class="empty"><span class="crown">${ICON.crown}</span><h3>${esc(title)}</h3>${sub ? `<p>${esc(sub)}</p>` : ''}</div>`;
@@ -2761,11 +2873,12 @@ VIEWS.home = async () => {
   const approvedCount = statRows[0].data && statRows[0].data.length ? statRows[0].data.length : 0;
   const content = statRows[1].data || { portfolio: [], creators: [] };
   return `
-  <section class="hero"><div class="hero-particles" aria-hidden="true"></div><div class="hero-inner">
-    <span class="crown">${ICON.crown}</span>
+  <section class="hero"><div class="hero-particles" aria-hidden="true"></div><div class="hero-orb o1" aria-hidden="true"></div><div class="hero-orb o2" aria-hidden="true"></div><div class="hero-orb o3" aria-hidden="true"></div><div class="hero-inner">
+    <span class="crown-ring"><span class="crown">${ICON.crown}</span></span>
     <div class="hero-eyebrow">Premium Roblox Development Studio</div>
     <h1>Kings Production</h1>
     <p class="hero-tag">“Where <span class="hero-em">Excellence</span> Meets <span class="hero-em">Innovation</span>”</p>
+    <div class="hero-rotor"><span class="rotor"><span class="rotor-dot" aria-hidden="true"></span><span class="rotor-txt">Licensed &amp; device-secured keys</span></span></div>
     <div class="hero-cta"><a class="btn btn-primary btn-lg" href="#/shop">Enter Shop</a><a class="btn btn-ghost btn-lg" href="#/portfolio">View Portfolio</a></div>
     <div class="hero-stats">
       <div class="hero-stat"><b class="count-up" data-count="${content.portfolio.length}">0</b><span>Projects shipped</span></div>
@@ -2773,6 +2886,9 @@ VIEWS.home = async () => {
       <div class="hero-stat"><b class="count-up" data-count="${content.creators.length}">0</b><span>Elite creators</span></div>
     </div>
   </div></section>
+  <div class="marquee" aria-hidden="true"><div class="marquee-track">
+    <span>Premium Roblox <b>Scripts</b></span><span>Custom <b>Models &amp; Animations</b></span><span>Device-Secured <b>Licensing</b></span><span>One-Time Purchase · <b>Lifetime Updates</b></span><span>Stripe · PayPal · <b>GCash</b></span><span>VIP / Licensed <b>Creators</b></span><span>24/7 <b>Community Support</b></span>
+  </div></div>
   <div class="page">
     <div class="section-head"><div><span class="section-eyebrow">Featured</span><h2>Top Selling Assets</h2><p>Our most purchased assets, ranked by sales.</p></div><a class="btn btn-ghost btn-sm" href="#/shop">Browse all →</a></div>
     <div class="grid grid-assets">${top.ok && top.data.length ? top.data.map((a, i) => assetCardHtml(a, i)).join('') : emptyHtml('No assets yet', 'Approved assets will appear here.')}</div>
@@ -2789,7 +2905,7 @@ VIEWS.shop = async () => {
 
 /* ================= CHUNK 5: ASSET · PROFILE · AUTH · SETTINGS · UPLOAD · MY-ASSETS ================= */
 const VIEWS_BIND = {};
-VIEWS_BIND.home = () => { bindCatalog(); spawnParticles(); document.querySelectorAll('.count-up').forEach(el => countUp(el, el.dataset.count)); };
+VIEWS_BIND.home = () => { bindCatalog(); spawnParticles(); setupRotor(); setupMarquee(); document.querySelectorAll('.count-up').forEach(el => countUp(el, el.dataset.count)); };
 VIEWS_BIND.shop = () => bindCatalog();
 VIEWS_BIND.profile = () => { initProfileTags((STATE._pfUser && STATE._pfUser.tags) || []); };
 VIEWS_BIND.login = async ({ query } = {}) => {
@@ -2834,6 +2950,7 @@ async function openCheckout(assetId) {
     if (res.data && res.data.redirect) { location.href = res.data.redirect; return; }
     if (res.data && res.data.licenseKey) {
       toast(res.data.vipUpgrade ? 'License issued! You are now VIP / Licensed — you can post assets. 👑' : 'License issued! It is on your License page.');
+      burstAt(innerWidth / 2, innerHeight / 2, 30);
       if (STATE.user) STATE.user.role = 'vip';
       await router();
       return;
@@ -4260,12 +4377,154 @@ function startStatusPinger() {
   setInterval(ping, 20000);
 }
 
+/* ---- scroll progress bar + back-to-top ---- */
+function setupScrollFx() {
+  const bar = document.createElement('div');
+  bar.className = 'scroll-progress';
+  bar.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(bar);
+  const topBtn = document.createElement('button');
+  topBtn.className = 'to-top';
+  topBtn.setAttribute('aria-label', 'Back to top');
+  topBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5m0 0-5 5m5-5 5 5"/></svg>';
+  topBtn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }));
+  document.body.appendChild(topBtn);
+  let ticking = false;
+  const onScroll = () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      const h = document.documentElement;
+      const max = h.scrollHeight - h.clientHeight;
+      bar.style.width = (max > 0 ? (h.scrollTop / max) * 100 : 0) + '%';
+      topBtn.classList.toggle('show', h.scrollTop > 480);
+      ticking = false;
+    });
+  };
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+}
+
+/* ---- ambient gold dust across the whole site ---- */
+function setupDust() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const host = document.createElement('div');
+  host.className = 'ambient-dust';
+  host.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(host);
+  const n = Math.min(26, Math.max(10, Math.floor(innerWidth / 70)));
+  for (let i = 0; i < n; i++) {
+    const m = document.createElement('span');
+    m.className = 'dust-mote';
+    const size = 1.5 + Math.random() * 3;
+    m.style.cssText = `left:${Math.random() * 100}%;width:${size}px;height:${size}px;animation-duration:${14 + Math.random() * 16}s;animation-delay:${-Math.random() * 26}s`;
+    host.appendChild(m);
+  }
+}
+
+/* ---- click particle burst ---- */
+function setupClickBurst() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  document.addEventListener('click', e => {
+    if (e.target.closest('.like-btn')) return; // likes get their own bigger burst
+    if (e.target.closest('a,button,input,select,textarea,label,.chip,.tab,.pm-card,.star-btn')) burstAt(e.clientX, e.clientY, 5);
+    else burstAt(e.clientX, e.clientY, 8);
+  }, { passive: true });
+}
+function burstAt(x, y, n = 10) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const host = document.createElement('div');
+  host.className = 'fx-burst';
+  host.style.transform = `translate(${x}px, ${y}px)`;
+  document.body.appendChild(host);
+  const colors = ['#ffd97a', '#e8c96a', '#ffffff', '#d4af37'];
+  for (let i = 0; i < n; i++) {
+    const p = document.createElement('span');
+    p.className = 'fx-particle';
+    const ang = Math.random() * Math.PI * 2, dist = 24 + Math.random() * 46;
+    const size = 2.5 + Math.random() * 4.5;
+    p.style.cssText = `--dx:${Math.cos(ang) * dist}px;--dy:${Math.sin(ang) * dist}px;left:0;top:0;width:${size}px;height:${size}px;background:${colors[(Math.random() * colors.length) | 0]};box-shadow:0 0 ${4 + Math.random() * 8}px rgba(212,175,55,.8)`;
+    host.appendChild(p);
+  }
+  setTimeout(() => host.remove(), 820);
+}
+
+/* ---- cursor sparkle trail ---- */
+function setupSparkleTrail() {
+  if (!window.matchMedia('(hover:hover) and (pointer:fine)').matches) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  let last = 0;
+  document.addEventListener('mousemove', e => {
+    const t = performance.now();
+    if (t - last < 55) return;
+    last = t;
+    const s = document.createElement('span');
+    s.className = 'fx-sparkle';
+    s.textContent = '✦';
+    s.style.cssText = `left:${e.clientX}px;top:${e.clientY}px;font-size:${7 + Math.random() * 6}px;--sx:${(Math.random() - .5) * 30}px;--sy:${-(10 + Math.random() * 22)}px`;
+    document.body.appendChild(s);
+    setTimeout(() => s.remove(), 860);
+  }, { passive: true });
+}
+
+/* ---- magnetic controls ---- */
+function setupMagnetic() {
+  if (!window.matchMedia('(hover:hover) and (pointer:fine)').matches) return;
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const pick = () => Array.from(document.querySelectorAll('.hero-cta .btn, .to-top'));
+  document.addEventListener('mousemove', e => {
+    pick().forEach(el => {
+      const r = el.getBoundingClientRect();
+      const dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+      const d = Math.hypot(dx, dy);
+      if (d < 110 && !reduce) {
+        const pull = Math.min(1, (110 - d) / 110) * 7;
+        el.style.transform = `translate(${(dx / d) * pull}px, ${(dy / d) * pull}px)`;
+      } else if (el.style.transform) el.style.transform = '';
+    });
+  }, { passive: true });
+}
+
+/* ---- hero rotor: rotating tagline ---- */
+let _rotorStarted = false;
+function setupRotor() {
+  const el = document.querySelector('.rotor-txt');
+  if (!el || _rotorStarted) return;
+  _rotorStarted = true;
+  const phrases = ['Licensed & device-secured keys', 'One-time purchase · lifetime updates', 'Protected by advanced device licensing', 'Trusted by premium creators'];
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  let i = 0;
+  setInterval(() => {
+    i = (i + 1) % phrases.length;
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(8px)';
+    setTimeout(() => {
+      el.textContent = phrases[i];
+      el.style.opacity = '';
+      el.style.transform = '';
+    }, 300);
+  }, 3600);
+}
+
+/* ---- marquee: duplicate content for a seamless loop ---- */
+function setupMarquee() {
+  const track = document.querySelector('.marquee-track');
+  if (!track || track.dataset.dup) return;
+  track.dataset.dup = '1';
+  track.innerHTML += track.innerHTML;
+}
+
 /* ---- boot ---- */
 async function init() {
   const started = performance.now();
   runLoaderProgress();
   setupWow();
   setupReveal();
+  setupScrollFx();
+  setupDust();
+  setupClickBurst();
+  setupSparkleTrail();
+  setupMagnetic();
   try {
     await API.boot();
     renderShell();
