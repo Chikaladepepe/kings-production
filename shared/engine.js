@@ -107,7 +107,10 @@
   const isTimedOut = u => !!(u && u.timeoutUntil && u.timeoutUntil > now());
   const isBanned = u => !!(u && u.banned);
   const isRestricted = u => isBanned(u) || isTimedOut(u);
-  const canPost = u => effRank(u) >= roleRank('vip') && !isBanned(u) && !isTimedOut(u);
+  /* Email verification: existing accounts are verified by default; new
+     registrations must confirm their email. The owner account always bypasses. */
+  const isVerified = u => isOwnerAccount(u) || u == null || (u.emailVerified !== false && u.emailVerified !== 0);
+  const canPost = u => effRank(u) >= roleRank('vip') && !isBanned(u) && !isTimedOut(u) && isVerified(u);
   const isAdmin = u => isStaff(u);
   const parseTags = u => {
     try { const t = JSON.parse(u && u.tags || '[]'); return Array.isArray(t) ? t.filter(x => typeof x === 'string' && x.trim()) : []; }
@@ -122,7 +125,7 @@
     u.tags = JSON.stringify(clean);
   };
   const publicUser = u => u ? ({ id: u.id, handle: u.handle, displayName: u.displayName, role: u.role, tags: parseTags(u), pfp: u.pfp, bio: u.bio, createdAt: u.createdAt }) : null;
-  const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled, country: u.country, acceptedTermsAt: u.acceptedTermsAt || null }) : null;
+  const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled, country: u.country, acceptedTermsAt: u.acceptedTermsAt || null, emailVerified: u.emailVerified !== false && u.emailVerified !== 0 }) : null;
   function timeoutText(u) {
     if (!u || !u.timeoutUntil) return null;
     const ms = u.timeoutUntil - now();
@@ -276,8 +279,42 @@
       };
       store.put('users', user);
       const s = createSession(user.id);
+      /* Welcome + email verification — first (auto-admin) account is trusted. */
+      let verifyLink = null;
+      if (!isFirst) {
+        const token = randomToken(18);
+        store.put('tokens', { id: 't' + uid(), userId: user.id, token, purpose: 'verify', expiresAt: now() + 72 * 36e5, used: false, createdAt: now() });
+        verifyLink = '#/verify?token=' + token;
+        sendEmail({ to: user.email, subject: 'Welcome to Kings Production — verify your email', action: 'verify', body: 'Welcome! Confirm your email address to unlock posting and purchasing on Kings Production. This link expires in 72 hours and can only be used once.', link: verifyLink });
+      }
       flush();
-      return ok({ token: s.id, user: selfUser(user) });
+      return ok(Object.assign({ token: s.id, user: selfUser(user) }, cfg.devMail && verifyLink ? { verifyLink } : {}));
+    }
+    async function verifyEmail({ token } = {}) {
+      const t = all('tokens').find(x => x.token === String(token || '') && x.purpose === 'verify' && !x.used);
+      if (!t) return fail('bad', 'This verification link is invalid or has already been used.');
+      if (t.expiresAt < now()) return fail('expired', 'This verification link has expired. Request a new one from Settings.');
+      const u = dbUser(t.userId);
+      if (!u) return fail('bad', 'Account not found.');
+      u.emailVerified = 1;
+      u.updatedAt = now();
+      store.put('users', u);
+      t.used = true;
+      store.put('tokens', t);
+      flush();
+      return ok(true);
+    }
+    async function resendVerification(user) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'Account not found.');
+      if (isVerified(u)) return fail('already', 'Your email is already verified.');
+      all('tokens').filter(t => t.userId === u.id && t.purpose === 'verify' && !t.used).forEach(t => store.del('tokens', t.id));
+      const token = randomToken(18);
+      store.put('tokens', { id: 't' + uid(), userId: u.id, token, purpose: 'verify', expiresAt: now() + 72 * 36e5, used: false, createdAt: now() });
+      const link = '#/verify?token=' + token;
+      sendEmail({ to: u.email, subject: 'Verify your Kings Production email', action: 'verify', body: 'Confirm your email address to unlock posting and purchasing on Kings Production. This link expires in 72 hours.', link });
+      flush();
+      return ok(Object.assign({ sent: true }, cfg.devMail ? { devLink: link } : {}));
     }
 
     async function login({ login, password, label, acceptTerms } = {}) {
@@ -312,6 +349,7 @@
           email, role: isFirst ? 'admin' : 'member', passHash: await hashPassword(randomToken(16)),
           bio: '', pfp: picture || null, totpSecret: null, totpEnabled: false, banned: false, banReason: null,
           timeoutUntil: null, country: 'US', googleId, acceptedTermsAt: now(), createdAt: now(), updatedAt: now(),
+          emailVerified: 1, // Google verified this email
         };
         store.put('users', u);
       } else {
@@ -686,6 +724,19 @@
       order.licenseKey = out.licenseKey;
       order.updatedAt = now();
       store.put('orders', order);
+      /* Purchase receipt — delivered to the buyer with their license key. */
+      try {
+        const assetT = isVipOrder(order) ? null : byIdIn('assets', order.assetId);
+        sendEmail({
+          to: buyer.email,
+          subject: isVipOrder(order) ? 'You are now VIP / Licensed — Kings Production' : 'Your purchase & license key — ' + (assetT ? assetT.title : 'Kings Production'),
+          action: 'receipt',
+          body: isVipOrder(order)
+            ? 'Your VIP / Licensed upgrade is complete! Your account can now post assets to the marketplace. Manage your systems and licenses from the Dashboard — thank you for supporting Kings Production!'
+            : 'Thank you for your purchase of "' + (assetT ? assetT.title : 'this asset') + '". Your license key is: ' + out.licenseKey + '\n\nAssign it to a Roblox game from the License page to activate it. Purchasing any asset also upgraded your account to VIP / Licensed — you can now post your own assets.',
+          link: '#/license',
+        });
+      } catch (e) { console.error('receipt email failed', e); }
       flush();
       return ok({ licenseKey: out.licenseKey, vipUpgrade: out.vipUpgrade, method: order.method });
     }
@@ -1326,6 +1377,19 @@
       ticket.lastActivityAt = t;
       if (ticket.status === 'closed' && isOwner) ticket.status = 'open';
       store.put('tickets', ticket);
+      /* When staff replies, notify the ticket creator by email. */
+      if (isStaffUser && !isOwner) {
+        try {
+          const creator = dbUser(ticket.userId);
+          if (creator) sendEmail({
+            to: creator.email,
+            subject: 'New reply on your ticket — "' + ticket.subject + '"',
+            action: 'ticket',
+            body: 'The Kings Production team replied to your support ticket "' + ticket.subject + '":\n\n' + body.slice(0, 800) + '\n\nOpen the ticket to continue the conversation.',
+            link: '#/ticket/' + ticket.id,
+          });
+        } catch (e) { console.error('ticket reply email failed', e); }
+      }
       flush();
       return ok({ id: msg.id });
     }
@@ -1367,11 +1431,192 @@
       return ok(true);
     }
 
+    /* ============ ANNOUNCEMENTS (site-wide banner) ============ */
+    const ANN_STYLES = ['gold', 'green', 'red'];
+    function listAnnouncements() {
+      return ok(all('announcements').filter(a => a.active).sort((a, b) => b.createdAt - a.createdAt));
+    }
+    async function createAnnouncement(actor, { title, body, link, style } = {}) {
+      const r = requireAdmin(actor); if (r) return r;
+      title = String(title || '').trim();
+      body = String(body || '').trim();
+      if (title.length < 3 || title.length > 120) return fail('invalid', 'Title must be 3–120 characters.');
+      if (body.length < 3 || body.length > 500) return fail('invalid', 'Body must be 3–500 characters.');
+      link = String(link || '').trim();
+      if (link && !/^https?:\/\//i.test(link)) return fail('invalid', 'Link must be a full URL (https://…).');
+      style = ANN_STYLES.includes(String(style || '')) ? style : 'gold';
+      const t = now();
+      const a = { id: 'an' + uid(), title, body, link: link || null, style, active: true, createdAt: t, updatedAt: t };
+      store.put('announcements', a);
+      flush();
+      return ok(a);
+    }
+    async function updateAnnouncement(actor, id, patch = {}) {
+      const r = requireAdmin(actor); if (r) return r;
+      const a = byIdIn('announcements', id);
+      if (!a) return fail('notfound', 'Announcement not found.');
+      if (patch.title !== undefined) {
+        const t = String(patch.title).trim();
+        if (t.length < 3 || t.length > 120) return fail('invalid', 'Title must be 3–120 characters.');
+        a.title = t;
+      }
+      if (patch.body !== undefined) {
+        const b = String(patch.body).trim();
+        if (b.length < 3 || b.length > 500) return fail('invalid', 'Body must be 3–500 characters.');
+        a.body = b;
+      }
+      if (patch.link !== undefined) a.link = String(patch.link || '').trim() ? String(patch.link).trim() : null;
+      if (patch.style !== undefined) a.style = ANN_STYLES.includes(String(patch.style)) ? patch.style : a.style;
+      if (patch.active !== undefined) a.active = !!patch.active;
+      a.updatedAt = now();
+      store.put('announcements', a);
+      flush();
+      return ok(a);
+    }
+    async function deleteAnnouncement(actor, id) {
+      const r = requireAdmin(actor); if (r) return r;
+      if (!byIdIn('announcements', id)) return fail('notfound', 'Announcement not found.');
+      store.del('announcements', id);
+      flush();
+      return ok(true);
+    }
+
+    /* ============ SYSTEM REGISTERING (creator → Roblox Studio licensing) ============ */
+    /* Matches the copyable Lua script's API contract:
+       POST /api/systems/{activate,heartbeat,device}
+       Body: { systemName, systemPassword, deviceId | playerId, playerName }
+       Reply: { ok, data: { active, reason } } */
+    const SYS_STATES = ['pending', 'active', 'disabled'];
+    function findSystemByCreds(name, password) {
+      return all('systems').find(s => String(s.name || '').trim().toLowerCase() === String(name || '').trim().toLowerCase() && s.password === String(password || ''));
+    }
+    function systemPublic(s) {
+      return { id: s.id, name: s.name, status: s.status, createdAt: s.createdAt, lastSeenAt: s.lastSeenAt };
+    }
+    function systemForOwner(s) {
+      const devices = all('system_devices').filter(d => d.systemId === s.id).sort((a, b) => b.lastSeenAt - a.lastSeenAt)
+        .map(d => ({ id: d.id, deviceId: d.deviceId, deviceName: d.deviceName, status: d.status, lastSeenAt: d.lastSeenAt }));
+      return { ...systemPublic(s), password: s.password, devices };
+    }
+    async function registerSystem(user, { name, password } = {}) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      if (effRank(u) < roleRank('vip')) return fail('vipOnly', 'System registering is a VIP / Licensed feature — grab a license to unlock it.');
+      name = String(name || '').trim();
+      password = String(password || '').trim();
+      if (name.length < 3 || name.length > 60) return fail('invalid', 'System name must be 3–60 characters.');
+      if (password.length < 6 || password.length > 80) return fail('invalid', 'System password must be 6–80 characters.');
+      if (!/^[\w .\-()&'"!?+]+$/.test(name)) return fail('invalid', 'System name may only contain letters, numbers, spaces, and basic punctuation.');
+      if (all('systems').some(s => s.userId === u.id && s.name.toLowerCase() === name.toLowerCase())) return fail('taken', 'You already have a system with that name.');
+      const t = now();
+      const s = { id: 'sys' + uid(), userId: u.id, name, password, status: 'pending', createdAt: t, updatedAt: t, lastSeenAt: null };
+      store.put('systems', s);
+      flush();
+      return ok(systemForOwner(s));
+    }
+    async function listSystems(user) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      return ok(all('systems').filter(s => s.userId === u.id).sort((a, b) => b.createdAt - a.createdAt).map(systemForOwner));
+    }
+    async function deleteSystem(user, id) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const s = byIdIn('systems', id);
+      if (!s || s.userId !== u.id) return fail('forbidden', 'System not found.');
+      all('system_devices').filter(d => d.systemId === s.id).forEach(d => store.del('system_devices', d.id));
+      store.del('systems', s.id);
+      flush();
+      return ok(true);
+    }
+    /* The heart of the anti-leak flow: the game phones home with the name +
+       password; a match means the system is licensed. First successful contact
+       flips PENDING → ACTIVE; a paused (disabled) system is always denied. */
+    function checkSystemCreds(body) {
+      const s = findSystemByCreds(body && body.systemName, body && body.systemPassword);
+      if (!s) return { found: false, reason: 'No system matches that name and password. Double-check them on the Dashboard.' };
+      if (s.status === 'disabled') return { found: true, denied: true, reason: 'This system has been paused by its creator. Contact the creator to re-enable it.' };
+      return { found: true, system: s };
+    }
+    async function systemActivate({ systemName, systemPassword, deviceId } = {}) {
+      const chk = checkSystemCreds({ systemName, systemPassword });
+      if (!chk.found) return ok({ active: false, reason: chk.reason });
+      if (chk.denied) return ok({ active: false, reason: chk.reason });
+      const s = chk.system;
+      if (s.status === 'pending') { s.status = 'active'; s.updatedAt = now(); }
+      s.lastSeenAt = now();
+      s.updatedAt = now();
+      store.put('systems', s);
+      if (deviceId) {
+        const existing = all('system_devices').find(d => d.systemId === s.id && d.deviceId === String(deviceId));
+        if (existing) { existing.lastSeenAt = now(); store.put('system_devices', existing); }
+        else store.put('system_devices', { id: 'sd' + uid(), systemId: s.id, deviceId: String(deviceId).slice(0, 80), deviceName: null, status: 'active', createdAt: now(), lastSeenAt: now() });
+      }
+      flush();
+      return ok({ active: true, reason: 'Licensed and active.' });
+    }
+    async function systemHeartbeat({ systemName, systemPassword, deviceId } = {}) {
+      const chk = checkSystemCreds({ systemName, systemPassword });
+      if (!chk.found) return ok({ active: false, reason: chk.reason });
+      if (chk.denied) return ok({ active: false, reason: chk.reason });
+      const s = chk.system;
+      s.lastSeenAt = now();
+      s.updatedAt = now();
+      store.put('systems', s);
+      if (deviceId) {
+        const existing = all('system_devices').find(d => d.systemId === s.id && d.deviceId === String(deviceId));
+        if (existing) { existing.lastSeenAt = now(); store.put('system_devices', existing); }
+        else store.put('system_devices', { id: 'sd' + uid(), systemId: s.id, deviceId: String(deviceId).slice(0, 80), deviceName: null, status: 'active', createdAt: now(), lastSeenAt: now() });
+      }
+      flush();
+      return ok({ active: true, reason: 'Licensed and active.' });
+    }
+    /* Player device registration from the Lua script — records who is using the
+       system so the creator can see and revoke individual players. */
+    async function registerSystemDevice({ systemName, systemPassword, playerId, playerName } = {}) {
+      const chk = checkSystemCreds({ systemName, systemPassword });
+      if (!chk.found || chk.denied) return ok({ active: false, reason: chk.reason || 'Not licensed.' });
+      const s = chk.system;
+      if (playerId) {
+        const existing = all('system_devices').find(d => d.systemId === s.id && d.deviceId === String(playerId));
+        if (existing) { existing.deviceName = String(playerName || existing.deviceName || '').slice(0, 40) || null; existing.lastSeenAt = now(); store.put('system_devices', existing); }
+        else store.put('system_devices', { id: 'sd' + uid(), systemId: s.id, deviceId: String(playerId).slice(0, 80), deviceName: String(playerName || '').slice(0, 40) || null, status: 'active', createdAt: now(), lastSeenAt: now() });
+        flush();
+      }
+      return ok({ active: true, reason: 'Registered.' });
+    }
+    async function setSystemStatus(user, id, status) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const s = byIdIn('systems', id);
+      if (!s || s.userId !== u.id) return fail('forbidden', 'System not found.');
+      status = String(status || '');
+      if (!['active', 'disabled'].includes(status)) return fail('invalid', 'Invalid status.');
+      s.status = status;
+      s.updatedAt = now();
+      store.put('systems', s);
+      flush();
+      return ok(systemForOwner(s));
+    }
+    async function revokeSystemDevice(user, deviceId) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const d = byIdIn('system_devices', deviceId);
+      if (!d) return fail('notfound', 'Device not found.');
+      const s = byIdIn('systems', d.systemId);
+      if (!s || s.userId !== u.id) return fail('forbidden', 'You can only revoke devices on your own systems.');
+      d.status = 'revoked';
+      store.put('system_devices', d);
+      flush();
+      return ok(true);
+    }
+
     seedContent();
     ensureOwnerAccount();
 
     return {
       register, login, googleLogin, verify2fa, requestReset, resetPassword, logout, me,
+      verifyEmail, resendVerification,
       updateProfile, setup2fa, enable2fa, disable2fa,
       createAsset, postStatus, listApproved, topSelling, getAsset, updateAsset, deleteAsset, myAssets, download,
       purchase, myPurchases, assignLicense, createOrder, createVipOrder, completeOrder, settleOrder, cancelOrder, myOrders, adminOrders, adminCompleteOrder,
@@ -1383,6 +1628,8 @@
       createCreator, updateCreator, deleteCreator,
       createTicket, addTicketMessage, getTicket, listMyTickets,
       adminListTickets, adminCloseTicket, adminDeleteTicket,
+      listAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement,
+      registerSystem, listSystems, deleteSystem, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
       adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSessions, adminEmails, adminOrders, adminCompleteOrder,
       setFx,

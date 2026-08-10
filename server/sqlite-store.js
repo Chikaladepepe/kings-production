@@ -25,7 +25,7 @@ const fs = require('node:fs');
    map only — never from untrusted input — so the dynamic INSERT/REPLACE below
    cannot be injection points. */
 const SCHEMA = {
-  users: ['id', 'handle', 'email', 'displayName', 'passHash', 'bio', 'pfp', 'role', 'banned', 'banReason', 'timeoutUntil', 'totpSecret', 'totpEnabled', 'country', 'tags', 'googleId', 'acceptedTermsAt', 'createdAt', 'updatedAt'],
+  users: ['id', 'handle', 'email', 'displayName', 'passHash', 'bio', 'pfp', 'role', 'banned', 'banReason', 'timeoutUntil', 'totpSecret', 'totpEnabled', 'country', 'tags', 'googleId', 'acceptedTermsAt', 'emailVerified', 'createdAt', 'updatedAt'],
   sessions: ['id', 'userId', 'label', 'createdAt', 'lastSeen', 'expiresAt'],
   assets: ['id', 'ownerId', 'title', 'category', 'description', 'price', 'fileName', 'fileMime', 'fileSize', 'imageUrl', 'status', 'rejectReason', 'sales', 'createdAt', 'updatedAt', 'approvedAt'],
   purchases: ['id', 'assetId', 'buyerId', 'price', 'licenseKey', 'gameId', 'gameName', 'status', 'activatedAt', 'deviceId', 'deviceName', 'lastSeen', 'createdAt'],
@@ -41,9 +41,12 @@ const SCHEMA = {
   orders: ['id', 'buyerId', 'assetId', 'method', 'amount', 'currency', 'status', 'providerRef', 'licenseKey', 'createdAt', 'paidAt', 'updatedAt'],
   tickets: ['id', 'userId', 'subject', 'category', 'details', 'status', 'createdAt', 'updatedAt', 'lastActivityAt'],
   ticket_messages: ['id', 'ticketId', 'userId', 'body', 'createdAt'],
+  announcements: ['id', 'title', 'body', 'link', 'style', 'active', 'createdAt', 'updatedAt'],
+  systems: ['id', 'userId', 'name', 'password', 'status', 'createdAt', 'updatedAt', 'lastSeenAt'],
+  system_devices: ['id', 'systemId', 'deviceId', 'deviceName', 'status', 'createdAt', 'lastSeenAt'],
 };
 /* Booleans are persisted as 0/1 integers and restored on read. */
-const BOOLS = { users: ['banned', 'totpEnabled'], tokens: ['used'], emails: ['read'], portfolio: ['featured'] };
+const BOOLS = { users: ['banned', 'totpEnabled', 'emailVerified'], tokens: ['used'], emails: ['read'], portfolio: ['featured'], announcements: ['active'] };
 
 const DDL = `
 CREATE TABLE IF NOT EXISTS users (
@@ -51,7 +54,7 @@ CREATE TABLE IF NOT EXISTS users (
   displayName TEXT NOT NULL, passHash TEXT NOT NULL, bio TEXT, pfp TEXT,
   role TEXT NOT NULL DEFAULT 'member', banned INTEGER NOT NULL DEFAULT 0, banReason TEXT,
   timeoutUntil INTEGER, totpSecret TEXT, totpEnabled INTEGER NOT NULL DEFAULT 0,
-  country TEXT, tags TEXT, googleId TEXT, acceptedTermsAt INTEGER,
+  country TEXT, tags TEXT, googleId TEXT, acceptedTermsAt INTEGER, emailVerified INTEGER NOT NULL DEFAULT 1,
   createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS sessions (
@@ -122,6 +125,19 @@ CREATE TABLE IF NOT EXISTS ticket_messages (
   id TEXT PRIMARY KEY, ticketId TEXT NOT NULL, userId TEXT NOT NULL, body TEXT NOT NULL,
   createdAt INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS announcements (
+  id TEXT PRIMARY KEY, title TEXT NOT NULL, body TEXT NOT NULL, link TEXT,
+  style TEXT NOT NULL DEFAULT 'gold', active INTEGER NOT NULL DEFAULT 1,
+  createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS systems (
+  id TEXT PRIMARY KEY, userId TEXT NOT NULL, name TEXT NOT NULL, password TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending', createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL, lastSeenAt INTEGER
+);
+CREATE TABLE IF NOT EXISTS system_devices (
+  id TEXT PRIMARY KEY, systemId TEXT NOT NULL, deviceId TEXT NOT NULL, deviceName TEXT,
+  status TEXT NOT NULL DEFAULT 'active', createdAt INTEGER NOT NULL, lastSeenAt INTEGER NOT NULL
+);
 CREATE INDEX IF NOT EXISTS idx_orders_buyer ON orders (buyerId);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders (status);
 CREATE INDEX IF NOT EXISTS idx_assets_status ON assets (status);
@@ -132,6 +148,8 @@ CREATE INDEX IF NOT EXISTS idx_reports_status ON reports (status);
 CREATE INDEX IF NOT EXISTS idx_purchases_buyer ON purchases (buyerId);
 CREATE INDEX IF NOT EXISTS idx_likes_asset ON likes (assetId);
 CREATE INDEX IF NOT EXISTS idx_devices_asset ON devices (assetId);
+CREATE INDEX IF NOT EXISTS idx_systems_user ON systems (userId);
+CREATE INDEX IF NOT EXISTS idx_system_devices_system ON system_devices (systemId);
 `;
 
 function createSqliteStore(file) {
@@ -201,6 +219,7 @@ const MIGRATIONS = [
   "ALTER TABLE creators ADD COLUMN links TEXT",
   "ALTER TABLE creators ADD COLUMN handle TEXT",
   "ALTER TABLE creators ADD COLUMN createdAt INTEGER",
+  "ALTER TABLE users ADD COLUMN emailVerified INTEGER NOT NULL DEFAULT 1",
 ];
 function ticketCleanup(db) {
   const cutoff = Date.now() - 5 * 24 * 3600 * 1000;

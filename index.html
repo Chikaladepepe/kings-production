@@ -911,6 +911,48 @@ input[type=range].vol{width:170px;accent-color:var(--gold);cursor:pointer;backgr
 input[type=range].vol::-webkit-slider-runnable-track{height:4px;border-radius:99px;background:var(--surface-3)}
 input[type=range].vol::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--gold);margin-top:-6px;box-shadow:0 0 10px rgba(212,175,55,.7)}
 
+/* ===== announcement banner ===== */
+.announce{position:relative;z-index:45;overflow:hidden;border-bottom:1px solid var(--border);animation:announceIn .5s cubic-bezier(.2,.7,.3,1)}
+@keyframes announceIn{from{transform:translateY(-100%)}to{transform:none}}
+.announce.gone{animation:announceOut .32s ease forwards}
+@keyframes announceOut{to{transform:translateY(-100%);opacity:0}}
+.announce-inner{max-width:1200px;margin:0 auto;padding:10px 24px;display:flex;align-items:center;gap:12px;font-size:13.5px;color:var(--text)}
+.announce-icon{display:inline-flex;flex-shrink:0;color:var(--gold)}
+.announce-text{flex:1;min-width:0;line-height:1.45}
+.announce-text a{color:inherit;text-decoration:underline;text-underline-offset:3px;font-weight:600;white-space:nowrap}
+.announce-close{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;border:1px solid transparent;color:inherit;background:transparent;cursor:pointer;transition:background .18s}
+.announce-close:hover{background:rgba(255,255,255,.12)}
+.announce.gold{background:linear-gradient(90deg,rgba(212,175,55,.16),rgba(212,175,55,.05) 60%,transparent);color:#f0d98a}
+.announce.green{background:linear-gradient(90deg,rgba(52,199,89,.16),rgba(52,199,89,.05) 60%,transparent);color:#8ee6a9}
+.announce.red{background:linear-gradient(90deg,rgba(255,69,58,.2),rgba(255,69,58,.06) 60%,transparent);color:#ffb4ae}
+
+/* ===== mobile drawer ===== */
+.hamburger{display:none;align-items:center;justify-content:center;width:40px;height:40px;border-radius:10px;border:1px solid var(--border-strong);background:transparent;color:var(--text-2);cursor:pointer;transition:color .18s,border-color .18s}
+.hamburger:hover{color:var(--gold);border-color:rgba(212,175,55,.45)}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(320px,86vw);z-index:120;display:flex;flex-direction:column;background:linear-gradient(180deg,#141419 0%,#0c0c0f 100%);border-left:1px solid rgba(212,175,55,.22);box-shadow:-24px 0 60px rgba(0,0,0,.55);transform:translateX(104%);transition:transform .34s cubic-bezier(.2,.7,.3,1);padding:18px 16px 22px;gap:6px}
+.drawer.open{transform:none}
+.drawer-backdrop{position:fixed;inset:0;z-index:110;background:rgba(4,4,6,.62);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);animation:fadeIn .25s ease}
+.drawer-head{display:flex;align-items:center;gap:10px;padding:4px 4px 14px;border-bottom:1px solid var(--border)}
+.drawer-head .crown svg{width:24px;height:24px}
+.drawer-title{font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--gold);letter-spacing:.08em;text-transform:uppercase}
+.drawer-close{margin-left:auto;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;border:1px solid var(--border-strong);background:transparent;color:var(--text-2);cursor:pointer;transition:color .18s,background .18s}
+.drawer-close:hover{color:var(--gold);background:rgba(212,175,55,.08)}
+.drawer-nav{display:flex;flex-direction:column;gap:2px;padding:14px 0;border-bottom:1px solid var(--border)}
+.drawer-account{display:flex;flex-direction:column;gap:2px;padding-top:14px}
+.m-nav-item{display:flex;align-items:center;gap:13px;padding:12px 10px;border-radius:10px;color:var(--text-2);font-size:15px;font-weight:500;text-align:left;background:transparent;border:none;cursor:pointer;transition:background .18s,color .18s,transform .18s}
+.m-nav-item svg{flex-shrink:0;color:var(--gold)}
+.m-nav-item:hover{background:rgba(212,175,55,.1);color:var(--text)}
+.m-nav-item:active{transform:scale(.985)}
+.m-nav-item .fa-badge{font-style:normal;margin-left:8px}
+.drawer-social{display:flex;gap:8px;margin-top:auto;padding-top:16px}
+.drawer-social .s-btn{flex:1}
+@media (max-width:760px){
+  .hamburger{display:inline-flex}
+}
+@media (prefers-reduced-motion:reduce){
+  .drawer,.drawer-backdrop,.announce{transition:none!important;animation:none!important}
+}
+
 @media (prefers-reduced-motion:reduce){
   body::before,body::after,.hero .crown svg,.hero h1,.hero-stat b,.badge.owner::after,.post-fab,.auth-brand .orb,.gold-shimmer,
   .scroll-progress,.to-top,.marquee-track,.crown-ring,.crown-ring::before,.crown-ring::after,.hero-orb,.rotor-txt,.rotor-dot,.fx-burst,.fx-particle,.fx-sparkle,.profile-hero .avatar::after,.section-head h2,.portfolio-grid .project-card.spotlight::before,.view.leaving,.view-veil,.switch .track,.switch .track::after{animation:none!important;transition:none!important}
@@ -1052,6 +1094,9 @@ const ICON = {
   check: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m4.5 12.5 5 5 10-11"/></svg>',
   x: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg>',
   plus: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  menu: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
+  megaphone: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l3.5 4V6L6 10H4a1 1 0 0 0-1 1Z"/><path d="M15 8.5a5 5 0 0 1 0 7M18 6a9 9 0 0 1 0 12"/></svg>',
+  copy: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
   eye: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>',
   anim: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="16" rx="2"/><path d="M7.5 4v16M16.5 4v16M2.5 9h5M2.5 15h5M16.5 9h5M16.5 15h5"/><path d="m10 10 3.5 2-3.5 2Z" fill="currentColor" stroke="none"/></svg>',
   model: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 2.8 20 7.4v9.2L12 21.2 4 16.6V7.4L12 2.8Z"/><path d="M12 2.8v9.2m0 0L4 7.4m8 4.6 8-4.6M12 21.2v-9.2"/></svg>',
@@ -1322,7 +1367,10 @@ const API = {};
   const isTimedOut = u => !!(u && u.timeoutUntil && u.timeoutUntil > now());
   const isBanned = u => !!(u && u.banned);
   const isRestricted = u => isBanned(u) || isTimedOut(u);
-  const canPost = u => effRank(u) >= roleRank('vip') && !isBanned(u) && !isTimedOut(u);
+  /* Email verification: existing accounts are verified by default; new
+     registrations must confirm their email. The owner account always bypasses. */
+  const isVerified = u => isOwnerAccount(u) || u == null || (u.emailVerified !== false && u.emailVerified !== 0);
+  const canPost = u => effRank(u) >= roleRank('vip') && !isBanned(u) && !isTimedOut(u) && isVerified(u);
   const isAdmin = u => isStaff(u);
   const parseTags = u => {
     try { const t = JSON.parse(u && u.tags || '[]'); return Array.isArray(t) ? t.filter(x => typeof x === 'string' && x.trim()) : []; }
@@ -1337,7 +1385,7 @@ const API = {};
     u.tags = JSON.stringify(clean);
   };
   const publicUser = u => u ? ({ id: u.id, handle: u.handle, displayName: u.displayName, role: u.role, tags: parseTags(u), pfp: u.pfp, bio: u.bio, createdAt: u.createdAt }) : null;
-  const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled, country: u.country, acceptedTermsAt: u.acceptedTermsAt || null }) : null;
+  const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled, country: u.country, acceptedTermsAt: u.acceptedTermsAt || null, emailVerified: u.emailVerified !== false && u.emailVerified !== 0 }) : null;
   function timeoutText(u) {
     if (!u || !u.timeoutUntil) return null;
     const ms = u.timeoutUntil - now();
@@ -1491,8 +1539,42 @@ const API = {};
       };
       store.put('users', user);
       const s = createSession(user.id);
+      /* Welcome + email verification — first (auto-admin) account is trusted. */
+      let verifyLink = null;
+      if (!isFirst) {
+        const token = randomToken(18);
+        store.put('tokens', { id: 't' + uid(), userId: user.id, token, purpose: 'verify', expiresAt: now() + 72 * 36e5, used: false, createdAt: now() });
+        verifyLink = '#/verify?token=' + token;
+        sendEmail({ to: user.email, subject: 'Welcome to Kings Production — verify your email', action: 'verify', body: 'Welcome! Confirm your email address to unlock posting and purchasing on Kings Production. This link expires in 72 hours and can only be used once.', link: verifyLink });
+      }
       flush();
-      return ok({ token: s.id, user: selfUser(user) });
+      return ok(Object.assign({ token: s.id, user: selfUser(user) }, cfg.devMail && verifyLink ? { verifyLink } : {}));
+    }
+    async function verifyEmail({ token } = {}) {
+      const t = all('tokens').find(x => x.token === String(token || '') && x.purpose === 'verify' && !x.used);
+      if (!t) return fail('bad', 'This verification link is invalid or has already been used.');
+      if (t.expiresAt < now()) return fail('expired', 'This verification link has expired. Request a new one from Settings.');
+      const u = dbUser(t.userId);
+      if (!u) return fail('bad', 'Account not found.');
+      u.emailVerified = 1;
+      u.updatedAt = now();
+      store.put('users', u);
+      t.used = true;
+      store.put('tokens', t);
+      flush();
+      return ok(true);
+    }
+    async function resendVerification(user) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'Account not found.');
+      if (isVerified(u)) return fail('already', 'Your email is already verified.');
+      all('tokens').filter(t => t.userId === u.id && t.purpose === 'verify' && !t.used).forEach(t => store.del('tokens', t.id));
+      const token = randomToken(18);
+      store.put('tokens', { id: 't' + uid(), userId: u.id, token, purpose: 'verify', expiresAt: now() + 72 * 36e5, used: false, createdAt: now() });
+      const link = '#/verify?token=' + token;
+      sendEmail({ to: u.email, subject: 'Verify your Kings Production email', action: 'verify', body: 'Confirm your email address to unlock posting and purchasing on Kings Production. This link expires in 72 hours.', link });
+      flush();
+      return ok(Object.assign({ sent: true }, cfg.devMail ? { devLink: link } : {}));
     }
 
     async function login({ login, password, label, acceptTerms } = {}) {
@@ -1527,6 +1609,7 @@ const API = {};
           email, role: isFirst ? 'admin' : 'member', passHash: await hashPassword(randomToken(16)),
           bio: '', pfp: picture || null, totpSecret: null, totpEnabled: false, banned: false, banReason: null,
           timeoutUntil: null, country: 'US', googleId, acceptedTermsAt: now(), createdAt: now(), updatedAt: now(),
+          emailVerified: 1, // Google verified this email
         };
         store.put('users', u);
       } else {
@@ -1901,6 +1984,19 @@ const API = {};
       order.licenseKey = out.licenseKey;
       order.updatedAt = now();
       store.put('orders', order);
+      /* Purchase receipt — delivered to the buyer with their license key. */
+      try {
+        const assetT = isVipOrder(order) ? null : byIdIn('assets', order.assetId);
+        sendEmail({
+          to: buyer.email,
+          subject: isVipOrder(order) ? 'You are now VIP / Licensed — Kings Production' : 'Your purchase & license key — ' + (assetT ? assetT.title : 'Kings Production'),
+          action: 'receipt',
+          body: isVipOrder(order)
+            ? 'Your VIP / Licensed upgrade is complete! Your account can now post assets to the marketplace. Manage your systems and licenses from the Dashboard — thank you for supporting Kings Production!'
+            : 'Thank you for your purchase of "' + (assetT ? assetT.title : 'this asset') + '". Your license key is: ' + out.licenseKey + '\n\nAssign it to a Roblox game from the License page to activate it. Purchasing any asset also upgraded your account to VIP / Licensed — you can now post your own assets.',
+          link: '#/license',
+        });
+      } catch (e) { console.error('receipt email failed', e); }
       flush();
       return ok({ licenseKey: out.licenseKey, vipUpgrade: out.vipUpgrade, method: order.method });
     }
@@ -2541,6 +2637,19 @@ const API = {};
       ticket.lastActivityAt = t;
       if (ticket.status === 'closed' && isOwner) ticket.status = 'open';
       store.put('tickets', ticket);
+      /* When staff replies, notify the ticket creator by email. */
+      if (isStaffUser && !isOwner) {
+        try {
+          const creator = dbUser(ticket.userId);
+          if (creator) sendEmail({
+            to: creator.email,
+            subject: 'New reply on your ticket — "' + ticket.subject + '"',
+            action: 'ticket',
+            body: 'The Kings Production team replied to your support ticket "' + ticket.subject + '":\n\n' + body.slice(0, 800) + '\n\nOpen the ticket to continue the conversation.',
+            link: '#/ticket/' + ticket.id,
+          });
+        } catch (e) { console.error('ticket reply email failed', e); }
+      }
       flush();
       return ok({ id: msg.id });
     }
@@ -2582,11 +2691,192 @@ const API = {};
       return ok(true);
     }
 
+    /* ============ ANNOUNCEMENTS (site-wide banner) ============ */
+    const ANN_STYLES = ['gold', 'green', 'red'];
+    function listAnnouncements() {
+      return ok(all('announcements').filter(a => a.active).sort((a, b) => b.createdAt - a.createdAt));
+    }
+    async function createAnnouncement(actor, { title, body, link, style } = {}) {
+      const r = requireAdmin(actor); if (r) return r;
+      title = String(title || '').trim();
+      body = String(body || '').trim();
+      if (title.length < 3 || title.length > 120) return fail('invalid', 'Title must be 3–120 characters.');
+      if (body.length < 3 || body.length > 500) return fail('invalid', 'Body must be 3–500 characters.');
+      link = String(link || '').trim();
+      if (link && !/^https?:\/\//i.test(link)) return fail('invalid', 'Link must be a full URL (https://…).');
+      style = ANN_STYLES.includes(String(style || '')) ? style : 'gold';
+      const t = now();
+      const a = { id: 'an' + uid(), title, body, link: link || null, style, active: true, createdAt: t, updatedAt: t };
+      store.put('announcements', a);
+      flush();
+      return ok(a);
+    }
+    async function updateAnnouncement(actor, id, patch = {}) {
+      const r = requireAdmin(actor); if (r) return r;
+      const a = byIdIn('announcements', id);
+      if (!a) return fail('notfound', 'Announcement not found.');
+      if (patch.title !== undefined) {
+        const t = String(patch.title).trim();
+        if (t.length < 3 || t.length > 120) return fail('invalid', 'Title must be 3–120 characters.');
+        a.title = t;
+      }
+      if (patch.body !== undefined) {
+        const b = String(patch.body).trim();
+        if (b.length < 3 || b.length > 500) return fail('invalid', 'Body must be 3–500 characters.');
+        a.body = b;
+      }
+      if (patch.link !== undefined) a.link = String(patch.link || '').trim() ? String(patch.link).trim() : null;
+      if (patch.style !== undefined) a.style = ANN_STYLES.includes(String(patch.style)) ? patch.style : a.style;
+      if (patch.active !== undefined) a.active = !!patch.active;
+      a.updatedAt = now();
+      store.put('announcements', a);
+      flush();
+      return ok(a);
+    }
+    async function deleteAnnouncement(actor, id) {
+      const r = requireAdmin(actor); if (r) return r;
+      if (!byIdIn('announcements', id)) return fail('notfound', 'Announcement not found.');
+      store.del('announcements', id);
+      flush();
+      return ok(true);
+    }
+
+    /* ============ SYSTEM REGISTERING (creator → Roblox Studio licensing) ============ */
+    /* Matches the copyable Lua script's API contract:
+       POST /api/systems/{activate,heartbeat,device}
+       Body: { systemName, systemPassword, deviceId | playerId, playerName }
+       Reply: { ok, data: { active, reason } } */
+    const SYS_STATES = ['pending', 'active', 'disabled'];
+    function findSystemByCreds(name, password) {
+      return all('systems').find(s => String(s.name || '').trim().toLowerCase() === String(name || '').trim().toLowerCase() && s.password === String(password || ''));
+    }
+    function systemPublic(s) {
+      return { id: s.id, name: s.name, status: s.status, createdAt: s.createdAt, lastSeenAt: s.lastSeenAt };
+    }
+    function systemForOwner(s) {
+      const devices = all('system_devices').filter(d => d.systemId === s.id).sort((a, b) => b.lastSeenAt - a.lastSeenAt)
+        .map(d => ({ id: d.id, deviceId: d.deviceId, deviceName: d.deviceName, status: d.status, lastSeenAt: d.lastSeenAt }));
+      return { ...systemPublic(s), password: s.password, devices };
+    }
+    async function registerSystem(user, { name, password } = {}) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      if (effRank(u) < roleRank('vip')) return fail('vipOnly', 'System registering is a VIP / Licensed feature — grab a license to unlock it.');
+      name = String(name || '').trim();
+      password = String(password || '').trim();
+      if (name.length < 3 || name.length > 60) return fail('invalid', 'System name must be 3–60 characters.');
+      if (password.length < 6 || password.length > 80) return fail('invalid', 'System password must be 6–80 characters.');
+      if (!/^[\w .\-()&'"!?+]+$/.test(name)) return fail('invalid', 'System name may only contain letters, numbers, spaces, and basic punctuation.');
+      if (all('systems').some(s => s.userId === u.id && s.name.toLowerCase() === name.toLowerCase())) return fail('taken', 'You already have a system with that name.');
+      const t = now();
+      const s = { id: 'sys' + uid(), userId: u.id, name, password, status: 'pending', createdAt: t, updatedAt: t, lastSeenAt: null };
+      store.put('systems', s);
+      flush();
+      return ok(systemForOwner(s));
+    }
+    async function listSystems(user) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      return ok(all('systems').filter(s => s.userId === u.id).sort((a, b) => b.createdAt - a.createdAt).map(systemForOwner));
+    }
+    async function deleteSystem(user, id) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const s = byIdIn('systems', id);
+      if (!s || s.userId !== u.id) return fail('forbidden', 'System not found.');
+      all('system_devices').filter(d => d.systemId === s.id).forEach(d => store.del('system_devices', d.id));
+      store.del('systems', s.id);
+      flush();
+      return ok(true);
+    }
+    /* The heart of the anti-leak flow: the game phones home with the name +
+       password; a match means the system is licensed. First successful contact
+       flips PENDING → ACTIVE; a paused (disabled) system is always denied. */
+    function checkSystemCreds(body) {
+      const s = findSystemByCreds(body && body.systemName, body && body.systemPassword);
+      if (!s) return { found: false, reason: 'No system matches that name and password. Double-check them on the Dashboard.' };
+      if (s.status === 'disabled') return { found: true, denied: true, reason: 'This system has been paused by its creator. Contact the creator to re-enable it.' };
+      return { found: true, system: s };
+    }
+    async function systemActivate({ systemName, systemPassword, deviceId } = {}) {
+      const chk = checkSystemCreds({ systemName, systemPassword });
+      if (!chk.found) return ok({ active: false, reason: chk.reason });
+      if (chk.denied) return ok({ active: false, reason: chk.reason });
+      const s = chk.system;
+      if (s.status === 'pending') { s.status = 'active'; s.updatedAt = now(); }
+      s.lastSeenAt = now();
+      s.updatedAt = now();
+      store.put('systems', s);
+      if (deviceId) {
+        const existing = all('system_devices').find(d => d.systemId === s.id && d.deviceId === String(deviceId));
+        if (existing) { existing.lastSeenAt = now(); store.put('system_devices', existing); }
+        else store.put('system_devices', { id: 'sd' + uid(), systemId: s.id, deviceId: String(deviceId).slice(0, 80), deviceName: null, status: 'active', createdAt: now(), lastSeenAt: now() });
+      }
+      flush();
+      return ok({ active: true, reason: 'Licensed and active.' });
+    }
+    async function systemHeartbeat({ systemName, systemPassword, deviceId } = {}) {
+      const chk = checkSystemCreds({ systemName, systemPassword });
+      if (!chk.found) return ok({ active: false, reason: chk.reason });
+      if (chk.denied) return ok({ active: false, reason: chk.reason });
+      const s = chk.system;
+      s.lastSeenAt = now();
+      s.updatedAt = now();
+      store.put('systems', s);
+      if (deviceId) {
+        const existing = all('system_devices').find(d => d.systemId === s.id && d.deviceId === String(deviceId));
+        if (existing) { existing.lastSeenAt = now(); store.put('system_devices', existing); }
+        else store.put('system_devices', { id: 'sd' + uid(), systemId: s.id, deviceId: String(deviceId).slice(0, 80), deviceName: null, status: 'active', createdAt: now(), lastSeenAt: now() });
+      }
+      flush();
+      return ok({ active: true, reason: 'Licensed and active.' });
+    }
+    /* Player device registration from the Lua script — records who is using the
+       system so the creator can see and revoke individual players. */
+    async function registerSystemDevice({ systemName, systemPassword, playerId, playerName } = {}) {
+      const chk = checkSystemCreds({ systemName, systemPassword });
+      if (!chk.found || chk.denied) return ok({ active: false, reason: chk.reason || 'Not licensed.' });
+      const s = chk.system;
+      if (playerId) {
+        const existing = all('system_devices').find(d => d.systemId === s.id && d.deviceId === String(playerId));
+        if (existing) { existing.deviceName = String(playerName || existing.deviceName || '').slice(0, 40) || null; existing.lastSeenAt = now(); store.put('system_devices', existing); }
+        else store.put('system_devices', { id: 'sd' + uid(), systemId: s.id, deviceId: String(playerId).slice(0, 80), deviceName: String(playerName || '').slice(0, 40) || null, status: 'active', createdAt: now(), lastSeenAt: now() });
+        flush();
+      }
+      return ok({ active: true, reason: 'Registered.' });
+    }
+    async function setSystemStatus(user, id, status) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const s = byIdIn('systems', id);
+      if (!s || s.userId !== u.id) return fail('forbidden', 'System not found.');
+      status = String(status || '');
+      if (!['active', 'disabled'].includes(status)) return fail('invalid', 'Invalid status.');
+      s.status = status;
+      s.updatedAt = now();
+      store.put('systems', s);
+      flush();
+      return ok(systemForOwner(s));
+    }
+    async function revokeSystemDevice(user, deviceId) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const d = byIdIn('system_devices', deviceId);
+      if (!d) return fail('notfound', 'Device not found.');
+      const s = byIdIn('systems', d.systemId);
+      if (!s || s.userId !== u.id) return fail('forbidden', 'You can only revoke devices on your own systems.');
+      d.status = 'revoked';
+      store.put('system_devices', d);
+      flush();
+      return ok(true);
+    }
+
     seedContent();
     ensureOwnerAccount();
 
     return {
       register, login, googleLogin, verify2fa, requestReset, resetPassword, logout, me,
+      verifyEmail, resendVerification,
       updateProfile, setup2fa, enable2fa, disable2fa,
       createAsset, postStatus, listApproved, topSelling, getAsset, updateAsset, deleteAsset, myAssets, download,
       purchase, myPurchases, assignLicense, createOrder, createVipOrder, completeOrder, settleOrder, cancelOrder, myOrders, adminOrders, adminCompleteOrder,
@@ -2598,6 +2888,8 @@ const API = {};
       createCreator, updateCreator, deleteCreator,
       createTicket, addTicketMessage, getTicket, listMyTickets,
       adminListTickets, adminCloseTicket, adminDeleteTicket,
+      listAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement,
+      registerSystem, listSystems, deleteSystem, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
       adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSessions, adminEmails, adminOrders, adminCompleteOrder,
       setFx,
@@ -2685,6 +2977,8 @@ API.requestReset = args => _wrap(async () => {
   return r;
 });
 API.resetPassword = args => _wrap(async () => _mode === 'local' ? await _engine.resetPassword(args) : await _call('POST', '/api/auth/reset-password', args));
+API.verifyEmail = token => _wrap(async () => _mode === 'local' ? await _engine.verifyEmail({ token }) : await _call('POST', '/api/auth/verify-email', { token }));
+API.resendVerify = user => _wrap(async () => _mode === 'local' ? await _engine.resendVerification(user) : await _call('POST', '/api/auth/resend-verify'));
 
 /* ---- profile & 2FA ---- */
 API.updateProfile = (user, patch) => _wrap(async () => _mode === 'local' ? await _engine.updateProfile(user, patch) : await _call('PATCH', '/api/profile', patch));
@@ -2782,6 +3076,19 @@ API.createTicket = (user, a) => _wrap(async () => _mode === 'local' ? await _eng
 API.listMyTickets = user => _wrap(async () => _mode === 'local' ? await _engine.listMyTickets(user) : await _call('GET', '/api/tickets/mine'));
 API.getTicket = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.getTicket(user, id) : await _call('GET', '/api/tickets/' + _e(id)));
 API.addTicketMessage = (user, id, body) => _wrap(async () => _mode === 'local' ? await _engine.addTicketMessage(user, id, body) : await _call('POST', '/api/tickets/' + _e(id) + '/messages', { body }));
+
+/* ---- announcements (site banner) ---- */
+API.announcements = () => _wrap(async () => _mode === 'local' ? await _engine.listAnnouncements() : await _call('GET', '/api/announcements'));
+API.createAnnouncement = (user, a) => _wrap(async () => _mode === 'local' ? await _engine.createAnnouncement(user, a) : await _call('POST', '/api/admin/announcements', a));
+API.updateAnnouncement = (user, id, a) => _wrap(async () => _mode === 'local' ? await _engine.updateAnnouncement(user, id, a) : await _call('PATCH', '/api/admin/announcements/' + _e(id), a));
+API.deleteAnnouncement = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.deleteAnnouncement(user, id) : await _call('DELETE', '/api/admin/announcements/' + _e(id)));
+
+/* ---- system registering (creator → Roblox Studio licensing) ---- */
+API.registerSystem = (user, a) => _wrap(async () => _mode === 'local' ? await _engine.registerSystem(user, a) : await _call('POST', '/api/systems/register', a));
+API.mySystems = user => _wrap(async () => _mode === 'local' ? await _engine.listSystems(user) : await _call('GET', '/api/systems/mine'));
+API.deleteSystem = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.deleteSystem(user, id) : await _call('DELETE', '/api/systems/' + _e(id)));
+API.setSystemStatus = (user, id, status) => _wrap(async () => _mode === 'local' ? await _engine.setSystemStatus(user, id, status) : await _call('POST', '/api/systems/' + _e(id) + '/status', { status }));
+API.revokeSystemDevice = (user, deviceId) => _wrap(async () => _mode === 'local' ? await _engine.revokeSystemDevice(user, deviceId) : await _call('POST', '/api/systems/devices/' + _e(deviceId) + '/revoke'));
 
 /* ---- admin ---- */
 API.adminOverview = user => _wrap(async () => _mode === 'local' ? await _engine.adminOverview(user) : await _call('GET', '/api/admin/overview'));
@@ -2941,12 +3248,13 @@ const SOCIAL = { discord: 'https://discord.gg/syQfqmaA28', youtube: 'https://you
 
 /* ---- shell ---- */
 function headerHtml(user) {
-  const nav = [...(user && canPost(user) ? [['dashboard', 'Dashboard']] : []), ['portfolio', 'Portfolio'], ['shop', 'Shop'], ['license', 'License'], ['creators', 'Creators'], ['support', 'Support']]
-    .map(([p, l]) => `<a href="#/${p}" data-nav="${p}">${l}${p === 'dashboard' ? '<span class="fa-badge" style="margin-left:7px">VIP</span>' : ''}</a>`).join('');
+  const navItems = [...(user && canPost(user) ? [['dashboard', 'Dashboard', ICON.chart, 'VIP']] : []), ['portfolio', 'Portfolio', ICON.crown], ['shop', 'Shop', ICON.cart], ['license', 'License', ICON.key], ['creators', 'Creators', ICON.user], ['support', 'Support', ICON.mail]];
+  const nav = navItems.map(([p, l]) => `<a href="#/${p}" data-nav="${p}">${l}${p === 'dashboard' ? '<span class="fa-badge" style="margin-left:7px">VIP</span>' : ''}</a>`).join('');
   const right = user
     ? `<div class="dropdown">
         <button class="btn btn-ghost" id="user-btn" style="gap:10px">${avatarHtml(user, 30)}<span class="hide-sm">${esc(user.displayName)}</span>${ICON.chevron}</button>
         <div class="dropdown-menu hidden" id="user-menu">
+          ${isUnverified(user) ? `<a href="#/verify" class="warn-link">${ICON.mail} Verify your email</a>` : ''}
           <a href="#/profile/${esc(user.handle)}">${ICON.user} My Profile</a>
           <a href="#/my-assets">${ICON.edit} My Assets</a>
           ${canPost(user) ? `<a href="#/upload">${ICON.plus} Upload Asset</a>` : `<a href="#/my-assets" onclick="event.preventDefault();onPostFab()">${ICON.lock} Upload Asset (VIP)</a>`}
@@ -2957,11 +3265,31 @@ function headerHtml(user) {
         </div>
       </div>`
     : `<a class="btn btn-ghost btn-sm" href="#/login">Log in</a><a class="btn btn-primary btn-sm" href="#/register">Create account</a>`;
+  const drawerNav = navItems.map(([p, l, ic]) => `<a class="m-nav-item" href="#/${p}" data-nav="${p}">${ic}<span>${l}${p === 'dashboard' ? '<em class="fa-badge">VIP</em>' : ''}</span></a>`).join('');
+  const drawerAccount = user
+    ? `<a class="m-nav-item" href="#/profile/${esc(user.handle)}">${ICON.user}<span>My Profile</span></a>
+       <a class="m-nav-item" href="#/my-assets">${ICON.edit}<span>My Assets</span></a>
+       ${canPost(user) ? `<a class="m-nav-item" href="#/upload">${ICON.plus}<span>Upload Asset</span></a>` : `<a class="m-nav-item" href="#/license">${ICON.lock}<span>Get VIP / Licensed</span></a>`}
+       ${isStaff(user) ? `<a class="m-nav-item" href="#/admin">${ICON.shield}<span>Admin Panel</span></a>` : ''}
+       <a class="m-nav-item" href="#/settings">${ICON.clock}<span>Settings</span></a>
+       <button class="m-nav-item" id="m-logout-btn">${ICON.logout}<span>Log out</span></button>`
+    : `<a class="m-nav-item" href="#/login">${ICON.user}<span>Log in</span></a><a class="m-nav-item" href="#/register">${ICON.plus}<span>Create account</span></a>`;
   return `<header class="site-header"><div class="header-inner">
     <a class="brand" href="#/" aria-label="Kings Production home"><span class="crown">${ICON.crown}</span><span class="brand-txt">Kings Production<span class="brand-sub">Roblox Studio</span></span></a>
     <nav class="main-nav" aria-label="Primary">${nav}</nav>
-    <div class="header-right">${right}</div>
-  </div></header>`;
+    <div class="header-right">${right}<button class="hamburger" id="hamburger" type="button" aria-label="Open menu" aria-expanded="false">${ICON.menu}</button></div>
+  </div>
+  <div class="drawer-backdrop" id="drawer-backdrop" hidden></div>
+  <aside class="drawer" id="drawer" aria-label="Menu" aria-hidden="true">
+    <div class="drawer-head"><span class="crown">${ICON.crown}</span><span class="drawer-title">Menu</span><button class="drawer-close" id="drawer-close" type="button" aria-label="Close menu">${ICON.x}</button></div>
+    <nav class="drawer-nav" aria-label="Mobile">${drawerNav}</nav>
+    <div class="drawer-account">${drawerAccount}</div>
+    <div class="drawer-social">
+      <a class="s-btn" href="${esc(SOCIAL.discord)}" target="_blank" rel="noopener" title="Join our Discord">${ICON.discord}</a>
+      <a class="s-btn" href="${esc(SOCIAL.youtube)}" target="_blank" rel="noopener" title="Watch on YouTube">${ICON.youtube}</a>
+      <button class="s-btn help" type="button" title="Legal & help" onclick="openLegal()">!</button>
+    </div>
+  </aside></header>`;
 }
 function footerHtml() {
   return `<footer class="site-footer">
@@ -2979,7 +3307,7 @@ function footerHtml() {
 }
 function renderShell() {
   const app = document.getElementById('app');
-  app.innerHTML = headerHtml(null) + `<main id="main"></main>` + footerHtml() + `<div id="toasts"></div>`
+  app.innerHTML = headerHtml(null) + `<div id="announce" hidden></div>` + `<main id="main"></main>` + footerHtml() + `<div id="toasts"></div>`
     + `<div class="social-dock" aria-label="Social links">
         <a class="s-btn" href="${esc(SOCIAL.discord)}" target="_blank" rel="noopener" title="Join our Discord">${ICON.discord}</a>
         <a class="s-btn" href="${esc(SOCIAL.youtube)}" target="_blank" rel="noopener" title="Watch on YouTube">${ICON.youtube}</a>
@@ -2987,18 +3315,36 @@ function renderShell() {
       </div>`
     + `<button class="post-fab" type="button" id="post-fab" title="Post an asset">${ICON.plus}</button>`
     + `<div class="site-status" id="site-status" title="Server status — awake and ready, or still waking up"><span class="dot"></span><span id="site-status-txt">Checking…</span></div>`;
-  app.querySelector('#user-btn') && app.querySelector('#user-btn').addEventListener('click', e => {
-    e.stopPropagation(); document.getElementById('user-menu').classList.toggle('hidden');
-  });
-  document.addEventListener('click', e => {
-    const m = document.getElementById('user-menu');
-    if (m && !m.classList.contains('hidden') && !e.target.closest('#user-btn')) m.classList.add('hidden');
-  });
-  const lo = document.getElementById('logout-btn');
-  if (lo) lo.addEventListener('click', async () => { await API.logout(); STATE.user = null; renderHeader(); toast('Logged out.'); go('/'); });
+  bindHeader();
   const fab = document.getElementById('post-fab');
   if (fab) fab.addEventListener('click', onPostFab);
+  renderAnnouncement();
 }
+/* ---- announcement banner ---- */
+function renderAnnouncement() {
+  const host = document.getElementById('announce');
+  if (!host) return;
+  API.announcements().then(r => {
+    const list = (r.ok ? r.data : []) || [];
+    const a = list.find(x => x.active && localStorage.getItem('kp_dismiss_ann_' + x.id) !== '1');
+    if (!a) { host.hidden = true; host.innerHTML = ''; return; }
+    host.hidden = false;
+    host.className = 'announce ' + (['gold', 'green', 'red'].includes(a.style) ? a.style : 'gold');
+    host.innerHTML = `<div class="announce-inner">
+      <span class="announce-icon">${ICON.megaphone}</span>
+      <span class="announce-text"><b>${esc(a.title)}</b>${a.body ? ' — ' + esc(a.body) : ''}${a.link ? ` <a href="${esc(a.link)}" target="_blank" rel="noopener">Learn more →</a>` : ''}</span>
+      <button class="announce-close" type="button" aria-label="Dismiss" onclick="dismissAnnounce('${a.id}')">${ICON.x}</button>
+    </div>`;
+  }).catch(() => { host.hidden = true; });
+}
+function dismissAnnounce(id) {
+  localStorage.setItem('kp_dismiss_ann_' + id, '1');
+  const host = document.getElementById('announce');
+  if (!host) return;
+  host.classList.add('gone');
+  setTimeout(() => { host.hidden = true; host.innerHTML = ''; host.classList.remove('gone'); }, 320);
+}
+
 function onPostFab() {
   const u = STATE.user;
   if (!u) { toast('Log in to post assets.', 'err'); go('/login'); return; }
@@ -3028,6 +3374,22 @@ function bindHeader() {
   });
   const lo = document.getElementById('logout-btn');
   lo && lo.addEventListener('click', async () => { await API.logout(); STATE.user = null; renderHeader(); toast('Logged out.'); go('/'); });
+  /* Mobile drawer */
+  const hb = document.getElementById('hamburger');
+  const drawer = document.getElementById('drawer');
+  const backdrop = document.getElementById('drawer-backdrop');
+  const closeBtn = document.getElementById('drawer-close');
+  if (hb && drawer && backdrop) {
+    const openDrawer = () => { drawer.classList.add('open'); backdrop.hidden = false; document.body.classList.add('drawer-open'); hb.setAttribute('aria-expanded', 'true'); drawer.setAttribute('aria-hidden', 'false'); };
+    const closeDrawer = () => { drawer.classList.remove('open'); backdrop.hidden = true; document.body.classList.remove('drawer-open'); hb.setAttribute('aria-expanded', 'false'); drawer.setAttribute('aria-hidden', 'true'); };
+    hb.addEventListener('click', e => { e.stopPropagation(); drawer.classList.contains('open') ? closeDrawer() : openDrawer(); });
+    backdrop.addEventListener('click', closeDrawer);
+    closeBtn && closeBtn.addEventListener('click', closeDrawer);
+    drawer.addEventListener('click', e => { if (e.target.closest('a,button')) closeDrawer(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && drawer.classList.contains('open')) closeDrawer(); });
+  }
+  const mlo = document.getElementById('m-logout-btn');
+  mlo && mlo.addEventListener('click', async () => { await API.logout(); STATE.user = null; renderHeader(); toast('Logged out.'); go('/'); });
 }
 
 /* ---- router ---- */
@@ -3035,6 +3397,7 @@ const TITLES = {
   home: 'Kings Production — Premium Roblox Development Studio', shop: 'Shop — Kings Production',
   portfolio: 'Portfolio — Kings Production', license: 'License — Kings Production', creators: 'Creators — Kings Production',
   support: 'Support — Kings Production', ticket: 'Ticket — Kings Production',
+  verify: 'Verify your email — Kings Production',
   login: 'Log in — Kings Production', register: 'Create account — Kings Production',
   settings: 'Settings — Kings Production', admin: 'Admin Panel — Kings Production', dashboard: 'Dashboard — Kings Production',
   privacy: 'Privacy Policy — Kings Production', terms: 'Terms of Use — Kings Production',
@@ -3044,7 +3407,7 @@ async function router(opts = {}) {
   const { path, params, query } = parseHash();
   /* Auth pages are full-screen and focused — hide the site chrome around them. */
   document.body.classList.toggle('auth-mode', ['login', 'register', 'forgot', 'reset'].includes(path));
-  if (!['home', 'shop', 'portfolio', 'license', 'creators', 'support', 'ticket', 'asset', 'profile', 'login', 'register', 'forgot', 'reset', 'settings', 'upload', 'my-assets', 'dashboard', 'admin', 'privacy', 'terms'].includes(path)) { location.hash = '#/'; return; }
+  if (!['home', 'shop', 'portfolio', 'license', 'creators', 'support', 'ticket', 'verify', 'asset', 'profile', 'login', 'register', 'forgot', 'reset', 'settings', 'upload', 'my-assets', 'dashboard', 'admin', 'privacy', 'terms'].includes(path)) { location.hash = '#/'; return; }
   const me = await API.me();
   STATE.user = me.ok ? me.data : null;
   renderHeader();
@@ -3179,6 +3542,7 @@ VIEWS_BIND.login = async ({ query } = {}) => {
     if (me.ok && me.data) { STATE.user = me.data; renderHeader(); toast('Signed in with Google — welcome, ' + me.data.displayName + '!'); SFX.play('crown'); go('/'); }
     else { toast('Google signed you in, but the session could not be verified.', 'err'); go('/login'); }
   }
+  if (STATE.user && isUnverified(STATE.user)) toast('Verify your email to unlock posting and purchasing.', 'warn');
 };
 function readFileAsDataURL(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
 
@@ -3550,6 +3914,34 @@ function authBrandPanel() {
     <div class="auth-brand-tags"><span>${ICON.shield} Secure</span><span>${ICON.lock} Private</span><span>${ICON.crown} Royal standards</span></div>
   </div>`;
 }
+/* ---- email verification ---- */
+function isUnverified(u) { return !!(u && u.emailVerified === false); }
+VIEWS.verify = async ({ query } = {}) => {
+  const token = (query && query.token) || '';
+  if (!token) {
+    return `<div class="page page-narrow">${emptyHtml('Missing verification link', 'Open the link from your email — it contains a unique token.')}</div>`;
+  }
+  const r = await API.verifyEmail(token);
+  if (r.ok) {
+    SFX.play('crown');
+    return `<div class="page page-narrow center" style="padding-top:90px">
+      <div class="card card-pad center" style="max-width:460px;border-color:rgba(212,175,55,.35)">
+        <span class="crown" style="font-size:40px">${ICON.crown}</span>
+        <h2 style="font-family:var(--font-display);font-size:22px;margin:14px 0 8px">Email verified!</h2>
+        <p class="muted">Your email is confirmed. You can now post assets (if VIP / Licensed) and purchase from the marketplace.</p>
+        <div class="center mt2"><a class="btn btn-primary" href="#/">${ICON.check} Continue to the site</a></div>
+      </div>
+    </div>`;
+  }
+  return `<div class="page page-narrow">${emptyHtml(r.error || 'Verification failed', 'The link may have expired or already been used.')}
+    <div class="center mt2"><button class="btn btn-primary" onclick="onResendVerify()">${ICON.mail} Resend verification email</button></div></div>`;
+};
+async function onResendVerify() {
+  const r = await API.resendVerify(STATE.user);
+  if (r.ok) toast(r.data && r.data.devLink ? 'Verification email sent — dev link: ' + r.data.devLink : 'Verification email sent — check your inbox.');
+  else toast(r.error, 'err');
+}
+
 VIEWS.login = async ({ query } = {}) => {
   const need2fa = !!STATE.twoFactorUserId;
   const gcfg = await API.googleConfig();
@@ -3633,20 +4025,26 @@ async function handleLogin(e) {
   const res = await API.login({ login: f.login.value, password: f.password.value, acceptTerms: !!(f.acceptTerms && f.acceptTerms.checked) });
   if (!res.ok) { toast(res.error, 'err'); if (res.code === 'banned') await router(); return; }
   if (res.data && res.data.need2fa) { STATE.twoFactorUserId = res.data.userId; await router(); return; }
-  STATE.user = res.data; renderHeader(); toast('Welcome back, ' + res.data.displayName); SFX.play('crown'); go('/');
+  STATE.user = res.data; renderHeader();
+  if (isUnverified(res.data)) toast('Welcome back! Verify your email to unlock posting and purchasing — check your inbox.', 'warn');
+  else toast('Welcome back, ' + res.data.displayName);
+  SFX.play('crown'); go('/');
 }
 async function onVerify2fa(e) {
   e.preventDefault();
   const res = await API.verify2fa({ userId: STATE.twoFactorUserId, code: e.target.code.value });
   if (!res.ok) { toast(res.error, 'err'); return; }
-  STATE.twoFactorUserId = null; STATE.user = res.data; renderHeader(); toast('Logged in securely.'); go('/');
+  STATE.twoFactorUserId = null; STATE.user = res.data; renderHeader();
+  if (isUnverified(res.data)) toast('Logged in. Verify your email to unlock posting and purchasing.', 'warn');
+  else toast('Logged in securely.');
+  go('/');
 }
 async function handleRegister(e) {
   e.preventDefault();
   const f = e.target;
   const res = await API.register({ handle: f.handle.value, displayName: f.displayName.value, email: f.email.value, password: f.password.value, country: f.country ? f.country.value : 'US', acceptTerms: !!(f.acceptTerms && f.acceptTerms.checked) });
   if (!res.ok) { toast(res.error, 'err'); return; }
-  STATE.user = res.data; renderHeader(); toast('Account created — welcome to Kings Production!'); SFX.play('crown'); go('/');
+  STATE.user = res.data; renderHeader(); toast('Account created — check your email to verify it!'); SFX.play('crown'); go('/');
 }
 async function handleForgot(e) {
   e.preventDefault();
@@ -3692,6 +4090,11 @@ VIEWS.settings = async () => {
         <button class="btn btn-primary" type="submit">Save changes</button>
       </form>
     </div>
+    ${isUnverified(u) ? `<div class="card card-pad" style="margin-bottom:20px;border-color:rgba(255,170,60,.4)">
+      <h3 style="font-family:var(--font-display);font-size:17px;margin-bottom:6px">${ICON.mail} Email not verified</h3>
+      <p class="muted small mb">Verify your email to unlock posting and purchasing. Check your inbox for the link we sent when you signed up (it expires after 72 hours), or send a fresh one.</p>
+      <button class="btn btn-primary btn-sm" onclick="onResendVerify()">${ICON.mail} Resend verification email</button>
+    </div>` : ''}
     <div class="card card-pad" style="margin-bottom:20px">
       <h3 style="font-family:var(--font-display);font-size:17px;margin-bottom:6px">Two-factor authentication</h3>
       <p class="muted small mb">Add an extra layer of security. 2FA uses a time-based one-time code from an authenticator app (or the live code shown during setup).</p>
@@ -3900,6 +4303,9 @@ VIEWS.dashboard = async () => {
   const licenses = lics.ok ? lics.data : [];
   const byAsset = {};
   licenses.forEach(l => { (byAsset[l.assetId] = byAsset[l.assetId] || []).push(l); });
+  const sysRes = await API.mySystems(STATE.user);
+  const systems = sysRes.ok ? sysRes.data : [];
+  STATE._systems = systems;
   const statCards = [
     { k: 'Total sales', v: String(stats.totalSales), cls: '' },
     { k: 'Revenue (USD)', v: fmtUsd(stats.revenue), cls: '' },
@@ -3941,6 +4347,18 @@ VIEWS.dashboard = async () => {
       <div class="section-head" style="margin:0"><div><h2 style="font-size:22px">Licenses &amp; devices</h2><p>Disable a license to shut the file down, or revoke a device to block it.</p></div></div>
     </div>
     ${assetPanels}
+    <div class="section-head" style="margin:30px 0 6px"><div><span class="section-eyebrow">System registering</span><h2 style="font-size:22px">Protect your systems</h2><p>Register each system you build (e.g. your <b>Music System</b>), then paste the generated code into Roblox Studio. It only runs while licensed — pause it or revoke a device anytime.</p></div></div>
+    <div class="card card-pad" style="margin-bottom:18px">
+      <form onsubmit="onRegisterSystem(event)">
+        <div class="row" style="gap:12px;align-items:flex-end;flex-wrap:wrap">
+          <div class="field" style="flex:1;min-width:200px;margin:0"><label>System name<span class="req">*</span></label><input class="input" id="sys-name" maxlength="60" placeholder="e.g. Music System" required></div>
+          <div class="field" style="flex:1;min-width:200px;margin:0"><label>System password<span class="req">*</span></label><input class="input" id="sys-pass" maxlength="80" placeholder="Secret the game sends to verify itself" required></div>
+          <button class="btn btn-primary" type="submit">${ICON.plus} Register system</button>
+        </div>
+        <p class="hint muted small" style="margin-top:10px">Status starts as <b>PENDING</b> and flips to <b>ACTIVE</b> the first time your game phones home with the matching name + password. Keep the password secret — it lives inside your script, so <b>obfuscate the code</b> before shipping.</p>
+      </form>
+    </div>
+    <div class="sys-list">${systems.length ? systems.map(sysCardHtml).join('') : emptyHtml('No systems registered', 'Register your first system above — its Roblox Studio code, live status, and device list will appear here.')}</div>
     <div class="sec-note" style="margin-bottom:22px">
       <b>${ICON.shield} How license security works</b><br>
       Every sale issues a unique <b>KP-</b> key. Your asset's file calls the activation API on first run and sends a heartbeat while running, so you can see exactly which devices are using it. If a file leaks or a device looks unauthorized: <b>disable the license</b> (the file refuses to run everywhere) or <b>revoke a device</b> (that device alone is cut off). If someone steals a file, the key inside it stays bound to the buyer — nobody else can use it.
@@ -3999,6 +4417,180 @@ VIEWS_BIND.dashboard = () => {
   const c = document.getElementById('sales-chart');
   if (c) drawSalesChart(c);
 };
+
+/* ---- system registering (creator → Roblox Studio) ---- */
+function sysCardHtml(s) {
+  const active = s.status === 'active';
+  const pending = s.status === 'pending';
+  const badge = pending ? '<span class="badge warn">PENDING</span>' : active ? '<span class="badge ok">ACTIVE</span>' : '<span class="badge plain">PAUSED</span>';
+  return `<div class="card" style="margin-bottom:16px;overflow:hidden">
+    <div class="row" style="padding:16px 20px;gap:14px;border-bottom:1px solid var(--border);flex-wrap:wrap">
+      <div style="flex:1;min-width:200px">
+        <div class="row" style="gap:10px"><span class="crown" style="color:var(--gold)">${ICON.system}</span><b style="font-family:var(--font-display);font-size:16px">${esc(s.name)}</b>${badge}</div>
+        <div class="muted small" style="margin-top:4px">Registered ${fmtDate(s.createdAt)}${s.lastSeenAt ? ' · last seen ' + timeAgo(s.lastSeenAt) : ' · never activated'}</div>
+      </div>
+      <div class="row" style="gap:8px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" onclick="onCopySystemCode('${s.id}')">${ICON.copy} Studio code</button>
+        ${active ? `<button class="btn btn-danger btn-sm" onclick="onSetSystemStatus('${s.id}','disabled')">${ICON.ban} Pause</button>` : pending ? '' : `<button class="btn btn-ghost btn-sm" onclick="onSetSystemStatus('${s.id}','active')">${ICON.check} Resume</button>`}
+        <button class="btn btn-ghost btn-sm" onclick="onDeleteSystem('${s.id}')" title="Delete system">${ICON.trash}</button>
+      </div>
+    </div>
+    ${s.devices && s.devices.length ? `<div style="padding:8px 20px 14px">
+      <div class="muted small" style="padding:8px 0 4px">Devices using this system</div>
+      ${s.devices.map(d => `<div class="row" style="gap:8px;padding:5px 0;flex-wrap:wrap">
+        <span class="lic-device">${ICON.system} <b>${esc(d.deviceName || d.deviceId || 'Device')}</b>${d.status === 'revoked' ? ' <span class="off">· revoked</span>' : ` · last seen ${timeAgo(d.lastSeenAt)}`}</span>
+        ${d.status === 'active' ? `<button class="btn btn-ghost btn-sm" style="padding:3px 10px;font-size:12px" onclick="onRevokeSystemDevice('${d.id}')">Revoke device</button>` : ''}
+      </div>`).join('')}
+    </div>` : ''}
+  </div>`;
+}
+/* Escape a value for a double-quoted Lua string. */
+function luaEsc(s) { return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n'); }
+function luaCodeFor(s) {
+  const name = luaEsc(s.name);
+  const pass = luaEsc(s.password);
+  return `--[[ KINGS PRODUCTION · LICENSE SYSTEM ]]
+-- Paste into ServerScriptService in Roblox Studio.
+-- Enable: Game Settings → Security → "Allow HTTP Requests".
+
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+
+local CONFIG = {
+	SystemName = "${name}",
+	SystemPassword = "${pass}",
+	ApiUrl = "https://kingsproduction.cc/api/systems/activate",
+	HeartbeatUrl = "https://kingsproduction.cc/api/systems/heartbeat",
+	PlayerUrl = "https://kingsproduction.cc/api/systems/device",
+	HeartbeatSeconds = 300,
+	ProtectedObjectName = "${name}",
+}
+
+local License = {}
+License.IsActive = false
+License.OnDenied = nil
+
+local function post(url, payload)
+	local ok, res = pcall(function()
+		return HttpService:RequestAsync({
+			Url = url, Method = "POST",
+			Headers = { ["Content-Type"] = "application/json" },
+			Body = HttpService:JSONEncode(payload),
+		})
+	end)
+	if not ok or not res then return nil end
+	local okDecode, json = pcall(function() return HttpService:JSONDecode(res.Body) end)
+	if not okDecode then return nil end
+	return json
+end
+
+local function applyDecision(active)
+	License.IsActive = active
+	if active then
+		warn("[License] ACTIVE — system is licensed")
+	else
+		warn("[License] DENIED — disabling protected system")
+	end
+	if ProtectedObject then ProtectedObject.Disabled = not active end
+	if not active and License.OnDenied then License.OnDenied() end
+end
+
+local ProtectedObject = nil
+
+local function check(heartbeat)
+	local res = post(heartbeat and CONFIG.HeartbeatUrl or CONFIG.ApiUrl, {
+		systemName = CONFIG.SystemName,
+		systemPassword = CONFIG.SystemPassword,
+		deviceId = tostring(game.JobId),
+	})
+	if res then
+		applyDecision(res.ok == true and res.data and res.data.active == true)
+	else
+		warn("[License] check failed, retrying later")
+	end
+end
+
+local function registerPlayer(player)
+	task.spawn(function()
+		post(CONFIG.PlayerUrl, {
+			systemName = CONFIG.SystemName,
+			systemPassword = CONFIG.SystemPassword,
+			playerId = tostring(player.UserId),
+			playerName = player.Name,
+		})
+	end)
+end
+
+function License.Start(protectedObject)
+	ProtectedObject = protectedObject or script
+	check(false)
+	task.spawn(function()
+		while true do
+			task.wait(CONFIG.HeartbeatSeconds)
+			check(true)
+		end
+	end)
+	Players.PlayerAdded:Connect(registerPlayer)
+	for _, p in ipairs(Players:GetPlayers()) do registerPlayer(p) end
+end
+
+function License.IsLicensed()
+	return License.IsActive
+end
+
+return License
+--[[ SECURITY: obfuscate this script before shipping — the password lives here.
+     The portal's pause/revoke controls kill any leaked copy instantly. ]]`;
+}
+function copyText(text) {
+  const done = () => { toast('Code copied — paste it into Roblox Studio.'); SFX.play('crown'); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => fallbackCopy(text, done));
+  else fallbackCopy(text, done);
+}
+function fallbackCopy(text, done) {
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); done && done(); } catch (e) { toast('Copy failed — select the code manually.', 'err'); }
+  ta.remove();
+}
+function onCopySystemCode(id) {
+  const sys = (STATE._systems || []).find(x => x.id === id);
+  if (!sys) return;
+  const code = luaCodeFor(sys);
+  modal({
+    title: 'Roblox Studio code — ' + esc(sys.name),
+    confirmLabel: 'Copy code',
+    body: `<p class="muted small">Paste this into <b style="color:var(--text)">ServerScriptService</b> in Roblox Studio, then enable <b style="color:var(--text)">Game Settings → Security → Allow HTTP Requests</b>. The script phones home with your system name + password and only runs while the license is active.</p>
+      <div class="field"><textarea class="textarea mono" rows="14" readonly onclick="this.select()" style="font-size:11px;line-height:1.55;white-space:pre">${esc(code)}</textarea><div class="hint">Click inside to select everything, then Ctrl+C.</div></div>
+      <p class="hint" style="margin:0"><b>${ICON.shield} Before shipping:</b> obfuscate this script (a Luau obfuscator). The password lives inside it — obfuscation makes stripping it out much harder, and pausing or revoking on the web kills any leaked copy instantly.</p>`,
+    onConfirm: () => copyText(code),
+  });
+}
+async function onRegisterSystem(e) {
+  e.preventDefault();
+  const name = e.target.querySelector('#sys-name').value.trim();
+  const password = e.target.querySelector('#sys-pass').value.trim();
+  const r = await API.registerSystem(STATE.user, { name, password });
+  if (!r.ok) { toast(r.error, 'err'); return; }
+  toast('System registered — copy the Studio code and paste it into Roblox Studio.');
+  SFX.play('crown');
+  await router();
+}
+async function onSetSystemStatus(id, status) {
+  const r = await API.setSystemStatus(STATE.user, id, status);
+  r.ok ? (toast(status === 'disabled' ? 'System paused — it stops running everywhere on its next check.' : 'System resumed — licensed again.'), await router()) : toast(r.error, 'err');
+}
+async function onRevokeSystemDevice(deviceId) {
+  modal({ title: 'Revoke this device?', danger: true, confirmLabel: 'Revoke device',
+    body: '<p>This player is cut off on its next check — the system refuses to run for them while everyone else keeps theirs.</p>',
+    onConfirm: async () => { const r = await API.revokeSystemDevice(STATE.user, deviceId); r.ok ? (toast('Device revoked.'), await router()) : toast(r.error, 'err'); } });
+}
+async function onDeleteSystem(id) {
+  modal({ title: 'Delete this system?', danger: true, confirmLabel: 'Delete',
+    body: '<p>Removes the system and all its devices. Any game still using its name + password will be denied immediately.</p>',
+    onConfirm: async () => { const r = await API.deleteSystem(STATE.user, id); r.ok ? (toast('System deleted.'), await router()) : toast(r.error, 'err'); } });
+}
 function drawSalesChart(canvas) {
   const tip = document.getElementById('chart-tip');
   const box = canvas.parentElement;
@@ -4469,7 +5061,7 @@ VIEWS.admin = async () => {
   if (!STATE.user || !isStaff(STATE.user)) {
     return `<div class="page">${emptyHtml('Admins only', 'This is a separate interface for administrators.')}</div>`;
   }
-  const tabs = [['overview', 'Overview'], ['approvals', 'Approvals'], ['assets', 'Assets'], ['users', 'Users'], ['support', 'Support'], ['reports', 'Reports'], ['orders', 'Orders'], ['online', 'Online'], ['mailbox', 'Mailbox']];
+  const tabs = [['overview', 'Overview'], ['approvals', 'Approvals'], ['assets', 'Assets'], ['users', 'Users'], ['support', 'Support'], ['reports', 'Reports'], ['orders', 'Orders'], ['online', 'Online'], ['announcements', 'Announcements'], ['mailbox', 'Mailbox']];
   const tabbar = `<div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${STATE.adminTab === k ? 'active' : ''}" onclick="setAdminTab('${k}')">${l}</button>`).join('')}</div>`;
   return `<div class="page" style="max-width:1080px">
     <div class="section-head"><div><span class="section-eyebrow">Administration</span><h2>Admin Panel</h2><p>Moderate submissions, users, and review marketplace activity.</p></div></div>
@@ -4655,6 +5247,34 @@ async function adminTabHtml(tab) {
           <span class="muted small">${s.online ? 'active ' + timeAgo(s.lastSeen) : 'last seen ' + timeAgo(s.lastSeen)}</span>
         </div>`).join('') || emptyHtml('No sessions', 'Sessions appear here after users log in.')}</div>`;
   }
+  if (tab === 'announcements') {
+    const r = await API.announcements();
+    const list = r.ok ? r.data : [];
+    STATE._announcements = list;
+    const styleOpt = ['gold', 'green', 'red'].map(s => `<option value="${s}" ${s === 'gold' ? 'selected' : ''}>${s === 'gold' ? 'Gold · info' : s === 'green' ? 'Green · good news' : 'Red · urgent'}</option>`).join('');
+    const card = a => `<div class="approve-card mb">
+      <div class="thumb">${ICON.megaphone}</div>
+      <div class="info">
+        <h4>${esc(a.title)} <span class="badge ${a.style === 'red' ? 'soft-red' : a.style === 'green' ? 'soft-ok' : 'plain'}">${esc(a.style)}</span> ${a.active ? '<span class="badge ok">Live</span>' : '<span class="badge plain">Hidden</span>'}</h4>
+        <div class="muted small mb">${esc(a.body)}${a.link ? ` · <a href="${esc(a.link)}" target="_blank" rel="noopener" class="muted">link</a>` : ''} · updated ${timeAgo(a.updatedAt)}</div>
+      </div>
+      <div class="row" style="gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="onAdminToggleAnnounce('${a.id}', ${a.active ? 'false' : 'true'})">${a.active ? 'Hide' : 'Show'}</button>
+        <button class="btn btn-ghost btn-sm" onclick="onAdminEditAnnounce('${a.id}')">${ICON.edit} Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="onAdminDeleteAnnounce('${a.id}')">${ICON.trash}</button>
+      </div></div>`;
+    return `<p class="muted small mb">Show a site-wide banner to every visitor. Only the newest active announcement is shown, and visitors can dismiss it (it comes back for them on their next visit while still active).</p>
+      <form class="card card-pad mb" onsubmit="onAdminCreateAnnounce(event)">
+        <div class="row" style="gap:12px;flex-wrap:wrap">
+          <div class="field" style="flex:1;min-width:180px"><label>Title<span class="req">*</span></label><input class="input" name="title" maxlength="120" placeholder="e.g. New asset drop!" required></div>
+          <div class="field" style="flex:1;min-width:180px"><label>Style</label><select class="select" name="style">${styleOpt}</select></div>
+        </div>
+        <div class="field"><label>Body<span class="req">*</span></label><input class="input" name="body" maxlength="500" placeholder="What should everyone know?" required></div>
+        <div class="field"><label>Link <span class="muted small" style="font-weight:400">(optional)</span></label><input class="input" name="link" placeholder="https://…"></div>
+        <button class="btn btn-primary" type="submit">${ICON.plus} Publish announcement</button>
+      </form>
+      ${list.length ? list.map(card).join('') : emptyHtml('No announcements yet', 'Publish your first site-wide announcement above.')}`;
+  }
   if (tab === 'mailbox') {
     const r = await API.adminEmails(STATE.user);
     const list = r.ok ? r.data : [];
@@ -4670,6 +5290,43 @@ async function adminTabHtml(tab) {
 }
 
 /* ---- admin actions ---- */
+async function onAdminCreateAnnounce(e) {
+  e.preventDefault();
+  const f = e.target;
+  const r = await API.createAnnouncement(STATE.user, { title: f.title.value, body: f.body.value, link: f.link.value, style: f.style.value });
+  if (!r.ok) { toast(r.error, 'err'); return; }
+  toast('Announcement published — it is live across the site now.');
+  SFX.play('crown');
+  renderAnnouncement();
+  await router();
+}
+async function onAdminToggleAnnounce(id, active) {
+  const r = await API.updateAnnouncement(STATE.user, id, { active });
+  r.ok ? (toast(active ? 'Announcement is now live.' : 'Announcement hidden.'), renderAnnouncement(), await router()) : toast(r.error, 'err');
+}
+function onAdminEditAnnounce(id) {
+  const ov = modal({
+    title: 'Edit announcement', confirmLabel: 'Save',
+    body: `<div class="field"><label>Title</label><input class="input" id="an-title" required></div>
+      <div class="field"><label>Body</label><input class="input" id="an-body" required></div>
+      <div class="field"><label>Link (optional)</label><input class="input" id="an-link" placeholder="https://…"></div>`,
+    validate: async o => {
+      const title = o.querySelector('#an-title').value.trim();
+      const body = o.querySelector('#an-body').value.trim();
+      if (title.length < 3 || body.length < 3) { toast('Title and body are required.', 'err'); return false; }
+      const r = await API.updateAnnouncement(STATE.user, id, { title, body, link: o.querySelector('#an-link').value.trim() });
+      if (!r.ok) { toast(r.error, 'err'); return false; }
+      return true;
+    },
+    onConfirm: async () => { toast('Announcement updated.'); renderAnnouncement(); await router(); },
+  });
+  const a = (STATE._announcements || []).find(x => x.id === id);
+  if (a && ov) { ov.querySelector('#an-title').value = a.title; ov.querySelector('#an-body').value = a.body; ov.querySelector('#an-link').value = a.link || ''; }
+}
+async function onAdminDeleteAnnounce(id) {
+  modal({ title: 'Delete this announcement?', danger: true, confirmLabel: 'Delete', body: '<p>Removes the banner permanently.</p>',
+    onConfirm: async () => { const r = await API.deleteAnnouncement(STATE.user, id); r.ok ? (toast('Announcement deleted.'), renderAnnouncement(), await router()) : toast(r.error, 'err'); } });
+}
 async function onAdminApprove(id) {
   const r = await API.adminApprove(STATE.user, id);
   if (r.ok) { toast('Approved — the asset is now live on the marketplace.'); await router(); } else toast(r.error, 'err');

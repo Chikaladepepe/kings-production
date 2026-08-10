@@ -243,6 +243,11 @@ async function main() {
     send(res, { ok: true, data: true });
   }));
   app.get('/api/me', h(async (req, res) => send(res, await engine.me(tokenFrom(req)))));
+  app.post('/api/auth/verify-email', h(async (req, res) => send(res, await engine.verifyEmail(req.body || {}))));
+  app.post('/api/auth/resend-verify', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.resendVerification(u)); }));
+
+  /* ---- announcements (public read; admin writes below) ---- */
+  app.get('/api/announcements', h(async (req, res) => send(res, await engine.listAnnouncements())));
 
   /* ---- Sign in with Google (enabled by GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET) ---- */
   const GOOGLE = {
@@ -510,6 +515,11 @@ async function main() {
   app.post('/api/admin/reports/:id/resolve', admin(async (u, req) => engine.adminResolveReport(u, req.params.id)));
   app.get('/api/admin/orders', admin(async u => engine.adminOrders(u)));
   app.post('/api/admin/orders/:id/complete', admin(async (u, req) => engine.adminCompleteOrder(u, req.params.id)));
+  /* ---- announcements (admin) ---- */
+  app.post('/api/admin/announcements', admin(async (u, req) => engine.createAnnouncement(u, req.body || {})));
+  app.patch('/api/admin/announcements/:id', admin(async (u, req) => engine.updateAnnouncement(u, req.params.id, req.body || {})));
+  app.delete('/api/admin/announcements/:id', admin(async (u, req) => engine.deleteAnnouncement(u, req.params.id)));
+
   /* ---- portfolio is admin-published showcase content ---- */
   app.post('/api/site/portfolio', admin(async (u, req) => engine.createPortfolio(u, req.body || {})));
   app.patch('/api/site/portfolio/:id', admin(async (u, req) => engine.updatePortfolio(u, req.params.id, req.body || {})));
@@ -518,6 +528,18 @@ async function main() {
   app.post('/api/site/creators', admin(async (u, req) => engine.createCreator(u, req.body || {})));
   app.patch('/api/site/creators/:id', admin(async (u, req) => engine.updateCreator(u, req.params.id, req.body || {})));
   app.delete('/api/site/creators/:id', admin(async (u, req) => engine.deleteCreator(u, req.params.id)));
+
+  /* ---- system registering (creator → Roblox Studio licensing) ---- */
+  /* Public endpoints called by the copyable Lua script in Roblox Studio. */
+  app.post('/api/systems/activate', h(async (req, res) => send(res, await engine.systemActivate(req.body || {}))));
+  app.post('/api/systems/heartbeat', h(async (req, res) => send(res, await engine.systemHeartbeat(req.body || {}))));
+  app.post('/api/systems/device', h(async (req, res) => send(res, await engine.registerSystemDevice(req.body || {}))));
+  /* Authenticated endpoints for the Dashboard UI. */
+  app.post('/api/systems/register', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.registerSystem(u, req.body || {})); }));
+  app.get('/api/systems/mine', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.listSystems(u)); }));
+  app.delete('/api/systems/:id', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.deleteSystem(u, req.params.id)); }));
+  app.post('/api/systems/:id/status', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.setSystemStatus(u, req.params.id, (req.body || {}).status)); }));
+  app.post('/api/systems/devices/:id/revoke', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.revokeSystemDevice(u, req.params.id)); }));
 
   /* ---- support tickets & chat ---- */
   app.post('/api/tickets/new', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.createTicket(u, req.body || {})); }));
