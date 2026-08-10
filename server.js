@@ -59,6 +59,7 @@ async function main() {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
       secure: process.env.SMTP_SECURE === 'true',
+      from: process.env.SMTP_FROM || null,
     } : null,
   });
   /* Live exchange rates (USD base) refreshed from a free API; falls back to

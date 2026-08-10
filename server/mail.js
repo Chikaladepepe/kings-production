@@ -71,13 +71,15 @@ function createMailer({ baseUrl, smtp } = {}) {
     return root + '/' + String(link).replace(/^#\/?/, '#/');
   }
 
+  const fromAddr = (smtp && smtp.from) || (transporter && transporter.options.auth && transporter.options.auth.user) || 'no-reply@kingsproduction.local';
+
   return {
     deliver(email) {
       const url = absoluteLink(email.link);
-      console.log(`[mail:${email.action}] To: ${email.to} | ${email.subject} | ${url || '(no link)'}`);
+      console.log(`[mail:${email.action}] To: ${email.to} | from ${fromAddr} | ${email.subject} | ${url || '(no link)'}`);
       if (transporter && email.to) {
         transporter.sendMail({
-          from: transporter.options.auth ? { name: 'Kings Production', address: transporter.options.auth.user } : 'no-reply@kingsproduction.local',
+          from: { name: 'Kings Production', address: fromAddr },
           to: email.to,
           subject: email.subject,
           text: email.body + (url ? '\n\n' + url : ''),
