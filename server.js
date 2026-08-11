@@ -90,6 +90,12 @@ async function main() {
   });
   refreshFx();
   setInterval(refreshFx, 6 * 36e5).unref();
+  /* Fire due scheduled email blasts every 30s (drafts + scheduling are stored
+     in the DB, so pending blasts survive restarts). */
+  if (engine.processScheduledBlasts) {
+    try { engine.processScheduledBlasts(); } catch (e) { console.error('[blast] boot sweep failed:', e && e.message || e); }
+    setInterval(() => { try { engine.processScheduledBlasts(); } catch (e) { console.error('[blast] sweep failed:', e && e.message || e); } }, 30e3).unref();
+  }
 
   /* ---- payments (Stripe · PayPal · GCash via PayMongo) ----
      Enabled by env keys; when none are set the checkout runs in dev/test
@@ -514,6 +520,30 @@ async function main() {
   app.get('/api/admin/sessions', admin(async u => engine.adminSessions(u)));
   app.get('/api/admin/emails', admin(async u => engine.adminEmails(u)));
   app.post('/api/admin/emails/send', admin(async (u, req) => engine.adminSendEmail(u, req.body || {})));
+  app.get('/api/admin/emails/blasts', admin(async u => engine.adminListBlasts(u)));
+  app.delete('/api/admin/emails/blasts/:id', admin(async (u, req) => engine.adminDeleteBlast(u, req.params.id)));
+  app.get('/api/admin/emails/history/:userId', admin(async (u, req) => engine.adminEmailHistory(u, req.params.userId)));
+  app.get('/api/admin/emails/inbound', admin(async u => engine.adminListInbound(u)));
+  app.post('/api/admin/users/:id/unsubscribe', admin(async (u, req) => engine.adminSetUnsubscribed(u, req.params.id, !!(req.body || {}).unsubscribed)));
+  /* Brevo webhook — replies, bounces, unsubscribes (see README setup). */
+  app.post('/api/webhooks/mail', async (req, res) => {
+    try {
+      const events = Array.isArray(req.body) ? req.body : (req.body && req.body.events) || [req.body];
+      for (const ev of events || []) {
+        await engine.inboundMailEvent({
+          email: ev.email || ev.recipient || ev.to,
+          event: ev.event || ev['event-type'] || 'reply',
+          subject: ev.subject,
+          body: ev.body || ev.rawtext || null,
+          detail: ev.reason || ev.error || ev.sg_message_id || null,
+        });
+      }
+      res.json({ ok: true });
+    } catch (e) {
+      console.error('[mail] webhook failed:', e && e.message || e);
+      res.status(500).json({ ok: false });
+    }
+  });
   app.get('/api/admin/reports', admin(async u => engine.adminReports(u)));
   app.post('/api/admin/reports/:id/resolve', admin(async (u, req) => engine.adminResolveReport(u, req.params.id)));
   app.get('/api/admin/orders', admin(async u => engine.adminOrders(u)));

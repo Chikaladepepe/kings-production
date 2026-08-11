@@ -1388,7 +1388,7 @@ const API = {};
     u.tags = JSON.stringify(clean);
   };
   const publicUser = u => u ? ({ id: u.id, handle: u.handle, displayName: u.displayName, role: u.role, tags: parseTags(u), pfp: u.pfp, bio: u.bio, createdAt: u.createdAt }) : null;
-  const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled, country: u.country, acceptedTermsAt: u.acceptedTermsAt || null, emailVerified: u.emailVerified !== false && u.emailVerified !== 0 }) : null;
+  const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled, country: u.country, acceptedTermsAt: u.acceptedTermsAt || null, emailVerified: u.emailVerified !== false && u.emailVerified !== 0, unsubscribed: !!(u.unsubscribed) }) : null;
   function timeoutText(u) {
     if (!u || !u.timeoutUntil) return null;
     const ms = u.timeoutUntil - now();
@@ -2508,7 +2508,7 @@ const API = {};
     async function adminUsers(actor) {
       const r = requireAdmin(actor); if (r) return r;
       return ok(all('users').slice().sort((a, b) => a.createdAt - b.createdAt).map(u => ({
-        ...publicUser(u), banned: u.banned, banReason: u.banReason || null, timeoutUntil: u.timeoutUntil, email: u.email,
+        ...publicUser(u), banned: u.banned, banReason: u.banReason || null, timeoutUntil: u.timeoutUntil, email: u.email, unsubscribed: !!u.unsubscribed,
       })));
     }
     async function adminBan(actor, targetId, reason) {
@@ -2595,27 +2595,135 @@ const API = {};
       const r = requireAdmin(actor); if (r) return r;
       return ok(all('emails').slice().reverse());
     }
-    /* Admin email blast: send the branded template to selected users (or
-       everyone). The HTML shell is applied automatically by the mailer —
-       admins only write the subject + main content. */
-    async function adminSendEmail(actor, { userIds, subject, body } = {}) {
-      const r = requireAdmin(actor); if (r) return r;
-      subject = String(subject || '').trim();
-      body = String(body || '').trim();
-      if (subject.length < 1 || subject.length > 120) return fail('invalid', 'Subject must be 1–120 characters.');
-      if (body.length < 1 || body.length > 2000) return fail('invalid', 'Message must be 1–2000 characters.');
+    /* Admin email blasts — drafts, immediate sends, and scheduled sends.
+       The branded HTML shell is applied automatically by the mailer; admins
+       only write the subject + main content. Users who unsubscribed are
+       always skipped (see the unsubscribe route + Brevo webhook below). */
+    function blastTargets(userIds) {
       let targets = all('users');
       if (Array.isArray(userIds) && userIds.length) {
         const set = new Set(userIds.map(String));
         targets = targets.filter(u => set.has(u.id));
       }
-      const valid = targets.filter(u => okEmail(u.email));
-      if (!valid.length) return fail('invalid', 'No recipients matched a valid email address.');
-      for (const u of valid) {
-        sendEmail({ to: u.email, subject, action: 'blast', body: 'Hi ' + (u.displayName || u.handle) + ',\n\n' + body, link: '#/' });
+      return targets.filter(u => okEmail(u.email) && !u.unsubscribed);
+    }
+    function deliverBlast(blast) {
+      let targets;
+      try { targets = JSON.parse(blast.recipients || '[]'); } catch (e) { targets = []; }
+      if (!Array.isArray(targets) || !targets.length) return 0;
+      let sent = 0;
+      for (const uid of targets) {
+        const u = dbUser(uid);
+        if (!u || !okEmail(u.email) || u.unsubscribed) continue;
+        sendEmail({ to: u.email, subject: blast.subject, action: 'blast', body: 'Hi ' + (u.displayName || u.handle) + ',\n\n' + blast.body, link: '#/' });
+        sent++;
+      }
+      return sent;
+    }
+    async function adminSendEmail(actor, { userIds, subject, body, scheduleAt, draft } = {}) {
+      const r = requireAdmin(actor); if (r) return r;
+      subject = String(subject || '').trim();
+      body = String(body || '').trim();
+      if (subject.length < 1 || subject.length > 120) return fail('invalid', 'Subject must be 1–120 characters.');
+      if (body.length < 1 || body.length > 2000) return fail('invalid', 'Message must be 1–2000 characters.');
+      const targets = blastTargets(userIds);
+      if (!targets.length) return fail('invalid', 'No recipients matched a valid email address (unsubscribed users are skipped).');
+      const recipientIds = targets.map(u => u.id);
+      const when = scheduleAt ? Number(scheduleAt) : 0;
+      if (when && when < now()) return fail('invalid', 'Schedule time must be in the future.');
+      /* Saved as a draft (no send), scheduled (fires later), or sent now. */
+      if (draft || when) {
+        const blast = {
+          id: 'mb' + uid(), subject, body,
+          recipients: JSON.stringify(recipientIds),
+          status: draft ? 'draft' : 'scheduled',
+          scheduledFor: when || null, createdAt: now(), updatedAt: now(), sentAt: null,
+        };
+        store.put('mail_blasts', blast);
+        flush();
+        return ok({ saved: true, id: blast.id, status: blast.status, scheduledFor: when || null, recipients: recipientIds.length });
+      }
+      const sent = deliverBlast({ id: 'mb' + uid(), subject, body, recipients: JSON.stringify(recipientIds) });
+      flush();
+      return ok({ sent, total: recipientIds.length });
+    }
+    async function adminListBlasts(actor) {
+      const r = requireAdmin(actor); if (r) return r;
+      const rows = all('mail_blasts').slice().sort((a, b) => b.createdAt - a.createdAt);
+      return ok(rows.map(b => {
+        let recipients = [];
+        try { recipients = JSON.parse(b.recipients || '[]'); } catch (e) {}
+        return { ...b, recipientCount: recipients.length };
+      }));
+    }
+    async function adminDeleteBlast(actor, id) {
+      const r = requireAdmin(actor); if (r) return r;
+      const b = byIdIn('mail_blasts', id);
+      if (!b) return fail('notfound', 'Blast not found.');
+      store.del('mail_blasts', id);
+      flush();
+      return ok(true);
+    }
+    /* Called by the server on an interval — fires any scheduled blasts whose
+       time has come. No-op when nothing is due. */
+    function processScheduledBlasts() {
+      const due = all('mail_blasts').filter(b => b.status === 'scheduled' && b.scheduledFor && b.scheduledFor <= now());
+      let fired = 0;
+      for (const b of due) {
+        const sent = deliverBlast(b);
+        b.status = 'sent'; b.sentAt = now(); b.updatedAt = now();
+        store.put('mail_blasts', b);
+        fired += sent;
+      }
+      if (fired) { flush(); console.log('[blast] fired scheduled email → ' + fired + ' recipients'); }
+      return fired;
+    }
+    /* Inbound email events from Brevo (webhook): replies, bounces, and
+       unsubscribes. Unsubscribes flip the user flag so future blasts skip
+       them; everything is logged for the admin Mailbox. */
+    async function inboundMailEvent({ email, event, subject, body, detail } = {}) {
+      email = String(email || '').trim().toLowerCase();
+      if (!okEmail(email)) return fail('invalid', 'Valid email required.');
+      event = String(event || '').trim().toLowerCase() || 'reply';
+      store.put('mail_inbound', {
+        id: 'mi' + uid(), email, event,
+        subject: String(subject || '').slice(0, 200) || null,
+        body: String(body || '').slice(0, 2000) || null,
+        detail: String(detail || '').slice(0, 500) || null,
+        createdAt: now(),
+      });
+      if (event === 'unsubscribe' || event === 'spamreport' || event === 'blocked') {
+        const u = all('users').find(x => x.email.toLowerCase() === email);
+        if (u) { u.unsubscribed = 1; u.updatedAt = now(); store.put('users', u); }
       }
       flush();
-      return ok({ sent: valid.length, total: valid.length });
+      return ok(true);
+    }
+    async function adminListInbound(actor) {
+      const r = requireAdmin(actor); if (r) return r;
+      return ok(all('mail_inbound').slice().sort((a, b) => b.createdAt - a.createdAt));
+    }
+    async function adminSetUnsubscribed(actor, userId, unsubscribed) {
+      const r = requireAdmin(actor); if (r) return r;
+      const u = dbUser(userId);
+      if (!u) return fail('notfound', 'User not found.');
+      if (effRank(u) >= roleRank('cofounder')) return fail('adminProtected', 'Staff accounts cannot be unsubscribed.');
+      u.unsubscribed = unsubscribed ? 1 : 0;
+      u.updatedAt = now();
+      store.put('users', u);
+      flush();
+      return ok(true);
+    }
+    /* Per-user send history — every email that went to this account. */
+    async function adminEmailHistory(actor, userId) {
+      const r = requireAdmin(actor); if (r) return r;
+      const u = dbUser(userId);
+      if (!u) return fail('notfound', 'User not found.');
+      return ok({
+        user: { ...publicUser(u), email: u.email, unsubscribed: !!u.unsubscribed },
+        emails: all('emails').filter(e => String(e.to).toLowerCase() === u.email.toLowerCase()).slice().sort((a, b) => b.createdAt - a.createdAt),
+        inbound: all('mail_inbound').filter(e => e.email === u.email.toLowerCase()).slice().sort((a, b) => b.createdAt - a.createdAt),
+      });
     }
 
     /* ============ CREATORS (admin-published, like portfolio) ============ */
@@ -2980,7 +3088,7 @@ const API = {};
       listAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement,
       registerSystem, listSystems, deleteSystem, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice, authorizeSystemDevice,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
-      adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSessions, adminEmails, adminSendEmail, adminOrders, adminCompleteOrder,
+      adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSessions, adminEmails, adminSendEmail, adminListBlasts, adminDeleteBlast, adminEmailHistory, adminListInbound, adminSetUnsubscribed, inboundMailEvent, processScheduledBlasts, adminOrders, adminCompleteOrder,
       setFx,
     };
   }
@@ -3207,6 +3315,11 @@ API.adminSetTags = (user, id, tags) => _wrap(async () => _mode === 'local' ? awa
 API.adminSessions = user => _wrap(async () => _mode === 'local' ? await _engine.adminSessions(user) : await _call('GET', '/api/admin/sessions'));
 API.adminEmails = user => _wrap(async () => _mode === 'local' ? await _engine.adminEmails(user) : await _call('GET', '/api/admin/emails'));
 API.adminSendEmail = (user, payload) => _wrap(async () => _mode === 'local' ? await _engine.adminSendEmail(user, payload) : await _call('POST', '/api/admin/emails/send', payload));
+API.adminListBlasts = user => _wrap(async () => _mode === 'local' ? await _engine.adminListBlasts(user) : await _call('GET', '/api/admin/emails/blasts'));
+API.adminDeleteBlast = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.adminDeleteBlast(user, id) : await _call('DELETE', '/api/admin/emails/blasts/' + _e(id)));
+API.adminEmailHistory = (user, userId) => _wrap(async () => _mode === 'local' ? await _engine.adminEmailHistory(user, userId) : await _call('GET', '/api/admin/emails/history/' + _e(userId)));
+API.adminListInbound = user => _wrap(async () => _mode === 'local' ? await _engine.adminListInbound(user) : await _call('GET', '/api/admin/emails/inbound'));
+API.adminSetUnsubscribed = (user, id, unsubscribed) => _wrap(async () => _mode === 'local' ? await _engine.adminSetUnsubscribed(user, id, unsubscribed) : await _call('POST', '/api/admin/users/' + _e(id) + '/unsubscribe', { unsubscribed }));
 API.adminReports = user => _wrap(async () => _mode === 'local' ? await _engine.adminReports(user) : await _call('GET', '/api/admin/reports'));
 API.adminResolveReport = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.adminResolveReport(user, id) : await _call('POST', '/api/admin/reports/' + _e(id) + '/resolve'));
 
@@ -3284,16 +3397,17 @@ function toast(msg, type = 'ok') {
 }
 
 /* ---- modal ---- */
-function modal({ title, body, confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger = false, onConfirm, validate }) {
+function modal({ title, body, confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger = false, onConfirm, validate, confirmOnly = false }) {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `<div class="modal" role="dialog" aria-modal="true">
     <h3>${esc(title)}</h3>
     <div class="modal-body">${body}</div>
-    <div class="modal-actions"><button class="btn btn-ghost btn-sm" data-act="cancel">${esc(cancelLabel)}</button>
+    <div class="modal-actions">${confirmOnly ? '' : `<button class="btn btn-ghost btn-sm" data-act="cancel">${esc(cancelLabel)}</button>`}
     <button class="btn ${danger ? 'btn-solid-danger' : 'btn-primary'} btn-sm" data-act="confirm">${esc(confirmLabel)}</button></div></div>`;
   overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
-  overlay.querySelector('[data-act=cancel]').onclick = close;
+  const cancelBtn = overlay.querySelector('[data-act=cancel]');
+  if (cancelBtn) cancelBtn.onclick = close;
   overlay.querySelector('[data-act=confirm]').onclick = async () => {
     const btn = overlay.querySelector('[data-act=confirm]');
     btn.disabled = true;
@@ -5355,12 +5469,14 @@ async function adminTabHtml(tab) {
         const canManage = !isMe && (canGrantAll ? true : !isStaffUser);
         const status = u.banned ? `<span class="status-pill status-rejected">Banned${u.banReason ? ' — ' + esc(u.banReason) : ''}</span>`
           : u.timeoutUntil && u.timeoutUntil > now() ? `<span class="status-pill status-pending">Timed out (${esc(timeoutText(u))})</span>`
+          : u.unsubscribed ? '<span class="status-pill status-pending">Unsubscribed</span>'
           : '<span class="status-pill status-approved">Active</span>';
         const actions = isStaffUser
           ? `<span class="muted small">${ICON.shield} Protected — staff cannot be moderated</span>`
           : `<div class="row-actions">
               ${u.banned ? `<button class="btn btn-ghost btn-sm" onclick="onAdminUnban('${u.id}')">Unban</button>` : `<button class="btn btn-danger btn-sm" onclick="onAdminBan('${u.id}')">${ICON.ban} Ban</button>`}
               ${u.timeoutUntil && u.timeoutUntil > now() ? `<button class="btn btn-ghost btn-sm" onclick="onAdminClear('${u.id}')">Clear timeout</button>` : `<button class="btn btn-ghost btn-sm" onclick="onAdminTimeout('${u.id}')">${ICON.clock} Timeout</button>`}
+              <button class="btn btn-ghost btn-sm" title="Email subscription" onclick="onAdminUnsub('${u.id}', ${u.unsubscribed ? 'false' : 'true'})">${u.unsubscribed ? 'Unsubscribed' : 'Unsubscribe'}</button>
             </div>`;
         const roleCell = isMe ? badgeHtml(u.role, u.tags) + ' <span class="muted small">(you)</span>'
           : !canManage ? badgeHtml(u.role, u.tags) + ' <span class="muted small">Protected</span>'
@@ -5453,23 +5569,47 @@ async function adminTabHtml(tab) {
       const ur = await API.adminUsers(STATE.user);
       STATE._blastUsers = ur.ok ? ur.data : [];
     }
+    const br = await API.adminListBlasts(STATE.user);
+    const blasts = br.ok ? br.data : [];
+    const drafts = blasts.filter(b => b.status === 'draft');
+    const scheduled = blasts.filter(b => b.status === 'scheduled');
+    const ir = await API.adminListInbound(STATE.user);
+    const inbound = ir.ok ? ir.data : [];
+    const chipBtn = u => `<button type="button" data-uid="${u.id}" class="btn btn-sm blast-chip ${STATE._blastSel && STATE._blastSel.includes(u.id) ? 'btn-primary' : 'btn-ghost'}" onclick="onBlastToggleUser(this)" title="Toggle recipient">${esc(u.displayName)} <span class="muted small">· ${esc(u.email)}</span></button><button type="button" class="btn btn-sm btn-ghost" title="Email history for this user" onclick="onAdminUserHistory('${u.id}')">${ICON.eye}</button>`;
+    const blastRow = (b, icon, label, actions) => `<div class="row" style="padding:12px 20px;border-bottom:1px solid var(--border);gap:10px;align-items:center">
+        <span class="badge ${b.status === 'draft' ? 'plain' : 'ok'}">${icon} ${label}</span>
+        <div style="flex:1;min-width:0"><b>${esc(b.subject)}</b><div class="muted small">${b.recipientCount} recipient${b.recipientCount === 1 ? '' : 's'} · ${esc(b.body.slice(0, 80))}${b.body.length > 80 ? '…' : ''}</div></div>
+        <div class="row" style="gap:8px">${actions}</div></div>`;
     return `<div class="card card-pad mb">
         <h3 style="font-family:var(--font-display);font-size:17px;margin-bottom:6px">${ICON.mail} Compose email</h3>
-        <p class="muted small mb">Send a branded email to selected users — the dark/gold template is applied automatically, from <b style="color:var(--text)">Kings Production &lt;no-reply@kingsproduction.cc&gt;</b>.</p>
+        <p class="muted small mb">Send a branded email to selected users — the dark/gold template is applied automatically, from <b style="color:var(--text)">Kings Production &lt;no-reply@kingsproduction.cc&gt;</b>. Unsubscribed users are always skipped automatically.</p>
         <div class="field"><label>Recipients<span class="req">*</span></label>
           <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
             <button type="button" class="btn btn-sm mailbox-blast-all ${!STATE._blastSel || !STATE._blastSel.length ? 'btn-primary' : 'btn-ghost'}" onclick="onBlastToggleAll(this)">${ICON.crown} Everyone</button>
-            <span class="muted small">or pick specific users:</span>
+            <span class="muted small">or pick specific users (👁 opens their send history):</span>
           </div>
-          <div class="mt" style="display:flex;flex-wrap:wrap;gap:8px;max-height:150px;overflow:auto">${(STATE._blastUsers || []).map(u => `<button type="button" data-uid="${u.id}" class="btn btn-sm blast-chip ${STATE._blastSel && STATE._blastSel.includes(u.id) ? 'btn-primary' : 'btn-ghost'}" onclick="onBlastToggleUser(this)">${esc(u.displayName)} <span class="muted small">· ${esc(u.email)}</span></button>`).join('')}</div>
+          <div class="mt" style="display:flex;flex-wrap:wrap;gap:8px;max-height:150px;overflow:auto">${(STATE._blastUsers || []).map(u => chipBtn(u)).join('')}</div>
         </div>
-        <div class="field"><label>Subject<span class="req">*</span></label><input class="input" id="blast-subject" maxlength="120" placeholder="e.g. New update is live!"></div>
+        <div class="row" style="gap:12px;flex-wrap:wrap">
+          <div class="field" style="flex:1;min-width:220px"><label>Subject<span class="req">*</span></label><input class="input" id="blast-subject" maxlength="120" placeholder="e.g. New update is live!"></div>
+          <div class="field" style="min-width:220px"><label>Schedule (optional)</label><input class="input" id="blast-schedule" type="datetime-local"><div class="hint">Leave empty to send now.</div></div>
+        </div>
         <div class="field"><label>Message<span class="req">*</span></label><textarea class="input" id="blast-body" rows="5" maxlength="2000" placeholder="Write the main content — the branded template wraps it automatically."></textarea></div>
-        <div class="row" style="gap:10px;align-items:center">
+        <div class="row" style="gap:10px;align-items:center;flex-wrap:wrap">
           <button class="btn btn-primary" id="blast-send-btn" onclick="onAdminSendBlast()">${ICON.mail} Send to ${STATE._blastSel && STATE._blastSel.length ? STATE._blastSel.length + ' user' + (STATE._blastSel.length > 1 ? 's' : '') : 'everyone'}</button>
-          <span class="muted small">Emails go out instantly through Brevo SMTP.</span>
+          <button class="btn btn-ghost" id="blast-draft-btn" onclick="onAdminSaveDraft()">${ICON.edit} Save as draft</button>
+          <span class="muted small">Emails go out instantly through Brevo SMTP (or at the scheduled time).</span>
         </div>
       </div>
+      ${drafts.length ? `<h3 style="font-family:var(--font-display);font-size:15px;margin:18px 0 10px">Drafts (${drafts.length})</h3>
+      <div class="card" style="padding:6px 0">${drafts.map(b => blastRow(b, ICON.edit, 'Draft', `<button class="btn btn-ghost btn-sm" onclick="onBlastLoad('${b.id}')">${ICON.edit} Edit</button><button class="btn btn-danger btn-sm" onclick="onBlastDelete('${b.id}')">${ICON.trash}</button>`)).join('')}</div>` : ''}
+      ${scheduled.length ? `<h3 style="font-family:var(--font-display);font-size:15px;margin:18px 0 10px">Scheduled (${scheduled.length})</h3>
+      <div class="card" style="padding:6px 0">${scheduled.map(b => blastRow(b, ICON.clock, 'Scheduled · ' + fmtDate(b.scheduledFor), `<button class="btn btn-danger btn-sm" onclick="onBlastDelete('${b.id}')">${ICON.trash}</button>`)).join('')}</div>` : ''}
+      ${inbound.length ? `<h3 style="font-family:var(--font-display);font-size:15px;margin:18px 0 10px">Replies &amp; events (${inbound.length})</h3>
+      <div class="card" style="padding:6px 0">${inbound.map(e => `<div style="padding:14px 20px;border-bottom:1px solid var(--border)">
+          <div class="row" style="justify-content:space-between;gap:10px"><div><b>${esc(e.event)}</b> <span class="muted small">· ${esc(e.email)}</span>${e.subject ? ` · ${esc(e.subject)}` : ''}</div><span class="muted small">${timeAgo(e.createdAt)}</span></div>
+          ${e.body ? `<p class="muted small mt">${esc(e.body)}</p>` : ''}${e.detail ? `<p class="muted small">${esc(e.detail)}</p>` : ''}
+        </div>`).join('')}</div>` : ''}
       <h3 style="font-family:var(--font-display);font-size:15px;margin:18px 0 10px">Sent mail log</h3>
       ${list.length ? `<div class="card" style="padding:6px 0">${list.map(e => `
         <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
@@ -5520,21 +5660,78 @@ async function onAdminDeleteAnnounce(id) {
     onConfirm: async () => { const r = await API.deleteAnnouncement(STATE.user, id); r.ok ? (toast('Announcement deleted.'), renderAnnouncement(), await router()) : toast(r.error, 'err'); } });
 }
 /* ---- bulk email blast ---- */
+function blastFormValues() {
+  return {
+    subject: (document.getElementById('blast-subject') || {}).value || '',
+    body: (document.getElementById('blast-body') || {}).value || '',
+    schedule: (document.getElementById('blast-schedule') || {}).value || '',
+  };
+}
 async function onAdminSendBlast() {
-  const subject = (document.getElementById('blast-subject') || {}).value || '';
-  const body = (document.getElementById('blast-body') || {}).value || '';
+  const { subject, body, schedule } = blastFormValues();
   if (!subject.trim() || !body.trim()) { toast('Subject and message are required.', 'err'); return; }
   const sel = STATE._blastSel && STATE._blastSel.length ? STATE._blastSel : null;
   const scope = sel ? sel.length + ' user' + (sel.length > 1 ? 's' : '') : 'every user';
-  modal({ title: `Send to ${scope}?`, confirmLabel: 'Send', danger: true, body: `<p>This instantly emails <b>${esc(scope)}</b> from <b>Kings Production &lt;no-reply@kingsproduction.cc&gt;</b> with subject <b>“${esc(subject)}”</b>. There is no undo.</p>`,
+  const when = schedule ? new Date(schedule).getTime() : 0;
+  if (when && when <= Date.now()) { toast('Schedule time must be in the future.', 'err'); return; }
+  const action = when ? `schedule this for <b>${esc(fmtDateFull(when))}</b> and email <b>${esc(scope)}</b>` : `instantly email <b>${esc(scope)}</b>`;
+  modal({ title: when ? `Schedule for ${scope}?` : `Send to ${scope}?`, confirmLabel: when ? 'Schedule' : 'Send', danger: true, body: `<p>This will ${action} from <b>Kings Production &lt;no-reply@kingsproduction.cc&gt;</b> with subject <b>“${esc(subject)}”</b>. Unsubscribed users are skipped. There is no undo.</p>`,
     onConfirm: async () => {
-      const r = await API.adminSendEmail(STATE.user, { userIds: sel, subject: subject.trim(), body: body.trim() });
+      const r = await API.adminSendEmail(STATE.user, { userIds: sel, subject: subject.trim(), body: body.trim(), scheduleAt: when || undefined });
       if (!r.ok) { toast(r.error, 'err'); return false; }
       SFX.play('crown');
-      toast(`Email sent to ${r.data.sent} recipient${r.data.sent === 1 ? '' : 's'}.`);
+      if (r.data.saved) toast(when ? `Scheduled — fires ${fmtDateFull(when)}.` : 'Draft saved.');
+      else toast(`Email sent to ${r.data.sent} recipient${r.data.sent === 1 ? '' : 's'}.`);
       await router();
       return true;
     } });
+}
+async function onAdminSaveDraft() {
+  const { subject, body } = blastFormValues();
+  if (!subject.trim() || !body.trim()) { toast('Subject and message are required to save a draft.', 'err'); return; }
+  const sel = STATE._blastSel && STATE._blastSel.length ? STATE._blastSel : null;
+  const r = await API.adminSendEmail(STATE.user, { userIds: sel, subject: subject.trim(), body: body.trim(), draft: true });
+  if (!r.ok) { toast(r.error, 'err'); return; }
+  toast('Draft saved — you can edit or send it from the drafts list below.');
+  await router();
+}
+async function onBlastLoad(id) {
+  const br = await API.adminListBlasts(STATE.user);
+  const b = br.ok && br.data.find(x => x.id === id);
+  if (!b) { toast('Draft not found.', 'err'); return; }
+  let recipients = [];
+  try { recipients = JSON.parse(b.recipients || '[]'); } catch (e) {}
+  STATE._blastSel = recipients;
+  const s = document.getElementById('blast-subject'); if (s) s.value = b.subject;
+  const bo = document.getElementById('blast-body'); if (bo) bo.value = b.body;
+  const sc = document.getElementById('blast-schedule'); if (sc) sc.value = '';
+  rerenderBlastBtn();
+  document.querySelectorAll('.blast-chip').forEach(c => c.classList.toggle('btn-primary', STATE._blastSel.includes(c.dataset.uid)));
+  const allBtn = document.querySelector('.mailbox-blast-all');
+  if (allBtn && !STATE._blastSel.length) allBtn.classList.add('btn-primary');
+  toast('Draft loaded — review and send it.');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+async function onBlastDelete(id) {
+  modal({ title: 'Delete this blast?', danger: true, confirmLabel: 'Delete', body: '<p>Removes the draft or scheduled email permanently.</p>',
+    onConfirm: async () => { const r = await API.adminDeleteBlast(STATE.user, id); r.ok ? (toast('Blast deleted.'), await router()) : toast(r.error, 'err'); } });
+}
+async function onAdminUserHistory(userId) {
+  const r = await API.adminEmailHistory(STATE.user, userId);
+  if (!r.ok) { toast(r.error, 'err'); return; }
+  const d = r.data;
+  const rows = d.emails.length ? d.emails.map(e => `<div style="padding:12px 0;border-bottom:1px solid var(--border)"><b>${esc(e.subject)}</b> <span class="muted small">· ${timeAgo(e.createdAt)}</span><p class="muted small mt">${esc(e.body.slice(0, 140))}</p></div>`).join('') : '<p class="muted small">No emails sent to this user yet.</p>';
+  const inboundRows = d.inbound.length ? d.inbound.map(e => `<div style="padding:12px 0;border-bottom:1px solid var(--border)"><b>${esc(e.event)}</b> <span class="muted small">· ${timeAgo(e.createdAt)}</span>${e.body ? `<p class="muted small mt">${esc(e.body)}</p>` : ''}</div>`).join('') : '<p class="muted small">No replies or bounces from this user.</p>';
+  modal({
+    title: `Email history — ${esc(d.user.displayName)}`, confirmLabel: 'Close', confirmOnly: true,
+    body: `<p class="muted small mb">${esc(d.user.email)} · ${d.user.unsubscribed ? '<span class="badge soft-red">Unsubscribed</span>' : '<span class="badge ok">Subscribed</span>'}</p>
+      <h4 style="font-size:14px;margin:6px 0">Sent to them (${d.emails.length})</h4>${rows}
+      <h4 style="font-size:14px;margin:14px 0 6px">Replies / bounces (${d.inbound.length})</h4>${inboundRows}`,
+  });
+}
+async function onAdminUnsub(userId, unsub) {
+  const r = await API.adminSetUnsubscribed(STATE.user, userId, unsub);
+  r.ok ? (toast(unsub ? 'User unsubscribed — they will be skipped by future blasts.' : 'User subscribed again.'), await router()) : toast(r.error, 'err');
 }
 function onBlastToggleAll(btn) {
   STATE._blastSel = [];

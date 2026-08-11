@@ -25,7 +25,7 @@ const fs = require('node:fs');
    map only — never from untrusted input — so the dynamic INSERT/REPLACE below
    cannot be injection points. */
 const SCHEMA = {
-  users: ['id', 'handle', 'email', 'displayName', 'passHash', 'bio', 'pfp', 'role', 'banned', 'banReason', 'timeoutUntil', 'totpSecret', 'totpEnabled', 'country', 'tags', 'googleId', 'acceptedTermsAt', 'emailVerified', 'createdAt', 'updatedAt'],
+  users: ['id', 'handle', 'email', 'displayName', 'passHash', 'bio', 'pfp', 'role', 'banned', 'banReason', 'timeoutUntil', 'totpSecret', 'totpEnabled', 'country', 'tags', 'googleId', 'acceptedTermsAt', 'emailVerified', 'unsubscribed', 'createdAt', 'updatedAt'],
   sessions: ['id', 'userId', 'label', 'createdAt', 'lastSeen', 'expiresAt'],
   assets: ['id', 'ownerId', 'title', 'category', 'description', 'price', 'fileName', 'fileMime', 'fileSize', 'imageUrl', 'status', 'rejectReason', 'sales', 'createdAt', 'updatedAt', 'approvedAt'],
   purchases: ['id', 'assetId', 'buyerId', 'price', 'licenseKey', 'gameId', 'gameName', 'status', 'activatedAt', 'deviceId', 'deviceName', 'lastSeen', 'createdAt'],
@@ -45,9 +45,11 @@ const SCHEMA = {
   announcements: ['id', 'title', 'body', 'link', 'style', 'active', 'createdAt', 'updatedAt'],
   systems: ['id', 'userId', 'name', 'password', 'status', 'createdAt', 'updatedAt', 'lastSeenAt'],
   system_devices: ['id', 'systemId', 'deviceId', 'deviceName', 'status', 'createdAt', 'lastSeenAt'],
+  mail_blasts: ['id', 'subject', 'body', 'recipients', 'status', 'scheduledFor', 'createdAt', 'updatedAt', 'sentAt'],
+  mail_inbound: ['id', 'email', 'event', 'subject', 'body', 'detail', 'createdAt'],
 };
 /* Booleans are persisted as 0/1 integers and restored on read. */
-const BOOLS = { users: ['banned', 'totpEnabled', 'emailVerified'], tokens: ['used'], emails: ['read'], portfolio: ['featured'], announcements: ['active'] };
+const BOOLS = { users: ['banned', 'totpEnabled', 'emailVerified', 'unsubscribed'], tokens: ['used'], emails: ['read'], portfolio: ['featured'], announcements: ['active'] };
 
 const DDL = `
 CREATE TABLE IF NOT EXISTS users (
@@ -143,6 +145,17 @@ CREATE TABLE IF NOT EXISTS system_devices (
   id TEXT PRIMARY KEY, systemId TEXT NOT NULL, deviceId TEXT NOT NULL, deviceName TEXT,
   status TEXT NOT NULL DEFAULT 'active', createdAt INTEGER NOT NULL, lastSeenAt INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS mail_blasts (
+  id TEXT PRIMARY KEY, subject TEXT NOT NULL, body TEXT NOT NULL,
+  recipients TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'draft',
+  scheduledFor INTEGER, createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL, sentAt INTEGER
+);
+CREATE TABLE IF NOT EXISTS mail_inbound (
+  id TEXT PRIMARY KEY, email TEXT NOT NULL, event TEXT NOT NULL,
+  subject TEXT, body TEXT, detail TEXT, createdAt INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_mail_blasts_status ON mail_blasts (status);
+CREATE INDEX IF NOT EXISTS idx_mail_inbound_email ON mail_inbound (email);
 CREATE INDEX IF NOT EXISTS idx_orders_buyer ON orders (buyerId);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders (status);
 CREATE INDEX IF NOT EXISTS idx_assets_status ON assets (status);
@@ -225,6 +238,7 @@ const MIGRATIONS = [
   "ALTER TABLE creators ADD COLUMN handle TEXT",
   "ALTER TABLE creators ADD COLUMN createdAt INTEGER",
   "ALTER TABLE users ADD COLUMN emailVerified INTEGER NOT NULL DEFAULT 1",
+  "ALTER TABLE users ADD COLUMN unsubscribed INTEGER NOT NULL DEFAULT 0",
 ];
 function ticketCleanup(db) {
   const cutoff = Date.now() - 5 * 24 * 3600 * 1000;

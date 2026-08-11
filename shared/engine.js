@@ -128,7 +128,7 @@
     u.tags = JSON.stringify(clean);
   };
   const publicUser = u => u ? ({ id: u.id, handle: u.handle, displayName: u.displayName, role: u.role, tags: parseTags(u), pfp: u.pfp, bio: u.bio, createdAt: u.createdAt }) : null;
-  const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled, country: u.country, acceptedTermsAt: u.acceptedTermsAt || null, emailVerified: u.emailVerified !== false && u.emailVerified !== 0 }) : null;
+  const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled, country: u.country, acceptedTermsAt: u.acceptedTermsAt || null, emailVerified: u.emailVerified !== false && u.emailVerified !== 0, unsubscribed: !!(u.unsubscribed) }) : null;
   function timeoutText(u) {
     if (!u || !u.timeoutUntil) return null;
     const ms = u.timeoutUntil - now();
@@ -1248,7 +1248,7 @@
     async function adminUsers(actor) {
       const r = requireAdmin(actor); if (r) return r;
       return ok(all('users').slice().sort((a, b) => a.createdAt - b.createdAt).map(u => ({
-        ...publicUser(u), banned: u.banned, banReason: u.banReason || null, timeoutUntil: u.timeoutUntil, email: u.email,
+        ...publicUser(u), banned: u.banned, banReason: u.banReason || null, timeoutUntil: u.timeoutUntil, email: u.email, unsubscribed: !!u.unsubscribed,
       })));
     }
     async function adminBan(actor, targetId, reason) {
@@ -1335,27 +1335,135 @@
       const r = requireAdmin(actor); if (r) return r;
       return ok(all('emails').slice().reverse());
     }
-    /* Admin email blast: send the branded template to selected users (or
-       everyone). The HTML shell is applied automatically by the mailer —
-       admins only write the subject + main content. */
-    async function adminSendEmail(actor, { userIds, subject, body } = {}) {
-      const r = requireAdmin(actor); if (r) return r;
-      subject = String(subject || '').trim();
-      body = String(body || '').trim();
-      if (subject.length < 1 || subject.length > 120) return fail('invalid', 'Subject must be 1–120 characters.');
-      if (body.length < 1 || body.length > 2000) return fail('invalid', 'Message must be 1–2000 characters.');
+    /* Admin email blasts — drafts, immediate sends, and scheduled sends.
+       The branded HTML shell is applied automatically by the mailer; admins
+       only write the subject + main content. Users who unsubscribed are
+       always skipped (see the unsubscribe route + Brevo webhook below). */
+    function blastTargets(userIds) {
       let targets = all('users');
       if (Array.isArray(userIds) && userIds.length) {
         const set = new Set(userIds.map(String));
         targets = targets.filter(u => set.has(u.id));
       }
-      const valid = targets.filter(u => okEmail(u.email));
-      if (!valid.length) return fail('invalid', 'No recipients matched a valid email address.');
-      for (const u of valid) {
-        sendEmail({ to: u.email, subject, action: 'blast', body: 'Hi ' + (u.displayName || u.handle) + ',\n\n' + body, link: '#/' });
+      return targets.filter(u => okEmail(u.email) && !u.unsubscribed);
+    }
+    function deliverBlast(blast) {
+      let targets;
+      try { targets = JSON.parse(blast.recipients || '[]'); } catch (e) { targets = []; }
+      if (!Array.isArray(targets) || !targets.length) return 0;
+      let sent = 0;
+      for (const uid of targets) {
+        const u = dbUser(uid);
+        if (!u || !okEmail(u.email) || u.unsubscribed) continue;
+        sendEmail({ to: u.email, subject: blast.subject, action: 'blast', body: 'Hi ' + (u.displayName || u.handle) + ',\n\n' + blast.body, link: '#/' });
+        sent++;
+      }
+      return sent;
+    }
+    async function adminSendEmail(actor, { userIds, subject, body, scheduleAt, draft } = {}) {
+      const r = requireAdmin(actor); if (r) return r;
+      subject = String(subject || '').trim();
+      body = String(body || '').trim();
+      if (subject.length < 1 || subject.length > 120) return fail('invalid', 'Subject must be 1–120 characters.');
+      if (body.length < 1 || body.length > 2000) return fail('invalid', 'Message must be 1–2000 characters.');
+      const targets = blastTargets(userIds);
+      if (!targets.length) return fail('invalid', 'No recipients matched a valid email address (unsubscribed users are skipped).');
+      const recipientIds = targets.map(u => u.id);
+      const when = scheduleAt ? Number(scheduleAt) : 0;
+      if (when && when < now()) return fail('invalid', 'Schedule time must be in the future.');
+      /* Saved as a draft (no send), scheduled (fires later), or sent now. */
+      if (draft || when) {
+        const blast = {
+          id: 'mb' + uid(), subject, body,
+          recipients: JSON.stringify(recipientIds),
+          status: draft ? 'draft' : 'scheduled',
+          scheduledFor: when || null, createdAt: now(), updatedAt: now(), sentAt: null,
+        };
+        store.put('mail_blasts', blast);
+        flush();
+        return ok({ saved: true, id: blast.id, status: blast.status, scheduledFor: when || null, recipients: recipientIds.length });
+      }
+      const sent = deliverBlast({ id: 'mb' + uid(), subject, body, recipients: JSON.stringify(recipientIds) });
+      flush();
+      return ok({ sent, total: recipientIds.length });
+    }
+    async function adminListBlasts(actor) {
+      const r = requireAdmin(actor); if (r) return r;
+      const rows = all('mail_blasts').slice().sort((a, b) => b.createdAt - a.createdAt);
+      return ok(rows.map(b => {
+        let recipients = [];
+        try { recipients = JSON.parse(b.recipients || '[]'); } catch (e) {}
+        return { ...b, recipientCount: recipients.length };
+      }));
+    }
+    async function adminDeleteBlast(actor, id) {
+      const r = requireAdmin(actor); if (r) return r;
+      const b = byIdIn('mail_blasts', id);
+      if (!b) return fail('notfound', 'Blast not found.');
+      store.del('mail_blasts', id);
+      flush();
+      return ok(true);
+    }
+    /* Called by the server on an interval — fires any scheduled blasts whose
+       time has come. No-op when nothing is due. */
+    function processScheduledBlasts() {
+      const due = all('mail_blasts').filter(b => b.status === 'scheduled' && b.scheduledFor && b.scheduledFor <= now());
+      let fired = 0;
+      for (const b of due) {
+        const sent = deliverBlast(b);
+        b.status = 'sent'; b.sentAt = now(); b.updatedAt = now();
+        store.put('mail_blasts', b);
+        fired += sent;
+      }
+      if (fired) { flush(); console.log('[blast] fired scheduled email → ' + fired + ' recipients'); }
+      return fired;
+    }
+    /* Inbound email events from Brevo (webhook): replies, bounces, and
+       unsubscribes. Unsubscribes flip the user flag so future blasts skip
+       them; everything is logged for the admin Mailbox. */
+    async function inboundMailEvent({ email, event, subject, body, detail } = {}) {
+      email = String(email || '').trim().toLowerCase();
+      if (!okEmail(email)) return fail('invalid', 'Valid email required.');
+      event = String(event || '').trim().toLowerCase() || 'reply';
+      store.put('mail_inbound', {
+        id: 'mi' + uid(), email, event,
+        subject: String(subject || '').slice(0, 200) || null,
+        body: String(body || '').slice(0, 2000) || null,
+        detail: String(detail || '').slice(0, 500) || null,
+        createdAt: now(),
+      });
+      if (event === 'unsubscribe' || event === 'spamreport' || event === 'blocked') {
+        const u = all('users').find(x => x.email.toLowerCase() === email);
+        if (u) { u.unsubscribed = 1; u.updatedAt = now(); store.put('users', u); }
       }
       flush();
-      return ok({ sent: valid.length, total: valid.length });
+      return ok(true);
+    }
+    async function adminListInbound(actor) {
+      const r = requireAdmin(actor); if (r) return r;
+      return ok(all('mail_inbound').slice().sort((a, b) => b.createdAt - a.createdAt));
+    }
+    async function adminSetUnsubscribed(actor, userId, unsubscribed) {
+      const r = requireAdmin(actor); if (r) return r;
+      const u = dbUser(userId);
+      if (!u) return fail('notfound', 'User not found.');
+      if (effRank(u) >= roleRank('cofounder')) return fail('adminProtected', 'Staff accounts cannot be unsubscribed.');
+      u.unsubscribed = unsubscribed ? 1 : 0;
+      u.updatedAt = now();
+      store.put('users', u);
+      flush();
+      return ok(true);
+    }
+    /* Per-user send history — every email that went to this account. */
+    async function adminEmailHistory(actor, userId) {
+      const r = requireAdmin(actor); if (r) return r;
+      const u = dbUser(userId);
+      if (!u) return fail('notfound', 'User not found.');
+      return ok({
+        user: { ...publicUser(u), email: u.email, unsubscribed: !!u.unsubscribed },
+        emails: all('emails').filter(e => String(e.to).toLowerCase() === u.email.toLowerCase()).slice().sort((a, b) => b.createdAt - a.createdAt),
+        inbound: all('mail_inbound').filter(e => e.email === u.email.toLowerCase()).slice().sort((a, b) => b.createdAt - a.createdAt),
+      });
     }
 
     /* ============ CREATORS (admin-published, like portfolio) ============ */
@@ -1720,7 +1828,7 @@
       listAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement,
       registerSystem, listSystems, deleteSystem, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice, authorizeSystemDevice,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
-      adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSessions, adminEmails, adminSendEmail, adminOrders, adminCompleteOrder,
+      adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSessions, adminEmails, adminSendEmail, adminListBlasts, adminDeleteBlast, adminEmailHistory, adminListInbound, adminSetUnsubscribed, inboundMailEvent, processScheduledBlasts, adminOrders, adminCompleteOrder,
       setFx,
     };
   }
