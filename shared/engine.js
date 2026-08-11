@@ -1335,6 +1335,28 @@
       const r = requireAdmin(actor); if (r) return r;
       return ok(all('emails').slice().reverse());
     }
+    /* Admin email blast: send the branded template to selected users (or
+       everyone). The HTML shell is applied automatically by the mailer —
+       admins only write the subject + main content. */
+    async function adminSendEmail(actor, { userIds, subject, body } = {}) {
+      const r = requireAdmin(actor); if (r) return r;
+      subject = String(subject || '').trim();
+      body = String(body || '').trim();
+      if (subject.length < 1 || subject.length > 120) return fail('invalid', 'Subject must be 1–120 characters.');
+      if (body.length < 1 || body.length > 2000) return fail('invalid', 'Message must be 1–2000 characters.');
+      let targets = all('users');
+      if (Array.isArray(userIds) && userIds.length) {
+        const set = new Set(userIds.map(String));
+        targets = targets.filter(u => set.has(u.id));
+      }
+      const valid = targets.filter(u => okEmail(u.email));
+      if (!valid.length) return fail('invalid', 'No recipients matched a valid email address.');
+      for (const u of valid) {
+        sendEmail({ to: u.email, subject, action: 'blast', body: 'Hi ' + (u.displayName || u.handle) + ',\n\n' + body, link: '#/' });
+      }
+      flush();
+      return ok({ sent: valid.length, total: valid.length });
+    }
 
     /* ============ CREATORS (admin-published, like portfolio) ============ */
     async function createCreator(actor, { name, role, bio, links, handle } = {}) {
@@ -1698,7 +1720,7 @@
       listAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement,
       registerSystem, listSystems, deleteSystem, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice, authorizeSystemDevice,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
-      adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSessions, adminEmails, adminOrders, adminCompleteOrder,
+      adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSessions, adminEmails, adminSendEmail, adminOrders, adminCompleteOrder,
       setFx,
     };
   }

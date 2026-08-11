@@ -18,6 +18,7 @@ const ACTION_META = {
   reset: { eyebrow: 'Security', btn: 'Reset my password' },
   receipt: { eyebrow: 'Your receipt', btn: 'View my licenses' },
   ticket: { eyebrow: 'Support', btn: 'Open my ticket' },
+  blast: { eyebrow: 'Kings Production Announcement', btn: 'Open Kings Production' },
   default: { eyebrow: 'Kings Production', btn: 'Open Kings Production' },
 };
 const CROWN_SVG = '<svg viewBox="0 0 24 24" width="46" height="46" fill="#d4af37" xmlns="http://www.w3.org/2000/svg"><path d="M4 16.5V10l4.2 3.6L12 6.5l3.8 7.1L20 10v6.5a1.6 1.6 0 0 1-1.6 1.6H5.6A1.6 1.6 0 0 1 4 16.5Z"/><rect x="5.2" y="19" width="13.6" height="1.8" rx="0.9"/></svg>';

@@ -513,6 +513,7 @@ async function main() {
   app.post('/api/admin/users/:id/tags', admin(async (u, req) => engine.adminSetTags(u, req.params.id, (req.body || {}).tags)));
   app.get('/api/admin/sessions', admin(async u => engine.adminSessions(u)));
   app.get('/api/admin/emails', admin(async u => engine.adminEmails(u)));
+  app.post('/api/admin/emails/send', admin(async (u, req) => engine.adminSendEmail(u, req.body || {})));
   app.get('/api/admin/reports', admin(async u => engine.adminReports(u)));
   app.post('/api/admin/reports/:id/resolve', admin(async (u, req) => engine.adminResolveReport(u, req.params.id)));
   app.get('/api/admin/orders', admin(async u => engine.adminOrders(u)));
