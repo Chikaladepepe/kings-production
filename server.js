@@ -233,6 +233,7 @@ async function main() {
   app.get('/api/health', (req, res) => res.json({ ok: true, data: { name: 'Kings Production API', store: STORE_BACKEND, uptime: Math.round(process.uptime()) } }));
 
   /* ---- auth ---- */
+  app.post('/api/auth/register-code', h(async (req, res) => send(res, await engine.requestRegisterCode(req.body || {}))));
   app.post('/api/auth/register', h(async (req, res) => send(res, await engine.register(req.body || {}))));
   app.post('/api/auth/login', h(async (req, res) => send(res, await engine.login({ ...(req.body || {}), label: shortLabel(req) }))));
   app.post('/api/auth/verify2fa', h(async (req, res) => send(res, await engine.verify2fa({ ...(req.body || {}), label: shortLabel(req) }))));
@@ -541,6 +542,7 @@ async function main() {
   app.delete('/api/systems/:id', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.deleteSystem(u, req.params.id)); }));
   app.post('/api/systems/:id/status', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.setSystemStatus(u, req.params.id, (req.body || {}).status)); }));
   app.post('/api/systems/devices/:id/revoke', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.revokeSystemDevice(u, req.params.id)); }));
+  app.post('/api/systems/devices/:id/authorize', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.authorizeSystemDevice(u, req.params.id)); }));
 
   /* ---- support tickets & chat ---- */
   app.post('/api/tickets/new', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.createTicket(u, req.body || {})); }));

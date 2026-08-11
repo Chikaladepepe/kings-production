@@ -112,6 +112,9 @@
   const isVerified = u => isOwnerAccount(u) || u == null || (u.emailVerified !== false && u.emailVerified !== 0);
   const canPost = u => effRank(u) >= roleRank('vip') && !isBanned(u) && !isTimedOut(u) && isVerified(u);
   const isAdmin = u => isStaff(u);
+  /* "Test" tag — assigned by admins for QA: can grab any system/asset without
+     paying so the studio can verify things work before release. */
+  const isTester = u => !!(u && parseTags(u).some(t => String(t).trim().toLowerCase() === 'test'));
   const parseTags = u => {
     try { const t = JSON.parse(u && u.tags || '[]'); return Array.isArray(t) ? t.filter(x => typeof x === 'string' && x.trim()) : []; }
     catch (e) { return []; }
@@ -257,7 +260,32 @@
     }
 
     /* ============ AUTH ============ */
-    async function register({ handle, displayName, email, password, country, acceptTerms } = {}) {
+    /* Pre-registration email code: every new account must first request a
+       6-digit code at this address and include it in register() — stops bot
+       farms from stuffing the user table with dummy emails. Codes are
+       single-use and expire after 15 minutes. */
+    async function requestRegisterCode({ email } = {}) {
+      email = String(email || '').trim().toLowerCase();
+      if (!okEmail(email)) return fail('invalid', 'Please enter a valid email address.');
+      if (all('users').some(u => u.email.toLowerCase() === email)) return fail('taken', 'An account with that email already exists.');
+      const recent = all('pending_regs').filter(r => r.email === email).sort((a, b) => b.createdAt - a.createdAt)[0];
+      if (recent && recent.createdAt > now() - 45e3) return fail('ratelimit', 'A code was already sent — check your inbox (and spam), or wait a minute to resend.');
+      all('pending_regs').filter(r => r.email === email).forEach(r => store.del('pending_regs', r.id));
+      const code = String(Math.floor(100000 + Math.random() * 900000));
+      store.put('pending_regs', { id: 'pr' + uid(), email, code, expiresAt: now() + 15 * 60e3, createdAt: now() });
+      sendEmail({ to: email, subject: 'Your Kings Production verification code', action: 'registercode', body: 'Your verification code is: ' + code + '\n\nEnter it on the sign-up page to create your account. It expires in 15 minutes and can only be used once.', link: '#/register' });
+      flush();
+      return ok(Object.assign({ sent: true }, cfg.devMail ? { devCode: code } : {}));
+    }
+    function consumeRegisterCode(email, code) {
+      const pr = all('pending_regs').find(r => r.email === email && String(r.code) === String(code || '').trim());
+      if (!pr) return null;
+      if (pr.expiresAt < now()) { store.del('pending_regs', pr.id); flush(); return null; }
+      store.del('pending_regs', pr.id);
+      flush();
+      return pr;
+    }
+    async function register({ handle, displayName, email, password, country, acceptTerms, code } = {}) {
       handle = String(handle || '').trim();
       displayName = String(displayName || '').trim();
       email = String(email || '').trim().toLowerCase();
@@ -268,6 +296,7 @@
       if (!okEmail(email)) return fail('invalid', 'Please enter a valid email address.');
       if (all('users').some(u => u.email.toLowerCase() === email)) return fail('taken', 'An account with that email already exists.');
       if (String(password || '').length < 6) return fail('invalid', 'Password must be at least 6 characters.');
+      if (!consumeRegisterCode(email, code)) return fail('code', 'Enter the 6-digit verification code we emailed you (it expires in 15 minutes).');
       country = String(country || '').trim().toUpperCase().slice(0, 2);
       if (!COUNTRY_CURRENCY[country]) country = 'US';
       const isFirst = cfg.autoAdminFirstUser && all('users').length === 0;
@@ -628,8 +657,9 @@
       const v = resolveUser(user);
       const isOwner = v && v.id === a.ownerId;
       const isAdminView = v && isStaff(v);
+      const isTest = v && isTester(v);
       const hasPurchased = v && all('purchases').some(p => p.assetId === id && p.buyerId === v.id);
-      if (!isOwner && !isAdminView && !hasPurchased) return fail('forbidden', 'Purchase this asset to download the file.');
+      if (!isOwner && !isAdminView && !isTest && !hasPurchased) return fail('forbidden', 'Purchase this asset to download the file.');
       return ok({ fileName: a.fileName, mime: a.fileMime, size: a.fileSize });
     }
 
@@ -657,6 +687,7 @@
       if (a.status !== 'approved') return fail('notfound', 'This asset is not available for purchase.');
       if (a.ownerId === u.id) return fail('self', 'You cannot purchase your own asset.');
       if (all('purchases').some(p => p.assetId === id && p.buyerId === u.id)) return fail('owned', 'You already own this asset.');
+      if (isTester(u)) { const r = grantLicense(u, a); return ok(Object.assign(r, { test: true })); }
       const r = grantLicense(u, a);
       return ok(r);
     }
@@ -1097,7 +1128,8 @@
     async function content() {
       const parseLinks = it => { try { const l = JSON.parse(it.links || '[]'); return Array.isArray(l) ? l : []; } catch (e) { return []; } };
       const portfolio = all('portfolio').slice().sort((a, b) => ((b.featured ? 1 : 0) - (a.featured ? 1 : 0)) || ((b.createdAt || 0) - (a.createdAt || 0))).map(it => ({ ...it, links: parseLinks(it) }));
-      const creators = all('creators').slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).map(it => ({ ...it, links: parseLinks(it) }));
+      /* Creators are listed in publish order — new ones append after existing. */
+      const creators = all('creators').slice().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).map(it => ({ ...it, links: parseLinks(it) }));
       return ok({ portfolio, creators });
     }
 
@@ -1502,7 +1534,7 @@
     async function registerSystem(user, { name, password } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
-      if (effRank(u) < roleRank('vip')) return fail('vipOnly', 'System registering is a VIP / Licensed feature — grab a license to unlock it.');
+      if (effRank(u) < roleRank('vip') && !isTester(u)) return fail('vipOnly', 'System registering is a VIP / Licensed feature — grab a license to unlock it.');
       name = String(name || '').trim();
       password = String(password || '').trim();
       if (name.length < 3 || name.length > 60) return fail('invalid', 'System name must be 3–60 characters.');
@@ -1539,38 +1571,54 @@
       if (s.status === 'disabled') return { found: true, denied: true, reason: 'This system has been paused by its creator. Contact the creator to re-enable it.' };
       return { found: true, system: s };
     }
+    /* Shared device bookkeeping + a revoked-device auto-kick: a device the
+       creator kicked gets a DENIED answer on its next phone-home, so the Lua
+       script disables the system (and kicks the player) immediately. */
+    function deviceState(s, deviceId) {
+      if (!deviceId) return null;
+      const d = all('system_devices').find(x => x.systemId === s.id && x.deviceId === String(deviceId));
+      return d || null;
+    }
+    function recordDevice(s, deviceId, deviceName) {
+      const key = String(deviceId).slice(0, 80);
+      const existing = all('system_devices').find(d => d.systemId === s.id && d.deviceId === key);
+      if (existing) { existing.lastSeenAt = now(); if (deviceName) existing.deviceName = String(deviceName).slice(0, 40) || null; store.put('system_devices', existing); return existing; }
+      const d = { id: 'sd' + uid(), systemId: s.id, deviceId: key, deviceName: deviceName ? String(deviceName).slice(0, 40) : null, status: 'active', createdAt: now(), lastSeenAt: now() };
+      store.put('system_devices', d);
+      return d;
+    }
+    /* Player User IDs the Lua script should kick immediately (kicked devices). */
+    function revokedPlayerIds(s) {
+      return all('system_devices').filter(d => d.systemId === s.id && d.status === 'revoked' && /^\d{1,20}$/.test(String(d.deviceId))).map(d => String(d.deviceId));
+    }
+    function bumpSystem(s) {
+      s.lastSeenAt = now();
+      s.updatedAt = now();
+      store.put('systems', s);
+      flush();
+    }
     async function systemActivate({ systemName, systemPassword, deviceId } = {}) {
       const chk = checkSystemCreds({ systemName, systemPassword });
       if (!chk.found) return ok({ active: false, reason: chk.reason });
       if (chk.denied) return ok({ active: false, reason: chk.reason });
       const s = chk.system;
+      const dev = deviceState(s, deviceId);
+      if (dev && dev.status === 'revoked') return ok({ active: false, reason: 'This device has been kicked by the creator and can no longer use the system.', revokedPlayers: revokedPlayerIds(s) });
       if (s.status === 'pending') { s.status = 'active'; s.updatedAt = now(); }
-      s.lastSeenAt = now();
-      s.updatedAt = now();
-      store.put('systems', s);
-      if (deviceId) {
-        const existing = all('system_devices').find(d => d.systemId === s.id && d.deviceId === String(deviceId));
-        if (existing) { existing.lastSeenAt = now(); store.put('system_devices', existing); }
-        else store.put('system_devices', { id: 'sd' + uid(), systemId: s.id, deviceId: String(deviceId).slice(0, 80), deviceName: null, status: 'active', createdAt: now(), lastSeenAt: now() });
-      }
-      flush();
-      return ok({ active: true, reason: 'Licensed and active.' });
+      bumpSystem(s);
+      if (deviceId) recordDevice(s, deviceId);
+      return ok({ active: true, reason: 'Licensed and active.', revokedPlayers: revokedPlayerIds(s) });
     }
     async function systemHeartbeat({ systemName, systemPassword, deviceId } = {}) {
       const chk = checkSystemCreds({ systemName, systemPassword });
       if (!chk.found) return ok({ active: false, reason: chk.reason });
       if (chk.denied) return ok({ active: false, reason: chk.reason });
       const s = chk.system;
-      s.lastSeenAt = now();
-      s.updatedAt = now();
-      store.put('systems', s);
-      if (deviceId) {
-        const existing = all('system_devices').find(d => d.systemId === s.id && d.deviceId === String(deviceId));
-        if (existing) { existing.lastSeenAt = now(); store.put('system_devices', existing); }
-        else store.put('system_devices', { id: 'sd' + uid(), systemId: s.id, deviceId: String(deviceId).slice(0, 80), deviceName: null, status: 'active', createdAt: now(), lastSeenAt: now() });
-      }
-      flush();
-      return ok({ active: true, reason: 'Licensed and active.' });
+      const dev = deviceState(s, deviceId);
+      if (dev && dev.status === 'revoked') return ok({ active: false, reason: 'This device has been kicked by the creator and can no longer use the system.', revokedPlayers: revokedPlayerIds(s) });
+      bumpSystem(s);
+      if (deviceId) recordDevice(s, deviceId);
+      return ok({ active: true, reason: 'Licensed and active.', revokedPlayers: revokedPlayerIds(s) });
     }
     /* Player device registration from the Lua script — records who is using the
        system so the creator can see and revoke individual players. */
@@ -1579,6 +1627,9 @@
       if (!chk.found || chk.denied) return ok({ active: false, reason: chk.reason || 'Not licensed.' });
       const s = chk.system;
       if (playerId) {
+        /* A kicked player is told straight away so the script can auto-kick. */
+        const kickedDev = all('system_devices').find(d => d.systemId === s.id && d.deviceId === String(playerId));
+        if (kickedDev && kickedDev.status === 'revoked') return ok({ active: false, reason: 'This device has been kicked by the creator.', kicked: true });
         const existing = all('system_devices').find(d => d.systemId === s.id && d.deviceId === String(playerId));
         if (existing) { existing.deviceName = String(playerName || existing.deviceName || '').slice(0, 40) || null; existing.lastSeenAt = now(); store.put('system_devices', existing); }
         else store.put('system_devices', { id: 'sd' + uid(), systemId: s.id, deviceId: String(playerId).slice(0, 80), deviceName: String(playerName || '').slice(0, 40) || null, status: 'active', createdAt: now(), lastSeenAt: now() });
@@ -1611,12 +1662,27 @@
       flush();
       return ok(true);
     }
+    /* Kick = revoke (the device is denied on its next phone-home and the
+       script auto-kicks the player). Authorize = undo a kick. */
+    async function authorizeSystemDevice(user, deviceId) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const d = byIdIn('system_devices', deviceId);
+      if (!d) return fail('notfound', 'Device not found.');
+      const s = byIdIn('systems', d.systemId);
+      if (!s || s.userId !== u.id) return fail('forbidden', 'You can only manage devices on your own systems.');
+      d.status = 'active';
+      d.lastSeenAt = now();
+      store.put('system_devices', d);
+      flush();
+      return ok(true);
+    }
 
     seedContent();
     ensureOwnerAccount();
 
     return {
-      register, login, googleLogin, verify2fa, requestReset, resetPassword, logout, me,
+      register, requestRegisterCode, login, googleLogin, verify2fa, requestReset, resetPassword, logout, me,
       verifyEmail, resendVerification,
       updateProfile, setup2fa, enable2fa, disable2fa,
       createAsset, postStatus, listApproved, topSelling, getAsset, updateAsset, deleteAsset, myAssets, download,
@@ -1630,7 +1696,7 @@
       createTicket, addTicketMessage, getTicket, listMyTickets,
       adminListTickets, adminCloseTicket, adminDeleteTicket,
       listAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement,
-      registerSystem, listSystems, deleteSystem, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice,
+      registerSystem, listSystems, deleteSystem, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice, authorizeSystemDevice,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
       adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSessions, adminEmails, adminOrders, adminCompleteOrder,
       setFx,

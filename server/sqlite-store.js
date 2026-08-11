@@ -35,6 +35,7 @@ const SCHEMA = {
   reviews: ['id', 'assetId', 'userId', 'rating', 'body', 'createdAt', 'updatedAt'],
   reports: ['id', 'reporterId', 'targetType', 'targetId', 'reason', 'details', 'status', 'resolvedBy', 'resolvedAt', 'createdAt'],
   tokens: ['id', 'userId', 'token', 'purpose', 'expiresAt', 'used', 'createdAt'],
+  pending_regs: ['id', 'email', 'code', 'expiresAt', 'createdAt'],
   emails: ['id', 'to', 'subject', 'action', 'body', 'link', 'createdAt', 'read'],
   portfolio: ['id', 'title', 'category', 'desc', 'stat', 'status', 'imageUrl', 'links', 'featured', 'createdAt'],
   creators: ['id', 'name', 'role', 'bio', 'links', 'handle', 'createdAt'],
@@ -98,6 +99,10 @@ CREATE TABLE IF NOT EXISTS reports (
 CREATE TABLE IF NOT EXISTS tokens (
   id TEXT PRIMARY KEY, userId TEXT NOT NULL, token TEXT NOT NULL, purpose TEXT NOT NULL,
   expiresAt INTEGER NOT NULL, used INTEGER NOT NULL DEFAULT 0, createdAt INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS pending_regs (
+  id TEXT PRIMARY KEY, email TEXT NOT NULL, code TEXT NOT NULL,
+  expiresAt INTEGER NOT NULL, createdAt INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS emails (
   id TEXT PRIMARY KEY, "to" TEXT NOT NULL, subject TEXT NOT NULL, action TEXT,

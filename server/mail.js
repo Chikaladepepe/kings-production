@@ -14,6 +14,7 @@ function escHtml(s) {
 /* Per-purpose eyebrow + button label for the CTA. */
 const ACTION_META = {
   verify: { eyebrow: 'Confirm your email', btn: 'Verify my email' },
+  registercode: { eyebrow: 'Sign-up code', btn: 'Continue registration' },
   reset: { eyebrow: 'Security', btn: 'Reset my password' },
   receipt: { eyebrow: 'Your receipt', btn: 'View my licenses' },
   ticket: { eyebrow: 'Support', btn: 'Open my ticket' },
