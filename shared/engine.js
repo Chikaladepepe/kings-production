@@ -331,7 +331,15 @@
       store.put('users', u);
       t.used = true;
       store.put('tokens', t);
-      flush();
+      /* Auto-welcome: once the account is verified, send the branded
+         onboarding email — how to shop, licenses, and support. */
+      if (u.role !== 'admin' && !isOwnerAccount(u)) {
+        sendEmail({
+          to: u.email, subject: 'Welcome to Kings Production, ' + (u.displayName || u.handle) + ' 👑', action: 'welcome', link: '#/shop',
+          body: 'Your email is confirmed — your account is fully unlocked.\n\nHere is how to get the most out of Kings Production:\n\n• Browse the Marketplace and grab your first asset — scripts, models, plugins, animations, and systems, all hand-checked by our team.\n• Buy the VIP/Licensed plan to unlock community posting and the Creator Dashboard, with sales analytics and device-secured licensing.\n• Register systems on the License page and manage authorized devices — if a file ever leaks, the anti-tamper lock keeps it unusable to anyone else.\n\nNeed anything? Open a ticket from the Support tab and our team will reply fast.\n\nWhere excellence meets innovation.',
+        });
+        flush();
+      }
       return ok(true);
     }
     async function resendVerification(user) {
