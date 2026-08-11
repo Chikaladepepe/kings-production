@@ -235,6 +235,18 @@ main{flex:1;width:100%}
 .modal h3{font-family:var(--font-display);font-size:19px;font-weight:700;margin-bottom:10px}
 .modal p{color:var(--text-2);font-size:14px;margin-bottom:20px}
 .modal-actions{display:flex;justify-content:flex-end;gap:10px}
+/* schedule calendar picker */
+.picker-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.picker-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:14px}
+.picker-dow{text-align:center;font-size:11px;color:var(--text-3);padding:4px 0;font-weight:700}
+.picker-day{border:1px solid transparent;background:transparent;color:var(--text);font-size:13px;border-radius:8px;padding:7px 0;cursor:pointer;transition:background .12s,border-color .12s,color .12s}
+.picker-day:hover{background:var(--border);border-color:var(--border-strong)}
+.picker-day-sel{background:linear-gradient(135deg,var(--gold),#b8891f);color:#0c0c0e !important;font-weight:700;border-color:transparent !important}
+.picker-time{margin-bottom:10px}
+.picker-hrs{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;max-height:118px;overflow:auto}
+.picker-hr{border:1px solid var(--border-strong);background:transparent;color:var(--text-2);font-size:12px;border-radius:7px;padding:5px 9px;cursor:pointer;transition:background .12s,color .12s,border-color .12s}
+.picker-hr:hover{border-color:var(--gold);color:var(--text)}
+.picker-preview{font-family:var(--font-display);font-size:14px;color:var(--gold);text-align:center;padding:10px;border:1px dashed var(--border-strong);border-radius:10px;margin-top:2px}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes popIn{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:none}}
 
@@ -3440,7 +3452,7 @@ function parseHash() {
   return { path: segs[0] || 'home', params: segs.slice(1), query: Object.fromEntries(new URLSearchParams(queryPart || '')) };
 }
 
-let STATE = { user: null, adminTab: 'overview', catalogQ: '', catalogCat: '', catalogSort: 'trending', rates: null };
+let STATE = { user: null, adminTab: 'overview', catalogQ: '', catalogCat: '', catalogSort: 'trending', rates: null, _blastSchedule: 0 };
 const COUNTRIES = [
   ['US', 'United States'], ['PH', 'Philippines'], ['GB', 'United Kingdom'], ['CA', 'Canada'], ['AU', 'Australia'],
   ['DE', 'Germany'], ['FR', 'France'], ['ES', 'Spain'], ['IT', 'Italy'], ['NL', 'Netherlands'], ['PT', 'Portugal'], ['IE', 'Ireland'],
@@ -5360,6 +5372,7 @@ VIEWS_BIND.admin = async () => {
   body.innerHTML = loadingHtml();
   const html = await adminTabHtml(STATE.adminTab);
   body.innerHTML = html;
+  if (STATE.adminTab === 'mailbox') setTimeout(syncScheduleField, 0);
 };
 async function setAdminTab(tab) { STATE.adminTab = tab; await router({ noVeil: true }); }
 async function onAdminDeleteTicket(id) {
@@ -5592,7 +5605,12 @@ async function adminTabHtml(tab) {
         </div>
         <div class="row" style="gap:12px;flex-wrap:wrap">
           <div class="field" style="flex:1;min-width:220px"><label>Subject<span class="req">*</span></label><input class="input" id="blast-subject" maxlength="120" placeholder="e.g. New update is live!"></div>
-          <div class="field" style="min-width:220px"><label>Schedule (optional)</label><input class="input" id="blast-schedule" type="datetime-local"><div class="hint">Leave empty to send now.</div></div>
+          <div class="field" style="min-width:220px"><label>Schedule (optional)</label>
+            <div class="row" style="gap:8px">
+              <input class="input" id="blast-schedule" readonly placeholder="Pick a date & time…" onclick="openBlastPicker()">
+              ${STATE._blastSchedule ? '<button type="button" class="btn btn-ghost btn-sm" onclick="clearBlastSchedule()" title="Clear schedule">' + ICON.x + '</button>' : ''}
+            </div>
+            <div class="hint">Click the box to pick from a calendar. Leave empty to send now.</div></div>
         </div>
         <div class="field"><label>Message<span class="req">*</span></label><textarea class="input" id="blast-body" rows="5" maxlength="2000" placeholder="Write the main content — the branded template wraps it automatically."></textarea></div>
         <div class="row" style="gap:10px;align-items:center;flex-wrap:wrap">
@@ -5664,8 +5682,78 @@ function blastFormValues() {
   return {
     subject: (document.getElementById('blast-subject') || {}).value || '',
     body: (document.getElementById('blast-body') || {}).value || '',
-    schedule: (document.getElementById('blast-schedule') || {}).value || '',
+    schedule: STATE._blastSchedule || '',
   };
+}
+/* ---- calendar GUI for the schedule field ---- */
+function scheduleField() { return document.getElementById('blast-schedule'); }
+function syncScheduleField() {
+  const f = scheduleField();
+  if (!f) return;
+  f.value = STATE._blastSchedule ? fmtDateFull(STATE._blastSchedule) + ' · ' + new Date(STATE._blastSchedule).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+  const clearBtn = f.parentNode.querySelector('button');
+  if (clearBtn) clearBtn.style.display = STATE._blastSchedule ? '' : 'none';
+}
+function clearBlastSchedule() { STATE._blastSchedule = 0; syncScheduleField(); rerenderBlastBtn(); }
+function openBlastPicker() {
+  const cur = STATE._blastSchedule || Date.now() + 36e5;
+  let d = new Date(cur);
+  let viewY = d.getFullYear(), viewM = d.getMonth();
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const fmtSel = () => fmtDateFull(new Date(viewY, viewM, d.getDate()).getTime()) + ' · ' + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const hour12 = h => ((h + 11) % 12) + 1;
+  function render() {
+    const first = new Date(viewY, viewM, 1);
+    const startDow = first.getDay();
+    const days = new Date(viewY, viewM + 1, 0).getDate();
+    let cells = '';
+    for (let i = 0; i < startDow; i++) cells += '<div></div>';
+    for (let day = 1; day <= days; day++) {
+      const sel = day === d.getDate() && viewM === d.getMonth() && viewY === d.getFullYear();
+      cells += `<button type="button" class="picker-day ${sel ? 'picker-day-sel' : ''}" data-day="${day}">${day}</button>`;
+    }
+    const hours = [];
+    for (let h = 0; h < 24; h++) {
+      const hh = String(hour12(h)).padStart(2, '0');
+      hours.push(`<button type="button" class="picker-hr ${h === d.getHours() ? 'picker-day-sel' : ''}" data-hr="${h}">${hh}${h < 12 ? 'am' : 'pm'}</button>`);
+    }
+    overlay.querySelector('#pk-body').innerHTML = `
+      <div class="picker-head"><button type="button" class="btn btn-ghost btn-sm" data-m="-1">‹</button>
+        <b>${MO[viewM]} ${viewY}</b>
+        <button type="button" class="btn btn-ghost btn-sm" data-m="1">›</button></div>
+      <div class="picker-grid">${['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(x => `<div class="picker-dow">${x}</div>`).join('')}${cells}</div>
+      <div class="picker-time"><b>Time</b><div class="picker-hrs">${hours.join('')}</div></div>
+      <div class="picker-preview">${fmtSel()}</div>
+      <div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap">
+        <button type="button" class="btn btn-ghost btn-sm" data-q="3600e3">+1 hour</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-q="24*3600e3">Tomorrow</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-q="7*24*3600e3">+1 week</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-clear>Clear</button>
+      </div>`;
+    overlay.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { viewM += Number(b.dataset.m); if (viewM < 0) { viewM = 11; viewY--; } if (viewM > 11) { viewM = 0; viewY++; } render(); });
+    overlay.querySelectorAll('.picker-day').forEach(b => b.onclick = () => { d.setDate(Number(b.dataset.day)); d.setMonth(viewM); d.setFullYear(viewY); render(); });
+    overlay.querySelectorAll('.picker-hr').forEach(b => b.onclick = () => { d.setHours(Number(b.dataset.hr)); render(); });
+    const QS = { '3600e3': 36e5, '24*3600e3': 24 * 36e5, '7*24*3600e3': 7 * 24 * 36e5 };
+    overlay.querySelectorAll('[data-q]').forEach(b => b.onclick = () => { d = new Date(Date.now() + (QS[b.dataset.q] || 36e5)); viewY = d.getFullYear(); viewM = d.getMonth(); render(); });
+    overlay.querySelector('[data-clear]').onclick = () => { STATE._blastSchedule = 0; syncScheduleField(); overlay.remove(); rerenderBlastBtn(); };
+  }
+  overlay.innerHTML = `<div class="modal" role="dialog" aria-modal="true" style="max-width:380px">
+    <h3>${ICON.clock} Schedule blast</h3>
+    <div class="modal-body" id="pk-body"></div>
+    <div class="modal-actions"><button class="btn btn-ghost btn-sm" data-act="cancel">Cancel</button>
+    <button class="btn btn-primary btn-sm" data-act="ok">${ICON.check} Set schedule</button></div></div>`;
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  overlay.querySelector('[data-act=cancel]').onclick = () => overlay.remove();
+  overlay.querySelector('[data-act=ok]').onclick = () => {
+    STATE._blastSchedule = d.getTime();
+    syncScheduleField();
+    rerenderBlastBtn();
+    overlay.remove();
+  };
+  document.body.appendChild(overlay);
+  render();
 }
 async function onAdminSendBlast() {
   const { subject, body, schedule } = blastFormValues();
