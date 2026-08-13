@@ -960,7 +960,10 @@ input[type=range].vol::-webkit-slider-thumb{-webkit-appearance:none;width:16px;h
 .m-nav-item:active{transform:scale(.985)}
 .m-nav-item .fa-badge{font-style:normal;margin-left:8px}
 .drawer-social{display:flex;gap:8px;margin-top:auto;padding-top:16px}
-.drawer-social .s-btn{flex:1}
+.drawer-social .s-btn{flex:1;height:44px;border-radius:12px;border:1px solid rgba(212,175,55,.28);background:linear-gradient(180deg, rgba(40,40,48,.9), rgba(22,22,27,.92));color:var(--text-1);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .18s,box-shadow .18s,border-color .18s;box-shadow:0 4px 14px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06)}
+.drawer-social .s-btn:hover{transform:translateY(-2px);border-color:rgba(212,175,55,.55);box-shadow:0 6px 20px rgba(212,175,55,.18)}
+.drawer-social .s-btn svg{width:20px;height:20px}
+.drawer-social .s-btn.help{font-weight:800;font-size:15px;color:var(--gold);background:linear-gradient(180deg, rgba(60,52,20,.95), rgba(26,23,14,.95))}
 @media (max-width:1080px){
   .account-name{display:none!important}
 }
