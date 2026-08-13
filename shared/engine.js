@@ -1735,7 +1735,7 @@
       store.put('systems', s);
       flush();
     }
-    async function systemActivate({ systemName, systemPassword, deviceId } = {}) {
+    async function systemActivate({ systemName, systemPassword, deviceId, deviceName } = {}) {
       const chk = checkSystemCreds({ systemName, systemPassword });
       if (!chk.found) return ok({ active: false, reason: chk.reason });
       if (chk.denied) return ok({ active: false, reason: chk.reason });
@@ -1744,10 +1744,10 @@
       if (dev && dev.status === 'revoked') return ok({ active: false, reason: 'This device has been kicked by the creator and can no longer use the system.', revokedPlayers: revokedPlayerIds(s) });
       if (s.status === 'pending') { s.status = 'active'; s.updatedAt = now(); }
       bumpSystem(s);
-      if (deviceId) recordDevice(s, deviceId);
+      if (deviceId) recordDevice(s, deviceId, deviceName);
       return ok({ active: true, reason: 'Licensed and active.', revokedPlayers: revokedPlayerIds(s) });
     }
-    async function systemHeartbeat({ systemName, systemPassword, deviceId } = {}) {
+    async function systemHeartbeat({ systemName, systemPassword, deviceId, deviceName } = {}) {
       const chk = checkSystemCreds({ systemName, systemPassword });
       if (!chk.found) return ok({ active: false, reason: chk.reason });
       if (chk.denied) return ok({ active: false, reason: chk.reason });
@@ -1755,7 +1755,7 @@
       const dev = deviceState(s, deviceId);
       if (dev && dev.status === 'revoked') return ok({ active: false, reason: 'This device has been kicked by the creator and can no longer use the system.', revokedPlayers: revokedPlayerIds(s) });
       bumpSystem(s);
-      if (deviceId) recordDevice(s, deviceId);
+      if (deviceId) recordDevice(s, deviceId, deviceName);
       return ok({ active: true, reason: 'Licensed and active.', revokedPlayers: revokedPlayerIds(s) });
     }
     /* Player device registration from the Lua script — records who is using the

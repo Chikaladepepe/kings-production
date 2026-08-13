@@ -175,6 +175,7 @@ async function main() {
   /* ---- app ---- */
   const app = express();
   app.disable('x-powered-by');
+  app.set('trust proxy', 1); // behind Render's proxy — use the real client IP
   /* Stripe webhook must receive the RAW body for signature verification —
      register it before the global JSON parser. */
   app.post('/api/payments/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
@@ -207,6 +208,21 @@ async function main() {
     console.error('[api]', e);
     res.status(500).json({ ok: false, code: 'server', error: 'Internal server error.' });
   });
+  /* Throttle the public phone-home endpoints the Roblox script hits, so a
+     leaked script or a brute-force attempt can't hammer the API. Roblox
+     servers share egress IPs, so keep the limit generous: 60/min per IP. */
+  const sysHits = new Map();
+  const rateLimitSystems = (req, res, next) => {
+    const ip = req.ip || req.socket.remoteAddress || '?'; // 'trust proxy' makes req.ip the real client
+    const now = Date.now();
+    const arr = (sysHits.get(ip) || []).filter(t => now - t < 60000);
+    if (arr.length >= 60) {
+      return res.status(429).json({ ok: false, code: 'rate', error: 'Too many requests — try again shortly.' });
+    }
+    arr.push(now);
+    sysHits.set(ip, arr);
+    next();
+  };
 
   /* ---- auth helpers ---- */
   function tokenFrom(req) {
@@ -564,9 +580,9 @@ async function main() {
 
   /* ---- system registering (creator → Roblox Studio licensing) ---- */
   /* Public endpoints called by the copyable Lua script in Roblox Studio. */
-  app.post('/api/systems/activate', h(async (req, res) => send(res, await engine.systemActivate(req.body || {}))));
-  app.post('/api/systems/heartbeat', h(async (req, res) => send(res, await engine.systemHeartbeat(req.body || {}))));
-  app.post('/api/systems/device', h(async (req, res) => send(res, await engine.registerSystemDevice(req.body || {}))));
+  app.post('/api/systems/activate', rateLimitSystems, h(async (req, res) => send(res, await engine.systemActivate(req.body || {}))));
+  app.post('/api/systems/heartbeat', rateLimitSystems, h(async (req, res) => send(res, await engine.systemHeartbeat(req.body || {}))));
+  app.post('/api/systems/device', rateLimitSystems, h(async (req, res) => send(res, await engine.registerSystemDevice(req.body || {}))));
   /* Authenticated endpoints for the Dashboard UI. */
   app.post('/api/systems/register', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.registerSystem(u, req.body || {})); }));
   app.get('/api/systems/mine', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.listSystems(u)); }));
