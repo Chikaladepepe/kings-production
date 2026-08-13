@@ -740,7 +740,7 @@ body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opac
 .js-reveal .in{opacity:1;transform:none}
 
 /* auth pages — full-screen focus, all site chrome hidden */
-.auth-mode .site-header,.auth-mode .site-footer,.auth-mode .social-dock,.auth-mode .post-fab,.auth-mode .site-status{display:none!important}
+.auth-mode .site-header,.auth-mode .site-footer,.auth-mode .social-dock,.auth-mode .post-fab,.auth-mode .site-status,.auth-mode .announce{display:none!important}
 .auth-mode main{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:36px 20px}
 .auth-mode .auth-shell{margin:0;width:100%}
 
@@ -3513,6 +3513,18 @@ function headerHtml(user) {
         </div>
       </div>`
     : `<span class="header-cta"><a class="btn btn-ghost btn-sm" href="#/login">Log in</a><a class="btn btn-primary btn-sm" href="#/register">Create account</a></span>`;
+  return `<header class="site-header"><div class="header-inner">
+    <a class="brand" href="#/" aria-label="Kings Production home"><span class="crown">${ICON.crown}</span><span class="brand-txt">Kings Production<span class="brand-sub">Roblox Studio</span></span></a>
+    <nav class="main-nav" aria-label="Primary">${nav}</nav>
+    <div class="header-right">${right}<button class="hamburger" id="hamburger" type="button" aria-label="Open menu" aria-expanded="false">${ICON.menu}</button></div>
+  </div></header>`;
+}
+function drawerHtml() {
+  /* NOTE: the drawer must NOT live inside .site-header — its backdrop-filter makes
+     the header the containing block for position:fixed descendants, which would
+     clip the drawer to the header's height on phones. */
+  const user = STATE.user;
+  const navItems = [...(user && canPost(user) ? [['dashboard', 'Dashboard', ICON.chart, 'VIP']] : []), ['portfolio', 'Portfolio', ICON.crown], ['shop', 'Shop', ICON.cart], ['license', 'License', ICON.key], ['creators', 'Creators', ICON.user], ['support', 'Support', ICON.mail]];
   const drawerNav = navItems.map(([p, l, ic]) => `<a class="m-nav-item" href="#/${p}" data-nav="${p}">${ic}<span>${l}${p === 'dashboard' ? '<em class="fa-badge">VIP</em>' : ''}</span></a>`).join('');
   const drawerAccount = user
     ? `<a class="m-nav-item" href="#/profile/${esc(user.handle)}">${ICON.user}<span>My Profile</span></a>
@@ -3522,12 +3534,7 @@ function headerHtml(user) {
        <a class="m-nav-item" href="#/settings">${ICON.clock}<span>Settings</span></a>
        <button class="m-nav-item" id="m-logout-btn">${ICON.logout}<span>Log out</span></button>`
     : `<a class="m-nav-item" href="#/login">${ICON.user}<span>Log in</span></a><a class="m-nav-item" href="#/register">${ICON.plus}<span>Create account</span></a>`;
-  return `<header class="site-header"><div class="header-inner">
-    <a class="brand" href="#/" aria-label="Kings Production home"><span class="crown">${ICON.crown}</span><span class="brand-txt">Kings Production<span class="brand-sub">Roblox Studio</span></span></a>
-    <nav class="main-nav" aria-label="Primary">${nav}</nav>
-    <div class="header-right">${right}<button class="hamburger" id="hamburger" type="button" aria-label="Open menu" aria-expanded="false">${ICON.menu}</button></div>
-  </div>
-  <div class="drawer-backdrop" id="drawer-backdrop" hidden></div>
+  return `<div class="drawer-backdrop" id="drawer-backdrop" hidden></div>
   <aside class="drawer" id="drawer" aria-label="Menu" aria-hidden="true">
     <div class="drawer-head"><span class="crown">${ICON.crown}</span><span class="drawer-title">Menu</span><button class="drawer-close" id="drawer-close" type="button" aria-label="Close menu">${ICON.x}</button></div>
     <nav class="drawer-nav" aria-label="Mobile">${drawerNav}</nav>
@@ -3537,7 +3544,7 @@ function headerHtml(user) {
       <a class="s-btn" href="${esc(SOCIAL.youtube)}" target="_blank" rel="noopener" title="Watch on YouTube">${ICON.youtube}</a>
       <button class="s-btn help" type="button" title="Legal & help" onclick="openLegal()">!</button>
     </div>
-  </aside></header>`;
+  </aside>`;
 }
 function footerHtml() {
   return `<footer class="site-footer">
@@ -3555,7 +3562,7 @@ function footerHtml() {
 }
 function renderShell() {
   const app = document.getElementById('app');
-  app.innerHTML = headerHtml(null) + `<div id="announce" hidden></div>` + `<main id="main"></main>` + footerHtml() + `<div id="toasts"></div>`
+  app.innerHTML = headerHtml(null) + `<div id="announce" hidden></div>` + `<main id="main"></main>` + `<div id="drawer-root">${drawerHtml()}</div>` + footerHtml() + `<div id="toasts"></div>`
     + `<div class="social-dock" aria-label="Social links">
         <a class="s-btn" href="${esc(SOCIAL.discord)}" target="_blank" rel="noopener" title="Join our Discord">${ICON.discord}</a>
         <a class="s-btn" href="${esc(SOCIAL.youtube)}" target="_blank" rel="noopener" title="Watch on YouTube">${ICON.youtube}</a>
@@ -3611,6 +3618,10 @@ function renderHeader() {
   const old = app.querySelector('.site-header');
   old && old.remove();
   app.querySelector('main').insertAdjacentHTML('beforebegin', headerHtml(STATE.user));
+  /* The drawer lives in the shell (outside the header) — refresh its items to
+     match the current session so it always shows the right account actions. */
+  const root = document.getElementById('drawer-root');
+  if (root) root.innerHTML = drawerHtml();
   bindHeader();
 }
 function bindHeader() {
