@@ -132,8 +132,8 @@ async function main() {
         application_context: {
           brand_name: 'Kings Production',
           user_action: 'PAY_NOW',
-          return_url: PUBLIC_URL + '/#/license?paid=1',
-          cancel_url: PUBLIC_URL + '/#/license',
+          return_url: PUBLIC_URL + '/#/subscription?paid=1',
+          cancel_url: PUBLIC_URL + '/#/subscription',
         },
       }),
     });
@@ -158,7 +158,7 @@ async function main() {
       headers: { Authorization: pmAuth(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ data: { attributes: {
         amount: amount * 100, currency: currency.toLowerCase(), type: 'gcash',
-        redirect: { success: PUBLIC_URL + '/#/license?paid=1', failed: PUBLIC_URL + '/#/license' },
+        redirect: { success: PUBLIC_URL + '/#/subscription?paid=1', failed: PUBLIC_URL + '/#/subscription' },
         metadata: { order_id: orderId },
       } } }),
     });
@@ -429,7 +429,10 @@ async function main() {
     const u = await needAuth(req, res); if (!u) return;
     const { assetId, plan, method } = req.body || {};
     const isVip = plan === 'vip';
-    const r = isVip ? await engine.createVipOrder(u, method) : await engine.createOrder(u, assetId, method);
+    const isSub = plan && String(plan).startsWith('sub:');
+    const r = isVip ? await engine.createVipOrder(u, method)
+      : isSub ? await engine.createSubscriptionOrder(u, String(plan).split(':')[1], String(plan).split(':')[2], method)
+      : await engine.createOrder(u, assetId, method);
     if (!r.ok) return send(res, r);
     const { orderId, amount, currency } = r.data;
     if (PAYMENT.dev) {
@@ -439,6 +442,7 @@ async function main() {
     try {
       let title = 'Kings Production asset';
       if (isVip) title = 'VIP / Licensed plan — Kings Production';
+      else if (isSub) title = (String(plan).split(':')[1] === 'protection' ? 'Subscription ' : 'Contract ') + String(plan).split(':')[2] + ' — Kings Production';
       else { const asset = await engine.getAsset(u, assetId); title = (asset.ok && asset.data && asset.data.title) || title; }
       if (method === 'stripe' && PAYMENT.stripe) {
         const session = await PAYMENT.stripe.checkout.sessions.create({
@@ -449,8 +453,8 @@ async function main() {
             product_data: { name: String(title).slice(0, 60), description: 'License key · VIP / Licensed upgrade included' },
           }, quantity: 1 }],
           metadata: { orderId },
-          success_url: PUBLIC_URL + '/#/license?paid=1',
-          cancel_url: PUBLIC_URL + '/#/license',
+          success_url: PUBLIC_URL + '/#/subscription?paid=1',
+          cancel_url: PUBLIC_URL + '/#/subscription',
         });
         return send(res, { ok: true, data: { orderId, redirect: session.url } });
       }
@@ -590,6 +594,8 @@ async function main() {
   app.post('/api/systems/:id/status', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.setSystemStatus(u, req.params.id, (req.body || {}).status)); }));
   app.post('/api/systems/devices/:id/revoke', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.revokeSystemDevice(u, req.params.id)); }));
   app.post('/api/systems/devices/:id/authorize', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.authorizeSystemDevice(u, req.params.id)); }));
+  app.post('/api/systems/games/:id/status', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.setSystemGameStatus(u, req.params.id, (req.body || {}).status)); }));
+  app.delete('/api/systems/games/:id', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.removeSystemGame(u, req.params.id)); }));
 
   /* ---- support tickets & chat ---- */
   app.post('/api/tickets/new', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.createTicket(u, req.body || {})); }));

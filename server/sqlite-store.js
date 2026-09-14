@@ -25,7 +25,7 @@ const fs = require('node:fs');
    map only — never from untrusted input — so the dynamic INSERT/REPLACE below
    cannot be injection points. */
 const SCHEMA = {
-  users: ['id', 'handle', 'email', 'displayName', 'passHash', 'bio', 'pfp', 'role', 'banned', 'banReason', 'timeoutUntil', 'totpSecret', 'totpEnabled', 'country', 'tags', 'googleId', 'acceptedTermsAt', 'emailVerified', 'unsubscribed', 'createdAt', 'updatedAt'],
+  users: ['id', 'handle', 'email', 'displayName', 'passHash', 'bio', 'pfp', 'role', 'banned', 'banReason', 'timeoutUntil', 'totpSecret', 'totpEnabled', 'country', 'tags', 'googleId', 'acceptedTermsAt', 'emailVerified', 'unsubscribed', 'protectionTier', 'contractTier', 'createdAt', 'updatedAt'],
   sessions: ['id', 'userId', 'label', 'createdAt', 'lastSeen', 'expiresAt'],
   assets: ['id', 'ownerId', 'title', 'category', 'description', 'price', 'fileName', 'fileMime', 'fileSize', 'imageUrl', 'status', 'rejectReason', 'sales', 'createdAt', 'updatedAt', 'approvedAt'],
   purchases: ['id', 'assetId', 'buyerId', 'price', 'licenseKey', 'gameId', 'gameName', 'status', 'activatedAt', 'deviceId', 'deviceName', 'lastSeen', 'createdAt'],
@@ -45,6 +45,7 @@ const SCHEMA = {
   announcements: ['id', 'title', 'body', 'link', 'style', 'active', 'createdAt', 'updatedAt'],
   systems: ['id', 'userId', 'name', 'password', 'status', 'createdAt', 'updatedAt', 'lastSeenAt'],
   system_devices: ['id', 'systemId', 'deviceId', 'deviceName', 'status', 'createdAt', 'lastSeenAt'],
+  system_games: ['id', 'systemId', 'placeId', 'status', 'createdAt', 'lastSeenAt'],
   mail_blasts: ['id', 'subject', 'body', 'recipients', 'status', 'scheduledFor', 'createdAt', 'updatedAt', 'sentAt'],
   mail_inbound: ['id', 'email', 'event', 'subject', 'body', 'detail', 'createdAt'],
 };
@@ -58,6 +59,7 @@ CREATE TABLE IF NOT EXISTS users (
   role TEXT NOT NULL DEFAULT 'member', banned INTEGER NOT NULL DEFAULT 0, banReason TEXT,
   timeoutUntil INTEGER, totpSecret TEXT, totpEnabled INTEGER NOT NULL DEFAULT 0,
   country TEXT, tags TEXT, googleId TEXT, acceptedTermsAt INTEGER, emailVerified INTEGER NOT NULL DEFAULT 1,
+  protectionTier INTEGER NOT NULL DEFAULT 0, contractTier INTEGER NOT NULL DEFAULT 0,
   createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS sessions (
@@ -145,6 +147,10 @@ CREATE TABLE IF NOT EXISTS system_devices (
   id TEXT PRIMARY KEY, systemId TEXT NOT NULL, deviceId TEXT NOT NULL, deviceName TEXT,
   status TEXT NOT NULL DEFAULT 'active', createdAt INTEGER NOT NULL, lastSeenAt INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS system_games (
+  id TEXT PRIMARY KEY, systemId TEXT NOT NULL, placeId TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active', createdAt INTEGER NOT NULL, lastSeenAt INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS mail_blasts (
   id TEXT PRIMARY KEY, subject TEXT NOT NULL, body TEXT NOT NULL,
   recipients TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'draft',
@@ -168,6 +174,7 @@ CREATE INDEX IF NOT EXISTS idx_likes_asset ON likes (assetId);
 CREATE INDEX IF NOT EXISTS idx_devices_asset ON devices (assetId);
 CREATE INDEX IF NOT EXISTS idx_systems_user ON systems (userId);
 CREATE INDEX IF NOT EXISTS idx_system_devices_system ON system_devices (systemId);
+CREATE INDEX IF NOT EXISTS idx_system_games_system ON system_games (systemId);
 `;
 
 function createSqliteStore(file) {
@@ -239,6 +246,8 @@ const MIGRATIONS = [
   "ALTER TABLE creators ADD COLUMN createdAt INTEGER",
   "ALTER TABLE users ADD COLUMN emailVerified INTEGER NOT NULL DEFAULT 1",
   "ALTER TABLE users ADD COLUMN unsubscribed INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE users ADD COLUMN protectionTier INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE users ADD COLUMN contractTier INTEGER NOT NULL DEFAULT 0",
 ];
 function ticketCleanup(db) {
   const cutoff = Date.now() - 5 * 24 * 3600 * 1000;

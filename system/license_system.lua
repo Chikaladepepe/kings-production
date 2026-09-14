@@ -45,12 +45,12 @@
 	--------------------------------------
 	POST https://kingsproduction.cc/api/systems/activate
 	POST https://kingsproduction.cc/api/systems/heartbeat
-	Body:  { systemName, systemPassword, deviceId, deviceName }
+	Body:  { systemName, systemPassword, deviceId, deviceName, placeId }
 	Reply: { ok: true, data: { active: true|false, reason: "...",
 	                           revokedPlayers: ["123","456"] } }
 
 	POST https://kingsproduction.cc/api/systems/device   (player registration)
-	Body:  { systemName, systemPassword, playerId, playerName }
+	Body:  { systemName, systemPassword, playerId, playerName, placeId }
 	Reply: { ok: true, data: { active: true|false, reason: "...", kicked: true|false } }
 ============================================================================--]]
 
@@ -197,6 +197,7 @@ local function check(heartbeat)
 		systemPassword = CONFIG.SystemPassword,
 		deviceId = tostring(game.JobId),   -- per-server id; pair with UserId for device view
 		deviceName = deviceLabel(),
+		placeId = tostring(game.PlaceId),  -- so the creator sees (and can gate) each game using the system
 	})
 	if res then
 		applyDecision(res)
@@ -210,12 +211,13 @@ end
 -- kick immediately if that player's device was already kicked.
 local function registerPlayer(player)
 	task.spawn(function()
-		local res = post(CONFIG.PlayerUrl, {
-			systemName = CONFIG.SystemName,
-			systemPassword = CONFIG.SystemPassword,
-			playerId = tostring(player.UserId),
-			playerName = player.Name,
-		})
+	local res = post(CONFIG.PlayerUrl, {
+		systemName = CONFIG.SystemName,
+		systemPassword = CONFIG.SystemPassword,
+		playerId = tostring(player.UserId),
+		playerName = player.Name,
+		placeId = tostring(game.PlaceId),  -- registers which game the player is using the system in
+	})
 		if res and res.ok == true and res.data and res.data.active == false and res.data.kicked then
 			player:Kick("This device is not authorized for this system.")
 		end

@@ -128,7 +128,7 @@
     u.tags = JSON.stringify(clean);
   };
   const publicUser = u => u ? ({ id: u.id, handle: u.handle, displayName: u.displayName, role: u.role, tags: parseTags(u), pfp: u.pfp, bio: u.bio, createdAt: u.createdAt }) : null;
-  const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled, country: u.country, acceptedTermsAt: u.acceptedTermsAt || null, emailVerified: u.emailVerified !== false && u.emailVerified !== 0, unsubscribed: !!(u.unsubscribed) }) : null;
+  const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled, country: u.country, acceptedTermsAt: u.acceptedTermsAt || null, emailVerified: u.emailVerified !== false && u.emailVerified !== 0, unsubscribed: !!(u.unsubscribed), protectionTier: Number(u.protectionTier) || 0, contractTier: Number(u.contractTier) || 0 }) : null;
   function timeoutText(u) {
     if (!u || !u.timeoutUntil) return null;
     const ms = u.timeoutUntil - now();
@@ -336,7 +336,7 @@
       if (u.role !== 'admin' && !isOwnerAccount(u)) {
         sendEmail({
           to: u.email, subject: 'Welcome to Kings Production, ' + (u.displayName || u.handle) + ' 👑', action: 'welcome', link: '#/shop',
-          body: 'Your email is confirmed — your account is fully unlocked.\n\nHere is how to get the most out of Kings Production:\n\n• Browse the Marketplace and grab your first asset — scripts, models, plugins, animations, and systems, all hand-checked by our team.\n• Buy the VIP/Licensed plan to unlock community posting and the Creator Dashboard, with sales analytics and device-secured licensing.\n• Register systems on the License page and manage authorized devices — if a file ever leaks, the anti-tamper lock keeps it unusable to anyone else.\n\nNeed anything? Open a ticket from the Support tab and our team will reply fast.\n\nWhere excellence meets innovation.',
+          body: 'Your email is confirmed — your account is fully unlocked.\n\nHere is how to get the most out of Kings Production:\n\n• Browse the Marketplace and grab your first asset — scripts, models, plugins, animations, and systems, all hand-checked by our team.\n• Buy the VIP/Subscription plan to unlock community posting and the Licensed Dashboard, with sales analytics and device-secured licensing.\n• Register systems on the Subscription page and manage authorized devices — if a file ever leaks, the anti-tamper lock keeps it unusable to anyone else.\n\nNeed anything? Open a ticket from the Support tab and our team will reply fast.\n\nWhere excellence meets innovation.',
         });
         flush();
       }
@@ -724,6 +724,34 @@
       flush();
       return ok({ orderId: order.id, amount: order.amount, currency: order.currency });
     }
+    /* Subscription/Contract plans — one-time purchases that set a tier on the
+       buyer. assetId encodes the plan: 'sub:<protection|contract>:<1-3>'. */
+    const SUB_PLANS = {
+      protection: [{ php: 300 }, { php: 500 }, { php: 1000 }],
+      contract: [{ php: 500 }, { php: 700 }, { php: 1200 }],
+    };
+    const isSubOrder = o => !!(o && String(o.assetId || '').startsWith('sub:'));
+    async function createSubscriptionOrder(user, category, tier, method) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      method = String(method || '').toLowerCase();
+      if (!PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, or GCash.');
+      if (!SUB_PLANS[category]) return fail('invalid', 'Unknown plan category.');
+      tier = Number(tier);
+      if (![1, 2, 3].includes(tier)) return fail('invalid', 'Choose a valid plan tier.');
+      if (isTimedOut(u)) return fail('timeout', 'You are currently timed out and cannot make purchases.');
+      if (isBanned(u)) return fail('banned', 'Your account is banned.');
+      const cur = category === 'protection' ? (Number(u.protectionTier) || 0) : (Number(u.contractTier) || 0);
+      if (cur >= tier) return fail('owned', 'You already have this plan or a higher one.');
+      if (all('orders').some(o => o.buyerId === u.id && o.assetId === 'sub:' + category + ':' + tier && (o.status === 'created' || o.status === 'paid')))
+        return fail('pending', 'You already have a pending order for this plan.');
+      const currency = currencyOf(u.country);
+      const amount = convertFromPhp(SUB_PLANS[category][tier - 1].php, u.country);
+      const order = { id: 'o' + uid(), buyerId: u.id, assetId: 'sub:' + category + ':' + tier, method, amount, currency, status: 'created', providerRef: null, licenseKey: null, createdAt: now(), paidAt: null, updatedAt: now() };
+      store.put('orders', order);
+      flush();
+      return ok({ orderId: order.id, amount: order.amount, currency: order.currency });
+    }
     async function createOrder(user, assetId, method) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
@@ -754,6 +782,19 @@
         let vipUpgrade = false;
         if (effRank(buyer) < roleRank('vip')) { buyer.role = 'vip'; buyer.updatedAt = now(); store.put('users', buyer); vipUpgrade = true; }
         out = { licenseKey: null, vipUpgrade };
+      } else if (isSubOrder(order)) {
+        /* Plan purchase — raise the buyer's tier (never lower it) + VIP role. */
+        const [, cat, tierS] = String(order.assetId).split(':');
+        const tier = Number(tierS);
+        let vipUpgrade = false;
+        if (effRank(buyer) < roleRank('vip')) { buyer.role = 'vip'; buyer.updatedAt = now(); store.put('users', buyer); vipUpgrade = true; }
+        const cur = cat === 'protection' ? (Number(buyer.protectionTier) || 0) : (Number(buyer.contractTier) || 0);
+        if (tier > cur) {
+          if (cat === 'protection') buyer.protectionTier = tier; else buyer.contractTier = tier;
+          buyer.updatedAt = now();
+          store.put('users', buyer);
+        }
+        out = { licenseKey: null, vipUpgrade, subscription: { category: cat, tier: Math.max(tier, cur) } };
       } else {
         const a = byIdIn('assets', order.assetId);
         if (!a) return fail('notfound', 'The asset for this order no longer exists.');
@@ -766,15 +807,20 @@
       store.put('orders', order);
       /* Purchase receipt — delivered to the buyer with their license key. */
       try {
-        const assetT = isVipOrder(order) ? null : byIdIn('assets', order.assetId);
+        const subM = isSubOrder(order) ? String(order.assetId).split(':').slice(1) : null;
+        const assetT = (isVipOrder(order) || subM) ? null : byIdIn('assets', order.assetId);
         sendEmail({
           to: buyer.email,
-          subject: isVipOrder(order) ? 'You are now VIP / Licensed — Kings Production' : 'Your purchase & license key — ' + (assetT ? assetT.title : 'Kings Production'),
+          subject: isVipOrder(order) ? 'You are now VIP / Licensed — Kings Production'
+            : subM ? 'Your ' + (subM[0] === 'protection' ? 'Subscription' : 'Contract') + ' ' + subM[1] + ' plan is active — Kings Production'
+            : 'Your purchase & license key — ' + (assetT ? assetT.title : 'Kings Production'),
           action: 'receipt',
           body: isVipOrder(order)
-            ? 'Your VIP / Licensed upgrade is complete! Your account can now post assets to the marketplace. Manage your systems and licenses from the Dashboard — thank you for supporting Kings Production!'
-            : 'Thank you for your purchase of "' + (assetT ? assetT.title : 'this asset') + '". Your license key is: ' + out.licenseKey + '\n\nAssign it to a Roblox game from the License page to activate it. Purchasing any asset also upgraded your account to VIP / Licensed — you can now post your own assets.',
-          link: '#/license',
+            ? 'Your VIP / Licensed upgrade is complete! Your account can now post assets to the marketplace. Manage your systems and licenses from the Licensed Dashboard — thank you for supporting Kings Production!'
+            : subM
+            ? 'Your ' + (subM[0] === 'protection' ? 'Subscription' : 'Contract') + ' ' + subM[1] + ' plan is now active. Head to the Licensed Dashboard to register systems, track revenue, and control the games using your licenses.'
+            : 'Thank you for your purchase of "' + (assetT ? assetT.title : 'this asset') + '". Your license key is: ' + out.licenseKey + '\n\nAssign it to a Roblox game from the Subscription page to activate it. Purchasing any asset also upgraded your account to VIP / Licensed — you can now post your own assets.',
+          link: '#/subscription',
         });
       } catch (e) { console.error('receipt email failed', e); }
       flush();
@@ -786,7 +832,7 @@
       const order = byIdIn('orders', orderId);
       if (!order || order.buyerId !== u.id) return fail('forbidden', 'Order not found.');
       if (providerRef && !order.providerRef) { order.providerRef = String(providerRef); store.put('orders', order); }
-      if (!isVipOrder(order)) {
+      if (!isVipOrder(order) && !isSubOrder(order)) {
         const a = byIdIn('assets', order.assetId);
         if (!a) return fail('notfound', 'The asset for this order no longer exists.');
       }
@@ -799,7 +845,7 @@
       if (!order) return fail('notfound', 'Order not found.');
       const buyer = dbUser(order.buyerId);
       if (!buyer) return fail('notfound', 'The buyer account no longer exists.');
-      if (!isVipOrder(order)) {
+      if (!isVipOrder(order) && !isSubOrder(order)) {
         const a = byIdIn('assets', order.assetId);
         if (!a) return fail('notfound', 'The asset for this order no longer exists.');
       }
@@ -817,11 +863,11 @@
     async function myOrders(user) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
-      return ok(all('orders').filter(o => o.buyerId === u.id).sort((x, y) => y.createdAt - x.createdAt).map(o => ({ ...o, vip: isVipOrder(o), asset: isVipOrder(o) ? null : summarize(byIdIn('assets', o.assetId)) })));
+      return ok(all('orders').filter(o => o.buyerId === u.id).sort((x, y) => y.createdAt - x.createdAt).map(o => ({ ...o, vip: isVipOrder(o), asset: (isVipOrder(o) || isSubOrder(o)) ? null : summarize(byIdIn('assets', o.assetId)) })));
     }
     async function adminOrders(actor) {
       const r = requireAdmin(actor); if (r) return r;
-      return ok(all('orders').slice().sort((x, y) => y.createdAt - x.createdAt).map(o => ({ ...o, vip: isVipOrder(o), buyer: publicUser(dbUser(o.buyerId)), asset: isVipOrder(o) ? null : summarize(byIdIn('assets', o.assetId)) })));
+      return ok(all('orders').slice().sort((x, y) => y.createdAt - x.createdAt).map(o => ({ ...o, vip: isVipOrder(o), buyer: publicUser(dbUser(o.buyerId)), asset: (isVipOrder(o) || isSubOrder(o)) ? null : summarize(byIdIn('assets', o.assetId)) })));
     }
     async function adminCompleteOrder(actor, orderId) {
       const r = requireAdmin(actor); if (r) return r;
@@ -1657,7 +1703,10 @@
        POST /api/systems/{activate,heartbeat,device}
        Body: { systemName, systemPassword, deviceId | playerId, playerName }
        Reply: { ok, data: { active, reason } } */
-    const SYS_STATES = ['pending', 'active', 'disabled'];
+    const SYS_STATES = ['active', 'disabled'];
+    /* Subscription 1/2/3 → max registered systems + registrations per day (0 = unlimited).
+       Deleting a system is always instant — only registering is limited. */
+    const PROT_LIMITS = [{ max: 3, perDay: 1 }, { max: 10, perDay: 0 }, { max: 50, perDay: 0 }];
     function findSystemByCreds(name, password) {
       return all('systems').find(s => String(s.name || '').trim().toLowerCase() === String(name || '').trim().toLowerCase() && s.password === String(password || ''));
     }
@@ -1667,20 +1716,36 @@
     function systemForOwner(s) {
       const devices = all('system_devices').filter(d => d.systemId === s.id).sort((a, b) => b.lastSeenAt - a.lastSeenAt)
         .map(d => ({ id: d.id, deviceId: d.deviceId, deviceName: d.deviceName, status: d.status, lastSeenAt: d.lastSeenAt }));
-      return { ...systemPublic(s), password: s.password, devices };
+      const games = all('system_games').filter(g => g.systemId === s.id).sort((a, b) => b.lastSeenAt - a.lastSeenAt)
+        .map(g => ({ id: g.id, placeId: g.placeId, status: g.status, lastSeenAt: g.lastSeenAt }));
+      return { ...systemPublic(s), password: s.password, devices, games };
     }
     async function registerSystem(user, { name, password } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
-      if (effRank(u) < roleRank('vip') && !isTester(u)) return fail('vipOnly', 'System registering is a VIP / Licensed feature — grab a license to unlock it.');
+      if (effRank(u) < roleRank('vip') && !isTester(u)) return fail('vipOnly', 'System registering is a Licensed feature — grab a Subscription or Contract to unlock it.');
       name = String(name || '').trim();
       password = String(password || '').trim();
       if (name.length < 3 || name.length > 60) return fail('invalid', 'System name must be 3–60 characters.');
       if (password.length < 6 || password.length > 80) return fail('invalid', 'System password must be 6–80 characters.');
       if (!/^[\w .\-()&'"!?+]+$/.test(name)) return fail('invalid', 'System name may only contain letters, numbers, spaces, and basic punctuation.');
-      if (all('systems').some(s => s.userId === u.id && s.name.toLowerCase() === name.toLowerCase())) return fail('taken', 'You already have a system with that name.');
+      /* Duplicate names are allowed on purpose — the name + password PAIR is
+         the identity (e.g. "Music System" + "PassWorD"). */
+      const mine = () => all('systems').filter(s => s.userId === u.id);
+      if (!isStaff(u) && !isTester(u)) {
+        const tier = Math.min(3, Math.max(0, Number(u.protectionTier) || 0));
+        if (tier < 1) return fail('vipOnly', 'Buy a Subscription plan (Subscription page) to register systems.');
+        const plan = PROT_LIMITS[tier - 1];
+        const list = mine();
+        if (list.length >= plan.max) return fail('limit', 'Your plan allows up to ' + plan.max + ' registered systems. Deleting one is instant and frees a slot.');
+        if (plan.perDay > 0) {
+          const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
+          if (list.filter(s => s.createdAt >= dayStart.getTime()).length >= plan.perDay)
+            return fail('cooldown', 'Your plan allows ' + plan.perDay + ' system registration per day — upgrade your Subscription for more.');
+        }
+      }
       const t = now();
-      const s = { id: 'sys' + uid(), userId: u.id, name, password, status: 'pending', createdAt: t, updatedAt: t, lastSeenAt: null };
+      const s = { id: 'sys' + uid(), userId: u.id, name, password, status: 'active', createdAt: t, updatedAt: t, lastSeenAt: null };
       store.put('systems', s);
       flush();
       return ok(systemForOwner(s));
@@ -1696,6 +1761,7 @@
       const s = byIdIn('systems', id);
       if (!s || s.userId !== u.id) return fail('forbidden', 'System not found.');
       all('system_devices').filter(d => d.systemId === s.id).forEach(d => store.del('system_devices', d.id));
+      all('system_games').filter(g => g.systemId === s.id).forEach(g => store.del('system_games', g.id));
       store.del('systems', s.id);
       flush();
       return ok(true);
@@ -1725,6 +1791,28 @@
       store.put('system_devices', d);
       return d;
     }
+    /* A "game" is a Roblox place (placeId) using the system. Games register
+       themselves when a server phones home; the creator can revoke or
+       blacklist a game, and silent ones (30 days) fall off the list. */
+    const GAME_STALE_MS = 30 * 24 * 3600 * 1000;
+    function gameRow(s, placeId) {
+      if (!placeId) return null;
+      const key = String(placeId).slice(0, 20);
+      return all('system_games').find(g => g.systemId === s.id && g.placeId === key) || null;
+    }
+    function recordGame(s, placeId) {
+      const key = String(placeId || '').slice(0, 20);
+      if (!/^\d{1,20}$/.test(key)) return null;
+      const existing = gameRow(s, key);
+      if (existing) { existing.lastSeenAt = now(); store.put('system_games', existing); return existing; }
+      const g = { id: 'sg' + uid(), systemId: s.id, placeId: key, status: 'active', createdAt: now(), lastSeenAt: now() };
+      store.put('system_games', g);
+      return g;
+    }
+    function pruneStaleGames(s) {
+      const cutoff = now() - GAME_STALE_MS;
+      all('system_games').filter(g => g.systemId === s.id && g.lastSeenAt < cutoff).forEach(g => store.del('system_games', g.id));
+    }
     /* Player User IDs the Lua script should kick immediately (kicked devices). */
     function revokedPlayerIds(s) {
       return all('system_devices').filter(d => d.systemId === s.id && d.status === 'revoked' && /^\d{1,20}$/.test(String(d.deviceId))).map(d => String(d.deviceId));
@@ -1735,32 +1823,37 @@
       store.put('systems', s);
       flush();
     }
-    async function systemActivate({ systemName, systemPassword, deviceId, deviceName } = {}) {
+    async function systemActivate({ systemName, systemPassword, deviceId, deviceName, placeId } = {}) {
       const chk = checkSystemCreds({ systemName, systemPassword });
       if (!chk.found) return ok({ active: false, reason: chk.reason });
       if (chk.denied) return ok({ active: false, reason: chk.reason });
       const s = chk.system;
       const dev = deviceState(s, deviceId);
       if (dev && dev.status === 'revoked') return ok({ active: false, reason: 'This device has been kicked by the creator and can no longer use the system.', revokedPlayers: revokedPlayerIds(s) });
-      if (s.status === 'pending') { s.status = 'active'; s.updatedAt = now(); }
+      const game = gameRow(s, placeId);
+      if (game && game.status !== 'active') return ok({ active: false, reason: game.status === 'blacklisted' ? 'This game has been blacklisted by the creator.' : 'This game is not authorized to use this system.', revokedPlayers: revokedPlayerIds(s) });
       bumpSystem(s);
       if (deviceId) recordDevice(s, deviceId, deviceName);
+      if (placeId) { recordGame(s, placeId); pruneStaleGames(s); }
       return ok({ active: true, reason: 'Licensed and active.', revokedPlayers: revokedPlayerIds(s) });
     }
-    async function systemHeartbeat({ systemName, systemPassword, deviceId, deviceName } = {}) {
+    async function systemHeartbeat({ systemName, systemPassword, deviceId, deviceName, placeId } = {}) {
       const chk = checkSystemCreds({ systemName, systemPassword });
       if (!chk.found) return ok({ active: false, reason: chk.reason });
       if (chk.denied) return ok({ active: false, reason: chk.reason });
       const s = chk.system;
       const dev = deviceState(s, deviceId);
       if (dev && dev.status === 'revoked') return ok({ active: false, reason: 'This device has been kicked by the creator and can no longer use the system.', revokedPlayers: revokedPlayerIds(s) });
+      const game = gameRow(s, placeId);
+      if (game && game.status !== 'active') return ok({ active: false, reason: game.status === 'blacklisted' ? 'This game has been blacklisted by the creator.' : 'This game is not authorized to use this system.', revokedPlayers: revokedPlayerIds(s) });
       bumpSystem(s);
       if (deviceId) recordDevice(s, deviceId, deviceName);
+      if (placeId) { recordGame(s, placeId); pruneStaleGames(s); }
       return ok({ active: true, reason: 'Licensed and active.', revokedPlayers: revokedPlayerIds(s) });
     }
     /* Player device registration from the Lua script — records who is using the
        system so the creator can see and revoke individual players. */
-    async function registerSystemDevice({ systemName, systemPassword, playerId, playerName } = {}) {
+    async function registerSystemDevice({ systemName, systemPassword, playerId, playerName, placeId } = {}) {
       const chk = checkSystemCreds({ systemName, systemPassword });
       if (!chk.found || chk.denied) return ok({ active: false, reason: chk.reason || 'Not licensed.' });
       const s = chk.system;
@@ -1773,6 +1866,7 @@
         else store.put('system_devices', { id: 'sd' + uid(), systemId: s.id, deviceId: String(playerId).slice(0, 80), deviceName: String(playerName || '').slice(0, 40) || null, status: 'active', createdAt: now(), lastSeenAt: now() });
         flush();
       }
+      if (placeId) recordGame(s, placeId);
       return ok({ active: true, reason: 'Registered.' });
     }
     async function setSystemStatus(user, id, status) {
@@ -1815,6 +1909,34 @@
       flush();
       return ok(true);
     }
+    /* Creator-side game controls: allow / revoke / blacklist a place, or
+       remove it from the list entirely. */
+    async function setSystemGameStatus(user, gameId, status) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const g = byIdIn('system_games', gameId);
+      if (!g) return fail('notfound', 'Game not found.');
+      const s = byIdIn('systems', g.systemId);
+      if (!s || s.userId !== u.id) return fail('forbidden', 'You can only manage games on your own systems.');
+      status = String(status || '');
+      if (!['active', 'revoked', 'blacklisted'].includes(status)) return fail('invalid', 'Invalid status.');
+      g.status = status;
+      g.lastSeenAt = now();
+      store.put('system_games', g);
+      flush();
+      return ok(true);
+    }
+    async function removeSystemGame(user, gameId) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const g = byIdIn('system_games', gameId);
+      if (!g) return fail('notfound', 'Game not found.');
+      const s = byIdIn('systems', g.systemId);
+      if (!s || s.userId !== u.id) return fail('forbidden', 'You can only manage games on your own systems.');
+      store.del('system_games', g.id);
+      flush();
+      return ok(true);
+    }
 
     seedContent();
     ensureOwnerAccount();
@@ -1824,7 +1946,7 @@
       verifyEmail, resendVerification,
       updateProfile, setup2fa, enable2fa, disable2fa,
       createAsset, postStatus, listApproved, topSelling, getAsset, updateAsset, deleteAsset, myAssets, download,
-      purchase, myPurchases, assignLicense, createOrder, createVipOrder, completeOrder, settleOrder, cancelOrder, myOrders, adminOrders, adminCompleteOrder,
+      purchase, myPurchases, assignLicense, createOrder, createVipOrder, createSubscriptionOrder, completeOrder, settleOrder, cancelOrder, myOrders, adminOrders, adminCompleteOrder,
       addComment, listComments, toggleLike,
       listReviews, addReview, deleteReview,
       createReport, adminReports, adminResolveReport,
@@ -1834,7 +1956,7 @@
       createTicket, addTicketMessage, getTicket, listMyTickets,
       adminListTickets, adminCloseTicket, adminDeleteTicket,
       listAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement,
-      registerSystem, listSystems, deleteSystem, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice, authorizeSystemDevice,
+      registerSystem, listSystems, deleteSystem, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice, authorizeSystemDevice, setSystemGameStatus, removeSystemGame,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
       adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSessions, adminEmails, adminSendEmail, adminListBlasts, adminDeleteBlast, adminEmailHistory, adminListInbound, adminSetUnsubscribed, inboundMailEvent, processScheduledBlasts, adminOrders, adminCompleteOrder,
       setFx,
