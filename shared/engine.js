@@ -30,9 +30,10 @@
   const CAT_LABEL = { animation: 'Animation', model: 'Model', plugin: 'Plugin', system: 'System' };
   /* Role hierarchy (index = rank). Owner and Co-Founder can do everything;
      Admin can do everything except grant roles at admin level or higher;
-     VIP / Licensed creators can post; Members browse, buy, comment, rate. */
-  const ROLES = ['member', 'vip', 'admin', 'cofounder', 'owner'];
-  const ROLE_LABEL = { member: 'Member', vip: 'VIP / Licensed', admin: 'Admin', cofounder: 'Co-Founder', owner: 'Owner' };
+     Licensed sellers can post; Members browse, buy, comment, rate. */
+  const ROLES = ['member', 'test', 'vip', 'admin', 'cofounder', 'owner'];
+  const ROLE_LABEL = { member: 'Verified', test: 'Test', vip: 'Licensed', admin: 'Admin', cofounder: 'Co-Founder', owner: 'Founder' };
+  const isTestRole = u => !!(u && u.role === 'test');
   const roleRank = r => ROLES.indexOf(r);
   /* The studio creator's account bypasses every permission gate by identity —
      even if its stored role is changed, it keeps full Owner powers and is
@@ -106,15 +107,15 @@
   /* ---- user helpers ---- */
   const isTimedOut = u => !!(u && u.timeoutUntil && u.timeoutUntil > now());
   const isBanned = u => !!(u && u.banned);
-  const isRestricted = u => isBanned(u) || isTimedOut(u);
+  const isRestricted = u => isBanned(u) || isTimedOut(u) || !!(u && u.restrictedUntil && u.restrictedUntil > now());
   /* Email verification: existing accounts are verified by default; new
      registrations must confirm their email. The owner account always bypasses. */
   const isVerified = u => isOwnerAccount(u) || u == null || (u.emailVerified !== false && u.emailVerified !== 0);
-  const canPost = u => effRank(u) >= roleRank('vip') && !isBanned(u) && !isTimedOut(u) && isVerified(u);
+  const canPost = u => (effRank(u) >= roleRank('vip') || isTester(u)) && !isBanned(u) && !isTimedOut(u) && isVerified(u);
   const isAdmin = u => isStaff(u);
   /* "Test" tag — assigned by admins for QA: can grab any system/asset without
      paying so the studio can verify things work before release. */
-  const isTester = u => !!(u && parseTags(u).some(t => String(t).trim().toLowerCase() === 'test'));
+  const isTester = u => !!(u && (u.role === 'test' || parseTags(u).some(t => String(t).trim().toLowerCase() === 'test')));
   const parseTags = u => {
     try { const t = JSON.parse(u && u.tags || '[]'); return Array.isArray(t) ? t.filter(x => typeof x === 'string' && x.trim()) : []; }
     catch (e) { return []; }
@@ -127,7 +128,7 @@
       .slice(0, 6).map(t => t.slice(0, 24));
     u.tags = JSON.stringify(clean);
   };
-  const publicUser = u => u ? ({ id: u.id, handle: u.handle, displayName: u.displayName, role: u.role, tags: parseTags(u), pfp: u.pfp, bio: u.bio, createdAt: u.createdAt }) : null;
+  const publicUser = u => u ? ({ id: u.id, handle: u.handle, displayName: u.displayName, role: u.role, roleLabel: ROLE_LABEL[u.role] || 'Verified', tags: parseTags(u), pfp: u.pfp, bio: u.bio, createdAt: u.createdAt }) : null;
   const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled, country: u.country, acceptedTermsAt: u.acceptedTermsAt || null, emailVerified: u.emailVerified !== false && u.emailVerified !== 0, unsubscribed: !!(u.unsubscribed), protectionTier: Number(u.protectionTier) || 0, contractTier: Number(u.contractTier) || 0 }) : null;
   function timeoutText(u) {
     if (!u || !u.timeoutUntil) return null;
@@ -526,7 +527,7 @@
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to post assets.');
       if (!canPost(u)) {
-        if (u.role === 'member') return fail('vipOnly', 'Only VIP / Licensed creators can post assets. Members can comment and purchase.');
+        if (u.role === 'member') return fail('vipOnly', 'Only Licensed sellers can post assets. Members can comment and purchase.');
         if (isTimedOut(u)) return fail('timeout', 'You are currently timed out and cannot post assets.');
         return fail('auth', 'You must be logged in to post assets.');
       }
@@ -559,8 +560,11 @@
       return ok({ id: asset.id, status: 'pending' });
     }
 
+    /* Restricted sellers' posts are blanked from the shop until the
+       restriction is lifted (admin moderation power). */
+    const ownerRestricted = a => { const o = byIdIn('users', a.ownerId); return !!(o && isRestricted(o)); };
     async function listApproved(viewerId) {
-      return ok(all('assets').filter(a => a.status === 'approved').sort((x, y) => hotScore(y) - hotScore(x)).map(a => summarize(a, viewerId)));
+      return ok(all('assets').filter(a => a.status === 'approved' && !ownerRestricted(a)).sort((x, y) => hotScore(y) - hotScore(x)).map(a => summarize(a, viewerId)));
     }
     async function topSelling(n = 6, viewerId) {
       return ok(all('assets').filter(a => a.status === 'approved').sort((x, y) => y.sales - x.sales).slice(0, n).map(a => summarize(a, viewerId)));
@@ -647,8 +651,41 @@
       if (!u) return fail('auth', 'You must be logged in to do that.');
       const a = byIdIn('assets', id);
       if (!a) return fail('notfound', 'Asset not found.');
-      if (a.ownerId !== u.id) return fail('forbidden', 'Only the creator of this asset can delete it.');
+      const own = a.ownerId === u.id;
+      const staff = isStaff(u);
+      /* Staff cannot delete creators' posts — they can only disable them. */
+      if (!own && staff) return fail('forbidden', 'Staff cannot delete other users\' posts. Disable the asset instead (Admin → Assets).');
+      if (!own) return fail('forbidden', 'Only the creator of this asset can delete it.');
       cascadeDelete(id);
+      flush();
+      return ok(true);
+    }
+
+    /* Staff view of every registered system (Admin panel → Security). */
+    async function adminSystems(actor) {
+      const r = requireAdmin(actor); if (r) return r;
+      return ok(all('systems').sort((a, b) => b.createdAt - a.createdAt).map(s => {
+        const o = dbUser(s.userId);
+        return { ...systemPublic(s), owner: o ? { handle: o.handle, displayName: o.displayName } : null, games: all('system_games').filter(g => g.systemId === s.id).length, devices: all('system_devices').filter(d => d.systemId === s.id).length };
+      }));
+    }
+    /* Staff file access — admins can fetch a copy of any asset's file. */
+    async function adminTakeFile(actor, id) {
+      const r = requireAdmin(actor); if (r) return r;
+      const a = byIdIn('assets', id);
+      if (!a) return fail('notfound', 'Asset not found.');
+      return ok({ fileName: a.fileName, mime: a.fileMime, size: a.fileSize });
+    }
+    /* Staff post control: disable = hidden from the shop but restorable. */
+    async function adminSetAssetStatus(actor, id, status) {
+      const r = requireAdmin(actor); if (r) return r;
+      const a = byIdIn('assets', id);
+      if (!a) return fail('notfound', 'Asset not found.');
+      status = String(status || '');
+      if (!['approved', 'disabled'].includes(status)) return fail('invalid', 'Invalid status.');
+      a.status = status;
+      a.updatedAt = now();
+      store.put('assets', a);
       flush();
       return ok(true);
     }
@@ -657,6 +694,70 @@
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       return ok(all('assets').filter(a => a.ownerId === u.id).sort((x, y) => y.createdAt - x.createdAt).map(summarize));
+    }
+
+    /* User restriction (distinct from timeout): blocks buying + posting, and
+       the restricted user's posts are blanked from the shop. Settleable from
+       the Admin panel; the user may appeal via Support. */
+    async function adminSetRestriction(actor, targetId, { restricted, minutes, reason } = {}) {
+      const r = requireAdmin(actor); if (r) return r;
+      const t = dbUser(targetId);
+      if (!t) return fail('notfound', 'User not found.');
+      if (t.id === actor.id) return fail('self', 'You cannot restrict your own account.');
+      if (isStaff(t) && effRank(actor) < roleRank('cofounder')) return fail('adminProtected', 'Staff accounts can only be restricted by the Co-Founder / Founder.');
+      if (restricted) {
+        minutes = Math.max(1, Math.min(43200, Number(minutes) || 1440));
+        t.restrictedUntil = now() + minutes * 6e4;
+        t.restrictReason = String(reason || '').trim().slice(0, 300) || 'No reason given — you may appeal via Support or wait out the restriction.';
+      } else {
+        t.restrictedUntil = null;
+        t.restrictReason = null;
+      }
+      t.updatedAt = now();
+      store.put('users', t);
+      flush();
+      return ok(true);
+    }
+    /* Temporarily lift a user's subscription (tier → 0). Requires Co-Founder
+       or Founder approval — an Admin can only request it. */
+    async function adminRequestSubRevoke(actor, targetId, reason) {
+      const r = requireAdmin(actor); if (r) return r;
+      const t = dbUser(targetId);
+      if (!t) return fail('notfound', 'User not found.');
+      if (!(Number(t.protectionTier) > 0) && !(Number(t.contractTier) > 0)) return fail('invalid', 'This user has no active subscription.');
+      if (all('sub_revokes').find(x => x.targetId === t.id && x.status === 'pending')) return fail('pending', 'A revocation is already awaiting Co-Founder / Founder approval.');
+      store.put('sub_revokes', { id: 'sr' + uid(), actorId: actor.id, targetId: t.id, reason: String(reason || '').trim().slice(0, 300) || null, prevProtection: Number(t.protectionTier) || 0, prevContract: Number(t.contractTier) || 0, status: 'pending', createdAt: now(), resolvedBy: null, resolvedAt: null });
+      flush();
+      return ok(true);
+    }
+    async function adminResolveSubRevoke(actor, id, decision) {
+      const r = requireAdmin(actor); if (r) return r;
+      if (effRank(actor) < roleRank('cofounder')) return fail('forbidden', 'Only the Co-Founder or Founder can approve subscription revocations.');
+      const req = byIdIn('sub_revokes', id);
+      if (!req || req.status !== 'pending') return fail('notfound', 'Request not found.');
+      const t = dbUser(req.targetId);
+      decision = String(decision || '');
+      if (!['approved', 'rejected'].includes(decision)) return fail('invalid', 'Invalid decision.');
+      if (decision === 'approved' && t) {
+        t.protectionTier = 0;
+        t.contractTier = 0;
+        t.updatedAt = now();
+        store.put('users', t);
+      }
+      req.status = decision === 'approved' ? 'approved' : 'rejected';
+      req.resolvedBy = actor.id;
+      req.resolvedAt = now();
+      store.put('sub_revokes', req);
+      flush();
+      return ok(true);
+    }
+    async function adminListSubRevokes(actor) {
+      const r = requireAdmin(actor); if (r) return r;
+      return ok(all('sub_revokes').sort((a, b) => b.createdAt - a.createdAt).map(x => {
+        const t = dbUser(x.targetId);
+        const a = dbUser(x.actorId);
+        return { ...x, targetHandle: t ? t.handle : '(deleted)', actorHandle: a ? a.handle : '(deleted)' };
+      }));
     }
 
     async function download(user, id) {
@@ -672,7 +773,7 @@
     }
 
     /* ============ PURCHASES & LICENSES ============ */
-    /* Issue the license, bump sales, and auto-upgrade Members → VIP / Licensed
+    /* Issue the license, bump sales, and auto-upgrade Members → Licensed
        creators (that is the whole point of buying a license: you can post). */
     function grantLicense(u, a) {
       const key = 'KP-' + randomToken(4).toUpperCase().match(/.{1,4}/g).join('-');
@@ -702,7 +803,7 @@
 
     /* ---- payment orders (Stripe · PayPal · GCash) ---- */
     const PAY_METHODS = ['stripe', 'paypal', 'gcash'];
-    /* The VIP / Licensed plan is sold directly for 500 PHP (base) — converting
+    /* The Licensed plan is sold directly for 500 PHP (base) — converting
        to the buyer's local currency the same way asset prices convert. */
     const VIP_PLAN_PRICE_PHP = 500;
     const convertFromPhp = (php, country) => Math.max(1, Math.round((Number(php) || 0) / fxRate('PHP') * fxRate(currencyOf(country))));
@@ -714,9 +815,9 @@
       if (!PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, or GCash.');
       if (isTimedOut(u)) return fail('timeout', 'You are currently timed out and cannot make purchases.');
       if (isBanned(u)) return fail('banned', 'Your account is banned.');
-      if (effRank(u) >= roleRank('vip')) return fail('owned', 'Your account is already VIP / Licensed — no need to buy it again.');
+      if (effRank(u) >= roleRank('vip')) return fail('owned', 'Your account is already Licensed — no need to buy it again.');
       if (all('orders').some(o => o.buyerId === u.id && isVipOrder(o) && (o.status === 'created' || o.status === 'paid')))
-        return fail('pending', 'You already have a pending VIP / Licensed order.');
+        return fail('pending', 'You already have a pending Licensed order.');
       const currency = currencyOf(u.country);
       const amount = convertFromPhp(VIP_PLAN_PRICE_PHP, u.country);
       const order = { id: 'o' + uid(), buyerId: u.id, assetId: 'vip', method, amount, currency, status: 'created', providerRef: null, licenseKey: null, createdAt: now(), paidAt: null, updatedAt: now() };
@@ -752,12 +853,16 @@
       flush();
       return ok({ orderId: order.id, amount: order.amount, currency: order.currency });
     }
-    async function createOrder(user, assetId, method) {
+    /* Buy an asset. The buyer also supplies GAME DETAILS (game name, place ID
+       and owner) for the seller to verify before activation. Staff get a
+       parallel "seller copy" order so the seller's My Orders stays clean. */
+    async function createOrder(user, assetId, method, gameDetails) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       method = String(method || '').toLowerCase();
       if (!PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, or GCash.');
       const a = byIdIn('assets', assetId);
+      if (isRestricted(u)) return fail('restricted', 'Your account is restricted — you cannot make purchases right now. You may appeal or wait out the restriction.');
       if (!a) return fail('notfound', 'Asset not found.');
       if (isTimedOut(u)) return fail('timeout', 'You are currently timed out and cannot make purchases.');
       if (isBanned(u)) return fail('banned', 'Your account is banned.');
@@ -768,10 +873,49 @@
         return fail('pending', 'You already have a pending order for this asset.');
       const currency = currencyOf(u.country);
       const amount = convertPrice(a.price, u.country);
-      const order = { id: 'o' + uid(), buyerId: u.id, assetId: a.id, method, amount, currency, status: 'created', providerRef: null, licenseKey: null, createdAt: now(), paidAt: null, updatedAt: now() };
+      const gd = gameDetails && typeof gameDetails === 'object' ? gameDetails : {};
+      const details = {
+        gameName: String(gd.gameName || '').trim().slice(0, 80) || null,
+        placeId: String(gd.placeId || '').trim().slice(0, 20) || null,
+        gameOwner: String(gd.gameOwner || '').trim().slice(0, 80) || null,
+        notes: String(gd.notes || '').trim().slice(0, 400) || null,
+      };
+      const order = { id: 'o' + uid(), buyerId: u.id, assetId: a.id, method, amount, currency, status: 'created', providerRef: null, licenseKey: null, gameDetails: JSON.stringify(details), sellerId: a.ownerId, approval: 'pending', createdAt: now(), paidAt: null, updatedAt: now() };
       store.put('orders', order);
       flush();
       return ok({ orderId: order.id, amount: order.amount, currency: order.currency });
+    }
+    /* The seller's view of orders for their own assets (pending → completed). */
+    async function sellerOrders(user) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const rows = all('orders')
+        .filter(o => o.sellerId === u.id && !String(o.assetId || '').startsWith('sub:') && o.assetId !== 'vip')
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .map(o => {
+          const a = byIdIn('assets', o.assetId);
+          const b = dbUser(o.buyerId);
+          let details = null;
+          try { details = o.gameDetails ? JSON.parse(o.gameDetails) : null; } catch (e) {}
+          return { id: o.id, assetId: o.assetId, assetTitle: a ? a.title : '(deleted asset)', amount: o.amount, currency: o.currency, status: o.status, approval: o.approval || (o.status === 'completed' ? 'approved' : 'pending'), buyer: b ? { handle: b.handle, displayName: b.displayName } : null, gameDetails: details, createdAt: o.createdAt, completedAt: o.updatedAt };
+        });
+      return ok(rows);
+    }
+    /* Seller approval of an order's game details — required before completion. */
+    async function setOrderApproval(user, orderId, decision, note) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const order = byIdIn('orders', orderId);
+      if (!order || order.sellerId !== u.id) return fail('forbidden', 'Order not found.');
+      decision = String(decision || '');
+      if (!['approved', 'rejected'].includes(decision)) return fail('invalid', 'Invalid decision.');
+      if (order.status === 'completed' && decision === 'rejected') return fail('invalid', 'This order is already completed — revoke the license instead.');
+      order.approval = decision;
+      order.approvalNote = String(note || '').trim().slice(0, 300) || null;
+      order.updatedAt = now();
+      store.put('orders', order);
+      flush();
+      return ok(true);
     }
     function finalizeOrder(order, buyer) {
       if (order.status === 'completed') return ok({ licenseKey: order.licenseKey, vipUpgrade: false });
@@ -811,15 +955,15 @@
         const assetT = (isVipOrder(order) || subM) ? null : byIdIn('assets', order.assetId);
         sendEmail({
           to: buyer.email,
-          subject: isVipOrder(order) ? 'You are now VIP / Licensed — Kings Production'
+          subject: isVipOrder(order) ? 'You are now Licensed — Kings Production'
             : subM ? 'Your ' + (subM[0] === 'protection' ? 'Subscription' : 'Contract') + ' ' + subM[1] + ' plan is active — Kings Production'
             : 'Your purchase & license key — ' + (assetT ? assetT.title : 'Kings Production'),
           action: 'receipt',
           body: isVipOrder(order)
-            ? 'Your VIP / Licensed upgrade is complete! Your account can now post assets to the marketplace. Manage your systems and licenses from the Licensed Dashboard — thank you for supporting Kings Production!'
+            ? 'Your Licensed upgrade is complete! Your account can now post assets to the marketplace. Manage your systems and licenses from the Licensed Dashboard — thank you for supporting Kings Production!'
             : subM
             ? 'Your ' + (subM[0] === 'protection' ? 'Subscription' : 'Contract') + ' ' + subM[1] + ' plan is now active. Head to the Licensed Dashboard to register systems, track revenue, and control the games using your licenses.'
-            : 'Thank you for your purchase of "' + (assetT ? assetT.title : 'this asset') + '". Your license key is: ' + out.licenseKey + '\n\nAssign it to a Roblox game from the Subscription page to activate it. Purchasing any asset also upgraded your account to VIP / Licensed — you can now post your own assets.',
+            : 'Thank you for your purchase of "' + (assetT ? assetT.title : 'this asset') + '". Your license key is: ' + out.licenseKey + '\n\nAssign it to a Roblox game from the Subscription page to activate it. Purchasing any asset also upgraded your account to Licensed — you can now post your own assets.',
           link: '#/subscription',
         });
       } catch (e) { console.error('receipt email failed', e); }
@@ -863,7 +1007,7 @@
     async function myOrders(user) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
-      return ok(all('orders').filter(o => o.buyerId === u.id).sort((x, y) => y.createdAt - x.createdAt).map(o => ({ ...o, vip: isVipOrder(o), asset: (isVipOrder(o) || isSubOrder(o)) ? null : summarize(byIdIn('assets', o.assetId)) })));
+      return ok(all('orders').filter(o => o.buyerId === u.id).sort((x, y) => y.createdAt - x.createdAt).map(o => ({ ...o, vip: isVipOrder(o), sub: isSubOrder(o) ? { category: String(o.assetId).split(':')[1], tier: Number(String(o.assetId).split(':')[2]) } : null, asset: (isVipOrder(o) || isSubOrder(o)) ? null : summarize(byIdIn('assets', o.assetId)) })));
     }
     async function adminOrders(actor) {
       const r = requireAdmin(actor); if (r) return r;
@@ -956,7 +1100,7 @@
     async function creatorDashboard(user) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
-      if (!canPost(u)) return fail('vipOnly', 'Only VIP / Licensed creators have a dashboard.');
+      if (!canPost(u)) return fail('vipOnly', 'Only Licensed sellers have a dashboard.');
       const assets = all('assets').filter(a => a.ownerId === u.id).sort((x, y) => y.createdAt - x.createdAt);
       const ids = new Set(assets.map(a => a.id));
       const purchases = all('purchases').filter(p => ids.has(p.assetId));
@@ -995,7 +1139,7 @@
     async function creatorLicenses(user, assetId) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
-      if (!canPost(u)) return fail('vipOnly', 'Only VIP / Licensed creators can manage licenses.');
+      if (!canPost(u)) return fail('vipOnly', 'Only Licensed sellers can manage licenses.');
       const assets = all('assets').filter(a => a.ownerId === u.id);
       const ids = new Set(assets.map(a => a.id));
       const list = all('purchases').filter(p => ids.has(p.assetId) && (!assetId || p.assetId === assetId))
@@ -1240,8 +1384,11 @@
       flush();
       return ok(true);
     }
+    /* Portfolio & creators are the studio's showcase — only the Founder (or
+       the studio Owner account) may delete entries; other staff can edit. */
     async function deletePortfolio(actor, id) {
       const r = requireAdmin(actor); if (r) return r;
+      if (effRank(actor) < roleRank('cofounder')) return fail('forbidden', 'Only the Co-Founder or Founder can delete portfolio posts.');
       const it = byIdIn('portfolio', id);
       if (!it) return fail('notfound', 'Project not found.');
       store.del('portfolio', id);
@@ -1302,7 +1449,7 @@
     async function adminUsers(actor) {
       const r = requireAdmin(actor); if (r) return r;
       return ok(all('users').slice().sort((a, b) => a.createdAt - b.createdAt).map(u => ({
-        ...publicUser(u), banned: u.banned, banReason: u.banReason || null, timeoutUntil: u.timeoutUntil, email: u.email, unsubscribed: !!u.unsubscribed,
+        ...publicUser(u), banned: u.banned, banReason: u.banReason || null, timeoutUntil: u.timeoutUntil, restrictedUntil: u.restrictedUntil || null, restrictReason: u.restrictReason || null, email: u.email, unsubscribed: !!u.unsubscribed,
       })));
     }
     async function adminBan(actor, targetId, reason) {
@@ -1529,6 +1676,7 @@
         id: 'cr' + uid(), name,
         role: String(role || '').trim().slice(0, 60),
         bio: String(bio || '').trim().slice(0, 300),
+        imageUrl: String(imageUrl || '').trim().slice(0, 300) || null,
         links: JSON.stringify(cleanPortfolioLinks(links)),
         handle: String(handle || '').trim().slice(0, 30),
         createdAt: now(),
@@ -1544,6 +1692,7 @@
       if (patch.name !== undefined) it.name = String(patch.name || '').trim().slice(0, 60);
       if (patch.role !== undefined) it.role = String(patch.role || '').trim().slice(0, 60);
       if (patch.bio !== undefined) it.bio = String(patch.bio || '').trim().slice(0, 300);
+      if (patch.imageUrl !== undefined) it.imageUrl = String(patch.imageUrl || '').trim().slice(0, 300) || null;
       if (patch.handle !== undefined) it.handle = String(patch.handle || '').trim().slice(0, 30);
       if (patch.links !== undefined) it.links = JSON.stringify(cleanPortfolioLinks(patch.links));
       store.put('creators', it);
@@ -1552,6 +1701,7 @@
     }
     async function deleteCreator(actor, id) {
       const r = requireAdmin(actor); if (r) return r;
+      if (effRank(actor) < roleRank('cofounder')) return fail('forbidden', 'Only the Co-Founder or Founder can delete creator posts.');
       if (!byIdIn('creators', id)) return fail('notfound', 'Creator not found.');
       store.del('creators', id);
       flush();
@@ -1717,7 +1867,7 @@
       const devices = all('system_devices').filter(d => d.systemId === s.id).sort((a, b) => b.lastSeenAt - a.lastSeenAt)
         .map(d => ({ id: d.id, deviceId: d.deviceId, deviceName: d.deviceName, status: d.status, lastSeenAt: d.lastSeenAt }));
       const games = all('system_games').filter(g => g.systemId === s.id).sort((a, b) => b.lastSeenAt - a.lastSeenAt)
-        .map(g => ({ id: g.id, placeId: g.placeId, status: g.status, lastSeenAt: g.lastSeenAt }));
+        .map(g => ({ id: g.id, placeId: g.placeId, status: g.status, gameName: g.gameName || null, gameOwner: g.gameOwner || null, gameOwnerType: g.gameOwnerType || null, lastSeenAt: g.lastSeenAt }));
       return { ...systemPublic(s), password: s.password, devices, games };
     }
     async function registerSystem(user, { name, password } = {}) {
@@ -1766,7 +1916,7 @@
       flush();
       return ok(true);
     }
-    /* The heart of the anti-leak flow: the game phones home with the name +
+    /* The heart of the anti-leak flow: the game checks in with the name +
        password; a match means the system is licensed. First successful contact
        flips PENDING → ACTIVE; a paused (disabled) system is always denied. */
     function checkSystemCreds(body) {
@@ -1776,7 +1926,7 @@
       return { found: true, system: s };
     }
     /* Shared device bookkeeping + a revoked-device auto-kick: a device the
-       creator kicked gets a DENIED answer on its next phone-home, so the Lua
+       creator kicked gets a DENIED answer on its next check-in, so the Lua
        script disables the system (and kicks the player) immediately. */
     function deviceState(s, deviceId) {
       if (!deviceId) return null;
@@ -1792,7 +1942,7 @@
       return d;
     }
     /* A "game" is a Roblox place (placeId) using the system. Games register
-       themselves when a server phones home; the creator can revoke or
+       themselves when a server checks in; the creator can revoke or
        blacklist a game, and silent ones (30 days) fall off the list. */
     const GAME_STALE_MS = 30 * 24 * 3600 * 1000;
     function gameRow(s, placeId) {
@@ -1800,12 +1950,23 @@
       const key = String(placeId).slice(0, 20);
       return all('system_games').find(g => g.systemId === s.id && g.placeId === key) || null;
     }
-    function recordGame(s, placeId) {
+    function recordGame(s, placeId, meta) {
       const key = String(placeId || '').slice(0, 20);
       if (!/^\d{1,20}$/.test(key)) return null;
       const existing = gameRow(s, key);
-      if (existing) { existing.lastSeenAt = now(); store.put('system_games', existing); return existing; }
-      const g = { id: 'sg' + uid(), systemId: s.id, placeId: key, status: 'active', createdAt: now(), lastSeenAt: now() };
+      if (existing) {
+        existing.lastSeenAt = now();
+        if (meta) {
+          if (meta.gameName && !existing.gameName) existing.gameName = String(meta.gameName).slice(0, 80);
+          if (meta.gameOwner != null && (existing.gameOwner == null || existing.gameOwner === '')) existing.gameOwner = String(meta.gameOwner).slice(0, 80);
+          if (meta.gameOwnerType && !existing.gameOwnerType) existing.gameOwnerType = String(meta.gameOwnerType).slice(0, 20);
+        }
+        store.put('system_games', existing);
+        return existing;
+      }
+      /* NEW games start as 'pending' — the creator must approve them on the
+         Licensed Dashboard before the game is allowed to run the system. */
+      const g = { id: 'sg' + uid(), systemId: s.id, placeId: key, status: 'pending', gameName: (meta && meta.gameName ? String(meta.gameName).slice(0, 80) : null), gameOwner: (meta && meta.gameOwner != null ? String(meta.gameOwner).slice(0, 80) : null), gameOwnerType: (meta && meta.gameOwnerType ? String(meta.gameOwnerType).slice(0, 20) : null), createdAt: now(), lastSeenAt: now() };
       store.put('system_games', g);
       return g;
     }
@@ -1823,37 +1984,47 @@
       store.put('systems', s);
       flush();
     }
-    async function systemActivate({ systemName, systemPassword, deviceId, deviceName, placeId } = {}) {
+    function gameGate(s, placeId) {
+      const game = gameRow(s, placeId);
+      if (!game) return { pending: true, reason: 'This game is not yet approved to use this system. The system creator must approve it on the Licensed Dashboard (Registered Systems → Games).' };
+      if (game.status === 'pending') return { pending: true, reason: 'Waiting for approval — the system creator must allow this game on the Licensed Dashboard.' };
+      if (game.status === 'revoked') return { denied: true, reason: 'This game\'s permission to use this system has been revoked by the creator.' };
+      if (game.status === 'blacklisted') return { denied: true, reason: 'This game has been blacklisted by the creator.' };
+      return { game };
+    }
+    async function systemActivate({ systemName, systemPassword, deviceId, deviceName, placeId, gameName, gameOwner, gameOwnerType } = {}) {
       const chk = checkSystemCreds({ systemName, systemPassword });
       if (!chk.found) return ok({ active: false, reason: chk.reason });
       if (chk.denied) return ok({ active: false, reason: chk.reason });
       const s = chk.system;
       const dev = deviceState(s, deviceId);
       if (dev && dev.status === 'revoked') return ok({ active: false, reason: 'This device has been kicked by the creator and can no longer use the system.', revokedPlayers: revokedPlayerIds(s) });
-      const game = gameRow(s, placeId);
-      if (game && game.status !== 'active') return ok({ active: false, reason: game.status === 'blacklisted' ? 'This game has been blacklisted by the creator.' : 'This game is not authorized to use this system.', revokedPlayers: revokedPlayerIds(s) });
+      const gate = gameGate(s, placeId);
+      if (gate.denied) return ok({ active: false, reason: gate.reason, revokedPlayers: revokedPlayerIds(s) });
+      if (placeId) { recordGame(s, placeId, { gameName, gameOwner, gameOwnerType }); pruneStaleGames(s); }
+      if (gate.pending) return ok({ active: false, pendingApproval: true, reason: gate.reason, revokedPlayers: revokedPlayerIds(s) });
       bumpSystem(s);
       if (deviceId) recordDevice(s, deviceId, deviceName);
-      if (placeId) { recordGame(s, placeId); pruneStaleGames(s); }
       return ok({ active: true, reason: 'Licensed and active.', revokedPlayers: revokedPlayerIds(s) });
     }
-    async function systemHeartbeat({ systemName, systemPassword, deviceId, deviceName, placeId } = {}) {
+    async function systemHeartbeat({ systemName, systemPassword, deviceId, deviceName, placeId, gameName, gameOwner, gameOwnerType } = {}) {
       const chk = checkSystemCreds({ systemName, systemPassword });
       if (!chk.found) return ok({ active: false, reason: chk.reason });
       if (chk.denied) return ok({ active: false, reason: chk.reason });
       const s = chk.system;
       const dev = deviceState(s, deviceId);
       if (dev && dev.status === 'revoked') return ok({ active: false, reason: 'This device has been kicked by the creator and can no longer use the system.', revokedPlayers: revokedPlayerIds(s) });
-      const game = gameRow(s, placeId);
-      if (game && game.status !== 'active') return ok({ active: false, reason: game.status === 'blacklisted' ? 'This game has been blacklisted by the creator.' : 'This game is not authorized to use this system.', revokedPlayers: revokedPlayerIds(s) });
+      const gate = gameGate(s, placeId);
+      if (gate.denied) return ok({ active: false, reason: gate.reason, revokedPlayers: revokedPlayerIds(s) });
+      if (placeId) { recordGame(s, placeId, { gameName, gameOwner, gameOwnerType }); pruneStaleGames(s); }
+      if (gate.pending) return ok({ active: false, pendingApproval: true, reason: gate.reason, revokedPlayers: revokedPlayerIds(s) });
       bumpSystem(s);
       if (deviceId) recordDevice(s, deviceId, deviceName);
-      if (placeId) { recordGame(s, placeId); pruneStaleGames(s); }
       return ok({ active: true, reason: 'Licensed and active.', revokedPlayers: revokedPlayerIds(s) });
     }
     /* Player device registration from the Lua script — records who is using the
        system so the creator can see and revoke individual players. */
-    async function registerSystemDevice({ systemName, systemPassword, playerId, playerName, placeId } = {}) {
+    async function registerSystemDevice({ systemName, systemPassword, playerId, playerName, placeId, gameName, gameOwner, gameOwnerType } = {}) {
       const chk = checkSystemCreds({ systemName, systemPassword });
       if (!chk.found || chk.denied) return ok({ active: false, reason: chk.reason || 'Not licensed.' });
       const s = chk.system;
@@ -1866,7 +2037,7 @@
         else store.put('system_devices', { id: 'sd' + uid(), systemId: s.id, deviceId: String(playerId).slice(0, 80), deviceName: String(playerName || '').slice(0, 40) || null, status: 'active', createdAt: now(), lastSeenAt: now() });
         flush();
       }
-      if (placeId) recordGame(s, placeId);
+      if (placeId) recordGame(s, placeId, { gameName, gameOwner, gameOwnerType });
       return ok({ active: true, reason: 'Registered.' });
     }
     async function setSystemStatus(user, id, status) {
@@ -1894,7 +2065,7 @@
       flush();
       return ok(true);
     }
-    /* Kick = revoke (the device is denied on its next phone-home and the
+    /* Kick = revoke (the device is denied on its next check-in and the
        script auto-kicks the player). Authorize = undo a kick. */
     async function authorizeSystemDevice(user, deviceId) {
       const u = resolveUser(user);
@@ -1919,7 +2090,7 @@
       const s = byIdIn('systems', g.systemId);
       if (!s || s.userId !== u.id) return fail('forbidden', 'You can only manage games on your own systems.');
       status = String(status || '');
-      if (!['active', 'revoked', 'blacklisted'].includes(status)) return fail('invalid', 'Invalid status.');
+      if (!['active', 'pending', 'revoked', 'blacklisted'].includes(status)) return fail('invalid', 'Invalid status.');
       g.status = status;
       g.lastSeenAt = now();
       store.put('system_games', g);
@@ -1959,6 +2130,7 @@
       registerSystem, listSystems, deleteSystem, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice, authorizeSystemDevice, setSystemGameStatus, removeSystemGame,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
       adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSessions, adminEmails, adminSendEmail, adminListBlasts, adminDeleteBlast, adminEmailHistory, adminListInbound, adminSetUnsubscribed, inboundMailEvent, processScheduledBlasts, adminOrders, adminCompleteOrder,
+      sellerOrders, setOrderApproval, adminTakeFile, adminSetAssetStatus, adminSetRestriction, adminRequestSubRevoke, adminResolveSubRevoke, adminListSubRevokes, adminSystems,
       setFx,
     };
   }

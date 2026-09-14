@@ -208,7 +208,7 @@ async function main() {
     console.error('[api]', e);
     res.status(500).json({ ok: false, code: 'server', error: 'Internal server error.' });
   });
-  /* Throttle the public phone-home endpoints the Roblox script hits, so a
+  /* Throttle the public license-check endpoints the Roblox script calls, so a
      leaked script or a brute-force attempt can't hammer the API. Roblox
      servers share egress IPs, so keep the limit generous: 60/min per IP. */
   const sysHits = new Map();
@@ -427,12 +427,12 @@ async function main() {
   }));
   app.post('/api/checkout', h(async (req, res) => {
     const u = await needAuth(req, res); if (!u) return;
-    const { assetId, plan, method } = req.body || {};
+    const { assetId, plan, method, gameDetails } = req.body || {};
     const isVip = plan === 'vip';
     const isSub = plan && String(plan).startsWith('sub:');
     const r = isVip ? await engine.createVipOrder(u, method)
       : isSub ? await engine.createSubscriptionOrder(u, String(plan).split(':')[1], String(plan).split(':')[2], method)
-      : await engine.createOrder(u, assetId, method);
+      : await engine.createOrder(u, assetId, method, gameDetails);
     if (!r.ok) return send(res, r);
     const { orderId, amount, currency } = r.data;
     if (PAYMENT.dev) {
@@ -564,10 +564,21 @@ async function main() {
       res.status(500).json({ ok: false });
     }
   });
+  app.get('/api/admin/systems', admin(async u => engine.adminSystems(u)));
   app.get('/api/admin/reports', admin(async u => engine.adminReports(u)));
   app.post('/api/admin/reports/:id/resolve', admin(async (u, req) => engine.adminResolveReport(u, req.params.id)));
   app.get('/api/admin/orders', admin(async u => engine.adminOrders(u)));
   app.post('/api/admin/orders/:id/complete', admin(async (u, req) => engine.adminCompleteOrder(u, req.params.id)));
+  /* Staff moderation: restrict users, disable/restore posts, request sub revocation. */
+  app.post('/api/admin/users/:id/restrict', admin(async (u, req) => engine.adminSetRestriction(u, req.params.id, req.body || {})));
+  app.post('/api/admin/assets/:id/status', admin(async (u, req) => engine.adminSetAssetStatus(u, req.params.id, (req.body || {}).status)));
+  app.get('/api/admin/assets/:id/take-file', admin(async (u, req) => engine.adminTakeFile(u, req.params.id)));
+  app.post('/api/admin/sub-revokes', admin(async (u, req) => engine.adminRequestSubRevoke(u, (req.body || {}).targetId, (req.body || {}).reason)));
+  app.post('/api/admin/sub-revokes/:id/resolve', admin(async (u, req) => engine.adminResolveSubRevoke(u, req.params.id, (req.body || {}).decision)));
+  app.get('/api/admin/sub-revokes', admin(async u => engine.adminListSubRevokes(u)));
+  /* Seller order queue (Licensed Dashboard → Orders). */
+  app.get('/api/dashboard/orders', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.sellerOrders(u)); }));
+  app.post('/api/dashboard/orders/:id/approval', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.setOrderApproval(u, req.params.id, (req.body || {}).decision, (req.body || {}).note)); }));
   /* ---- announcements (admin) ---- */
   app.post('/api/admin/announcements', admin(async (u, req) => engine.createAnnouncement(u, req.body || {})));
   app.patch('/api/admin/announcements/:id', admin(async (u, req) => engine.updateAnnouncement(u, req.params.id, req.body || {})));

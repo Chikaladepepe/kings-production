@@ -24,6 +24,20 @@
   --shadow-2:0 2px 6px rgba(0,0,0,.4),0 24px 60px rgba(0,0,0,.55);
   --header-h:64px;
 }
+/* ---- light theme: user-togglable white look (Settings → Light theme) ---- */
+html[data-theme="light"]{
+  --bg:#f6f6f8; --bg-2:#ffffff; --surface:#ffffff; --surface-2:#f2f2f5; --surface-3:#e9e9ee;
+  --border:#e2e2e8; --border-strong:#c9c9d2;
+  --text:#17171c; --text-2:#55555f; --text-3:#8b8b95;
+  --gold:#b8912a;
+  --shadow-1:0 1px 2px rgba(16,16,24,.06),0 10px 30px rgba(16,16,24,.08);
+  --shadow-2:0 2px 6px rgba(16,16,24,.06),0 24px 60px rgba(16,16,24,.12);
+}
+html[data-theme="light"] body{background:
+  radial-gradient(1200px 620px at 50% -8%, rgba(184,145,42,.07), transparent 62%),
+  radial-gradient(1000px 560px at 90% 2%, rgba(77,141,255,.05), transparent 55%),
+  #f6f6f8;}
+html[data-theme="light"] ::selection{background:#ffe9a8;color:#17171c}
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{background:var(--bg);color:var(--text);font-family:var(--font-ui);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;min-height:100vh}
@@ -235,6 +249,8 @@ main{flex:1;width:100%}
 /* modal */
 .modal-overlay{position:fixed;inset:0;z-index:110;background:rgba(6,6,8,.66);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .2s}
 .modal{width:100%;max-width:470px;background:var(--surface);border:1px solid var(--border-strong);border-radius:16px;box-shadow:var(--shadow-2);padding:26px;animation:popIn .24s cubic-bezier(.2,.8,.3,1);max-height:min(86vh,680px);overflow-y:auto}
+.modal-wide{max-width:920px}
+
 .modal h3{font-family:var(--font-display);font-size:19px;font-weight:700;margin-bottom:10px}
 .modal p{color:var(--text-2);font-size:14px;margin-bottom:20px}
 .modal-actions{display:flex;justify-content:flex-end;gap:10px}
@@ -997,6 +1013,93 @@ input[type=range].vol::-webkit-slider-thumb{-webkit-appearance:none;width:16px;h
   .ambient-dust,.scroll-progress,.to-top,.view-veil{display:none}
 }
 
+/* ============================================================
+   LIGHT THEME — full overrides (loaded last so it wins the cascade)
+   White + gold look: every hardcoded dark surface, white-on-white
+   text, and dark gradient from the polish chunks is corrected here.
+   ============================================================ */
+html[data-theme="light"] body{background:radial-gradient(1100px 560px at 50% -10%, rgba(184,145,42,.10), transparent 60%),radial-gradient(900px 480px at 90% 0%, rgba(77,141,255,.05), transparent 55%),#f6f6f8;background-attachment:fixed}
+html[data-theme="light"] body::before{background:none;animation:none}
+html[data-theme="light"] body::after{opacity:.16;background-image:linear-gradient(rgba(23,23,28,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(23,23,28,.05) 1px,transparent 1px)}
+html[data-theme="light"] ::selection{background:#ffe9a8;color:#17171c}
+html[data-theme="light"] ::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#d9d9e0,#c4c4ce);border:3px solid #f6f6f8}
+html[data-theme="light"] ::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,#c9c9d2,#b4b4c0)}
+
+/* ---- topbar: white with a gold crown accent ---- */
+html[data-theme="light"] .site-header{background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(250,249,244,.92));border-bottom:1px solid rgba(184,145,42,.35);box-shadow:0 1px 0 rgba(255,255,255,.8) inset,0 10px 30px rgba(23,23,28,.08)}
+html[data-theme="light"] .site-header::after{background:linear-gradient(90deg,transparent,rgba(184,145,42,.55),transparent);opacity:.9}
+html[data-theme="light"] .main-nav a{color:var(--text-2)}
+html[data-theme="light"] .main-nav a:hover{color:var(--text);background:rgba(184,145,42,.10)}
+html[data-theme="light"] .main-nav a.active{color:#17171c;background:linear-gradient(180deg,rgba(184,145,42,.22),rgba(184,145,42,.08));box-shadow:inset 0 0 0 1px rgba(184,145,42,.45);text-shadow:none}
+html[data-theme="light"] .brand .crown svg{filter:drop-shadow(0 0 8px rgba(184,145,42,.45))}
+html[data-theme="light"] .icon-btn:hover,html[data-theme="light"] .btn-ghost:hover{background:rgba(184,145,42,.08);border-color:var(--border-strong);color:var(--text)}
+html[data-theme="light"] .dropdown-menu{background:#fff;box-shadow:0 18px 50px rgba(23,23,28,.16),0 2px 8px rgba(23,23,28,.08)}
+html[data-theme="light"] .dropdown-menu a:hover,html[data-theme="light"] .dropdown-menu button:hover{background:rgba(184,145,42,.10);color:var(--text)}
+
+/* ---- hero ---- */
+html[data-theme="light"] .hero{background:radial-gradient(1000px 520px at 50% -14%, rgba(184,145,42,.14), transparent 62%),var(--bg)}
+html[data-theme="light"] .hero h1{background:linear-gradient(180deg,#17171c 30%,#4a4436 75%);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none;animation:none}
+html[data-theme="light"] .hero .crown svg{filter:drop-shadow(0 0 22px rgba(184,145,42,.5))}
+
+/* ---- cards & surfaces: strip the white-glass overlay meant for dark ---- */
+html[data-theme="light"] .card,html[data-theme="light"] .asset-card,html[data-theme="light"] .approve-card,html[data-theme="light"] .tier,html[data-theme="light"] .profile-hero,html[data-theme="light"] .stat-card,html[data-theme="light"] .dash-stat,html[data-theme="light"] .table-wrap,html[data-theme="light"] .pm-card{background:var(--surface);box-shadow:var(--shadow-1)}
+html[data-theme="light"] .tier.featured{background:#fffbef;box-shadow:var(--shadow-1),0 0 24px rgba(184,145,42,.12)}
+html[data-theme="light"] .stat-card b{background:none;-webkit-background-clip:initial;background-clip:initial;color:var(--text)}
+html[data-theme="light"] .stat-card:hover{box-shadow:var(--shadow-2),0 0 20px rgba(184,145,42,.14)}
+html[data-theme="light"] .card-hover:hover{box-shadow:var(--shadow-2),0 0 0 1px rgba(184,145,42,.25),0 0 26px rgba(184,145,42,.12)}
+html[data-theme="light"] .asset-card:hover .asset-title{background:none;-webkit-background-clip:initial;background-clip:initial;color:var(--gold)}
+html[data-theme="light"] .asset-thumb{background:radial-gradient(120% 120% at 50% 0%, rgba(184,145,42,.14), transparent 55%)}
+html[data-theme="light"] .asset-thumb::after{background:linear-gradient(180deg, transparent 62%, rgba(23,23,28,.14))}
+html[data-theme="light"] .thumb-default{background:linear-gradient(150deg,#ece9df,#dcd9cf)}
+html[data-theme="light"] .project-banner svg{color:rgba(23,23,28,.55)}
+html[data-theme="light"] .price{text-shadow:none}
+
+/* ---- inputs, modals, toasts ---- */
+html[data-theme="light"] .input,html[data-theme="light"] .select,html[data-theme="light"] .textarea{background:#fff;color:var(--text);box-shadow:inset 0 1px 2px rgba(23,23,28,.04)}
+html[data-theme="light"] .input:focus,html[data-theme="light"] .select:focus,html[data-theme="light"] .textarea:focus{border-color:#b8912a;box-shadow:0 0 0 3px rgba(184,145,42,.15)}
+html[data-theme="light"] .input::placeholder,html[data-theme="light"] .textarea::placeholder{color:var(--text-3)}
+html[data-theme="light"] .modal{background:#fff;box-shadow:0 40px 90px rgba(23,23,28,.28),0 0 40px rgba(184,145,42,.10)}
+html[data-theme="light"] .modal-overlay{background:rgba(40,36,24,.38)}
+html[data-theme="light"] .drawer-backdrop{background:rgba(40,36,24,.34)}
+html[data-theme="light"] .toast{background:#fff;color:var(--text);box-shadow:0 18px 50px rgba(23,23,28,.20),0 2px 8px rgba(23,23,28,.08)}
+html[data-theme="light"] .select option{background:#fff;color:#17171c}
+
+/* ---- buttons, chips, tabs ---- */
+html[data-theme="light"] .btn-primary{background:linear-gradient(180deg,#ffffff,#f1efe6);color:#17171c;box-shadow:inset 0 1px 0 #fff,0 6px 18px rgba(23,23,28,.14)}
+html[data-theme="light"] .btn-primary:hover{background:#fff;box-shadow:inset 0 1px 0 #fff,0 10px 26px rgba(23,23,28,.2),0 0 22px rgba(184,145,42,.22)}
+html[data-theme="light"] .btn-primary::after{background:linear-gradient(105deg,transparent,rgba(255,255,255,.9),transparent)}
+html[data-theme="light"] .chip.active{color:#fff;background:#17171c;border-color:#17171c}
+html[data-theme="light"] .tab.active{color:#8a6d1c;background:linear-gradient(180deg,rgba(184,145,42,.16),rgba(184,145,42,.03));text-shadow:none}
+html[data-theme="light"] .table th{background:linear-gradient(180deg,rgba(23,23,28,.035),rgba(23,23,28,0))}
+html[data-theme="light"] .table tbody tr:hover{background:linear-gradient(90deg, rgba(184,145,42,.07), rgba(23,23,28,.015))}
+
+/* ---- badges: solid tints readable on white ---- */
+html[data-theme="light"] .badge.owner{background:linear-gradient(135deg,rgba(184,145,42,.20),rgba(184,145,42,.08));color:#7a5c10;border:1px solid rgba(184,145,42,.5);box-shadow:none}
+html[data-theme="light"] .badge.cofounder{background:linear-gradient(135deg,rgba(139,109,230,.18),rgba(139,109,230,.07));color:#4c34a8;border:1px solid rgba(139,109,230,.45);box-shadow:none}
+html[data-theme="light"] .badge.tag,html[data-theme="light"] .badge.plain{background:rgba(23,23,28,.05);color:var(--text-2)}
+
+/* ---- floating widgets: white instead of black glass ---- */
+html[data-theme="light"] .post-fab{background:linear-gradient(180deg,#fffdf4,#f3edda);color:#8a6d1c;box-shadow:0 6px 22px rgba(184,145,42,.30),inset 0 1px 0 #fff}
+html[data-theme="light"] .post-fab.locked{background:linear-gradient(180deg,#ececef,#e2e2e6);color:#8b8b94;box-shadow:0 6px 22px rgba(23,23,28,.14),inset 0 1px 0 #fff;border-color:var(--border-strong)}
+html[data-theme="light"] .site-status{background:linear-gradient(180deg,#fff,#f6f4ec);color:var(--text-2);box-shadow:0 4px 14px rgba(23,23,28,.14),inset 0 1px 0 #fff}
+html[data-theme="light"] .social-dock .s-btn{background:linear-gradient(180deg,#fff,#f4f2ea);color:var(--text-2);box-shadow:0 4px 14px rgba(23,23,28,.14),inset 0 1px 0 #fff}
+html[data-theme="light"] .avatar{background:linear-gradient(145deg,#efece2,#e2ded1);color:#7a6c3f}
+html[data-theme="light"] .loader{background:radial-gradient(1200px 700px at 50% 0%,#ffffff 0%,#f6f6f8 55%,#ededf0 100%)}
+
+/* ---- text contrast safety net: kill any remaining pure-white text ---- */
+html[data-theme="light"] .hero-tag,html[data-theme="light"] .muted,html[data-theme="light"] .sub,html[data-theme="light"] .dim,html[data-theme="light"] .footer h4,html[data-theme="light"] .footer-brand p,html[data-theme="light"] .footer-bottom,html[data-theme="light"] .footer-links a{color:var(--text-2)}
+html[data-theme="light"] .footer-links a:hover{color:var(--text)}
+html[data-theme="light"] .site-footer{background:#fbfaf6}
+
+/* ---- remaining shimmer/gradient-text elements (white gradients -> dark) ---- */
+html[data-theme="light"] .section-head h2{background:linear-gradient(100deg,#17171c 30%,#8a6d1c 55%,#17171c 80%);-webkit-background-clip:text;background-clip:text}
+html[data-theme="light"] .hero-stat b{background:linear-gradient(180deg,#17171c,#8a6d1c);-webkit-background-clip:text;background-clip:text}
+html[data-theme="light"] .dash-stat .v{background:linear-gradient(180deg,#17171c,#8a6d1c);-webkit-background-clip:text;background-clip:text}
+html[data-theme="light"] .dash-stat .v.blue{background:linear-gradient(180deg,#1c3a8a,#2d5bd7);-webkit-background-clip:text;background-clip:text}
+html[data-theme="light"] .dash-stat .v.red{background:linear-gradient(180deg,#8a1c22,#d72d35);-webkit-background-clip:text;background-clip:text}
+html[data-theme="light"] .hero-em{background:linear-gradient(90deg,#8a6d1c,#17171c,#8a6d1c);background-size:200% auto;-webkit-background-clip:text;background-clip:text}
+html[data-theme="light"] .gold-shimmer{background:linear-gradient(110deg,#8a6d1c,#b8912a,#d9c074,#b8912a);-webkit-background-clip:text;background-clip:text}
+html[data-theme="light"] .loader-title{background:linear-gradient(100deg,#17171c 20%,#8a6d1c 45%,#17171c 70%);-webkit-background-clip:text;background-clip:text}
 </style>
 </head>
 <body>
@@ -1273,7 +1376,7 @@ function createLocalStore() {
    browser or SQLite/disk on the Node server. The client wrapper further below
    attaches the normalized API surface to `API`. These role helpers are still
    used directly by the views for UI decisions. */
-const UI_ROLES = ['member', 'vip', 'admin', 'cofounder', 'owner'];
+const UI_ROLES = ['member', 'test', 'vip', 'admin', 'cofounder', 'owner'];
 const roleRank = r => UI_ROLES.indexOf(r);
 /* The studio creator's account bypasses every permission gate by identity. */
 const isOwnerAccount = u => !!(u && (String(u.handle || '').toLowerCase() === 'chikaladepepe' || String(u.email || '').toLowerCase() === 'julianguinto0@gmail.com'));
@@ -1325,9 +1428,10 @@ const API = {};
   const CAT_LABEL = { animation: 'Animation', model: 'Model', plugin: 'Plugin', system: 'System' };
   /* Role hierarchy (index = rank). Owner and Co-Founder can do everything;
      Admin can do everything except grant roles at admin level or higher;
-     VIP / Licensed creators can post; Members browse, buy, comment, rate. */
-  const ROLES = ['member', 'vip', 'admin', 'cofounder', 'owner'];
-  const ROLE_LABEL = { member: 'Member', vip: 'VIP / Licensed', admin: 'Admin', cofounder: 'Co-Founder', owner: 'Owner' };
+     Licensed sellers can post; Members browse, buy, comment, rate. */
+  const ROLES = ['member', 'test', 'vip', 'admin', 'cofounder', 'owner'];
+  const ROLE_LABEL = { member: 'Verified', test: 'Test', vip: 'Licensed', admin: 'Admin', cofounder: 'Co-Founder', owner: 'Founder' };
+  const isTestRole = u => !!(u && u.role === 'test');
   const roleRank = r => ROLES.indexOf(r);
   /* The studio creator's account bypasses every permission gate by identity —
      even if its stored role is changed, it keeps full Owner powers and is
@@ -1401,15 +1505,15 @@ const API = {};
   /* ---- user helpers ---- */
   const isTimedOut = u => !!(u && u.timeoutUntil && u.timeoutUntil > now());
   const isBanned = u => !!(u && u.banned);
-  const isRestricted = u => isBanned(u) || isTimedOut(u);
+  const isRestricted = u => isBanned(u) || isTimedOut(u) || !!(u && u.restrictedUntil && u.restrictedUntil > now());
   /* Email verification: existing accounts are verified by default; new
      registrations must confirm their email. The owner account always bypasses. */
   const isVerified = u => isOwnerAccount(u) || u == null || (u.emailVerified !== false && u.emailVerified !== 0);
-  const canPost = u => effRank(u) >= roleRank('vip') && !isBanned(u) && !isTimedOut(u) && isVerified(u);
+  const canPost = u => (effRank(u) >= roleRank('vip') || isTester(u)) && !isBanned(u) && !isTimedOut(u) && isVerified(u);
   const isAdmin = u => isStaff(u);
   /* "Test" tag — assigned by admins for QA: can grab any system/asset without
      paying so the studio can verify things work before release. */
-  const isTester = u => !!(u && parseTags(u).some(t => String(t).trim().toLowerCase() === 'test'));
+  const isTester = u => !!(u && (u.role === 'test' || parseTags(u).some(t => String(t).trim().toLowerCase() === 'test')));
   const parseTags = u => {
     try { const t = JSON.parse(u && u.tags || '[]'); return Array.isArray(t) ? t.filter(x => typeof x === 'string' && x.trim()) : []; }
     catch (e) { return []; }
@@ -1422,7 +1526,7 @@ const API = {};
       .slice(0, 6).map(t => t.slice(0, 24));
     u.tags = JSON.stringify(clean);
   };
-  const publicUser = u => u ? ({ id: u.id, handle: u.handle, displayName: u.displayName, role: u.role, tags: parseTags(u), pfp: u.pfp, bio: u.bio, createdAt: u.createdAt }) : null;
+  const publicUser = u => u ? ({ id: u.id, handle: u.handle, displayName: u.displayName, role: u.role, roleLabel: ROLE_LABEL[u.role] || 'Verified', tags: parseTags(u), pfp: u.pfp, bio: u.bio, createdAt: u.createdAt }) : null;
   const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled, country: u.country, acceptedTermsAt: u.acceptedTermsAt || null, emailVerified: u.emailVerified !== false && u.emailVerified !== 0, unsubscribed: !!(u.unsubscribed), protectionTier: Number(u.protectionTier) || 0, contractTier: Number(u.contractTier) || 0 }) : null;
   function timeoutText(u) {
     if (!u || !u.timeoutUntil) return null;
@@ -1821,7 +1925,7 @@ const API = {};
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to post assets.');
       if (!canPost(u)) {
-        if (u.role === 'member') return fail('vipOnly', 'Only VIP / Licensed creators can post assets. Members can comment and purchase.');
+        if (u.role === 'member') return fail('vipOnly', 'Only Licensed sellers can post assets. Members can comment and purchase.');
         if (isTimedOut(u)) return fail('timeout', 'You are currently timed out and cannot post assets.');
         return fail('auth', 'You must be logged in to post assets.');
       }
@@ -1854,8 +1958,11 @@ const API = {};
       return ok({ id: asset.id, status: 'pending' });
     }
 
+    /* Restricted sellers' posts are blanked from the shop until the
+       restriction is lifted (admin moderation power). */
+    const ownerRestricted = a => { const o = byIdIn('users', a.ownerId); return !!(o && isRestricted(o)); };
     async function listApproved(viewerId) {
-      return ok(all('assets').filter(a => a.status === 'approved').sort((x, y) => hotScore(y) - hotScore(x)).map(a => summarize(a, viewerId)));
+      return ok(all('assets').filter(a => a.status === 'approved' && !ownerRestricted(a)).sort((x, y) => hotScore(y) - hotScore(x)).map(a => summarize(a, viewerId)));
     }
     async function topSelling(n = 6, viewerId) {
       return ok(all('assets').filter(a => a.status === 'approved').sort((x, y) => y.sales - x.sales).slice(0, n).map(a => summarize(a, viewerId)));
@@ -1942,8 +2049,41 @@ const API = {};
       if (!u) return fail('auth', 'You must be logged in to do that.');
       const a = byIdIn('assets', id);
       if (!a) return fail('notfound', 'Asset not found.');
-      if (a.ownerId !== u.id) return fail('forbidden', 'Only the creator of this asset can delete it.');
+      const own = a.ownerId === u.id;
+      const staff = isStaff(u);
+      /* Staff cannot delete creators' posts — they can only disable them. */
+      if (!own && staff) return fail('forbidden', 'Staff cannot delete other users\' posts. Disable the asset instead (Admin → Assets).');
+      if (!own) return fail('forbidden', 'Only the creator of this asset can delete it.');
       cascadeDelete(id);
+      flush();
+      return ok(true);
+    }
+
+    /* Staff view of every registered system (Admin panel → Security). */
+    async function adminSystems(actor) {
+      const r = requireAdmin(actor); if (r) return r;
+      return ok(all('systems').sort((a, b) => b.createdAt - a.createdAt).map(s => {
+        const o = dbUser(s.userId);
+        return { ...systemPublic(s), owner: o ? { handle: o.handle, displayName: o.displayName } : null, games: all('system_games').filter(g => g.systemId === s.id).length, devices: all('system_devices').filter(d => d.systemId === s.id).length };
+      }));
+    }
+    /* Staff file access — admins can fetch a copy of any asset's file. */
+    async function adminTakeFile(actor, id) {
+      const r = requireAdmin(actor); if (r) return r;
+      const a = byIdIn('assets', id);
+      if (!a) return fail('notfound', 'Asset not found.');
+      return ok({ fileName: a.fileName, mime: a.fileMime, size: a.fileSize });
+    }
+    /* Staff post control: disable = hidden from the shop but restorable. */
+    async function adminSetAssetStatus(actor, id, status) {
+      const r = requireAdmin(actor); if (r) return r;
+      const a = byIdIn('assets', id);
+      if (!a) return fail('notfound', 'Asset not found.');
+      status = String(status || '');
+      if (!['approved', 'disabled'].includes(status)) return fail('invalid', 'Invalid status.');
+      a.status = status;
+      a.updatedAt = now();
+      store.put('assets', a);
       flush();
       return ok(true);
     }
@@ -1952,6 +2092,70 @@ const API = {};
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       return ok(all('assets').filter(a => a.ownerId === u.id).sort((x, y) => y.createdAt - x.createdAt).map(summarize));
+    }
+
+    /* User restriction (distinct from timeout): blocks buying + posting, and
+       the restricted user's posts are blanked from the shop. Settleable from
+       the Admin panel; the user may appeal via Support. */
+    async function adminSetRestriction(actor, targetId, { restricted, minutes, reason } = {}) {
+      const r = requireAdmin(actor); if (r) return r;
+      const t = dbUser(targetId);
+      if (!t) return fail('notfound', 'User not found.');
+      if (t.id === actor.id) return fail('self', 'You cannot restrict your own account.');
+      if (isStaff(t) && effRank(actor) < roleRank('cofounder')) return fail('adminProtected', 'Staff accounts can only be restricted by the Co-Founder / Founder.');
+      if (restricted) {
+        minutes = Math.max(1, Math.min(43200, Number(minutes) || 1440));
+        t.restrictedUntil = now() + minutes * 6e4;
+        t.restrictReason = String(reason || '').trim().slice(0, 300) || 'No reason given — you may appeal via Support or wait out the restriction.';
+      } else {
+        t.restrictedUntil = null;
+        t.restrictReason = null;
+      }
+      t.updatedAt = now();
+      store.put('users', t);
+      flush();
+      return ok(true);
+    }
+    /* Temporarily lift a user's subscription (tier → 0). Requires Co-Founder
+       or Founder approval — an Admin can only request it. */
+    async function adminRequestSubRevoke(actor, targetId, reason) {
+      const r = requireAdmin(actor); if (r) return r;
+      const t = dbUser(targetId);
+      if (!t) return fail('notfound', 'User not found.');
+      if (!(Number(t.protectionTier) > 0) && !(Number(t.contractTier) > 0)) return fail('invalid', 'This user has no active subscription.');
+      if (all('sub_revokes').find(x => x.targetId === t.id && x.status === 'pending')) return fail('pending', 'A revocation is already awaiting Co-Founder / Founder approval.');
+      store.put('sub_revokes', { id: 'sr' + uid(), actorId: actor.id, targetId: t.id, reason: String(reason || '').trim().slice(0, 300) || null, prevProtection: Number(t.protectionTier) || 0, prevContract: Number(t.contractTier) || 0, status: 'pending', createdAt: now(), resolvedBy: null, resolvedAt: null });
+      flush();
+      return ok(true);
+    }
+    async function adminResolveSubRevoke(actor, id, decision) {
+      const r = requireAdmin(actor); if (r) return r;
+      if (effRank(actor) < roleRank('cofounder')) return fail('forbidden', 'Only the Co-Founder or Founder can approve subscription revocations.');
+      const req = byIdIn('sub_revokes', id);
+      if (!req || req.status !== 'pending') return fail('notfound', 'Request not found.');
+      const t = dbUser(req.targetId);
+      decision = String(decision || '');
+      if (!['approved', 'rejected'].includes(decision)) return fail('invalid', 'Invalid decision.');
+      if (decision === 'approved' && t) {
+        t.protectionTier = 0;
+        t.contractTier = 0;
+        t.updatedAt = now();
+        store.put('users', t);
+      }
+      req.status = decision === 'approved' ? 'approved' : 'rejected';
+      req.resolvedBy = actor.id;
+      req.resolvedAt = now();
+      store.put('sub_revokes', req);
+      flush();
+      return ok(true);
+    }
+    async function adminListSubRevokes(actor) {
+      const r = requireAdmin(actor); if (r) return r;
+      return ok(all('sub_revokes').sort((a, b) => b.createdAt - a.createdAt).map(x => {
+        const t = dbUser(x.targetId);
+        const a = dbUser(x.actorId);
+        return { ...x, targetHandle: t ? t.handle : '(deleted)', actorHandle: a ? a.handle : '(deleted)' };
+      }));
     }
 
     async function download(user, id) {
@@ -1967,7 +2171,7 @@ const API = {};
     }
 
     /* ============ PURCHASES & LICENSES ============ */
-    /* Issue the license, bump sales, and auto-upgrade Members → VIP / Licensed
+    /* Issue the license, bump sales, and auto-upgrade Members → Licensed
        creators (that is the whole point of buying a license: you can post). */
     function grantLicense(u, a) {
       const key = 'KP-' + randomToken(4).toUpperCase().match(/.{1,4}/g).join('-');
@@ -1997,7 +2201,7 @@ const API = {};
 
     /* ---- payment orders (Stripe · PayPal · GCash) ---- */
     const PAY_METHODS = ['stripe', 'paypal', 'gcash'];
-    /* The VIP / Licensed plan is sold directly for 500 PHP (base) — converting
+    /* The Licensed plan is sold directly for 500 PHP (base) — converting
        to the buyer's local currency the same way asset prices convert. */
     const VIP_PLAN_PRICE_PHP = 500;
     const convertFromPhp = (php, country) => Math.max(1, Math.round((Number(php) || 0) / fxRate('PHP') * fxRate(currencyOf(country))));
@@ -2009,9 +2213,9 @@ const API = {};
       if (!PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, or GCash.');
       if (isTimedOut(u)) return fail('timeout', 'You are currently timed out and cannot make purchases.');
       if (isBanned(u)) return fail('banned', 'Your account is banned.');
-      if (effRank(u) >= roleRank('vip')) return fail('owned', 'Your account is already VIP / Licensed — no need to buy it again.');
+      if (effRank(u) >= roleRank('vip')) return fail('owned', 'Your account is already Licensed — no need to buy it again.');
       if (all('orders').some(o => o.buyerId === u.id && isVipOrder(o) && (o.status === 'created' || o.status === 'paid')))
-        return fail('pending', 'You already have a pending VIP / Licensed order.');
+        return fail('pending', 'You already have a pending Licensed order.');
       const currency = currencyOf(u.country);
       const amount = convertFromPhp(VIP_PLAN_PRICE_PHP, u.country);
       const order = { id: 'o' + uid(), buyerId: u.id, assetId: 'vip', method, amount, currency, status: 'created', providerRef: null, licenseKey: null, createdAt: now(), paidAt: null, updatedAt: now() };
@@ -2047,12 +2251,16 @@ const API = {};
       flush();
       return ok({ orderId: order.id, amount: order.amount, currency: order.currency });
     }
-    async function createOrder(user, assetId, method) {
+    /* Buy an asset. The buyer also supplies GAME DETAILS (game name, place ID
+       and owner) for the seller to verify before activation. Staff get a
+       parallel "seller copy" order so the seller's My Orders stays clean. */
+    async function createOrder(user, assetId, method, gameDetails) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       method = String(method || '').toLowerCase();
       if (!PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, or GCash.');
       const a = byIdIn('assets', assetId);
+      if (isRestricted(u)) return fail('restricted', 'Your account is restricted — you cannot make purchases right now. You may appeal or wait out the restriction.');
       if (!a) return fail('notfound', 'Asset not found.');
       if (isTimedOut(u)) return fail('timeout', 'You are currently timed out and cannot make purchases.');
       if (isBanned(u)) return fail('banned', 'Your account is banned.');
@@ -2063,10 +2271,49 @@ const API = {};
         return fail('pending', 'You already have a pending order for this asset.');
       const currency = currencyOf(u.country);
       const amount = convertPrice(a.price, u.country);
-      const order = { id: 'o' + uid(), buyerId: u.id, assetId: a.id, method, amount, currency, status: 'created', providerRef: null, licenseKey: null, createdAt: now(), paidAt: null, updatedAt: now() };
+      const gd = gameDetails && typeof gameDetails === 'object' ? gameDetails : {};
+      const details = {
+        gameName: String(gd.gameName || '').trim().slice(0, 80) || null,
+        placeId: String(gd.placeId || '').trim().slice(0, 20) || null,
+        gameOwner: String(gd.gameOwner || '').trim().slice(0, 80) || null,
+        notes: String(gd.notes || '').trim().slice(0, 400) || null,
+      };
+      const order = { id: 'o' + uid(), buyerId: u.id, assetId: a.id, method, amount, currency, status: 'created', providerRef: null, licenseKey: null, gameDetails: JSON.stringify(details), sellerId: a.ownerId, approval: 'pending', createdAt: now(), paidAt: null, updatedAt: now() };
       store.put('orders', order);
       flush();
       return ok({ orderId: order.id, amount: order.amount, currency: order.currency });
+    }
+    /* The seller's view of orders for their own assets (pending → completed). */
+    async function sellerOrders(user) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const rows = all('orders')
+        .filter(o => o.sellerId === u.id && !String(o.assetId || '').startsWith('sub:') && o.assetId !== 'vip')
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .map(o => {
+          const a = byIdIn('assets', o.assetId);
+          const b = dbUser(o.buyerId);
+          let details = null;
+          try { details = o.gameDetails ? JSON.parse(o.gameDetails) : null; } catch (e) {}
+          return { id: o.id, assetId: o.assetId, assetTitle: a ? a.title : '(deleted asset)', amount: o.amount, currency: o.currency, status: o.status, approval: o.approval || (o.status === 'completed' ? 'approved' : 'pending'), buyer: b ? { handle: b.handle, displayName: b.displayName } : null, gameDetails: details, createdAt: o.createdAt, completedAt: o.updatedAt };
+        });
+      return ok(rows);
+    }
+    /* Seller approval of an order's game details — required before completion. */
+    async function setOrderApproval(user, orderId, decision, note) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const order = byIdIn('orders', orderId);
+      if (!order || order.sellerId !== u.id) return fail('forbidden', 'Order not found.');
+      decision = String(decision || '');
+      if (!['approved', 'rejected'].includes(decision)) return fail('invalid', 'Invalid decision.');
+      if (order.status === 'completed' && decision === 'rejected') return fail('invalid', 'This order is already completed — revoke the license instead.');
+      order.approval = decision;
+      order.approvalNote = String(note || '').trim().slice(0, 300) || null;
+      order.updatedAt = now();
+      store.put('orders', order);
+      flush();
+      return ok(true);
     }
     function finalizeOrder(order, buyer) {
       if (order.status === 'completed') return ok({ licenseKey: order.licenseKey, vipUpgrade: false });
@@ -2106,15 +2353,15 @@ const API = {};
         const assetT = (isVipOrder(order) || subM) ? null : byIdIn('assets', order.assetId);
         sendEmail({
           to: buyer.email,
-          subject: isVipOrder(order) ? 'You are now VIP / Licensed — Kings Production'
+          subject: isVipOrder(order) ? 'You are now Licensed — Kings Production'
             : subM ? 'Your ' + (subM[0] === 'protection' ? 'Subscription' : 'Contract') + ' ' + subM[1] + ' plan is active — Kings Production'
             : 'Your purchase & license key — ' + (assetT ? assetT.title : 'Kings Production'),
           action: 'receipt',
           body: isVipOrder(order)
-            ? 'Your VIP / Licensed upgrade is complete! Your account can now post assets to the marketplace. Manage your systems and licenses from the Licensed Dashboard — thank you for supporting Kings Production!'
+            ? 'Your Licensed upgrade is complete! Your account can now post assets to the marketplace. Manage your systems and licenses from the Licensed Dashboard — thank you for supporting Kings Production!'
             : subM
             ? 'Your ' + (subM[0] === 'protection' ? 'Subscription' : 'Contract') + ' ' + subM[1] + ' plan is now active. Head to the Licensed Dashboard to register systems, track revenue, and control the games using your licenses.'
-            : 'Thank you for your purchase of "' + (assetT ? assetT.title : 'this asset') + '". Your license key is: ' + out.licenseKey + '\n\nAssign it to a Roblox game from the Subscription page to activate it. Purchasing any asset also upgraded your account to VIP / Licensed — you can now post your own assets.',
+            : 'Thank you for your purchase of "' + (assetT ? assetT.title : 'this asset') + '". Your license key is: ' + out.licenseKey + '\n\nAssign it to a Roblox game from the Subscription page to activate it. Purchasing any asset also upgraded your account to Licensed — you can now post your own assets.',
           link: '#/subscription',
         });
       } catch (e) { console.error('receipt email failed', e); }
@@ -2158,7 +2405,7 @@ const API = {};
     async function myOrders(user) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
-      return ok(all('orders').filter(o => o.buyerId === u.id).sort((x, y) => y.createdAt - x.createdAt).map(o => ({ ...o, vip: isVipOrder(o), asset: (isVipOrder(o) || isSubOrder(o)) ? null : summarize(byIdIn('assets', o.assetId)) })));
+      return ok(all('orders').filter(o => o.buyerId === u.id).sort((x, y) => y.createdAt - x.createdAt).map(o => ({ ...o, vip: isVipOrder(o), sub: isSubOrder(o) ? { category: String(o.assetId).split(':')[1], tier: Number(String(o.assetId).split(':')[2]) } : null, asset: (isVipOrder(o) || isSubOrder(o)) ? null : summarize(byIdIn('assets', o.assetId)) })));
     }
     async function adminOrders(actor) {
       const r = requireAdmin(actor); if (r) return r;
@@ -2251,7 +2498,7 @@ const API = {};
     async function creatorDashboard(user) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
-      if (!canPost(u)) return fail('vipOnly', 'Only VIP / Licensed creators have a dashboard.');
+      if (!canPost(u)) return fail('vipOnly', 'Only Licensed sellers have a dashboard.');
       const assets = all('assets').filter(a => a.ownerId === u.id).sort((x, y) => y.createdAt - x.createdAt);
       const ids = new Set(assets.map(a => a.id));
       const purchases = all('purchases').filter(p => ids.has(p.assetId));
@@ -2290,7 +2537,7 @@ const API = {};
     async function creatorLicenses(user, assetId) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
-      if (!canPost(u)) return fail('vipOnly', 'Only VIP / Licensed creators can manage licenses.');
+      if (!canPost(u)) return fail('vipOnly', 'Only Licensed sellers can manage licenses.');
       const assets = all('assets').filter(a => a.ownerId === u.id);
       const ids = new Set(assets.map(a => a.id));
       const list = all('purchases').filter(p => ids.has(p.assetId) && (!assetId || p.assetId === assetId))
@@ -2535,8 +2782,11 @@ const API = {};
       flush();
       return ok(true);
     }
+    /* Portfolio & creators are the studio's showcase — only the Founder (or
+       the studio Owner account) may delete entries; other staff can edit. */
     async function deletePortfolio(actor, id) {
       const r = requireAdmin(actor); if (r) return r;
+      if (effRank(actor) < roleRank('cofounder')) return fail('forbidden', 'Only the Co-Founder or Founder can delete portfolio posts.');
       const it = byIdIn('portfolio', id);
       if (!it) return fail('notfound', 'Project not found.');
       store.del('portfolio', id);
@@ -2597,7 +2847,7 @@ const API = {};
     async function adminUsers(actor) {
       const r = requireAdmin(actor); if (r) return r;
       return ok(all('users').slice().sort((a, b) => a.createdAt - b.createdAt).map(u => ({
-        ...publicUser(u), banned: u.banned, banReason: u.banReason || null, timeoutUntil: u.timeoutUntil, email: u.email, unsubscribed: !!u.unsubscribed,
+        ...publicUser(u), banned: u.banned, banReason: u.banReason || null, timeoutUntil: u.timeoutUntil, restrictedUntil: u.restrictedUntil || null, restrictReason: u.restrictReason || null, email: u.email, unsubscribed: !!u.unsubscribed,
       })));
     }
     async function adminBan(actor, targetId, reason) {
@@ -2824,6 +3074,7 @@ const API = {};
         id: 'cr' + uid(), name,
         role: String(role || '').trim().slice(0, 60),
         bio: String(bio || '').trim().slice(0, 300),
+        imageUrl: String(imageUrl || '').trim().slice(0, 300) || null,
         links: JSON.stringify(cleanPortfolioLinks(links)),
         handle: String(handle || '').trim().slice(0, 30),
         createdAt: now(),
@@ -2839,6 +3090,7 @@ const API = {};
       if (patch.name !== undefined) it.name = String(patch.name || '').trim().slice(0, 60);
       if (patch.role !== undefined) it.role = String(patch.role || '').trim().slice(0, 60);
       if (patch.bio !== undefined) it.bio = String(patch.bio || '').trim().slice(0, 300);
+      if (patch.imageUrl !== undefined) it.imageUrl = String(patch.imageUrl || '').trim().slice(0, 300) || null;
       if (patch.handle !== undefined) it.handle = String(patch.handle || '').trim().slice(0, 30);
       if (patch.links !== undefined) it.links = JSON.stringify(cleanPortfolioLinks(patch.links));
       store.put('creators', it);
@@ -2847,6 +3099,7 @@ const API = {};
     }
     async function deleteCreator(actor, id) {
       const r = requireAdmin(actor); if (r) return r;
+      if (effRank(actor) < roleRank('cofounder')) return fail('forbidden', 'Only the Co-Founder or Founder can delete creator posts.');
       if (!byIdIn('creators', id)) return fail('notfound', 'Creator not found.');
       store.del('creators', id);
       flush();
@@ -3012,7 +3265,7 @@ const API = {};
       const devices = all('system_devices').filter(d => d.systemId === s.id).sort((a, b) => b.lastSeenAt - a.lastSeenAt)
         .map(d => ({ id: d.id, deviceId: d.deviceId, deviceName: d.deviceName, status: d.status, lastSeenAt: d.lastSeenAt }));
       const games = all('system_games').filter(g => g.systemId === s.id).sort((a, b) => b.lastSeenAt - a.lastSeenAt)
-        .map(g => ({ id: g.id, placeId: g.placeId, status: g.status, lastSeenAt: g.lastSeenAt }));
+        .map(g => ({ id: g.id, placeId: g.placeId, status: g.status, gameName: g.gameName || null, gameOwner: g.gameOwner || null, gameOwnerType: g.gameOwnerType || null, lastSeenAt: g.lastSeenAt }));
       return { ...systemPublic(s), password: s.password, devices, games };
     }
     async function registerSystem(user, { name, password } = {}) {
@@ -3061,7 +3314,7 @@ const API = {};
       flush();
       return ok(true);
     }
-    /* The heart of the anti-leak flow: the game phones home with the name +
+    /* The heart of the anti-leak flow: the game checks in with the name +
        password; a match means the system is licensed. First successful contact
        flips PENDING → ACTIVE; a paused (disabled) system is always denied. */
     function checkSystemCreds(body) {
@@ -3071,7 +3324,7 @@ const API = {};
       return { found: true, system: s };
     }
     /* Shared device bookkeeping + a revoked-device auto-kick: a device the
-       creator kicked gets a DENIED answer on its next phone-home, so the Lua
+       creator kicked gets a DENIED answer on its next check-in, so the Lua
        script disables the system (and kicks the player) immediately. */
     function deviceState(s, deviceId) {
       if (!deviceId) return null;
@@ -3087,7 +3340,7 @@ const API = {};
       return d;
     }
     /* A "game" is a Roblox place (placeId) using the system. Games register
-       themselves when a server phones home; the creator can revoke or
+       themselves when a server checks in; the creator can revoke or
        blacklist a game, and silent ones (30 days) fall off the list. */
     const GAME_STALE_MS = 30 * 24 * 3600 * 1000;
     function gameRow(s, placeId) {
@@ -3095,12 +3348,23 @@ const API = {};
       const key = String(placeId).slice(0, 20);
       return all('system_games').find(g => g.systemId === s.id && g.placeId === key) || null;
     }
-    function recordGame(s, placeId) {
+    function recordGame(s, placeId, meta) {
       const key = String(placeId || '').slice(0, 20);
       if (!/^\d{1,20}$/.test(key)) return null;
       const existing = gameRow(s, key);
-      if (existing) { existing.lastSeenAt = now(); store.put('system_games', existing); return existing; }
-      const g = { id: 'sg' + uid(), systemId: s.id, placeId: key, status: 'active', createdAt: now(), lastSeenAt: now() };
+      if (existing) {
+        existing.lastSeenAt = now();
+        if (meta) {
+          if (meta.gameName && !existing.gameName) existing.gameName = String(meta.gameName).slice(0, 80);
+          if (meta.gameOwner != null && (existing.gameOwner == null || existing.gameOwner === '')) existing.gameOwner = String(meta.gameOwner).slice(0, 80);
+          if (meta.gameOwnerType && !existing.gameOwnerType) existing.gameOwnerType = String(meta.gameOwnerType).slice(0, 20);
+        }
+        store.put('system_games', existing);
+        return existing;
+      }
+      /* NEW games start as 'pending' — the creator must approve them on the
+         Licensed Dashboard before the game is allowed to run the system. */
+      const g = { id: 'sg' + uid(), systemId: s.id, placeId: key, status: 'pending', gameName: (meta && meta.gameName ? String(meta.gameName).slice(0, 80) : null), gameOwner: (meta && meta.gameOwner != null ? String(meta.gameOwner).slice(0, 80) : null), gameOwnerType: (meta && meta.gameOwnerType ? String(meta.gameOwnerType).slice(0, 20) : null), createdAt: now(), lastSeenAt: now() };
       store.put('system_games', g);
       return g;
     }
@@ -3118,37 +3382,47 @@ const API = {};
       store.put('systems', s);
       flush();
     }
-    async function systemActivate({ systemName, systemPassword, deviceId, deviceName, placeId } = {}) {
+    function gameGate(s, placeId) {
+      const game = gameRow(s, placeId);
+      if (!game) return { pending: true, reason: 'This game is not yet approved to use this system. The system creator must approve it on the Licensed Dashboard (Registered Systems → Games).' };
+      if (game.status === 'pending') return { pending: true, reason: 'Waiting for approval — the system creator must allow this game on the Licensed Dashboard.' };
+      if (game.status === 'revoked') return { denied: true, reason: 'This game\'s permission to use this system has been revoked by the creator.' };
+      if (game.status === 'blacklisted') return { denied: true, reason: 'This game has been blacklisted by the creator.' };
+      return { game };
+    }
+    async function systemActivate({ systemName, systemPassword, deviceId, deviceName, placeId, gameName, gameOwner, gameOwnerType } = {}) {
       const chk = checkSystemCreds({ systemName, systemPassword });
       if (!chk.found) return ok({ active: false, reason: chk.reason });
       if (chk.denied) return ok({ active: false, reason: chk.reason });
       const s = chk.system;
       const dev = deviceState(s, deviceId);
       if (dev && dev.status === 'revoked') return ok({ active: false, reason: 'This device has been kicked by the creator and can no longer use the system.', revokedPlayers: revokedPlayerIds(s) });
-      const game = gameRow(s, placeId);
-      if (game && game.status !== 'active') return ok({ active: false, reason: game.status === 'blacklisted' ? 'This game has been blacklisted by the creator.' : 'This game is not authorized to use this system.', revokedPlayers: revokedPlayerIds(s) });
+      const gate = gameGate(s, placeId);
+      if (gate.denied) return ok({ active: false, reason: gate.reason, revokedPlayers: revokedPlayerIds(s) });
+      if (placeId) { recordGame(s, placeId, { gameName, gameOwner, gameOwnerType }); pruneStaleGames(s); }
+      if (gate.pending) return ok({ active: false, pendingApproval: true, reason: gate.reason, revokedPlayers: revokedPlayerIds(s) });
       bumpSystem(s);
       if (deviceId) recordDevice(s, deviceId, deviceName);
-      if (placeId) { recordGame(s, placeId); pruneStaleGames(s); }
       return ok({ active: true, reason: 'Licensed and active.', revokedPlayers: revokedPlayerIds(s) });
     }
-    async function systemHeartbeat({ systemName, systemPassword, deviceId, deviceName, placeId } = {}) {
+    async function systemHeartbeat({ systemName, systemPassword, deviceId, deviceName, placeId, gameName, gameOwner, gameOwnerType } = {}) {
       const chk = checkSystemCreds({ systemName, systemPassword });
       if (!chk.found) return ok({ active: false, reason: chk.reason });
       if (chk.denied) return ok({ active: false, reason: chk.reason });
       const s = chk.system;
       const dev = deviceState(s, deviceId);
       if (dev && dev.status === 'revoked') return ok({ active: false, reason: 'This device has been kicked by the creator and can no longer use the system.', revokedPlayers: revokedPlayerIds(s) });
-      const game = gameRow(s, placeId);
-      if (game && game.status !== 'active') return ok({ active: false, reason: game.status === 'blacklisted' ? 'This game has been blacklisted by the creator.' : 'This game is not authorized to use this system.', revokedPlayers: revokedPlayerIds(s) });
+      const gate = gameGate(s, placeId);
+      if (gate.denied) return ok({ active: false, reason: gate.reason, revokedPlayers: revokedPlayerIds(s) });
+      if (placeId) { recordGame(s, placeId, { gameName, gameOwner, gameOwnerType }); pruneStaleGames(s); }
+      if (gate.pending) return ok({ active: false, pendingApproval: true, reason: gate.reason, revokedPlayers: revokedPlayerIds(s) });
       bumpSystem(s);
       if (deviceId) recordDevice(s, deviceId, deviceName);
-      if (placeId) { recordGame(s, placeId); pruneStaleGames(s); }
       return ok({ active: true, reason: 'Licensed and active.', revokedPlayers: revokedPlayerIds(s) });
     }
     /* Player device registration from the Lua script — records who is using the
        system so the creator can see and revoke individual players. */
-    async function registerSystemDevice({ systemName, systemPassword, playerId, playerName, placeId } = {}) {
+    async function registerSystemDevice({ systemName, systemPassword, playerId, playerName, placeId, gameName, gameOwner, gameOwnerType } = {}) {
       const chk = checkSystemCreds({ systemName, systemPassword });
       if (!chk.found || chk.denied) return ok({ active: false, reason: chk.reason || 'Not licensed.' });
       const s = chk.system;
@@ -3161,7 +3435,7 @@ const API = {};
         else store.put('system_devices', { id: 'sd' + uid(), systemId: s.id, deviceId: String(playerId).slice(0, 80), deviceName: String(playerName || '').slice(0, 40) || null, status: 'active', createdAt: now(), lastSeenAt: now() });
         flush();
       }
-      if (placeId) recordGame(s, placeId);
+      if (placeId) recordGame(s, placeId, { gameName, gameOwner, gameOwnerType });
       return ok({ active: true, reason: 'Registered.' });
     }
     async function setSystemStatus(user, id, status) {
@@ -3189,7 +3463,7 @@ const API = {};
       flush();
       return ok(true);
     }
-    /* Kick = revoke (the device is denied on its next phone-home and the
+    /* Kick = revoke (the device is denied on its next check-in and the
        script auto-kicks the player). Authorize = undo a kick. */
     async function authorizeSystemDevice(user, deviceId) {
       const u = resolveUser(user);
@@ -3214,7 +3488,7 @@ const API = {};
       const s = byIdIn('systems', g.systemId);
       if (!s || s.userId !== u.id) return fail('forbidden', 'You can only manage games on your own systems.');
       status = String(status || '');
-      if (!['active', 'revoked', 'blacklisted'].includes(status)) return fail('invalid', 'Invalid status.');
+      if (!['active', 'pending', 'revoked', 'blacklisted'].includes(status)) return fail('invalid', 'Invalid status.');
       g.status = status;
       g.lastSeenAt = now();
       store.put('system_games', g);
@@ -3254,6 +3528,7 @@ const API = {};
       registerSystem, listSystems, deleteSystem, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice, authorizeSystemDevice, setSystemGameStatus, removeSystemGame,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
       adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSessions, adminEmails, adminSendEmail, adminListBlasts, adminDeleteBlast, adminEmailHistory, adminListInbound, adminSetUnsubscribed, inboundMailEvent, processScheduledBlasts, adminOrders, adminCompleteOrder,
+      sellerOrders, setOrderApproval, adminTakeFile, adminSetAssetStatus, adminSetRestriction, adminRequestSubRevoke, adminResolveSubRevoke, adminListSubRevokes, adminSystems,
       setFx,
     };
   }
@@ -3389,19 +3664,20 @@ API.purchase = (user, id) => _wrap(async () => _mode === 'local' ? await _engine
 API.paymentMethods = () => _wrap(async () => _mode === 'local'
   ? { ok: true, data: { dev: true, currency: 'PHP', methods: [{ id: 'stripe', label: 'Stripe', enabled: true }, { id: 'paypal', label: 'PayPal', enabled: true }, { id: 'gcash', label: 'GCash', enabled: true }] } }
   : await _call('GET', '/api/payment/methods'));
-API.checkout = (user, assetId, method, plan) => _wrap(async () => _mode === 'local'
+API.checkout = (user, assetId, method, plan, gameDetails) => _wrap(async () => _mode === 'local'
   ? await (async () => {
       const isVip = plan === 'vip';
       const isSub = plan && plan.startsWith('sub:');
       const o = isVip ? await _engine.createVipOrder(user, method)
         : isSub ? await _engine.createSubscriptionOrder(user, plan.split(':')[1], plan.split(':')[2], method)
-        : await _engine.createOrder(user, assetId, method);
+        : await _engine.createOrder(user, assetId, method, gameDetails);
       if (!o.ok) return o;
       return await _engine.completeOrder(user, o.data.orderId, 'dev');
     })()
-  : await _call('POST', '/api/checkout', { assetId, method, plan }));
+  : await _call('POST', '/api/checkout', { assetId, method, plan, gameDetails }));
 API.confirmPayment = (orderId, providerRef) => _wrap(async () => _mode === 'local' ? { ok: true, data: {} } : await _call('POST', '/api/payments/confirm', { orderId, providerRef }));
 API.myOrders = user => _wrap(async () => _mode === 'local' ? await _engine.myOrders(user) : await _call('GET', '/api/orders/mine'));
+API.cancelOrder = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.cancelOrder(user, id) : await _call('POST', '/api/orders/' + _e(id) + '/cancel'));
 API.adminOrders = user => _wrap(async () => _mode === 'local' ? await _engine.adminOrders(user) : await _call('GET', '/api/admin/orders'));
 API.adminCompleteOrder = (user, orderId) => _wrap(async () => _mode === 'local' ? await _engine.adminCompleteOrder(user, orderId) : await _call('POST', '/api/admin/orders/' + _e(orderId) + '/complete'));
 API.myPurchases = user => _wrap(async () => _mode === 'local' ? await _engine.myPurchases(user) : await _call('GET', '/api/purchases/mine'));
@@ -3457,6 +3733,14 @@ API.deleteAnnouncement = (user, id) => _wrap(async () => _mode === 'local' ? awa
 /* ---- system registering (creator → Roblox Studio licensing) ---- */
 API.registerSystem = (user, a) => _wrap(async () => _mode === 'local' ? await _engine.registerSystem(user, a) : await _call('POST', '/api/systems/register', a));
 API.mySystems = user => _wrap(async () => _mode === 'local' ? await _engine.listSystems(user) : await _call('GET', '/api/systems/mine'));
+API.dashboardOrders = user => _wrap(async () => _mode === 'local' ? await _engine.sellerOrders(user) : await _call('GET', '/api/dashboard/orders'));
+API.setOrderApproval = (user, id, decision, note) => _wrap(async () => _mode === 'local' ? await _engine.setOrderApproval(user, id, decision, note) : await _call('POST', '/api/dashboard/orders/' + _e(id) + '/approval', { decision, note }));
+API.adminSystems = user => _wrap(async () => _mode === 'local' ? await _engine.adminSystems(user) : await _call('GET', '/api/admin/systems'));
+API.adminSetAssetStatus = (user, id, status) => _wrap(async () => _mode === 'local' ? await _engine.adminSetAssetStatus(user, id, status) : await _call('POST', '/api/admin/assets/' + _e(id) + '/status', { status }));
+API.adminSetRestriction = (user, id, a) => _wrap(async () => _mode === 'local' ? await _engine.adminSetRestriction(user, id, a) : await _call('POST', '/api/admin/users/' + _e(id) + '/restrict', a));
+API.adminRequestSubRevoke = (user, id, reason) => _wrap(async () => _mode === 'local' ? await _engine.adminRequestSubRevoke(user, id, reason) : await _call('POST', '/api/admin/sub-revokes', { targetId: id, reason }));
+API.adminResolveSubRevoke = (user, id, decision) => _wrap(async () => _mode === 'local' ? await _engine.adminResolveSubRevoke(user, id, decision) : await _call('POST', '/api/admin/sub-revokes/' + _e(id) + '/resolve', { decision }));
+API.adminListSubRevokes = user => _wrap(async () => _mode === 'local' ? await _engine.adminListSubRevokes(user) : await _call('GET', '/api/admin/sub-revokes'));
 API.deleteSystem = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.deleteSystem(user, id) : await _call('DELETE', '/api/systems/' + _e(id)));
 API.setSystemStatus = (user, id, status) => _wrap(async () => _mode === 'local' ? await _engine.setSystemStatus(user, id, status) : await _call('POST', '/api/systems/' + _e(id) + '/status', { status }));
 API.revokeSystemDevice = (user, deviceId) => _wrap(async () => _mode === 'local' ? await _engine.revokeSystemDevice(user, deviceId) : await _call('POST', '/api/systems/devices/' + _e(deviceId) + '/revoke'));
@@ -3509,11 +3793,12 @@ function avatarHtml(u, px = 36) {
 }
 function badgeHtml(role, tags) {
   let main = '';
-  if (role === 'owner') main = `<span class="badge owner" title="Owner — can do everything"><span class="crown">${ICON.crown}</span>Owner</span>`;
+  if (role === 'owner') main = `<span class="badge owner" title="Founder — can do everything"><span class="crown">${ICON.crown}</span>Founder</span>`;
   else if (role === 'cofounder') main = `<span class="badge cofounder" title="Co-Founder — can do everything">Co-Founder</span>`;
   else if (role === 'admin') main = `<span class="badge admin" title="Administrator"><span class="crown">${ICON.crown}</span>Admin</span>`;
-  else if (role === 'vip') main = `<span class="badge vip" title="VIP / Licensed creator">VIP</span>`;
-  else main = `<span class="badge member" title="Member">Member</span>`;
+  else if (role === 'vip') main = `<span class="badge vip" title="Licensed seller">Licensed</span>`;
+  else if (role === 'test') main = `<span class="badge admin" title="Test — QA access, free test purchases">Test</span>`;
+  else main = `<span class="badge member" title="Verified">Verified</span>`;
   const normTag = t => String(t || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   const extra = (tags || []).filter(t => String(t || '').trim() && normTag(t) !== normTag(role)).map(t => `<span class="badge tag" title="Tag">${esc(t)}</span>`).join('');
   return main + extra;
@@ -3572,10 +3857,10 @@ function toast(msg, type = 'ok') {
 }
 
 /* ---- modal ---- */
-function modal({ title, body, confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger = false, onConfirm, validate, confirmOnly = false }) {
+function modal({ title, body, confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger = false, onConfirm, validate, confirmOnly = false, wide = false }) {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
-  overlay.innerHTML = `<div class="modal" role="dialog" aria-modal="true">
+  overlay.innerHTML = `<div class="modal ${wide ? 'modal-wide' : ''}" role="dialog" aria-modal="true">
     <h3>${esc(title)}</h3>
     <div class="modal-body">${body}</div>
     <div class="modal-actions">${confirmOnly ? '' : `<button class="btn btn-ghost btn-sm" data-act="cancel">${esc(cancelLabel)}</button>`}
@@ -3598,11 +3883,11 @@ function modal({ title, body, confirmLabel = 'Confirm', cancelLabel = 'Cancel', 
   setTimeout(() => { const f = overlay.querySelector('input,textarea,select'); f && f.focus(); }, 30);
   return overlay;
 }
-function promptModal({ title, label, placeholder, confirmLabel = 'Confirm', danger = false, onConfirm, type = 'text', required }) {
+function promptModal({ title, label, placeholder, confirmLabel = 'Confirm', danger = false, onConfirm, type = 'text', required, body = '', extraFields = [] }) {
   modal({
     title, confirmLabel, danger, onConfirm,
-    body: `<div class="field"><label>${esc(label)}</label><input class="input" id="pm-input" type="${type}" placeholder="${esc(placeholder || '')}"></div>`,
-    validate: ov => { const v = ov.querySelector('#pm-input').value.trim(); if (required && !v) { toast('This field is required.', 'err'); return false; } return { value: v }; },
+    body: `${body}<div class="field"><label>${esc(label)}</label><input class="input" id="pm-input" type="${type}" placeholder="${esc(placeholder || '')}"></div>${extraFields.map(f => `<div class="field"><label>${esc(f.label)}</label><input class="input" id="${esc(f.id)}" type="${esc(f.type || 'text')}" placeholder="${esc(f.placeholder || '')}"></div>`).join('')}`,
+    validate: ov => { const v = ov.querySelector('#pm-input').value.trim(); if (required && !v) { toast('This field is required.', 'err'); return false; } const extra = {}; (extraFields || []).forEach(f => { const el = ov.querySelector('#' + f.id); extra[f.id] = el ? el.value.trim() : ''; }); return { value: v, extra }; },
   });
 }
 
@@ -3637,8 +3922,7 @@ function headerHtml(user) {
         <div class="dropdown-menu hidden" id="user-menu">
           ${isUnverified(user) ? `<a href="#/verify" class="warn-link">${ICON.mail} Verify your email</a>` : ''}
           <a href="#/profile/${esc(user.handle)}">${ICON.user} My Profile</a>
-          <a href="#/my-assets">${ICON.edit} My Assets</a>
-          ${canPost(user) ? `<a href="#/upload">${ICON.plus} Upload Asset</a>` : `<a href="#/my-assets" onclick="event.preventDefault();onPostFab()">${ICON.lock} Upload Asset (VIP)</a>`}
+          ${canPost(user) ? `<a href="#/my-assets">${ICON.edit} My Assets</a><a href="#/upload">${ICON.plus} Upload Asset</a>` : `<a href="#/orders">${ICON.cart} Orders</a>`}
           ${isStaff(user) ? `<a href="#/admin">${ICON.shield} Admin Panel</a>` : ''}
           <a href="#/settings">${ICON.clock} Settings</a>
           <div class="sep"></div>
@@ -3660,9 +3944,9 @@ function drawerHtml() {
   const navItems = [...(user && canPost(user) ? [['dashboard', 'Licensed Dashboard', ICON.chart]] : []), ['portfolio', 'Portfolio', ICON.crown], ['shop', 'Shop', ICON.cart], ['subscription', 'Subscription', ICON.key], ['creators', 'Creators', ICON.user], ['support', 'Support', ICON.mail]];
   const drawerNav = navItems.map(([p, l, ic]) => `<a class="m-nav-item" href="#/${p}" data-nav="${p}">${ic}<span>${l}</span></a>`).join('');
   const drawerAccount = user
-    ? `<a class="m-nav-item" href="#/profile/${esc(user.handle)}">${ICON.user}<span>My Profile</span></a>
-       <a class="m-nav-item" href="#/my-assets">${ICON.edit}<span>My Assets</span></a>
-       ${canPost(user) ? `<a class="m-nav-item" href="#/upload">${ICON.plus}<span>Upload Asset</span></a>` : `<a class="m-nav-item" href="#/subscription">${ICON.lock}<span>Get VIP / Licensed</span></a>`}
+    ? `       <a class="m-nav-item" href="#/profile/${esc(user.handle)}">${ICON.user}<span>My Profile</span></a>
+       ${canPost(user) ? `<a class="m-nav-item" href="#/my-assets">${ICON.edit}<span>My Assets</span></a>` : `<a class="m-nav-item" href="#/orders">${ICON.cart}<span>Orders</span></a>`}
+       ${canPost(user) ? `<a class="m-nav-item" href="#/upload">${ICON.plus}<span>Upload Asset</span></a>` : `<a class="m-nav-item" href="#/subscription">${ICON.lock}<span>Get Licensed</span></a>`}
        ${isStaff(user) ? `<a class="m-nav-item" href="#/admin">${ICON.shield}<span>Admin Panel</span></a>` : ''}
        <a class="m-nav-item" href="#/settings">${ICON.clock}<span>Settings</span></a>
        <button class="m-nav-item" id="m-logout-btn">${ICON.logout}<span>Log out</span></button>`
@@ -3737,8 +4021,8 @@ function onPostFab() {
   const u = STATE.user;
   if (!u) { toast('Log in to post assets.', 'err'); go('/login'); return; }
   if (canPost(u)) { go('/upload'); return; }
-  modal({ title: 'VIP / Licensed creators only', confirmLabel: 'View license options',
-    body: `<p>Posting assets is a <b style="color:var(--vip)">VIP / Licensed</b> creator feature. Members can browse, comment, and purchase — but to sell your own assets, grab a license.</p><p class="muted small">Every purchase of any asset issues a license key and upgrades your account to VIP / Licensed automatically.</p>`,
+  modal({ title: 'Licensed sellers only', confirmLabel: 'View license options',
+    body: `<p>Posting assets is a <b style="color:var(--vip)">Licensed</b> creator feature. Members can browse, comment, and purchase — but to sell your own assets, grab a license.</p><p class="muted small">Every purchase of any asset issues a license key and upgrades your account to Licensed automatically.</p>`,
     onConfirm: () => go('/subscription') });
 }
 function openLegal() {
@@ -3799,7 +4083,7 @@ async function router(opts = {}) {
   const { path, params, query } = parseHash();
   /* Auth pages are full-screen and focused — hide the site chrome around them. */
   document.body.classList.toggle('auth-mode', ['login', 'register', 'forgot', 'reset'].includes(path));
-  if (!['home', 'shop', 'portfolio', 'subscription', 'creators', 'support', 'ticket', 'verify', 'asset', 'profile', 'login', 'register', 'forgot', 'reset', 'settings', 'upload', 'my-assets', 'dashboard', 'admin', 'privacy', 'terms'].includes(path)) { location.hash = '#/'; return; }
+  if (!['home', 'shop', 'portfolio', 'subscription', 'creators', 'support', 'ticket', 'verify', 'asset', 'profile', 'login', 'register', 'forgot', 'reset', 'settings', 'upload', 'my-assets', 'orders', 'dashboard', 'admin', 'privacy', 'terms'].includes(path)) { location.hash = '#/'; return; }
   const me = await API.me();
   STATE.user = me.ok ? me.data : null;
   renderHeader();
@@ -3906,7 +4190,7 @@ VIEWS.home = async () => {
     </div>
   </div></section>
   <div class="marquee" aria-hidden="true"><div class="marquee-track">
-    <span>Premium Roblox <b>Scripts</b></span><span>Custom <b>Models &amp; Animations</b></span><span>Device-Secured <b>Licensing</b></span><span>One-Time Purchase · <b>Lifetime Updates</b></span><span>Stripe · PayPal · <b>GCash</b></span><span>VIP / Licensed <b>Creators</b></span><span>24/7 <b>Community Support</b></span>
+    <span>Premium Roblox <b>Scripts</b></span><span>Custom <b>Models &amp; Animations</b></span><span>Device-Secured <b>Licensing</b></span><span>One-Time Purchase · <b>Lifetime Updates</b></span><span>Stripe · PayPal · <b>GCash</b></span><span>Licensed <b>Creators</b></span><span>24/7 <b>Community Support</b></span>
   </div></div>
   <div class="page">
     <div class="section-head"><div><span class="section-eyebrow">Featured</span><h2>Top Selling Assets</h2><p>Our most purchased assets, ranked by sales.</p></div><a class="btn btn-ghost btn-sm" href="#/shop">Browse all →</a></div>
@@ -4017,6 +4301,7 @@ function onBuySubscription(category, tier) {
   openCheckout('sub:' + category + ':' + tier, 'sub:' + category + ':' + tier);
 }
 async function openCheckout(assetId, plan) {
+  const isAsset = !!assetId && !plan;
   const isVip = plan === 'vip';
   const isSub = plan && plan.startsWith('sub:');
   const subCategory = isSub ? plan.split(':')[1] : null;
@@ -4031,8 +4316,8 @@ async function openCheckout(assetId, plan) {
   let body = '';
   let title = 'Checkout';
   if (isVip) {
-    title = 'Get VIP / Licensed';
-    body = `<p class="muted small" style="margin:0 0 14px">One-time payment of <b style="color:var(--vip)">${fmtPhp(500)}</b> — your account becomes <b style="color:var(--vip)">VIP / Licensed</b> forever, unlocking the ability to post your own assets.</p>`;
+    title = 'Get Licensed';
+    body = `<p class="muted small" style="margin:0 0 14px">One-time payment of <b style="color:var(--vip)">${fmtPhp(500)}</b> — your account becomes <b style="color:var(--vip)">Licensed</b> forever, unlocking the ability to post your own assets.</p>`;
   } else if (isSub) {
     const subName = subCategory === 'protection' ? 'Subscription' : 'Contract';
     const subLabel = subCategory === 'protection'
@@ -4045,7 +4330,17 @@ async function openCheckout(assetId, plan) {
     body = `<p class="muted small" style="margin:0 0 14px">One-time payment of <b style="color:var(--vip)">${fmtPhp(phpPrice)}</b> for <b>${subLabel}</b>. Your account will be upgraded instantly.</p>`;
   } else {
     title = 'Checkout';
-    body = `<p class="muted small" style="margin:0 0 14px">Choose how to pay. Every purchase issues a <b>license key</b> and upgrades your account to <b style="color:var(--vip)">VIP / Licensed</b> so you can post your own assets.</p>`;
+    body = `<p class="muted small" style="margin:0 0 14px">Choose how to pay. Every purchase issues a <b>license key</b> and upgrades your account to <b style="color:var(--vip)">Licensed</b> so you can post your own assets.</p>
+      <div style="border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:14px;background:var(--surface-2)">
+        <b style="font-family:var(--font-display);font-size:14px">Your game details</b>
+        <p class="muted small" style="margin:2px 0 10px">The seller reviews these to activate your license — make sure they match the game that will use the system.</p>
+        <div class="row" style="gap:10px;flex-wrap:wrap">
+          <div class="field" style="flex:1;min-width:150px;margin:0"><label>Game name</label><input class="input" id="gd-name" maxlength="80" placeholder="e.g. Music Game" style="background:var(--surface)"></div>
+          <div class="field" style="flex:1;min-width:130px;margin:0"><label>Place / game ID</label><input class="input" id="gd-place" maxlength="20" inputmode="numeric" placeholder="e.g. 1234567890" style="background:var(--surface)"></div>
+          <div class="field" style="flex:1;min-width:130px;margin:0"><label>Game owner</label><input class="input" id="gd-owner" maxlength="80" placeholder="user or group name" style="background:var(--surface)"></div>
+        </div>
+        <div class="field" style="margin:10px 0 0"><label>Notes for the seller <span class="muted small" style="font-weight:400">(optional)</span></label><input class="input" id="gd-notes" maxlength="400" placeholder="anything the seller should know" style="background:var(--surface)"></div>
+      </div>`;
   }
   const ov = modal({
     title,
@@ -4061,11 +4356,12 @@ async function openCheckout(assetId, plan) {
     const entry = methods.find(m => m.id === c.dataset.method);
     if (!entry || !entry.enabled) { toast('This payment method is not configured yet.', 'err'); return; }
     ov.remove();
-    const res = await API.checkout(STATE.user, assetId, entry.id, plan);
+    const gameDetails = isAsset ? { gameName: document.getElementById('gd-name') && document.getElementById('gd-name').value, placeId: document.getElementById('gd-place') && document.getElementById('gd-place').value, gameOwner: document.getElementById('gd-owner') && document.getElementById('gd-owner').value, notes: document.getElementById('gd-notes') && document.getElementById('gd-notes').value } : null;
+    const res = await API.checkout(STATE.user, assetId, entry.id, plan, gameDetails);
     if (!res.ok) { toast(res.error, 'err'); if (res.code === 'timeout' || res.code === 'owned' || res.code === 'banned' || res.code === 'pending') await router(); return; }
     if (res.data && res.data.redirect) { location.href = res.data.redirect; return; }
     if (res.data && (res.data.licenseKey || res.data.vipUpgrade)) {
-      toast(res.data.vipUpgrade ? 'You are now VIP / Licensed — you can post assets. 👑' : 'Subscription issued! It is on your Subscription page.');
+      toast(res.data.vipUpgrade ? 'You are now Licensed — you can post assets. 👑' : 'Subscription issued! It is on your Subscription page.');
       burstAt(innerWidth / 2, innerHeight / 2, 30);
       SFX.play('purchase');
       if (STATE.user) STATE.user.role = 'vip';
@@ -4122,7 +4418,7 @@ VIEWS.asset = async ({ params }) => {
     buyHtml = `<a class="btn btn-primary btn-lg" href="#/login">Log in to purchase</a>`;
   } else if (a.status === 'approved') {
     buyHtml = `<button class="btn btn-primary btn-lg" onclick="onBuy('${a.id}')">${ICON.cart} Purchase · ${fmtMoney(a.price)}</button>
-      ${me && !canPost(me) ? `<p class="muted small" style="margin-top:10px">Every purchase upgrades you to <b style="color:var(--vip)">VIP / Licensed</b> — you can post your own assets right after.</p>` : ''}`;
+      ${me && !canPost(me) ? `<p class="muted small" style="margin-top:10px">Every purchase upgrades you to <b style="color:var(--vip)">Licensed</b> — you can post your own assets right after.</p>` : ''}`;
   }
 
   const commentHtml = comments.ok ? comments.data.map(c => `
@@ -4310,7 +4606,7 @@ VIEWS.profile = async ({ params }) => {
     </div>
     ${staffPanel}
     <div class="section-head"><div><span class="section-eyebrow">Portfolio</span><h2>Assets posted</h2><p>Approved assets by ${esc(user.displayName)}.</p></div></div>
-    ${assets.length ? `<div class="grid grid-assets">${assets.map(a => assetCardHtml(a)).join('')}</div>` : emptyHtml('No assets posted', canPost(user) ? 'This creator has not published any approved assets yet.' : 'Members can purchase and comment — only VIP / Licensed creators can post assets.')}
+    ${assets.length ? `<div class="grid grid-assets">${assets.map(a => assetCardHtml(a)).join('')}</div>` : emptyHtml('No assets posted', canPost(user) ? 'This creator has not published any approved assets yet.' : 'Members can purchase and comment — only Licensed sellers can post assets.')}
     <div class="section-head"><div><span class="section-eyebrow">Activity</span><h2>Recent purchases</h2><p>What ${esc(user.displayName)} has bought recently.</p></div></div>
     ${purchases.length ? `<div class="card card-pad" style="padding:6px 0">${purchases.map(p => `
       <div class="row" style="padding:12px 20px;border-bottom:1px solid var(--border);gap:12px">
@@ -4326,14 +4622,14 @@ VIEWS.profile = async ({ params }) => {
 };
 
 /* ---- staff tools: manage roles & tags from any profile ---- */
-const ROLE_LABEL_UI = { member: 'Member', vip: 'VIP / Licensed', admin: 'Admin', cofounder: 'Co-Founder', owner: 'Owner' };
+const ROLE_LABEL_UI = { member: 'Verified', test: 'Test', vip: 'Licensed', admin: 'Admin', cofounder: 'Co-Founder', owner: 'Founder' };
 function profileRolesPanel(u) {
   const actor = STATE.user;
   const canGrantAll = effRank(actor) >= roleRank('cofounder');
   const opts = (canGrantAll ? UI_ROLES : ['member', 'vip']).map(r => `<option value="${r}" ${u.role === r ? 'selected' : ''}>${ROLE_LABEL_UI[r]}</option>`).join('');
-  const quick = canGrantAll ? ['Owner', 'Co-Founder', 'Admin', 'VIP', 'Member'] : ['VIP', 'Member'];
+  const quick = canGrantAll ? ['Founder', 'Co-Founder', 'Admin', 'Licensed', 'Verified'] : ['Licensed', 'Verified'];
   return `<div class="card card-pad mt2" style="border-color:rgba(212,175,55,.32);box-shadow:0 0 0 1px rgba(212,175,55,.07),0 14px 34px rgba(0,0,0,.3)">
-    <div style="margin-bottom:14px"><span class="section-eyebrow">Staff tools</span><h3 style="font-family:var(--font-display);font-size:18px;margin:4px 0 4px">Manage roles &amp; tags</h3><p class="muted small" style="margin:0">Set the role — which grants permissions — and add extra display tags for <b style="color:var(--text)">${esc(u.displayName)}</b>.${canGrantAll ? '' : ' As an Admin you can only grant Member / VIP.'}</p></div>
+    <div style="margin-bottom:14px"><span class="section-eyebrow">Staff tools</span><h3 style="font-family:var(--font-display);font-size:18px;margin:4px 0 4px">Manage roles &amp; tags</h3><p class="muted small" style="margin:0">Set the role — which grants permissions — and add extra display tags for <b style="color:var(--text)">${esc(u.displayName)}</b>.${canGrantAll ? '' : ' As an Admin you can only grant Verified / Licensed.'}</p></div>
     <div class="row" style="align-items:flex-end;gap:14px;flex-wrap:wrap">
       <div class="field" style="min-width:200px"><label>Role</label><select class="select" id="pr-role">${opts}</select><div class="hint">Owner &amp; Co-Founder can do everything; Admin can do everything except grant admin roles or higher.</div></div>
       <div class="field" style="flex:1;min-width:250px"><label>Extra tags <span class="muted small" style="font-weight:400">(max 6, shown next to the role badge)</span></label>
@@ -4408,7 +4704,7 @@ VIEWS.verify = async ({ query } = {}) => {
       <div class="card card-pad center" style="max-width:460px;border-color:rgba(212,175,55,.35)">
         <span class="crown" style="font-size:40px">${ICON.crown}</span>
         <h2 style="font-family:var(--font-display);font-size:22px;margin:14px 0 8px">Email verified!</h2>
-        <p class="muted">Your email is confirmed. You can now post assets (if VIP / Licensed) and purchase from the marketplace.</p>
+        <p class="muted">Your email is confirmed. You can now post assets (if Licensed) and purchase from the marketplace.</p>
         <div class="center mt2"><a class="btn btn-primary" href="#/">${ICON.check} Continue to the site</a></div>
       </div>
     </div>`;
@@ -4608,6 +4904,7 @@ VIEWS.settings = async () => {
       <p class="muted small mb">Subtle synthesized feedback for clicks, likes, purchases, and page changes. Nothing plays before your first interaction.</p>
       <div class="set-row"><label class="switch"><input type="checkbox" id="sfx-on" ${SFX.isMuted() ? '' : 'checked'} onchange="onSfxToggle(this)"><span class="track"></span><span><b>Sound effects</b><small>Clicks, chimes, and page whooshes</small></span></label></div>
       <div class="set-row"><label class="switch"><input type="checkbox" id="trans-on" ${localStorage.getItem('kp_transitions') === '0' ? '' : 'checked'} onchange="onTransToggle(this)"><span class="track"></span><span><b>Page transitions</b><small>Cinematic gold sweep between pages</small></span></label></div>
+      <div class="set-row"><label class="switch"><input type="checkbox" id="theme-light" ${localStorage.getItem('kp_theme') === 'light' ? 'checked' : ''} onchange="onThemeToggle(this)"><span class="track"></span><span><b>Light theme</b><small>Switch the whole site to a white look</small></span></label></div>
       <div class="set-row"><span class="muted small" style="width:112px">Volume</span><input type="range" class="vol" id="sfx-vol" min="0" max="100" value="${Math.round(SFX.vol() * 100)}" oninput="onSfxVol(this)" aria-label="Sound volume"><button class="btn btn-ghost btn-sm" type="button" onclick="onTestSound()">${ICON.zap} Test</button></div>
     </div>
     <div class="card card-pad">
@@ -4620,6 +4917,11 @@ VIEWS.settings = async () => {
   </div>`;
 };
 VIEWS_BIND.settings = () => { };
+function onThemeToggle(el) {
+  if (el.checked) { document.documentElement.setAttribute('data-theme', 'light'); localStorage.setItem('kp_theme', 'light'); }
+  else { document.documentElement.removeAttribute('data-theme'); localStorage.setItem('kp_theme', 'dark'); }
+  toast(el.checked ? 'Light theme on.' : 'Dark theme on.');
+}
 function onSfxToggle(el) { SFX.setMuted(!el.checked); if (el.checked) SFX.play('purchase', true); }
 function onTransToggle(el) { localStorage.setItem('kp_transitions', el.checked ? '1' : '0'); if (el.checked) toast('Page transitions enabled.'); }
 function onSfxVol(el) { SFX.setVol(el.value / 100); }
@@ -4702,7 +5004,7 @@ VIEWS.upload = async ({ query }) => {
   if (!STATE.user) return `<div class="page">${emptyHtml('Not logged in', 'Log in to post assets.')}</div>`;
   if (!canPost(STATE.user)) {
     return `<div class="page page-narrow">${STATE.user.role === 'member'
-      ? `<div class="card card-pad center" style="padding:56px 30px"><span class="crown" style="font-size:34px">${ICON.crown}</span><h2 style="font-family:var(--font-display);font-size:24px;margin:14px 0 8px">Members cannot post assets</h2><p class="muted" style="max-width:420px;margin:0 auto">Posting assets is a VIP / Licensed creator feature. Members can comment and purchase from the marketplace.</p></div>`
+      ? `<div class="card card-pad center" style="padding:56px 30px"><span class="crown" style="font-size:34px">${ICON.crown}</span><h2 style="font-family:var(--font-display);font-size:24px;margin:14px 0 8px">Members cannot post assets</h2><p class="muted" style="max-width:420px;margin:0 auto">Posting assets is a Licensed seller feature. Members can comment and purchase from the marketplace.</p></div>`
       : `<div class="page">${emptyHtml('Currently restricted', 'Your account is timed out and cannot post assets right now.')}</div>`}</div>`;
   }
   let a = null;
@@ -4718,7 +5020,7 @@ VIEWS.upload = async ({ query }) => {
   }
   return `<div class="page page-narrow">
     ${cooldown ? `<div class="cooldown-banner"><span class="crown">${ICON.clock}</span><div><b>Posting cooldown active</b><br><span class="muted small">You can post again in <b style="color:var(--gold)">${esc(cooldown.text)}</b> — this keeps the marketplace fresh and spam-free. You can still edit your existing posts.</span></div></div>` : ''}
-    <div class="section-head"><div><span class="section-eyebrow">${a ? 'Edit' : 'Sell'}</span><h2>${a ? 'Edit asset' : 'Upload a new asset'}</h2><p>${a ? 'Changes send the asset back into the pending approval queue.' : cooldown ? 'Your next post unlocks when the cooldown ends.' : 'VIP / Licensed creators can post one new asset every 24 hours. Submissions are reviewed by an admin before going live.'}</p></div></div>
+    <div class="section-head"><div><span class="section-eyebrow">${a ? 'Edit' : 'Sell'}</span><h2>${a ? 'Edit asset' : 'Upload a new asset'}</h2><p>${a ? 'Changes send the asset back into the pending approval queue.' : cooldown ? 'Your next post unlocks when the cooldown ends.' : 'Licensed sellers can post one new asset every 24 hours. Submissions are reviewed by an admin before going live.'}</p></div></div>
     <div class="card card-pad">
       <form onsubmit="onSubmitAsset(event)">
         <input type="hidden" name="id" value="${a ? a.id : ''}">
@@ -4784,11 +5086,40 @@ VIEWS['my-assets'] = async () => {
         <div>${statusBadge(a.status, a.rejectReason)}</div>
         <div class="row" style="gap:8px"><button class="btn btn-ghost btn-sm" onclick="onEditAsset('${a.id}')">${ICON.edit} Edit</button><button class="btn btn-danger btn-sm" onclick="onDeleteAsset('${a.id}')">${ICON.trash}</button></div>
       </div>`).join('')}</div>`
-    : emptyHtml('No assets yet', canPost(STATE.user) ? 'Upload your first asset — it will be reviewed before going live.' : 'Members cannot post assets. Upgrade to a VIP / Licensed creator to sell on the marketplace.')}
+    : emptyHtml('No assets yet', canPost(STATE.user) ? 'Upload your first asset — it will be reviewed before going live.' : 'Members cannot post assets. Upgrade to a Licensed seller to sell on the marketplace.')}
   </div>`;
 };
 
-/* ================= CREATOR DASHBOARD (VIP / Licensed +) ================= */
+/* ================= CREATOR DASHBOARD (Licensed +) ================= */
+/* ---- Orders (verified members: files ordered + their delivery status) ---- */
+VIEWS.orders = async () => {
+  if (!STATE.user) return `<div class="page">${emptyHtml('Log in to see your orders', 'Everything you have ordered, with its status and game details, shows up here.')}</div>`;
+  const r = await API.myOrders(STATE.user);
+  const list = r.ok ? r.data : [];
+  const rows = list.map(o => {
+    const a = o.asset || null;
+    const title = o.sub ? (o.sub.category === 'protection' ? 'Subscription ' : 'Contract ') + o.sub.tier : o.vip ? 'Licensed seller plan' : (a ? a.title : '(deleted asset)');
+    const completed = o.status === 'completed';
+    return `<div class="card" style="margin-bottom:12px;overflow:hidden">
+      <div class="row" style="padding:14px 20px;gap:12px;border-bottom:1px solid var(--border);flex-wrap:wrap">
+        <div style="flex:1;min-width:200px"><b style="font-family:var(--font-display)">${esc(title)}</b><div class="muted small">Ordered ${fmtDate(o.createdAt)} · <span class="price" style="font-size:13px">${o.amount} ${esc(o.currency)}</span></div></div>
+        ${completed ? '<span class="badge ok">COMPLETED</span>' : o.status === 'cancelled' ? '<span class="badge plain">Cancelled</span>' : '<span class="badge warn">PENDING</span>'}
+        ${completed ? '<span class="badge soft-ok">Delivered</span>' : ''}
+      </div>
+      ${a && !completed ? `<div style="padding:10px 20px 4px" class="muted small">The seller reviews your game details before activation — you will get an email once it is approved.</div>` : ''}
+      ${completed ? '' : `<div style="padding:10px 20px 16px"><button class="btn btn-ghost btn-sm" onclick="onCancelMyOrder('${o.id}')">Cancel order</button></div>`}
+    </div>`;
+  }).join('');
+  return `<div class="page page-narrow">
+    <div class="section-head"><div><span class="section-eyebrow">Account</span><h2>Orders</h2><p>Systems you have ordered and where they stand.</p></div></div>
+    ${list.length ? rows : emptyHtml('No orders yet', 'When you order a system from the Shop, it shows up here with its status.')}
+  </div>`;
+};
+async function onCancelMyOrder(orderId) {
+  modal({ title: 'Cancel this order?', danger: true, confirmLabel: 'Cancel order',
+    body: '<p>The order is removed from the seller\'s queue. If you already paid, contact Support for a refund.</p>',
+    onConfirm: async () => { const r = await API.cancelOrder ? await API.cancelOrder(STATE.user, orderId) : { ok: false, error: 'Not available in local mode.' }; r.ok ? (toast('Order cancelled.'), await router()) : toast(r.error, 'err'); } });
+}
 VIEWS.dashboard = async ({ query = {} } = {}) => {
   if (!STATE.user) return `<div class="page">${emptyHtml('Not logged in', 'Log in to view your Licensed Dashboard.')}<div class="center mt2"><a class="btn btn-primary" href="#/login">Log in</a></div></div>`;
   if (!canPost(STATE.user)) {
@@ -4796,7 +5127,7 @@ VIEWS.dashboard = async ({ query = {} } = {}) => {
       ? `<div class="card card-pad center" style="padding:56px 30px"><span class="crown" style="font-size:34px">${ICON.crown}</span><h2 style="font-family:var(--font-display);font-size:24px;margin:14px 0 8px">The Licensed Dashboard is for licensed sellers</h2><p class="muted" style="max-width:440px;margin:0 auto">Buy a <b style="color:var(--vip)">Subscription or Contract</b> plan on the Subscription page — it unlocks system protection, revenue tracking, and the ability to sell on the marketplace.</p></div><div class="center mt2"><a class="btn btn-primary" href="#/subscription">${ICON.key} View plans</a></div>`
       : `<div class="page">${emptyHtml('Restricted', 'Your account is currently restricted.')}</div>`}</div>`;
   }
-  const tab = ['systems', 'revenue', 'licenses'].includes(query.tab) ? query.tab : 'systems';
+  const tab = ['systems', 'revenue', 'registered', 'orders', 'support'].includes(query.tab) ? query.tab : 'systems';
   const tabLink = t => `#/dashboard?tab=${t}`;
   const tabBtn = (t, label, ic) => `<a class="chip ${tab === t ? 'active' : ''}" href="${tabLink(t)}">${ic} ${label}</a>`;
   const d = await API.dashboard(STATE.user);
@@ -4810,6 +5141,11 @@ VIEWS.dashboard = async ({ query = {} } = {}) => {
   const sysRes = await API.mySystems(STATE.user);
   const systems = sysRes.ok ? sysRes.data : [];
   STATE._systems = systems;
+  const ordRes = await API.dashboardOrders(STATE.user);
+  const orders = ordRes.ok ? ordRes.data : [];
+  const pendingOrders = orders.filter(o => o.status !== 'completed').length;
+  const tkRes = await API.listMyTickets(STATE.user);
+  STATE._myTickets = tkRes.ok ? tkRes.data : [];
   const totalGames = systems.reduce((n, s) => n + (s.games ? s.games.filter(g => g.status !== 'blacklisted').length : 0), 0);
   const protectionTier = Number(STATE.user.protectionTier) || 0;
   const PROT_PLAN = [
@@ -4822,11 +5158,13 @@ VIEWS.dashboard = async ({ query = {} } = {}) => {
   const planLine = plan
     ? `Plan: <b style="color:var(--vip)">Subscription ${protectionTier}</b> · Registered systems: <b>${systems.length} / ${plan.max}</b> · ${plan.perDay ? `Registrations: <b>${plan.perDay}/day</b>` : 'Registrations: <b>unlimited</b>'} · Deleting is always instant`
     : `No Subscription plan yet — you can still register <b>3</b> systems as a licensed seller, but a plan raises your limits.`;
-  const tabHead = `<div class="section-head" style="margin-bottom:8px"><div><span class="section-eyebrow">Creator</span><h2>Licensed Dashboard</h2><p>Your revenue, licenses, and system protection — everything you sell, secured.</p></div></div>
+  const tabHead = `<div class="section-head" style="margin-bottom:8px"><div><span class="section-eyebrow">Creator</span><h2>Licensed Dashboard</h2><p>Your revenue, registered systems, and orders — everything you sell, secured.</p></div></div>
     <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:22px">
       ${tabBtn('systems', 'Register System', ICON.system)}
       ${tabBtn('revenue', 'Revenue', ICON.chart)}
-      ${tabBtn('licenses', 'My Systems (' + systems.length + ')', ICON.key)}
+      ${tabBtn('registered', 'Registered Systems (' + systems.length + ')', ICON.key)}
+      ${tabBtn('orders', 'Orders' + (pendingOrders ? ' (' + pendingOrders + ')' : ''), ICON.cart)}
+      ${tabBtn('support', 'Support', ICON.mail)}
     </div>`;
   /* ---- TAB 1: Register System ---- */
   const systemsTab = `
@@ -4838,14 +5176,14 @@ VIEWS.dashboard = async ({ query = {} } = {}) => {
           <div class="field" style="flex:1;min-width:200px;margin:0"><label>System password<span class="req">*</span></label><input class="input" id="sys-pass" maxlength="80" placeholder="e.g. PassWorD — secret the game sends to verify itself" required></div>
           <button class="btn btn-primary" type="submit">${ICON.plus} Register system</button>
         </div>
-        <p class="hint muted small" style="margin-top:10px">Duplicate names are fine — the <b>name + password pair</b> is the identity ("Music System" + "PassWorD"). The moment you register, the <b>Roblox Studio code</b> pops up ready to paste on top of your ServerScript. Keep the password secret and <b>obfuscate the final script</b> before shipping.</p>
+        <p class="hint muted small" style="margin-top:10px">Duplicate names are fine — the <b>name + password pair</b> is the identity ("Music System" + "PassWorD"). The moment you register, the <b>Roblox Studio code</b> pops up ready to paste on top of your ServerScript. Keep the password secret, and <b>obfuscate your script</b> before shipping.</p>
       </form>
     </div>
     <p class="muted small" style="margin:-6px 0 14px">${planLine}</p>
     <div class="sys-list">${systems.length ? systems.map(sysCardHtml).join('') : emptyHtml('No systems registered', 'Register your first system above — its Roblox Studio code, live status, games, and device list will appear here.')}</div>
     <div class="sec-note" style="margin-top:22px">
       <b>${ICON.shield} How the license code works</b><br>
-      The generated code runs <b>first</b>, phones home to verify your system name + password, and only then lets the code below it run. Pause the system or kick a device here on the web and any copy stops within minutes. Ship it <b>obfuscated</b> — the password lives inside the script.
+      The generated license code runs <b>first</b>, verifies your system name + password with the web, and only then lets your system code below it run. New games wait for your <b>approval</b> here on the dashboard; pause the system, revoke, or blacklist a game and every copy stops within minutes — no rejoin needed. Ship it <b>obfuscated</b> — the password lives inside the script.
     </div>`;
   /* ---- TAB 2: Revenue ---- */
   const revenueTab = `
@@ -4893,13 +5231,71 @@ VIEWS.dashboard = async ({ query = {} } = {}) => {
         <span class="muted small" style="min-width:0;flex:1"><b style="color:var(--text)">${esc(ev.deviceName || ev.deviceId || 'Unknown device')}</b> ${esc(ev.asset && ev.asset.title || '')} · ${ev.buyer ? esc('@' + ev.buyer.handle) : 'unknown buyer'} · last seen ${timeAgo(ev.lastSeen)}</span>
       </div>`).join('')}
     </div>` : ''}`;
-  /* ---- TAB 3: My Systems (games + devices) ---- */
+  /* ---- TAB 3: Registered Systems (games + devices) ---- */
   const licensesTab = `
-    <p class="muted small" style="margin:0 0 14px">Every game (Roblox place) and device seen using your systems. <b>Allow</b> keeps it working, <b>Revoke</b> blocks one game or device, <b>Blacklist</b> hard-bans a game, and anything silent for 30 days drops off automatically. ${totalGames ? `Currently <b>${totalGames}</b> game${totalGames === 1 ? '' : 's'} across your systems.` : ''}</p>
-    ${systems.length ? systems.map(sysGamesHtml).join('') : emptyHtml('No systems yet', 'Register a system first — the games using it will appear here automatically as they phone home.')}`;
+    <p class="muted small" style="margin:0 0 14px">Every game (Roblox place) and device seen using your systems, split into <b>Active licensed</b> and <b>No license</b>. <b>Allow</b> keeps it working, <b>Revoke</b> blocks one game or device, <b>Blacklist</b> hard-bans a game, and anything silent for 30 days drops off automatically. ${totalGames ? `Currently <b>${totalGames}</b> game${totalGames === 1 ? '' : 's'} across your systems.` : ''}</p>
+    ${systems.length ? systems.map(sysGamesHtml).join('') : emptyHtml('No systems yet', 'Register a system first — the games using it will appear here automatically as they check in.')}`;
+  /* ---- TAB 4: Orders (who bought your systems) ---- */
+  const orderRow = o => {
+    const completed = o.status === 'completed';
+    const approval = o.approval || (completed ? 'approved' : 'pending');
+    const gd = o.gameDetails || {};
+    return `<div class="card" style="margin-bottom:14px;overflow:hidden">
+      <div class="row" style="padding:14px 20px;gap:12px;border-bottom:1px solid var(--border);flex-wrap:wrap">
+        <div style="flex:1;min-width:200px">
+          <b style="font-family:var(--font-display)">${esc(o.assetTitle)}</b>
+          <div class="muted small">${o.buyer ? esc('@' + o.buyer.handle) : 'unknown buyer'} · ${fmtDate(o.createdAt)} · <span class="price" style="font-size:13px">${o.amount} ${esc(o.currency)}</span></div>
+        </div>
+        ${completed ? '<span class="badge ok">COMPLETED</span>' : '<span class="badge warn">PENDING</span>'}
+        ${approval === 'approved' ? '<span class="badge soft-ok">Details approved</span>' : approval === 'rejected' ? '<span class="badge soft-red">Details rejected</span>' : '<span class="badge plain">Details not reviewed</span>'}
+      </div>
+      <div style="padding:12px 20px 16px">
+        <div class="muted small" style="margin-bottom:6px"><b style="color:var(--text)">Buyer's game details</b> — verify the game ID / name matches the game actually using the system before approving:</div>
+        <div class="row" style="gap:18px;flex-wrap:wrap;margin-bottom:10px">
+          <span class="muted small">Game name: <b style="color:var(--text)">${gd.gameName ? esc(gd.gameName) : '—'}</b></span>
+          <span class="muted small">Place ID: <b style="color:var(--text)">${gd.placeId ? esc(gd.placeId) : '—'}</b></span>
+          <span class="muted small">Owner: <b style="color:var(--text)">${gd.gameOwner ? esc(gd.gameOwner) : '—'}</b></span>
+        </div>
+        ${gd.notes ? `<div class="muted small" style="margin-bottom:10px">Buyer notes: ${esc(gd.notes)}</div>` : ''}
+        ${o.approvalNote ? `<div class="muted small" style="margin-bottom:10px">Your note: ${esc(o.approvalNote)}</div>` : ''}
+        ${!completed ? `<div class="row" style="gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" onclick="onOrderApproval('${o.id}','approved')">${ICON.check} Approve details</button>
+          <button class="btn btn-danger btn-sm" onclick="onOrderApproval('${o.id}','rejected')">${ICON.ban} Reject</button>
+          ${o.status === 'paid' ? `<button class="btn btn-ghost btn-sm" onclick="onOrderApproveAndComplete('${o.id}')">${ICON.crown} Approve &amp; complete</button>` : ''}
+        </div>` : ''}
+      </div>
+    </div>`;
+  };
+  const ordersPending = orders.filter(o => o.status !== 'completed');
+  const ordersDone = orders.filter(o => o.status === 'completed');
+  const ordersTab = `
+    <p class="muted small" style="margin:0 0 14px">People who bought your systems. Each buyer entered their <b>game details</b> at checkout — check the game ID / name, then approve. A new game using your system also appears under <b>Registered Systems</b> for final approval.</p>
+    <div class="section-head" style="margin:0 0 10px"><div><h2 style="font-size:19px">Pending <span class="muted small" style="font-weight:400">(${ordersPending.length})</span></h2></div></div>
+    ${ordersPending.length ? ordersPending.map(orderRow).join('') : `<div class="card card-pad muted small">No pending orders.</div>`}
+    <div class="section-head" style="margin:18px 0 10px"><div><h2 style="font-size:19px">Completed <span class="muted small" style="font-weight:400">(${ordersDone.length})</span></h2></div></div>
+    ${ordersDone.length ? ordersDone.map(orderRow).join('') : `<div class="card card-pad muted small">No completed orders yet.</div>`}`;
+  /* ---- TAB 5: Support (seller tickets & reports) ---- */
+  const supportTab = `<p class="muted small" style="margin:0 0 14px">Stuck with a buyer, a payment, or a leak report? Open a ticket — only you and the staff can see it. Reports about your own listings also land here as tickets.</p>
+    <div class="card card-pad" style="margin-bottom:22px">
+      <form onsubmit="handleNewTicket(event)">
+        <div class="row" style="gap:12px;align-items:flex-end">
+          <div class="field" style="flex:1;min-width:200px;margin:0"><label>Subject<span class="req">*</span></label><input class="input" id="tk-subject" maxlength="120" placeholder="Brief summary of your issue" required></div>
+          <div class="field" style="min-width:140px;margin:0"><label>Category</label><input class="input" id="tk-cat" list="tk-cats" placeholder="General"><datalist id="tk-cats">${['General', 'Account', 'Purchase', 'Subscription', 'Bug', 'Report', 'Other'].map(x => `<option value="${x}">`).join('')}</datalist></div>
+        </div>
+        <div class="field"><label>Details<span class="req">*</span></label><textarea class="textarea" id="tk-details" rows="5" placeholder="Describe your issue in detail — include the asset, order, or game involved." required></textarea></div>
+        <button class="btn btn-primary" type="submit">${ICON.mail} Submit ticket</button>
+      </form>
+    </div>
+    <div class="section-head" style="margin-bottom:12px"><div><h2 style="font-size:19px">My tickets</h2><p>Open and closed support tickets.</p></div></div>
+    ${STATE._myTickets && STATE._myTickets.length ? STATE._myTickets.map(t => `<div class="card card-pad" style="cursor:pointer;margin-bottom:10px" onclick="go('/ticket/${esc(t.id)}')">
+      <div class="row" style="justify-content:space-between">
+        <div><b>${esc(t.subject)}</b><div class="muted small">${esc(t.category || 'General')} · ${timeAgo(t.lastActivityAt)}</div></div>
+        <span class="badge ${t.status === 'open' ? 'warn' : 'plain'}">${esc(t.status)}</span>
+      </div>
+    </div>`).join('') : `<div class="card card-pad muted small">No tickets yet — submitted tickets appear here.</div>`}`;
   return `<div class="page" style="max-width:1080px">
     ${tabHead}
-    ${tab === 'systems' ? systemsTab : tab === 'revenue' ? revenueTab : licensesTab}
+    ${tab === 'systems' ? systemsTab : tab === 'revenue' ? revenueTab : tab === 'registered' ? licensesTab : tab === 'orders' ? ordersTab : tab === 'support' ? supportTab : licensesTab}
   </div>`;
 };
 function licenseRowHtml(p) {
@@ -4972,26 +5368,35 @@ function sysCardHtml(s) {
       </div>`).join('')}
     </div>` : ''}
   </div>`;
+}function sysGameBadge(st) {
+  return st === 'active' ? '<span class="badge ok">ALLOWED</span>' : st === 'pending' ? '<span class="badge warn">PENDING APPROVAL</span>' : st === 'revoked' ? '<span class="badge warn">REVOKED</span>' : '<span class="badge" style="background:rgba(220,38,38,.14);color:#f87171">BLACKLISTED</span>';
 }
-function sysGameBadge(st) {
-  return st === 'active' ? '<span class="badge ok">ALLOWED</span>' : st === 'revoked' ? '<span class="badge warn">REVOKED</span>' : '<span class="badge" style="background:rgba(220,38,38,.14);color:#f87171">BLACKLISTED</span>';
+function sysGameRow(g) {
+  return `<div class="row" style="padding:11px 20px;border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap">
+    <span class="lic-device" style="flex:1;min-width:160px">${ICON.system} <b style="color:var(--text)">${g.gameName ? esc(g.gameName) : 'Place ' + esc(g.placeId)}</b>${g.gameOwner ? `<span class="muted small"> — owner: ${esc(g.gameOwner)}</span>` : ''} <span class="muted small">(ID ${esc(g.placeId)}) · last seen ${timeAgo(g.lastSeenAt)}</span> ${sysGameBadge(g.status)}</span>
+    ${g.status === 'active' ? `<button class="btn btn-ghost btn-sm" onclick="onSetSystemGameStatus('${g.id}','revoked')" title="Blocks this game on its next check-in">${ICON.ban} Revoke</button>
+      <button class="btn btn-danger btn-sm" onclick="onSetSystemGameStatus('${g.id}','blacklisted')" title="Hard-ban this game — it is denied instantly and stays banned">${ICON.flag} Blacklist</button>`
+    : `<button class="btn btn-primary btn-sm" onclick="onSetSystemGameStatus('${g.id}','active')">${ICON.check} Allow</button>
+      ${g.status === 'revoked' ? `<button class="btn btn-danger btn-sm" onclick="onSetSystemGameStatus('${g.id}','blacklisted')">${ICON.flag} Blacklist</button>` : ''}`}
+    <button class="btn btn-ghost btn-sm" onclick="onRemoveSystemGame('${g.id}')" title="Remove from the list — it reappears automatically if the game checks in again">${ICON.trash}</button>
+  </div>`;
 }
 function sysGamesHtml(s) {
   const games = s.games || [];
+  const allowed = games.filter(g => g.status === 'active');
+  const notAllowed = games.filter(g => g.status !== 'active');
+  const list = rows => rows.length ? rows.map(sysGameRow).join('') : `<div class="muted small" style="padding:10px 20px">${rows === allowed ? 'No active licensed games yet.' : 'Nothing here — new games appear automatically when they check in and wait for your approval.'}</div>`;
   return `<div class="card" style="margin-bottom:16px;overflow:hidden">
     <div class="row" style="padding:12px 20px;border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap">
       <span class="crown" style="color:var(--gold)">${ICON.system}</span><b style="font-family:var(--font-display)">${esc(s.name)}</b>
       <span class="muted small" style="margin-left:auto">${games.length} game${games.length === 1 ? '' : 's'} using this system</span>
     </div>
-    ${games.length ? games.map(g => `<div class="row" style="padding:11px 20px;border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap">
-      <span class="lic-device" style="flex:1;min-width:160px">${ICON.system} <b style="color:var(--text)">Place ${esc(g.placeId)}</b> · last seen ${timeAgo(g.lastSeenAt)} ${sysGameBadge(g.status)}</span>
-      ${g.status === 'active' ? `<button class="btn btn-ghost btn-sm" onclick="onSetSystemGameStatus('${g.id}','revoked')" title="Blocks this game on its next check-in">${ICON.ban} Revoke</button>
-        <button class="btn btn-danger btn-sm" onclick="onSetSystemGameStatus('${g.id}','blacklisted')" title="Hard-ban this game — it is denied instantly and stays banned">${ICON.flag} Blacklist</button>`
-      : g.status === 'revoked' ? `<button class="btn btn-ghost btn-sm" onclick="onSetSystemGameStatus('${g.id}','active')">${ICON.check} Allow</button>
-        <button class="btn btn-danger btn-sm" onclick="onSetSystemGameStatus('${g.id}','blacklisted')">${ICON.flag} Blacklist</button>`
-      : `<button class="btn btn-ghost btn-sm" onclick="onSetSystemGameStatus('${g.id}','active')">${ICON.check} Allow again</button>`}
-      <button class="btn btn-ghost btn-sm" onclick="onRemoveSystemGame('${g.id}')" title="Remove from the list — it reappears automatically if the game phones home again">${ICON.trash}</button>
-    </div>`).join('') : `<div class="muted small" style="padding:12px 20px">No games yet — they appear here automatically when a game using this system phones home. Silent games drop off after 30 days.</div>`}
+    <div class="row" style="padding:9px 20px 0;gap:8px;flex-wrap:wrap">
+      <span class="badge soft-ok">${ICON.check} Active licensed (${allowed.length})</span>
+      <span class="badge plain">No license (${notAllowed.length})</span>
+    </div>
+    ${list(notAllowed)}
+    ${list(allowed)}
   </div>`;
 }
 async function onSetSystemGameStatus(gameId, status) {
@@ -5002,6 +5407,22 @@ async function onSetSystemGameStatus(gameId, status) {
 async function onRemoveSystemGame(gameId) {
   const r = await API.removeSystemGame(STATE.user, gameId);
   r.ok ? (toast('Game removed from the list.'), await router()) : toast(r.error, 'err');
+}
+async function onOrderApproval(orderId, decision) {
+  const r = await API.setOrderApproval(STATE.user, orderId, decision);
+  r.ok ? (toast(decision === 'approved' ? 'Game details approved.' : 'Game details rejected — tell the buyer to resubmit.'), await router()) : toast(r.error, 'err');
+}
+function onOrderApproveAndComplete(orderId) {
+  modal({ title: 'Approve & complete this order?', confirmLabel: 'Approve & complete',
+    body: '<p>Marks the order paid and completed for the buyer. Use this once you have verified their game details and received payment.</p>',
+    onConfirm: async () => {
+      const a = await API.setOrderApproval(STATE.user, orderId, 'approved');
+      if (!a.ok) { toast(a.error, 'err'); return; }
+      const c = API.adminCompleteOrder(STATE.user, orderId);
+      const r = await c;
+      r.ok ? toast('Order approved and completed.') : toast(r.error, 'err');
+      await router();
+    } });
 }
 /* Escape a value for a double-quoted Lua string. */
 function luaEsc(s) { return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n'); }
@@ -5033,11 +5454,14 @@ const LICENSE_TEMPLATE = /* ==== KP-LICENSE-BEGIN ==== */
 	   TAMPER_KEY stays "" here, which disables the fingerprint check so you
 	   can iterate without breaking it.
 
-	HOW IT WORKS
-	------------
-	- On game start: sends System Name + Password to the portal → ACTIVE or DENIED.
-	- Every few minutes: a "heartbeat" re-checks, so if you PAUSE the license
-	  or KICK a device on the web, the game reacts within minutes.
+HOW IT WORKS
+------------
+- On game start: sends System Name + Password to the portal → ACTIVE or DENIED.
+- NEW GAMES START UNAPPROVED: the first check registers the game on the
+  web and the system creator must ALLOW it from the Licensed Dashboard
+  (Registered Systems → Games) before it runs.
+- Every few minutes: a "heartbeat" re-checks, so if you PAUSE the license
+  or KICK a device on the web, the game reacts within minutes.
 	- Kicked devices are DENIED on their next check-in, and any kicked player
 	  is force-disconnected (auto-kick) even mid-game.
 	- If DENIED: the protected object is disabled and License.OnDenied fires.
@@ -5051,17 +5475,19 @@ const LICENSE_TEMPLATE = /* ==== KP-LICENSE-BEGIN ==== */
 	device denial, plus obfuscation. Obfuscate before shipping; the password
 	lives inside the script and obfuscation makes pulling it out much harder.
 
-	API CONTRACT (what the portal returns)
-	--------------------------------------
-	POST https://kingsproduction.cc/api/systems/activate
-	POST https://kingsproduction.cc/api/systems/heartbeat
-	Body:  { systemName, systemPassword, deviceId, deviceName, placeId }
-	Reply: { ok: true, data: { active: true|false, reason: "...",
-	                           revokedPlayers: ["123","456"] } }
+API CONTRACT (what the portal returns)
+--------------------------------------
+POST https://kingsproduction.cc/api/systems/activate
+POST https://kingsproduction.cc/api/systems/heartbeat
+Body:  { systemName, systemPassword, deviceId, deviceName, placeId,
+         gameName, gameOwner, gameOwnerType }
+Reply: { ok: true, data: { active: true|false, reason: "...",
+                           revokedPlayers: ["123","456"] } }
 
-	POST https://kingsproduction.cc/api/systems/device   (player registration)
-	Body:  { systemName, systemPassword, playerId, playerName, placeId }
-	Reply: { ok: true, data: { active: true|false, reason: "...", kicked: true|false } }
+POST https://kingsproduction.cc/api/systems/device   (player registration)
+Body:  { systemName, systemPassword, playerId, playerName, placeId,
+         gameName, gameOwner, gameOwnerType }
+Reply: { ok: true, data: { active: true|false, reason: "...", kicked: true|false } }
 ============================================================================--]]
 
 local HttpService = game:GetService("HttpService")
@@ -5201,14 +5627,22 @@ local function deviceLabel()
 end
 
 -- One full check: first run uses /activate, later runs use /heartbeat
+local function creatorLabel()
+	-- e.g. "User 12345" or "Group 9876" — shown on the web dashboard
+	return tostring(game.CreatorType) .. " " .. tostring(game.CreatorId)
+end
 local function check(heartbeat)
-	local res = post(heartbeat and CONFIG.HeartbeatUrl or CONFIG.ApiUrl, {
+	local payload = {
 		systemName = CONFIG.SystemName,
 		systemPassword = CONFIG.SystemPassword,
 		deviceId = tostring(game.JobId),   -- per-server id; pair with UserId for device view
 		deviceName = deviceLabel(),
 		placeId = tostring(game.PlaceId),  -- so the creator sees (and can gate) each game using the system
-	})
+		gameName = game.Name,
+		gameOwner = creatorLabel(),
+		gameOwnerType = tostring(game.CreatorType),
+	}
+	local res = post(heartbeat and CONFIG.HeartbeatUrl or CONFIG.ApiUrl, payload)
 	if res then
 		applyDecision(res)
 	else
@@ -5227,6 +5661,9 @@ local function registerPlayer(player)
 		playerId = tostring(player.UserId),
 		playerName = player.Name,
 		placeId = tostring(game.PlaceId),  -- registers which game the player is using the system in
+		gameName = game.Name,
+		gameOwner = creatorLabel(),
+		gameOwnerType = tostring(game.CreatorType),
 	})
 		if res and res.ok == true and res.data and res.data.active == false and res.data.kicked then
 			player:Kick("This device is not authorized for this system.")
@@ -5274,129 +5711,8 @@ function combinedScript(licenseModule, userCode) {
     .replace(/local TAMPER_KEY = "[^"]*"/, 'local TAMPER_KEY = ""')
     .replace(/\nreturn License\s*$/, '\n');
   const code = String(userCode || '').trim();
-  return `${head}\n-- ▶ Start the license gate FIRST — this blocks until the portal answers.\nLicense.Start(script)\n\n-- Denied? Stop here: the module above already logged the reason.\nif not License.IsLicensed() then return end\n\n${KP_CODE_BEGIN}\n${code || '-- ⬇ paste your system code here (it only runs while the license is ACTIVE)'}\n${KP_CODE_END}\n`;
+  return `${head}\n-- ▶ LICENSE CODE — starts first and gates everything below it.\nLicense.Start(script)\n\n-- Denied or waiting for game approval? Stop here — the module above logs the reason.\nif not License.IsLicensed() then return end\n\n-- ================== YOUR STUDIO CODE BELOW / SYSTEM CODE BELOW ==================\n\n${KP_CODE_BEGIN}\n${code || '-- ⬇ paste your system code here (it only runs while the license is ACTIVE)'}\n${KP_CODE_END}\n-- ================== END OF SYSTEM CODE ==================\n`;
 }
-/* ---- light Luau obfuscation: strip comments + pack the script into hard-to-read lines.
-   Tokenizer-based (strings / long strings / backtick strings / comments are respected),
-   so the output stays valid Luau. For maximum protection follow up with a real
-   Luau obfuscator (Prometheus, Luraph) — this pass removes the easy reading. ---- */
-function luaTokens(src) {
-  const ops = ['...', '..=', '//=', '..', '==', '~=', '<=', '>=', '::', '+=', '-=', '*=', '/=', '%=', '^='];
-  const toks = [];
-  let i = 0;
-  const n = src.length;
-  const isAlnum = c => /[A-Za-z0-9_]/.test(c);
-  while (i < n) {
-    const c = src[i];
-    if (c === '\n') { toks.push({ t: 'nl' }); i++; continue; }
-    if (/\s/.test(c)) { i++; continue; }
-    if (i === 0 && c === '#') { while (i < n && src[i] !== '\n') i++; continue; } /* shebang */
-    if (c === '-' && src[i + 1] === '-') {
-      i += 2;
-      const m = /^\[(=*)\[/.exec(src.slice(i));
-      if (m) {
-        const close = ']' + m[1] + ']';
-        const end = src.indexOf(close, i + m[0].length);
-        i = end === -1 ? n : end + close.length;
-      } else while (i < n && src[i] !== '\n') i++;
-      continue;
-    }
-    if (c === '[') {
-      const m = /^\[(=*)\[/.exec(src.slice(i));
-      if (m) {
-        const close = ']' + m[1] + ']';
-        const end = src.indexOf(close, i + m[0].length);
-        const seg = end === -1 ? src.slice(i) : src.slice(i, end + close.length);
-        toks.push({ t: 'tok', s: seg });
-        i += seg.length;
-        continue;
-      }
-    }
-    if (c === '"' || c === "'") {
-      let j = i + 1;
-      while (j < n) {
-        if (src[j] === '\\') { j += 2; continue; }
-        if (src[j] === c) { j++; break; }
-        if (src[j] === '\n') break; /* unterminated — keep as-is */
-        j++;
-      }
-      toks.push({ t: 'tok', s: src.slice(i, j) });
-      i = j;
-      continue;
-    }
-    if (c === '`') { /* Luau interpolated string: closes at an unescaped backtick outside { } */
-      let j = i + 1, depth = 0;
-      while (j < n) {
-        if (src[j] === '\\') { j += 2; continue; }
-        if (src[j] === '{') depth++;
-        else if (src[j] === '}') depth = Math.max(0, depth - 1);
-        else if (src[j] === '`' && depth === 0) { j++; break; }
-        else if (src[j] === '\n' && depth === 0) break;
-        j++;
-      }
-      toks.push({ t: 'tok', s: src.slice(i, j) });
-      i = j;
-      continue;
-    }
-    if (/[0-9]/.test(c) || (c === '.' && /[0-9]/.test(src[i + 1] || ''))) {
-      let j = i;
-      while (j < n) {
-        const ch = src[j];
-        if (/[0-9a-fA-F_]/.test(ch)) { j++; continue; }
-        if (ch === '.') { if (src[j + 1] === '.') break; j++; continue; }
-        if ((ch === 'e' || ch === 'E' || ch === 'p' || ch === 'P') && (src[j + 1] === '+' || src[j + 1] === '-')) { j += 2; continue; }
-        if (/[eEpPxX]/.test(ch)) { j++; continue; }
-        break;
-      }
-      toks.push({ t: 'tok', s: src.slice(i, j) });
-      i = j;
-      continue;
-    }
-    if (/[A-Za-z_]/.test(c)) {
-      let j = i + 1;
-      while (j < n && isAlnum(src[j])) j++;
-      toks.push({ t: 'tok', s: src.slice(i, j) });
-      i = j;
-      continue;
-    }
-    let op = c;
-    for (const o of ops) if (src.startsWith(o, i)) { op = o; break; }
-    toks.push({ t: 'tok', s: op });
-    i += op.length;
-  }
-  return toks;
-}
-function luaNeedsSpace(a, b) {
-  const P = /[A-Za-z0-9_]/;
-  if (P.test(a[a.length - 1]) && P.test(b[0])) return true;
-  /* a number token next to something starting with . / e / p / x would re-lex
-     as a different number (1..2 → "1." "." "2"); keep them apart. */
-  if (/[0-9]/.test(a[a.length - 1]) && /^[.eEpPxX]/.test(b)) return true;
-  const two = a[a.length - 1] + b[0];
-  if (['--', '..', '==', '~=', '<=', '>=', '::', '+=', '-=', '*=', '/=', '%=', '^=', '//'].includes(two)) return true;
-  return false;
-}
-function minifyLua(src) {
-  const toks = luaTokens(String(src || ''));
-  let out = '', prev = null;
-  for (const tk of toks) {
-    if (tk.t === 'nl') continue;
-    if (prev !== null && luaNeedsSpace(prev, tk.s)) out += ' ';
-    out += tk.s;
-    prev = tk.s;
-  }
-  return out;
-}
-function onObfuscateSysCode() {
-  const ta = document.getElementById('sys-combined');
-  if (!ta) return;
-  if (!ta.value.trim()) { toast('Nothing to obfuscate yet — the script is empty.', 'err'); return; }
-  try {
-    ta.value = minifyLua(ta.value);
-    toast('Script compacted — comments stripped, code packed. For maximum protection also run a Luau obfuscator (Prometheus / Luraph).');
-  } catch (e) { toast('Could not process the script: ' + (e && e.message || e), 'err'); }
-}
-
 async function luaCodeFor(s) {
   const name = luaEsc(s.name);
   const pass = luaEsc(s.password);
@@ -5439,10 +5755,10 @@ async function onCopySystemCode(id) {
   modal({
     title: 'Roblox Studio script — ' + esc(sys.name),
     confirmLabel: 'Copy script',
-    body: `<p class="muted small">Paste this into <b style="color:var(--text)">ServerScriptService</b> as a <b style="color:var(--text)">Script</b>, then enable <b style="color:var(--text)">Game Settings → Security → Allow HTTP Requests</b>. The license block runs <b style="color:var(--text)">first</b> and only unlocks the code between the PROTECTED CODE markers while the license is ACTIVE — pause the system, revoke, or blacklist a game on the web and every copy stops within minutes.</p>
+    body: `<p class="muted small"><b style="color:var(--text)">Paste this on top of your system's ServerScript code</b> — your system must consist of a ServerScript or Script of some sort.</p>
+      <p class="muted small" style="margin:6px 0 10px"><b style="color:var(--text)">How to enable HTTP requests:</b> in Roblox Studio open <b style="color:var(--text)">Home → Game Settings → Security</b> and turn <b style="color:var(--text)">Allow HTTP Requests: On</b>. Without it the license cannot reach the web and your system will not run.</p>
       <div class="field"><textarea class="textarea mono" id="sys-combined" rows="16" spellcheck="false" onclick="this.select()" style="font-size:11px;line-height:1.55;white-space:pre">${esc(combinedScript(moduleCode, ''))}</textarea><div class="hint">Optional: paste YOUR system code between the markers right here, then hit <b>Copy script</b> — or paste it directly in Studio later.</div></div>
-      <div class="row" style="gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" onclick="onObfuscateSysCode()">${ICON.shield} Obfuscate (compact)</button><span class="muted small">Strips comments and packs the script into hard-to-read lines, right here in the browser. For maximum protection, also run a dedicated Luau obfuscator (Prometheus / Luraph) on the result.</span></div>
-      <p class="hint" style="margin:8px 0 0"><b>${ICON.shield} Before shipping:</b> obfuscate the final script — the password lives inside it, and obfuscation makes stripping the license out much harder.</p>`,
+      <p class="hint" style="margin:8px 0 0"><b>${ICON.shield} Tip:</b> obfuscate your script before shipping (e.g. with Prometheus or Luraph) — the password lives inside it, and obfuscation makes stripping the license out much harder.</p>`,
     onConfirm: () => { const ta = document.getElementById('sys-combined'); copyText(ta ? ta.value : combinedScript(moduleCode, '')); },
   });
 }
@@ -5543,18 +5859,10 @@ VIEWS.portfolio = async () => {
   const isAdmin = isStaff(STATE.user);
   STATE._pfItems = {};
   list.forEach(p => { STATE._pfItems[p.id] = p; });
+  const canDelete = effRank(STATE.user) >= roleRank('cofounder');
   const cardFor = p => {
-    const adminRow = isAdmin ? `<div class="row" style="gap:8px;margin-top:14px"><button class="btn btn-ghost btn-sm" onclick="openPortfolioEditor('${p.id}')">${ICON.edit} Edit</button><button class="btn btn-ghost btn-sm" onclick="onToggleSpotlight('${p.id}')" title="Pin / unpin at the top">${p.featured ? `★ Unpin spotlight` : `★ Spotlight`}</button><button class="btn btn-danger btn-sm" onclick="onDeletePortfolio('${p.id}')">${ICON.trash}</button></div>` : '';
-    return `<article class="card card-hover project-card${p.featured ? ' spotlight' : ''}">
-      <div class="project-banner">${p.imageUrl ? `<img class="proj-img" src="${esc(p.imageUrl)}" alt="" loading="lazy" onerror="this.remove()">` : `<div class="thumb-bg thumb-default"></div><span style="position:relative">${ICON.model}</span>`}</div>
-      <div class="project-body">
-        <div class="project-tags">${p.featured ? `<span class="badge owner">★ Spotlight</span>` : ''}<span class="badge plain">${esc(p.category || 'Project')}</span><span class="badge ${p.status === 'Live' ? 'ok' : 'plain'}">${esc(p.status || 'Live')}</span></div>
-        <h3>${esc(p.title)}</h3>
-        <p>${esc(p.desc)}</p>
-        <div class="project-foot"><b>${esc(p.stat || '—')}</b></div>
-        ${p.links && p.links.length ? `<div class="project-links" aria-label="Project links">${p.links.map(l => linkIconHtml(l)).join('')}</div>` : ''}
-        ${adminRow}
-      </div></article>`;
+    const adminRow = isAdmin ? `<div class="row" style="gap:8px;margin-top:14px"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openPortfolioEditor('${p.id}')">${ICON.edit} Edit</button><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();onToggleSpotlight('${p.id}')" title="Pin / unpin at the top">${p.featured ? `★ Unpin spotlight` : `★ Spotlight`}</button>${canDelete ? `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();onDeletePortfolio('${p.id}')">${ICON.trash}</button>` : ''}</div>` : '';
+    return portfolioCardHtml(p, { clickable: true, adminRow });
   };
   const cards = list.map(cardFor).join('');
   return `<div class="page">
@@ -5563,6 +5871,24 @@ VIEWS.portfolio = async () => {
     ${list.length ? `<div class="grid portfolio-grid">${cards}</div>` : emptyHtml('The portfolio is empty', 'Projects published by the Kings Production team will appear here.')}
   </div>`;
 };
+/* Click a portfolio card → zoomed-in detail window with the full image. */
+function openPortfolioZoom(id) {
+  const p = STATE._pfItems[id];
+  if (!p) return;
+  modal({
+    title: esc(p.title),
+    confirmLabel: 'Close',
+    cancelLabel: null,
+    body: `${p.imageUrl ? `<img src="${esc(p.imageUrl)}" alt="" style="width:100%;max-height:46vh;object-fit:cover;border-radius:12px;border:1px solid var(--border);margin-bottom:14px" onerror="this.remove()">` : ''}
+      <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:12px">${p.featured ? `<span class="badge owner">★ Spotlight</span>` : ''}<span class="badge plain">${esc(p.category || 'Project')}</span><span class="badge ${p.status === 'Live' ? 'ok' : 'plain'}">${esc(p.status || 'Live')}</span></div>
+      <p style="white-space:pre-wrap">${esc(p.desc)}</p>
+      ${p.stat ? `<p class="muted small" style="margin-top:10px"><b style="color:var(--gold)">${esc(p.stat)}</b></p>` : ''}
+      ${p.links && p.links.length ? `<div class="project-links" style="margin-top:14px">${p.links.map(l => linkIconHtml(l)).join('')}</div>` : ''}`,
+    onConfirm: () => {},
+  });
+  const ov = document.querySelector('.modal-overlay:last-child');
+  if (ov) { const b = ov.querySelector('[data-act=cancel]'); if (b) b.classList.add('hidden'); }
+}
 async function onToggleSpotlight(id) {
   if (!isStaff(STATE.user)) { toast('Only staff can manage the portfolio.', 'err'); return; }
   const item = STATE._pfItems[id];
@@ -5572,6 +5898,23 @@ async function onToggleSpotlight(id) {
 }
 
 /* ---- admin portfolio publishing (admin-only) ---- */
+/* The one true portfolio-card renderer — used by the page AND the live
+   editor preview, so what you see while editing is exactly what ships. */
+function portfolioCardHtml(p, opts = {}) {
+  const lock = !!opts.spotlightLock;
+  const clickable = !!opts.clickable;
+  return `<article class="card ${clickable ? 'card-hover ' : ''}project-card${p.featured && !lock ? ' spotlight' : ''}"${clickable ? ` onclick="openPortfolioZoom('${p.id}')" role="button" tabindex="0" style="cursor:pointer"` : ''}>`
+    + `<div class="project-banner">${p.imageUrl ? `<img class="proj-img" src="${esc(p.imageUrl)}" alt="" loading="lazy" onerror="this.remove()">` : `<div class="thumb-bg thumb-default"></div><span style="position:relative">${ICON.model}</span>`}</div>`
+    + `<div class="project-body">`
+    + `<div class="project-tags">${p.featured && !lock ? `<span class="badge owner">★ Spotlight</span>` : ''}<span class="badge plain">${esc(p.category || 'Project')}</span><span class="badge ${p.status === 'Live' ? 'ok' : 'plain'}">${esc(p.status || 'Live')}</span></div>`
+    + `<h3>${esc(p.title)}</h3>`
+    + `<p>${esc(p.desc)}</p>`
+    + `<div class="project-foot"><b>${esc(p.stat || '—')}</b></div>`
+    + ((p.links && p.links.length) ? `<div class="project-links" aria-label="Project links">${p.links.map(l => linkIconHtml(l)).join('')}</div>` : '')
+    + (opts.adminRow || '')
+    + `</div></article>`;
+}
+/* ---- admin portfolio publishing (admin-only, live side-by-side preview) ---- */
 function openPortfolioEditor(id) {
   if (!isStaff(STATE.user)) { toast('Only admins can publish portfolio projects.', 'err'); return; }
   const item = id ? (STATE._pfItems[id] || null) : null;
@@ -5580,22 +5923,21 @@ function openPortfolioEditor(id) {
     title: isEdit ? 'Edit project' : 'Publish a new project',
     confirmLabel: isEdit ? 'Save changes' : 'Publish project',
     body: `<p class="muted small" style="margin:0 0 14px">Only admins can post here. Paste links and they are auto-detected into brand icons.</p>
-      <div class="field"><label>Project title<span class="req">*</span></label><input class="input" id="pf-title" maxlength="80" placeholder="e.g. Kingdom Realms" value="${esc(item ? item.title : '')}" required></div>
-      <div class="row" style="align-items:flex-start;gap:12px">
-        <div class="field" style="flex:1;min-width:160px"><label>Category</label><input class="input" id="pf-cat" list="pf-cats" placeholder="e.g. Game Experience" value="${esc(item ? (item.category || '') : '')}"><datalist id="pf-cats">${['Game Experience', 'Racing', 'Horror', 'Farming', 'FPS Framework', 'Adventure', 'Simulation', 'Obby', 'Tycoon', 'Roleplay'].map(x => `<option value="${esc(x)}">`).join('')}</datalist></div>
-        <div class="field" style="flex:1;min-width:140px"><label>Status</label><input class="input" id="pf-status" list="pf-statuses" placeholder="Live" value="${esc(item ? (item.status || '') : '')}"><datalist id="pf-statuses">${['Live', 'Beta', 'In development', 'Framework', 'Archived'].map(x => `<option value="${esc(x)}">`).join('')}</datalist></div>
-      </div>
-      <div class="field"><label>Description<span class="req">*</span></label><textarea class="textarea" id="pf-desc" placeholder="Describe the project — what it is, what you built, what makes it special…" required>${esc(item ? item.desc : '')}</textarea></div>
-      <div class="row" style="align-items:flex-start;gap:12px">
-        <div class="field" style="flex:1;min-width:140px"><label>Stat / metric</label><input class="input" id="pf-stat" placeholder="e.g. 1.2M visits" value="${esc(item ? (item.stat || '') : '')}"></div>
-        <div class="field" style="flex:1;min-width:180px"><label>Cover image link</label><input class="input" id="pf-img" type="url" placeholder="https://i.imgur.com/…" value="${esc(item ? (item.imageUrl || '') : '')}">
-          <div class="pf-img-preview" id="pf-img-preview"><img alt="Cover preview" draggable="false"><span class="ph">${ICON.image} No cover yet</span></div>
-          <div class="hint">Optional — a direct image URL for the banner. Preview updates as you type.</div></div>
-      </div>
-      <div class="field"><label>Links <span class="muted small" style="font-weight:400">— auto-detected: Discord, YouTube, Twitch, X, Roblox, MediaFire, GitHub, Spotify, Telegram, Drive…</span></label>
-        <div id="pf-links" style="display:flex;flex-direction:column;gap:8px"></div>
-        <button class="btn btn-ghost btn-sm" type="button" id="pf-add-link" style="margin-top:8px">${ICON.plus} Add link</button></div>
-      <label style="display:flex;align-items:flex-start;gap:9px;margin:16px 0 2px;cursor:pointer;font-size:13.5px;color:var(--text-2);line-height:1.45"><input type="checkbox" id="pf-featured" ${item && item.featured ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--gold);margin-top:1px;flex-shrink:0"> <span><b style="color:var(--gold)">★ Pin to top as Spotlight</b> — the featured project renders larger at the top of the portfolio. Only one project can be spotlighted at a time.</span></label>`,
+        <div class="field"><label>Project title<span class="req">*</span></label><input class="input" id="pf-title" maxlength="80" placeholder="e.g. Kingdom Realms" value="${esc(item ? item.title : '')}" required></div>
+        <div class="row" style="align-items:flex-start;gap:12px">
+          <div class="field" style="flex:1;min-width:160px"><label>Category</label><input class="input" id="pf-cat" list="pf-cats" placeholder="e.g. Game Experience" value="${esc(item ? (item.category || '') : '')}"><datalist id="pf-cats">${['Game Experience', 'Racing', 'Horror', 'Farming', 'FPS Framework', 'Adventure', 'Simulation', 'Obby', 'Tycoon', 'Roleplay'].map(x => `<option value="${esc(x)}">`).join('')}</datalist></div>
+          <div class="field" style="flex:1;min-width:140px"><label>Status</label><input class="input" id="pf-status" list="pf-statuses" placeholder="Live" value="${esc(item ? (item.status || '') : '')}"><datalist id="pf-statuses">${['Live', 'Beta', 'In development', 'Framework', 'Archived'].map(x => `<option value="${esc(x)}">`).join('')}</datalist></div>
+        </div>
+        <div class="field"><label>Description<span class="req">*</span></label><textarea class="textarea" id="pf-desc" placeholder="Describe the project — what it is, what you built, what makes it special…" required>${esc(item ? item.desc : '')}</textarea></div>
+        <div class="row" style="align-items:flex-start;gap:12px">
+          <div class="field" style="flex:1;min-width:140px"><label>Stat / metric</label><input class="input" id="pf-stat" placeholder="e.g. 1.2M visits" value="${esc(item ? (item.stat || '') : '')}"></div>
+          <div class="field" style="flex:1;min-width:180px"><label>Cover image link</label><input class="input" id="pf-img" type="url" placeholder="https://i.imgur.com/…" value="${esc(item ? (item.imageUrl || '') : '')}">
+            <div class="hint">Optional — a direct image URL for the banner.</div></div>
+        </div>
+        <div class="field"><label>Links <span class="muted small" style="font-weight:400">— auto-detected: Discord, YouTube, Twitch, X, Roblox, MediaFire, GitHub, Spotify, Telegram, Drive…</span></label>
+          <div id="pf-links" style="display:flex;flex-direction:column;gap:8px"></div>
+          <button class="btn btn-ghost btn-sm" type="button" id="pf-add-link" style="margin-top:8px">${ICON.plus} Add link</button></div>
+        <label style="display:flex;align-items:flex-start;gap:9px;margin:16px 0 2px;cursor:pointer;font-size:13.5px;color:var(--text-2);line-height:1.45"><input type="checkbox" id="pf-featured" ${item && item.featured ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--gold);margin-top:1px;flex-shrink:0"> <span><b style="color:var(--gold)">★ Pin to top as Spotlight</b> — the featured project renders larger at the top of the portfolio. Only one project can be spotlighted at a time.</span></label>`,
     validate: async o => {
       const title = o.querySelector('#pf-title').value.trim();
       const desc = o.querySelector('#pf-desc').value.trim();
@@ -5616,29 +5958,6 @@ function openPortfolioEditor(id) {
   (item && item.links || []).forEach(l => addPfLinkRow(box, l.url));
   if (!box.childElementCount) addPfLinkRow(box, '');
   ov.querySelector('#pf-add-link').onclick = () => addPfLinkRow(box, '');
-  /* live cover-image preview */
-  const imgInput = ov.querySelector('#pf-img');
-  const imgPrev = ov.querySelector('#pf-img-preview');
-  const imgEl = imgPrev.querySelector('img');
-  const phEl = imgPrev.querySelector('.ph');
-  function refreshImgPreview() {
-    const v = imgInput.value.trim();
-    if (/^https?:\/\//i.test(v)) {
-      imgEl.src = v;
-      imgEl.classList.add('show');
-      imgPrev.classList.add('has');
-      phEl.textContent = 'Loading preview…';
-    } else {
-      imgEl.removeAttribute('src');
-      imgEl.classList.remove('show');
-      imgPrev.classList.remove('has', 'err');
-      phEl.innerHTML = `${ICON.image} No cover yet`;
-    }
-  }
-  imgEl.onload = () => { imgPrev.classList.remove('err'); phEl.textContent = 'Loading preview…'; };
-  imgEl.onerror = () => { imgEl.classList.remove('show'); imgPrev.classList.add('err'); phEl.innerHTML = `${ICON.close} Could not load that image`; };
-  imgInput.addEventListener('input', refreshImgPreview);
-  refreshImgPreview();
 }
 function addPfLinkRow(box, url) {
   const row = document.createElement('div');
@@ -5669,10 +5988,11 @@ VIEWS.creators = async () => {
     <div class="section-head"><div><span class="section-eyebrow">Creators</span><h2>The team behind the studio</h2><p>Elite developers, designers, and artists building Kings Production${isAdmin ? ' — only admins can publish here' : ''}.</p></div>
       ${isAdmin ? `<button class="btn btn-primary btn-sm" onclick="openCreatorEditor()">${ICON.plus} New creator</button>` : ''}</div>
     <div class="grid creators-grid">${list.map(cr => {
-      const adminRow = isAdmin ? `<div class="row" style="gap:8px;margin-top:12px"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openCreatorEditor('${cr.id}')">${ICON.edit} Edit</button><button class="btn btn-danger btn-sm" onclick="event.stopPropagation();onDeleteCreator('${cr.id}')">${ICON.trash}</button></div>` : '';
+      const canDeleteCr = effRank(STATE.user) >= roleRank('cofounder');
+      const adminRow = isAdmin ? `<div class="row" style="gap:8px;margin-top:12px"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openCreatorEditor('${cr.id}')">${ICON.edit} Edit</button>${canDeleteCr ? `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();onDeleteCreator('${cr.id}')">${ICON.trash}</button>` : ''}</div>` : '';
       const profileLink = cr.handle ? `onclick="go('/profile/${_e(cr.handle)}')" role="link" tabindex="0" style="cursor:pointer"` : '';
       return `<div class="card card-hover creator-card" ${profileLink}>
-        <span>${avatarHtml({ displayName: cr.name }, 78)}</span>
+        <span>${cr.imageUrl ? `<img src="${esc(cr.imageUrl)}" alt="" loading="lazy" style="width:78px;height:78px;border-radius:50%;object-fit:cover;border:1px solid var(--border)" onerror="this.remove()">` : avatarHtml({ displayName: cr.name }, 78)}</span>
         <h3>${esc(cr.name)}</h3>
         <div class="role">${esc(cr.role)}</div>
         <p>${esc(cr.bio || '')}</p>
@@ -5692,20 +6012,21 @@ function openCreatorEditor(id) {
     title: isEdit ? 'Edit creator' : 'Add a creator',
     confirmLabel: isEdit ? 'Save changes' : 'Add creator',
     body: `<p class="muted small" style="margin:0 0 14px">Creators are like portfolio entries — they link to a member&#39;s profile and optional external links.</p>
-      <div class="field"><label>Name<span class="req">*</span></label><input class="input" id="cr-name" maxlength="60" value="${esc(item ? item.name : '')}" required></div>
-      <div class="field"><label>Role / title</label><input class="input" id="cr-role" maxlength="60" value="${esc(item ? item.role : '')}" placeholder="e.g. Lead Developer"></div>
-      <div class="row" style="gap:12px">
-        <div class="field" style="flex:1;min-width:160px"><label>Account handle</label><input class="input" id="cr-handle" maxlength="30" value="${esc(item ? item.handle : '')}" placeholder="their @handle"><div class="hint">Links to their profile on this site.</div></div>
-      </div>
-      <div class="field"><label>Bio</label><textarea class="textarea" id="cr-bio" maxlength="300" placeholder="A short description…">${esc(item ? item.bio : '')}</textarea></div>
-      <div class="field"><label>Links <span class="muted small" style="font-weight:400">— auto-detected platform icons</span></label>
-        <div id="cr-links" style="display:flex;flex-direction:column;gap:8px"></div>
-        <button class="btn btn-ghost btn-sm" type="button" id="cr-add-link" style="margin-top:8px">${ICON.plus} Add link</button></div>`,
+        <div class="field"><label>Image URL</label><input class="input" id="cr-img" type="url" placeholder="https://i.imgur.com/…" value="${esc(item ? (item.imageUrl || '') : '')}"><div class="hint">Optional portrait — same idea as a profile picture. It shows on the Creators page once saved.</div></div>
+        <div class="field"><label>Name<span class="req">*</span></label><input class="input" id="cr-name" maxlength="60" value="${esc(item ? item.name : '')}" required></div>
+        <div class="field"><label>Role / title</label><input class="input" id="cr-role" maxlength="60" value="${esc(item ? item.role : '')}" placeholder="e.g. Lead Developer"></div>
+        <div class="row" style="gap:12px">
+          <div class="field" style="flex:1;min-width:160px"><label>Account handle</label><input class="input" id="cr-handle" maxlength="30" value="${esc(item ? item.handle : '')}" placeholder="their @handle"><div class="hint">Links to their profile on this site.</div></div>
+        </div>
+        <div class="field"><label>Bio</label><textarea class="textarea" id="cr-bio" maxlength="300" placeholder="A short description…">${esc(item ? item.bio : '')}</textarea></div>
+        <div class="field"><label>Links <span class="muted small" style="font-weight:400">— auto-detected platform icons</span></label>
+          <div id="cr-links" style="display:flex;flex-direction:column;gap:8px"></div>
+          <button class="btn btn-ghost btn-sm" type="button" id="cr-add-link" style="margin-top:8px">${ICON.plus} Add link</button></div>`,
     validate: async o => {
       const name = o.querySelector('#cr-name').value.trim();
       if (name.length < 1) { toast('Name is required.', 'err'); return false; }
       const links = [...o.querySelectorAll('.pf-link-row')].map(r => ({ url: r.querySelector('input').value.trim() })).filter(l => l.url);
-      const payload = { name, role: o.querySelector('#cr-role').value.trim(), bio: o.querySelector('#cr-bio').value.trim(), handle: o.querySelector('#cr-handle').value.trim(), links };
+      const payload = { name, role: o.querySelector('#cr-role').value.trim(), bio: o.querySelector('#cr-bio').value.trim(), handle: o.querySelector('#cr-handle').value.trim(), imageUrl: o.querySelector('#cr-img') ? o.querySelector('#cr-img').value.trim() : undefined, links };
       const res = isEdit ? await API.updateCreator(STATE.user, item.id, payload) : await API.createCreator(STATE.user, payload);
       if (!res.ok) { toast(res.error, 'err'); return false; }
       toast(isEdit ? 'Creator updated.' : 'Creator added!');
@@ -5864,11 +6185,11 @@ VIEWS.subscription = async ({ query } = {}) => {
   const vipCard = `<div class="card card-pad mt2" style="border-color:rgba(77,141,255,.35);background:linear-gradient(180deg,rgba(77,141,255,.06),rgba(255,255,255,0) 55%),var(--surface)">
     <div class="row" style="justify-content:space-between;gap:16px;flex-wrap:wrap">
       <div style="flex:1;min-width:240px">
-        <div class="row" style="gap:10px"><h3 style="font-family:var(--font-display);font-size:20px">VIP / Licensed</h3><span class="badge vip">VIP</span></div>
+        <div class="row" style="gap:10px"><h3 style="font-family:var(--font-display);font-size:20px">Licensed</h3><span class="badge vip">Licensed</span></div>
         <p class="muted small" style="margin-top:8px">One-time payment — <b>${fmtPhp(500)}</b>. Paid via PayPal, Stripe, or GCash — your account upgrades the moment payment confirms.</p>
       </div>
       <div style="align-self:center">
-        ${isVipUser ? `<span class="badge ok">${ICON.check} You are VIP / Licensed</span>` : `<button class="btn btn-primary" onclick="onBuyVip()">Get VIP / Licensed · ${fmtPhp(500)}</button>`}
+        ${isVipUser ? `<span class="badge ok">${ICON.check} You are Licensed</span>` : `<button class="btn btn-primary" onclick="onBuyVip()">Get Licensed · ${fmtPhp(500)}</button>`}
       </div>
     </div>
   </div>`;
@@ -5890,7 +6211,7 @@ VIEWS.subscription = async ({ query } = {}) => {
               <input class="input" style="flex:1;min-width:160px" name="gameName" placeholder="Game name (optional)">
               <button class="btn btn-primary btn-sm" type="submit">Assign</button></form>`}
         </div>`).join('')}</div>`
-      : emptyHtml('No purchases yet', 'Buy any asset from the shop — you get a license key and instantly become VIP / Licensed, able to post your own assets.')}`;
+      : emptyHtml('No purchases yet', 'Buy any asset from the shop — you get a license key and instantly become Licensed, able to post your own assets.')}`;
   } else {
     my = `<div class="center mt2" style="padding:44px 0">${emptyHtml('Log in to manage your licenses', 'Purchases and license keys are tied to your account.')}<a class="btn btn-primary" href="#/login">Log in</a></div>`;
   }
@@ -5909,7 +6230,7 @@ async function handleSubPaidReturn(query) {
   const pending = ords.ok && ords.data.find(o => o.status === 'created' || o.status === 'paid');
   if (!pending) return;
   const res = await API.confirmPayment(pending.id, providerRef);
-  if (res.ok) toast(res.data && res.data.vipUpgrade ? 'Payment confirmed! Subscription issued — you are now VIP / Licensed. 👑' : 'Payment confirmed — subscription issued!');
+  if (res.ok) toast(res.data && res.data.vipUpgrade ? 'Payment confirmed! Subscription issued — you are now Licensed. 👑' : 'Payment confirmed — subscription issued!');
   else toast(res.error, 'err');
   go('/subscription');
   await router();
@@ -5955,11 +6276,11 @@ VIEWS.terms = async () => legalShell('Legal', 'Terms of Use', 'August 2026') + `
       'You must be at least 13 years old to use this site. You are responsible for keeping your login credentials secure and for everything done through your account. One account per person: do not create accounts to evade a ban or timeout, and do not share or sell your account.',
       'We may suspend, time out, or permanently ban accounts that violate these Terms or are reported for misconduct.')}
     ${legalSection('The marketplace and creators',
-      'Asset files are posted by VIP / Licensed creators and are reviewed by the Kings Production team before they go live. We moderate submissions and reserve the right to reject or remove any asset at any time. Prohibited content includes anything illegal, malicious (including malware), stolen or infringing, or otherwise harmful.',
+      'Asset files are posted by Licensed sellers and are reviewed by the Kings Production team before they go live. We moderate submissions and reserve the right to reject or remove any asset at any time. Prohibited content includes anything illegal, malicious (including malware), stolen or infringing, or otherwise harmful.',
       'You may not post assets you do not own or have the right to sell, and you may not copy or redistribute content from this site without permission.')}
     ${legalSection('Purchases, license keys, and payments',
       'When you purchase an asset, you receive a unique license key (a “KP-” key) recorded to your account. The key grants you a non-exclusive, personal license to use that asset in your projects, subject to any terms stated on the asset page. Keys are issued upon successful payment and cannot be transferred or resold.',
-      'Purchasing any asset automatically upgrades your account to VIP / Licensed, which lets you post and sell your own assets on the marketplace. This upgrade is granted the moment your payment is confirmed.',
+      'Purchasing any asset automatically upgrades your account to Licensed, which lets you post and sell your own assets on the marketplace. This upgrade is granted the moment your payment is confirmed.',
       'Payments are processed through third-party providers: **Stripe** (cards), **PayPal**, and **GCash** (via PayMongo). The provider handles your payment details — we never see or store your card or payment information. Until a gateway is connected, checkout runs in test mode and completes without moving money.')}
     ${legalSection('Intellectual property',
       'Creators retain ownership of the assets they post; by posting, they grant Kings Production a license to host, display, and sell those assets on this site. The site itself — its design, branding, the crown logo, and the studio’s own content — is the property of Kings Production. You may not copy, scrape, mirror, or reuse the site, its design, or its content.',
@@ -5983,7 +6304,7 @@ VIEWS.admin = async () => {
   if (!STATE.user || !isStaff(STATE.user)) {
     return `<div class="page">${emptyHtml('Admins only', 'This is a separate interface for administrators.')}</div>`;
   }
-  const tabs = [['overview', 'Overview'], ['approvals', 'Approvals'], ['assets', 'Assets'], ['users', 'Users'], ['support', 'Support'], ['reports', 'Reports'], ['orders', 'Orders'], ['online', 'Online'], ['announcements', 'Announcements'], ['mailbox', 'Mailbox']];
+  const tabs = [['overview', 'Overview'], ['approvals', 'Approvals'], ['assets', 'Assets'], ['users', 'Users'], ['security', 'Security'], ['support', 'Support'], ['reports', 'Reports'], ['orders', 'Orders'], ['online', 'Online'], ['announcements', 'Announcements'], ['mailbox', 'Mailbox']];
   const tabbar = `<div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${STATE.adminTab === k ? 'active' : ''}" onclick="setAdminTab('${k}')">${l}</button>`).join('')}</div>`;
   return `<div class="page" style="max-width:1080px">
     <div class="section-head"><div><span class="section-eyebrow">Administration</span><h2>Admin Panel</h2><p>Moderate submissions, users, and review marketplace activity.</p></div></div>
@@ -6009,7 +6330,7 @@ async function onAdminDeleteTicket(id) {
 async function onAdminCompleteOrder(orderId) {
   modal({
     title: 'Complete this order?', confirmLabel: 'Complete',
-    body: '<p>Marks the order as paid and issues the license key + VIP / Licensed upgrade to the buyer. Use this for manual / offline payments (e.g. a GCash transfer received outside the app).</p>',
+    body: '<p>Marks the order as paid and issues the license key + Licensed upgrade to the buyer. Use this for manual / offline payments (e.g. a GCash transfer received outside the app).</p>',
     onConfirm: async () => { const r = await API.adminCompleteOrder(STATE.user, orderId); if (r.ok) toast('Order completed — license issued.'); else toast(r.error, 'err'); await router(); },
   });
 }
@@ -6034,7 +6355,7 @@ async function adminTabHtml(tab) {
     return `<div class="table-wrap"><table class="table">
       <thead><tr><th>Asset</th><th>Buyer</th><th>Method</th><th>Amount</th><th>Status</th><th>Date</th><th></th></tr></thead>
       <tbody>${list.map(o => `<tr>
-        <td>${o.vip ? `<span class="badge vip">VIP / Licensed</span>` : (o.asset ? `<a href="#/asset/${o.asset.id}">${esc(o.asset.title)}</a>` : '(deleted asset)')}</td>
+        <td>${o.vip ? `<span class="badge vip">Licensed plan</span>` : (o.asset ? `<a href="#/asset/${o.asset.id}">${esc(o.asset.title)}</a>` : '(deleted asset)')}</td>
         <td>${o.buyer ? `<a href="#/profile/${esc(o.buyer.handle)}">${esc(o.buyer.displayName)}</a>` : '—'}</td>
         <td class="muted">${esc(o.method)}</td>
         <td>${o.amount} ${esc(o.currency)}</td>
@@ -6042,6 +6363,32 @@ async function adminTabHtml(tab) {
         <td class="muted">${fmtDate(o.createdAt)}</td>
         <td>${o.status === 'created' ? `<button class="btn btn-primary btn-sm" onclick="onAdminCompleteOrder('${o.id}')">Mark paid &amp; complete</button>` : ''}</td>
       </tr>`).join('') || `<tr><td colspan="7"><div class="empty">No orders yet.</div></td></tr>`}</tbody></table></div>`;
+  }
+  if (tab === 'security') {
+    const [sysR, subR] = await Promise.all([API.adminSystems(STATE.user), API.adminListSubRevokes(STATE.user)]);
+    const systems = sysR.ok ? sysR.data : [];
+    const revokes = subR.ok ? subR.data : [];
+    const canApprove = effRank(STATE.user) >= roleRank('cofounder');
+    const pendingRevs = revokes.filter(x => x.status === 'pending');
+    return `<p class="muted small" style="margin:0 0 12px">Registered license systems across the marketplace — pause a leaked system or hand over to the Licensed Dashboard owner for device/game control.</p>
+    ${pendingRevs.length ? `<div class="card card-pad" style="border-color:rgba(255,170,60,.4);margin-bottom:16px">
+      <h3 style="font-family:var(--font-display);font-size:16px;margin-bottom:10px">${ICON.shield} Subscription revocations awaiting approval</h3>
+      ${pendingRevs.map(x => `<div class="row" style="padding:9px 0;border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap">
+        <span style="flex:1;min-width:180px"><b>@${esc(x.targetHandle)}</b> <span class="muted small">— requested by @${esc(x.actorHandle)} · ${x.reason ? esc(x.reason) : 'no reason given'}</span></span>
+        ${canApprove ? `<span class="row" style="gap:8px"><button class="btn btn-danger btn-sm" onclick="onAdminResolveSubRevoke('${x.id}','approved')">Approve &amp; revoke</button><button class="btn btn-ghost btn-sm" onclick="onAdminResolveSubRevoke('${x.id}','rejected')">Reject</button></span>` : '<span class="muted small">Only the Co-Founder / Founder can approve.</span>'}
+      </div>`).join('')}
+    </div>` : ''}
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th>System</th><th>Owner</th><th>Status</th><th>Games</th><th>Devices</th><th>Registered</th><th>Last seen</th></tr></thead>
+      <tbody>${systems.map(s => `<tr>
+        <td><b>${esc(s.name)}</b></td>
+        <td>${s.owner ? `<a href="#/profile/${esc(s.owner.handle)}">${esc(s.owner.displayName)}</a>` : '—'}</td>
+        <td>${s.status === 'active' ? '<span class="badge ok">ACTIVE</span>' : '<span class="badge plain">PAUSED</span>'}</td>
+        <td>${s.games}</td><td>${s.devices}</td>
+        <td class="muted">${fmtDate(s.createdAt)}</td>
+        <td class="muted">${s.lastSeenAt ? timeAgo(s.lastSeenAt) : 'never'}</td>
+      </tr>`).join('') || `<tr><td colspan="7"><div class="empty">No systems registered yet.</div></td></tr>`}</tbody></table></div>
+    ${revokes.filter(x => x.status !== 'pending').length ? `<div class="card card-pad mt2"><h3 style="font-family:var(--font-display);font-size:15px;margin-bottom:8px">Past revocation requests</h3>${revokes.filter(x => x.status !== 'pending').map(x => `<div class="muted small" style="padding:5px 0">@${esc(x.targetHandle)} — <b style="color:var(--text)">${x.status}</b>${x.resolvedAt ? ' · ' + fmtDate(x.resolvedAt) : ''}</div>`).join('')}</div>` : ''}`;
   }
   if (tab === 'support') {
     const r = await API.adminListTickets(STATE.user);
@@ -6092,7 +6439,7 @@ async function adminTabHtml(tab) {
         <td><div class="row" style="gap:10px"><span style="width:34px;height:26px;border-radius:6px;overflow:hidden;position:relative;flex-shrink:0;border:1px solid var(--border)">${thumbHtml(a, 14)}</span><a href="#/asset/${a.id}" class="bold">${esc(a.title)}</a></div></td>
         <td><a href="#/profile/${esc(a.owner.handle)}">${esc(a.owner.displayName)}</a></td>
         <td>${CAT_LABEL[a.category]}</td><td>${fmtMoney(a.price)}</td><td>${a.sales}</td><td>${statusBadge(a.status, a.rejectReason)}</td>
-        <td><div class="row-actions"><button class="btn btn-ghost btn-sm" title="Access file" onclick="onAdminDownload('${a.id}')">${ICON.download}</button><button class="btn btn-danger btn-sm" title="Delete post" onclick="onAdminDelete('${a.id}')">${ICON.trash}</button></div></td>
+        <td><div class="row-actions"><button class="btn btn-ghost btn-sm" title="Get a copy of the file" onclick="onAdminDownload('${a.id}')">${ICON.download}</button>${a.status === 'approved' ? `<button class="btn btn-danger btn-sm" title="Temporarily hide this post from the shop" onclick="onAdminDisableAsset('${a.id}')">${ICON.ban} Disable</button>` : a.status === 'disabled' ? `<button class="btn btn-ghost btn-sm" title="Restore the post to the shop" onclick="onAdminRestoreAsset('${a.id}')">${ICON.check} Restore</button>` : ''}</div></td>
       </tr>`).join('') || `<tr><td colspan="7"><div class="empty">No assets.</div></td></tr>`}</tbody></table></div>`;
   }
   if (tab === 'users') {
@@ -6107,6 +6454,7 @@ async function adminTabHtml(tab) {
         const canManage = !isMe && (canGrantAll ? true : !isStaffUser);
         const status = u.banned ? `<span class="status-pill status-rejected">Banned${u.banReason ? ' — ' + esc(u.banReason) : ''}</span>`
           : u.timeoutUntil && u.timeoutUntil > now() ? `<span class="status-pill status-pending">Timed out (${esc(timeoutText(u))})</span>`
+          : u.restrictedUntil && u.restrictedUntil > now() ? `<span class="status-pill status-pending" title="${esc(u.restrictReason || '')}">Restricted (${esc(timeoutText({ timeoutUntil: u.restrictedUntil }))})</span>`
           : u.unsubscribed ? '<span class="status-pill status-pending">Unsubscribed</span>'
           : '<span class="status-pill status-approved">Active</span>';
         const actions = isStaffUser
@@ -6114,6 +6462,8 @@ async function adminTabHtml(tab) {
           : `<div class="row-actions">
               ${u.banned ? `<button class="btn btn-ghost btn-sm" onclick="onAdminUnban('${u.id}')">Unban</button>` : `<button class="btn btn-danger btn-sm" onclick="onAdminBan('${u.id}')">${ICON.ban} Ban</button>`}
               ${u.timeoutUntil && u.timeoutUntil > now() ? `<button class="btn btn-ghost btn-sm" onclick="onAdminClear('${u.id}')">Clear timeout</button>` : `<button class="btn btn-ghost btn-sm" onclick="onAdminTimeout('${u.id}')">${ICON.clock} Timeout</button>`}
+              ${u.restrictedUntil && u.restrictedUntil > now() ? `<button class="btn btn-ghost btn-sm" onclick="onAdminRestrict('${u.id}', false)">Unrestrict</button>` : `<button class="btn btn-ghost btn-sm" onclick="onAdminRestrict('${u.id}', true)">${ICON.shield} Restrict</button>`}
+              <button class="btn btn-ghost btn-sm" title="Request to lift their subscription (needs Co-Founder / Founder approval)" onclick="onAdminSubRevoke('${u.id}')">Revoke sub…</button>
               <button class="btn btn-ghost btn-sm" title="Email subscription" onclick="onAdminUnsub('${u.id}', ${u.unsubscribed ? 'false' : 'true'})">${u.unsubscribed ? 'Unsubscribed' : 'Unsubscribe'}</button>
             </div>`;
         const roleCell = isMe ? badgeHtml(u.role, u.tags) + ' <span class="muted small">(you)</span>'
@@ -6495,6 +6845,28 @@ function onAdminTimeout(id) {
   promptModal({ title: 'Timeout user', label: 'Duration in minutes (1–10080)', placeholder: '30', type: 'number', confirmLabel: 'Timeout',
     onConfirm: async ({ value }) => { const r = await API.adminTimeout(STATE.user, id, value); r.ok ? (toast('User timed out — commenting, purchasing, and posting are blocked until it expires.'), await router()) : toast(r.error, 'err'); } });
 }
+function onAdminRestrict(id, restricted) {
+  if (!restricted) { API.adminSetRestriction(STATE.user, id, { restricted: false }).then(r => r.ok ? (toast('Restriction lifted.'), router()) : toast(r.error, 'err')); return; }
+  promptModal({ title: 'Restrict user', label: 'Duration in minutes (1–43200)', placeholder: '1440 (1 day)', type: 'number', required: true, confirmLabel: 'Restrict',
+    extraFields: [{ id: 'restrict-reason', label: 'Reason (shown to the user)', placeholder: 'e.g. Under review — you may appeal via Support', type: 'text' }],
+    onConfirm: async ({ value, extra }) => { const r = await API.adminSetRestriction(STATE.user, id, { restricted: true, minutes: Number(value) || 1440, reason: (extra && extra['restrict-reason']) || '' }); r.ok ? (toast('User restricted — their purchases are blocked and their posts are blanked from the shop.'), await router()) : toast(r.error, 'err'); } });
+}
+function onAdminSubRevoke(id) {
+  promptModal({ title: 'Revoke subscription?', label: 'Reason', placeholder: 'e.g. Chargeback / abuse', required: true, danger: true, confirmLabel: 'Request revocation',
+    body: '<p>This <b>requests</b> lifting the user\'s Subscription and Contract tiers. It only takes effect after a <b>Co-Founder or Founder approves it</b> in the Security tab.</p>',
+    onConfirm: async ({ value }) => { const r = await API.adminRequestSubRevoke(STATE.user, id, value); r.ok ? (toast('Revocation requested — awaiting Co-Founder / Founder approval.'), router()) : toast(r.error, 'err'); } });
+}
+function onAdminResolveSubRevoke(id, decision) {
+  API.adminResolveSubRevoke(STATE.user, id, decision).then(r => r.ok ? (toast(decision === 'approved' ? 'Subscription revoked.' : 'Revocation rejected — tiers restored to the user.'), router()) : toast(r.error, 'err'));
+}
+async function onAdminDisableAsset(id) {
+  const r = await API.adminSetAssetStatus(STATE.user, id, 'disabled');
+  r.ok ? (toast('Post disabled — hidden from the shop. You can restore it anytime.'), await router()) : toast(r.error, 'err');
+}
+async function onAdminRestoreAsset(id) {
+  const r = await API.adminSetAssetStatus(STATE.user, id, 'approved');
+  r.ok ? (toast('Post restored to the shop.'), await router()) : toast(r.error, 'err');
+}
 function onAdminClear(id) {
   modal({ title: 'Clear this timeout?', confirmLabel: 'Clear timeout', body: '<p>Restores commenting, purchasing, and posting for this user.</p>',
     onConfirm: async () => { const r = await API.adminClearTimeout(STATE.user, id); r.ok ? (toast('Timeout cleared.'), await router()) : toast(r.error, 'err'); } });
@@ -6781,6 +7153,7 @@ function setupMarquee() {
 async function init() {
   const started = performance.now();
   runLoaderProgress();
+  if (localStorage.getItem('kp_theme') === 'light') document.documentElement.setAttribute('data-theme', 'light');
   setupWow();
   setupReveal();
   setupScrollFx();

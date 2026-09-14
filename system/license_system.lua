@@ -23,11 +23,14 @@
 	   TAMPER_KEY stays "" here, which disables the fingerprint check so you
 	   can iterate without breaking it.
 
-	HOW IT WORKS
-	------------
-	- On game start: sends System Name + Password to the portal → ACTIVE or DENIED.
-	- Every few minutes: a "heartbeat" re-checks, so if you PAUSE the license
-	  or KICK a device on the web, the game reacts within minutes.
+HOW IT WORKS
+------------
+- On game start: sends System Name + Password to the portal → ACTIVE or DENIED.
+- NEW GAMES START UNAPPROVED: the first check registers the game on the
+  web and the system creator must ALLOW it from the Licensed Dashboard
+  (Registered Systems → Games) before it runs.
+- Every few minutes: a "heartbeat" re-checks, so if you PAUSE the license
+  or KICK a device on the web, the game reacts within minutes.
 	- Kicked devices are DENIED on their next check-in, and any kicked player
 	  is force-disconnected (auto-kick) even mid-game.
 	- If DENIED: the protected object is disabled and License.OnDenied fires.
@@ -41,17 +44,19 @@
 	device denial, plus obfuscation. Obfuscate before shipping; the password
 	lives inside the script and obfuscation makes pulling it out much harder.
 
-	API CONTRACT (what the portal returns)
-	--------------------------------------
-	POST https://kingsproduction.cc/api/systems/activate
-	POST https://kingsproduction.cc/api/systems/heartbeat
-	Body:  { systemName, systemPassword, deviceId, deviceName, placeId }
-	Reply: { ok: true, data: { active: true|false, reason: "...",
-	                           revokedPlayers: ["123","456"] } }
+API CONTRACT (what the portal returns)
+--------------------------------------
+POST https://kingsproduction.cc/api/systems/activate
+POST https://kingsproduction.cc/api/systems/heartbeat
+Body:  { systemName, systemPassword, deviceId, deviceName, placeId,
+         gameName, gameOwner, gameOwnerType }
+Reply: { ok: true, data: { active: true|false, reason: "...",
+                           revokedPlayers: ["123","456"] } }
 
-	POST https://kingsproduction.cc/api/systems/device   (player registration)
-	Body:  { systemName, systemPassword, playerId, playerName, placeId }
-	Reply: { ok: true, data: { active: true|false, reason: "...", kicked: true|false } }
+POST https://kingsproduction.cc/api/systems/device   (player registration)
+Body:  { systemName, systemPassword, playerId, playerName, placeId,
+         gameName, gameOwner, gameOwnerType }
+Reply: { ok: true, data: { active: true|false, reason: "...", kicked: true|false } }
 ============================================================================--]]
 
 local HttpService = game:GetService("HttpService")
@@ -191,14 +196,22 @@ local function deviceLabel()
 end
 
 -- One full check: first run uses /activate, later runs use /heartbeat
+local function creatorLabel()
+	-- e.g. "User 12345" or "Group 9876" — shown on the web dashboard
+	return tostring(game.CreatorType) .. " " .. tostring(game.CreatorId)
+end
 local function check(heartbeat)
-	local res = post(heartbeat and CONFIG.HeartbeatUrl or CONFIG.ApiUrl, {
+	local payload = {
 		systemName = CONFIG.SystemName,
 		systemPassword = CONFIG.SystemPassword,
 		deviceId = tostring(game.JobId),   -- per-server id; pair with UserId for device view
 		deviceName = deviceLabel(),
 		placeId = tostring(game.PlaceId),  -- so the creator sees (and can gate) each game using the system
-	})
+		gameName = game.Name,
+		gameOwner = creatorLabel(),
+		gameOwnerType = tostring(game.CreatorType),
+	}
+	local res = post(heartbeat and CONFIG.HeartbeatUrl or CONFIG.ApiUrl, payload)
 	if res then
 		applyDecision(res)
 	else
@@ -217,6 +230,9 @@ local function registerPlayer(player)
 		playerId = tostring(player.UserId),
 		playerName = player.Name,
 		placeId = tostring(game.PlaceId),  -- registers which game the player is using the system in
+		gameName = game.Name,
+		gameOwner = creatorLabel(),
+		gameOwnerType = tostring(game.CreatorType),
 	})
 		if res and res.ok == true and res.data and res.data.active == false and res.data.kicked then
 			player:Kick("This device is not authorized for this system.")

@@ -25,7 +25,7 @@ const fs = require('node:fs');
    map only — never from untrusted input — so the dynamic INSERT/REPLACE below
    cannot be injection points. */
 const SCHEMA = {
-  users: ['id', 'handle', 'email', 'displayName', 'passHash', 'bio', 'pfp', 'role', 'banned', 'banReason', 'timeoutUntil', 'totpSecret', 'totpEnabled', 'country', 'tags', 'googleId', 'acceptedTermsAt', 'emailVerified', 'unsubscribed', 'protectionTier', 'contractTier', 'createdAt', 'updatedAt'],
+  users: ['id', 'handle', 'email', 'displayName', 'passHash', 'bio', 'pfp', 'role', 'banned', 'banReason', 'timeoutUntil', 'restrictedUntil', 'restrictReason', 'totpSecret', 'totpEnabled', 'country', 'tags', 'googleId', 'acceptedTermsAt', 'emailVerified', 'unsubscribed', 'protectionTier', 'contractTier', 'createdAt', 'updatedAt'],
   sessions: ['id', 'userId', 'label', 'createdAt', 'lastSeen', 'expiresAt'],
   assets: ['id', 'ownerId', 'title', 'category', 'description', 'price', 'fileName', 'fileMime', 'fileSize', 'imageUrl', 'status', 'rejectReason', 'sales', 'createdAt', 'updatedAt', 'approvedAt'],
   purchases: ['id', 'assetId', 'buyerId', 'price', 'licenseKey', 'gameId', 'gameName', 'status', 'activatedAt', 'deviceId', 'deviceName', 'lastSeen', 'createdAt'],
@@ -38,14 +38,15 @@ const SCHEMA = {
   pending_regs: ['id', 'email', 'code', 'expiresAt', 'createdAt'],
   emails: ['id', 'to', 'subject', 'action', 'body', 'link', 'createdAt', 'read'],
   portfolio: ['id', 'title', 'category', 'desc', 'stat', 'status', 'imageUrl', 'links', 'featured', 'createdAt'],
-  creators: ['id', 'name', 'role', 'bio', 'links', 'handle', 'createdAt'],
-  orders: ['id', 'buyerId', 'assetId', 'method', 'amount', 'currency', 'status', 'providerRef', 'licenseKey', 'createdAt', 'paidAt', 'updatedAt'],
+  creators: ['id', 'name', 'role', 'bio', 'links', 'handle', 'imageUrl', 'createdAt'],
+  orders: ['id', 'buyerId', 'assetId', 'method', 'amount', 'currency', 'status', 'providerRef', 'licenseKey', 'gameDetails', 'sellerId', 'approval', 'approvalNote', 'createdAt', 'paidAt', 'updatedAt'],
   tickets: ['id', 'userId', 'subject', 'category', 'details', 'status', 'createdAt', 'updatedAt', 'lastActivityAt'],
   ticket_messages: ['id', 'ticketId', 'userId', 'body', 'createdAt'],
   announcements: ['id', 'title', 'body', 'link', 'style', 'active', 'createdAt', 'updatedAt'],
   systems: ['id', 'userId', 'name', 'password', 'status', 'createdAt', 'updatedAt', 'lastSeenAt'],
   system_devices: ['id', 'systemId', 'deviceId', 'deviceName', 'status', 'createdAt', 'lastSeenAt'],
-  system_games: ['id', 'systemId', 'placeId', 'status', 'createdAt', 'lastSeenAt'],
+  system_games: ['id', 'systemId', 'placeId', 'status', 'gameName', 'gameOwner', 'gameOwnerType', 'createdAt', 'lastSeenAt'],
+  sub_revokes: ['id', 'actorId', 'targetId', 'reason', 'prevProtection', 'prevContract', 'status', 'resolvedBy', 'resolvedAt', 'createdAt'],
   mail_blasts: ['id', 'subject', 'body', 'recipients', 'status', 'scheduledFor', 'createdAt', 'updatedAt', 'sentAt'],
   mail_inbound: ['id', 'email', 'event', 'subject', 'body', 'detail', 'createdAt'],
 };
@@ -117,12 +118,13 @@ CREATE TABLE IF NOT EXISTS portfolio (
   imageUrl TEXT, links TEXT, featured INTEGER NOT NULL DEFAULT 0, createdAt INTEGER
 );
 CREATE TABLE IF NOT EXISTS creators (
-  id TEXT PRIMARY KEY, name TEXT NOT NULL, role TEXT, bio TEXT
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, role TEXT, bio TEXT, imageUrl TEXT
 );
 CREATE TABLE IF NOT EXISTS orders (
   id TEXT PRIMARY KEY, buyerId TEXT NOT NULL, assetId TEXT NOT NULL,
   method TEXT NOT NULL, amount INTEGER NOT NULL, currency TEXT NOT NULL DEFAULT 'PHP',
   status TEXT NOT NULL DEFAULT 'created', providerRef TEXT, licenseKey TEXT,
+  gameDetails TEXT, sellerId TEXT, approval TEXT, approvalNote TEXT,
   createdAt INTEGER NOT NULL, paidAt INTEGER, updatedAt INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS tickets (
@@ -248,6 +250,17 @@ const MIGRATIONS = [
   "ALTER TABLE users ADD COLUMN unsubscribed INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE users ADD COLUMN protectionTier INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE users ADD COLUMN contractTier INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE users ADD COLUMN restrictedUntil INTEGER",
+  "ALTER TABLE users ADD COLUMN restrictReason TEXT",
+  "ALTER TABLE orders ADD COLUMN gameDetails TEXT",
+  "ALTER TABLE orders ADD COLUMN sellerId TEXT",
+  "ALTER TABLE orders ADD COLUMN approval TEXT",
+  "ALTER TABLE orders ADD COLUMN approvalNote TEXT",
+  "ALTER TABLE creators ADD COLUMN imageUrl TEXT",
+  "ALTER TABLE system_games ADD COLUMN gameName TEXT",
+  "ALTER TABLE system_games ADD COLUMN gameOwner TEXT",
+  "ALTER TABLE system_games ADD COLUMN gameOwnerType TEXT",
+  "CREATE TABLE IF NOT EXISTS sub_revokes (id TEXT PRIMARY KEY, actorId TEXT, targetId TEXT, reason TEXT, prevProtection INTEGER, prevContract INTEGER, status TEXT NOT NULL DEFAULT 'pending', resolvedBy TEXT, resolvedAt INTEGER, createdAt INTEGER NOT NULL)",
 ];
 function ticketCleanup(db) {
   const cutoff = Date.now() - 5 * 24 * 3600 * 1000;
