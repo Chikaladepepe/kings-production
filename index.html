@@ -3066,15 +3066,17 @@ const API = {};
     }
 
     /* ============ CREATORS (admin-published, like portfolio) ============ */
-    async function createCreator(actor, { name, role, bio, links, handle } = {}) {
+    async function createCreator(actor, { name, role, bio, links, handle, imageUrl } = {}) {
       const r = requireAdmin(actor); if (r) return r;
       name = String(name || '').trim();
       if (name.length < 1 || name.length > 60) return fail('invalid', 'Name is required (1–60 chars).');
+      const img = normalizeImageUrl(imageUrl);
+      if (img === null && String(imageUrl || '').trim()) return fail('invalid', 'Image link must be a valid http(s) URL.');
       const item = {
         id: 'cr' + uid(), name,
         role: String(role || '').trim().slice(0, 60),
         bio: String(bio || '').trim().slice(0, 300),
-        imageUrl: String(imageUrl || '').trim().slice(0, 300) || null,
+        imageUrl: img,
         links: JSON.stringify(cleanPortfolioLinks(links)),
         handle: String(handle || '').trim().slice(0, 30),
         createdAt: now(),
@@ -3790,6 +3792,14 @@ API.totp = secret => KPEngine.totpCode(secret);
 function avatarHtml(u, px = 36) {
   if (u && u.pfp) return `<span class="avatar" style="width:${px}px;height:${px}px"><img src="${esc(u.pfp)}" alt=""></span>`;
   return `<span class="avatar" style="width:${px}px;height:${px}px;font-size:${Math.round(px * 0.38)}px">${esc(initials(u && u.displayName))}</span>`;
+}
+/* Creator avatar: image URL if valid, else initials — never collapses when
+   the image fails to load (falls back to initials instead). */
+function creatorAvatarHtml(cr, px = 78) {
+  const url = cr && cr.imageUrl;
+  const img = url ? `<img src="${esc(url)}" alt="" loading="lazy" onerror="this.parentElement.innerHTML=this.parentElement.dataset.fallback">` : '';
+  const fallback = avatarHtml({ displayName: cr && cr.name }, px);
+  return `<span data-fallback="${esc(fallback)}" style="display:block">${img || fallback}</span>`;
 }
 function badgeHtml(role, tags) {
   let main = '';
@@ -5992,7 +6002,7 @@ VIEWS.creators = async () => {
       const adminRow = isAdmin ? `<div class="row" style="gap:8px;margin-top:12px"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openCreatorEditor('${cr.id}')">${ICON.edit} Edit</button>${canDeleteCr ? `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();onDeleteCreator('${cr.id}')">${ICON.trash}</button>` : ''}</div>` : '';
       const profileLink = cr.handle ? `onclick="go('/profile/${_e(cr.handle)}')" role="link" tabindex="0" style="cursor:pointer"` : '';
       return `<div class="card card-hover creator-card" ${profileLink}>
-        <span>${cr.imageUrl ? `<img src="${esc(cr.imageUrl)}" alt="" loading="lazy" style="width:78px;height:78px;border-radius:50%;object-fit:cover;border:1px solid var(--border)" onerror="this.remove()">` : avatarHtml({ displayName: cr.name }, 78)}</span>
+        <span>${creatorAvatarHtml(cr, 78)}</span>
         <h3>${esc(cr.name)}</h3>
         <div class="role">${esc(cr.role)}</div>
         <p>${esc(cr.bio || '')}</p>
@@ -6012,7 +6022,7 @@ function openCreatorEditor(id) {
     title: isEdit ? 'Edit creator' : 'Add a creator',
     confirmLabel: isEdit ? 'Save changes' : 'Add creator',
     body: `<p class="muted small" style="margin:0 0 14px">Creators are like portfolio entries — they link to a member&#39;s profile and optional external links.</p>
-        <div class="field"><label>Image URL</label><input class="input" id="cr-img" type="url" placeholder="https://i.imgur.com/…" value="${esc(item ? (item.imageUrl || '') : '')}"><div class="hint">Optional portrait — same idea as a profile picture. It shows on the Creators page once saved.</div></div>
+        <div class="field"><label>Image URL</label><input class="input" id="cr-img" type="url" placeholder="https://i.imgur.com/…" value="${esc(item ? (item.imageUrl || '') : '')}"><div class="hint">Optional portrait — use a direct image link (ends in .png / .jpg / .webp). It shows as their circle on the Creators page; if it can't load, their initials show instead.</div><div id="cr-img-preview" style="margin-top:10px"></div></div>
         <div class="field"><label>Name<span class="req">*</span></label><input class="input" id="cr-name" maxlength="60" value="${esc(item ? item.name : '')}" required></div>
         <div class="field"><label>Role / title</label><input class="input" id="cr-role" maxlength="60" value="${esc(item ? item.role : '')}" placeholder="e.g. Lead Developer"></div>
         <div class="row" style="gap:12px">
@@ -6038,6 +6048,15 @@ function openCreatorEditor(id) {
   (item && item.links || []).forEach(l => addPfLinkRow(box, l.url));
   if (!box.childElementCount) addPfLinkRow(box, '');
   ov.querySelector('#cr-add-link').onclick = () => addPfLinkRow(box, '');
+  const imgPrev = ov.querySelector('#cr-img-preview');
+  const renderImgPrev = () => {
+    const url = ov.querySelector('#cr-img').value.trim();
+    imgPrev.innerHTML = url
+      ? `<div class="hint" style="margin-bottom:6px">Preview:</div>${creatorAvatarHtml({ name: ov.querySelector('#cr-name').value || '?', imageUrl: url }, 78)}`
+      : '';
+  };
+  ov.querySelector('#cr-img').addEventListener('input', renderImgPrev);
+  renderImgPrev();
 }
 async function onDeleteCreator(id) {
   if (!isStaff(STATE.user)) { toast('Only admins can manage creators.', 'err'); return; }

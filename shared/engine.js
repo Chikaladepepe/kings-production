@@ -1668,15 +1668,17 @@
     }
 
     /* ============ CREATORS (admin-published, like portfolio) ============ */
-    async function createCreator(actor, { name, role, bio, links, handle } = {}) {
+    async function createCreator(actor, { name, role, bio, links, handle, imageUrl } = {}) {
       const r = requireAdmin(actor); if (r) return r;
       name = String(name || '').trim();
       if (name.length < 1 || name.length > 60) return fail('invalid', 'Name is required (1–60 chars).');
+      const img = normalizeImageUrl(imageUrl);
+      if (img === null && String(imageUrl || '').trim()) return fail('invalid', 'Image link must be a valid http(s) URL.');
       const item = {
         id: 'cr' + uid(), name,
         role: String(role || '').trim().slice(0, 60),
         bio: String(bio || '').trim().slice(0, 300),
-        imageUrl: String(imageUrl || '').trim().slice(0, 300) || null,
+        imageUrl: img,
         links: JSON.stringify(cleanPortfolioLinks(links)),
         handle: String(handle || '').trim().slice(0, 30),
         createdAt: now(),
