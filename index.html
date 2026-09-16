@@ -1100,6 +1100,27 @@ html[data-theme="light"] .dash-stat .v.red{background:linear-gradient(180deg,#8a
 html[data-theme="light"] .hero-em{background:linear-gradient(90deg,#8a6d1c,#17171c,#8a6d1c);background-size:200% auto;-webkit-background-clip:text;background-clip:text}
 html[data-theme="light"] .gold-shimmer{background:linear-gradient(110deg,#8a6d1c,#b8912a,#d9c074,#b8912a);-webkit-background-clip:text;background-clip:text}
 html[data-theme="light"] .loader-title{background:linear-gradient(100deg,#17171c 20%,#8a6d1c 45%,#17171c 70%);-webkit-background-clip:text;background-clip:text}
+/* ==== light theme: louder gold (user request — yellow/gold must pop) ==== */
+html[data-theme="light"]{--gold:#a87908;--gold-strong:#8a6d1c}
+html[data-theme="light"] .brand .crown,html[data-theme="light"] .hero .crown{color:#a87908}
+html[data-theme="light"] .site-header{border-bottom:1px solid rgba(168,121,8,.55);box-shadow:0 1px 0 rgba(255,255,255,.8) inset,0 10px 30px rgba(168,121,8,.10)}
+html[data-theme="light"] .site-header::after{background:linear-gradient(90deg,transparent,rgba(168,121,8,.85),transparent)}
+html[data-theme="light"] .main-nav a.active{color:#17171c;background:linear-gradient(180deg,rgba(212,164,22,.35),rgba(212,164,22,.12));box-shadow:inset 0 0 0 1.5px rgba(168,121,8,.7)}
+html[data-theme="light"] .main-nav a:hover{background:rgba(212,164,22,.18)}
+html[data-theme="light"] .btn-ghost{border-color:rgba(168,121,8,.45);color:#6d5410}
+html[data-theme="light"] .btn-ghost:hover{background:rgba(212,164,22,.16);border-color:rgba(168,121,8,.8);color:#4d3a06}
+html[data-theme="light"] .chip.active{background:linear-gradient(180deg,#c79a1b,#8a6d1c);border-color:#8a6d1c;color:#fff;text-shadow:0 1px 1px rgba(0,0,0,.35)}
+html[data-theme="light"] .tab.active{color:#6d5410;background:linear-gradient(180deg,rgba(212,164,22,.30),rgba(212,164,22,.06));box-shadow:inset 0 -2px 0 #a87908}
+html[data-theme="light"] .badge.vip{background:linear-gradient(135deg,rgba(212,164,22,.30),rgba(168,121,8,.12));color:#6d5410;border:1px solid rgba(168,121,8,.6)}
+html[data-theme="light"] .badge.owner{background:linear-gradient(135deg,rgba(212,164,22,.32),rgba(168,121,8,.10));color:#5f470a;border:1.5px solid rgba(168,121,8,.65)}
+html[data-theme="light"] .section-eyebrow,html[data-theme="light"] .project-foot b,html[data-theme="light"] b[style*="--gold"],html[data-theme="light"] .price{color:#a87908}
+html[data-theme="light"] .card-hover:hover{box-shadow:var(--shadow-2),0 0 0 1.5px rgba(168,121,8,.45),0 0 30px rgba(168,121,8,.18)}
+html[data-theme="light"] .tier.featured{background:#fffaf0;box-shadow:var(--shadow-1),0 0 0 1.5px rgba(168,121,8,.5),0 0 30px rgba(168,121,8,.16)}
+html[data-theme="light"] input:focus,html[data-theme="light"] textarea:focus,html[data-theme="light"] .select:focus{border-color:#a87908;box-shadow:0 0 0 3px rgba(168,121,8,.18)}
+html[data-theme="light"] a{color:#8a6d1c}
+html[data-theme="light"] a:hover{color:#6d5410}
+html[data-theme="light"] .post-fab{background:linear-gradient(180deg,#d9ad2b,#a87908);color:#fff;box-shadow:0 6px 22px rgba(168,121,8,.45),inset 0 1px 0 rgba(255,255,255,.35)}
+html[data-theme="light"] .crown{color:#a87908}
 </style>
 </head>
 <body>
@@ -1214,6 +1235,7 @@ const SFX = (() => {
 /* ---- icon set (grey UI icons; the crown is the only gold element) ---- */
 const ICON = {
   crown: '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M4 16.5V10l4.2 3.6L12 6.5l3.8 7.1L20 10v6.5a1.6 1.6 0 0 1-1.6 1.6H5.6A1.6 1.6 0 0 1 4 16.5Z"/><rect x="5.2" y="19" width="13.6" height="1.8" rx="0.9"/></svg>',
+  book: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>',
   search: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>',
   cart: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2.5 3.5h2.6l2.4 11h11l2.6-8.5H6"/></svg>',
   download: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11m0 0 4.2-4.2M12 14 7.8 9.8"/><path d="M4 17v2.4A1.6 1.6 0 0 0 5.6 21h12.8a1.6 1.6 0 0 0 1.6-1.6V17"/></svg>',
@@ -1509,7 +1531,9 @@ const API = {};
   /* Email verification: existing accounts are verified by default; new
      registrations must confirm their email. The owner account always bypasses. */
   const isVerified = u => isOwnerAccount(u) || u == null || (u.emailVerified !== false && u.emailVerified !== 0);
-  const canPost = u => (effRank(u) >= roleRank('vip') || isTester(u)) && !isBanned(u) && !isTimedOut(u) && isVerified(u);
+  /* Email verification is OPTIONAL — it only exists so a forgotten password
+     can be reset. It never gates posting or purchasing. */
+  const canPost = u => (effRank(u) >= roleRank('vip') || isTester(u)) && !isBanned(u) && !isTimedOut(u);
   const isAdmin = u => isStaff(u);
   /* "Test" tag — assigned by admins for QA: can grab any system/asset without
      paying so the studio can verify things work before release. */
@@ -1564,6 +1588,13 @@ const API = {};
     const requireAdmin = actor => {
       if (!actor) return fail('auth', 'You must be logged in as an admin.');
       if (!isStaff(actor)) return fail('adminOnly', 'You do not have permission to do that.');
+      return null;
+    };
+    /* Showcase content (portfolio + creators) is the studio's voice — plain
+       Admins are moderation-only and cannot create or edit it. */
+    const requireCofounder = (actor, what) => {
+      if (!actor) return fail('auth', 'You must be logged in.');
+      if (effRank(actor) < roleRank('cofounder')) return fail('forbidden', 'Only the Co-Founder or Founder can ' + (what || 'do that') + '.');
       return null;
     };
     /* Posting cooldown — one new post per 24h for creators (admins are exempt). */
@@ -1704,7 +1735,7 @@ const API = {};
         passHash: await hashPassword(password), bio: '', pfp: null,
         totpSecret: null, totpEnabled: false, banned: false, banReason: null, timeoutUntil: null, country,
         googleId: null, acceptedTermsAt: now(), createdAt: now(), updatedAt: now(),
-        emailVerified: isFirst ? 1 : 0, // new registrations must confirm their email
+        emailVerified: 1, // email is OPTIONAL (account recovery only) — never gates posting
       };
       store.put('users', user);
       const s = createSession(user.id);
@@ -1714,7 +1745,7 @@ const API = {};
         const token = randomToken(18);
         store.put('tokens', { id: 't' + uid(), userId: user.id, token, purpose: 'verify', expiresAt: now() + 72 * 36e5, used: false, createdAt: now() });
         verifyLink = '#/verify?token=' + token;
-        sendEmail({ to: user.email, subject: 'Welcome to Kings Production — verify your email', action: 'verify', body: 'Welcome! Confirm your email address to unlock posting and purchasing on Kings Production. This link expires in 72 hours and can only be used once.', link: verifyLink });
+        sendEmail({ to: user.email, subject: 'Welcome to Kings Production — verify your email (optional)', action: 'verify', body: 'Welcome to Kings Production! Verification is optional and does not unlock anything — it only lets you reset your password if you ever forget it. This link expires in 72 hours and can only be used once.', link: verifyLink });
       }
       flush();
       return ok(Object.assign({ token: s.id, user: selfUser(user) }, cfg.devMail && verifyLink ? { verifyLink } : {}));
@@ -1749,7 +1780,7 @@ const API = {};
       const token = randomToken(18);
       store.put('tokens', { id: 't' + uid(), userId: u.id, token, purpose: 'verify', expiresAt: now() + 72 * 36e5, used: false, createdAt: now() });
       const link = '#/verify?token=' + token;
-      sendEmail({ to: u.email, subject: 'Verify your Kings Production email', action: 'verify', body: 'Confirm your email address to unlock posting and purchasing on Kings Production. This link expires in 72 hours.', link });
+      sendEmail({ to: u.email, subject: 'Verify your Kings Production email (optional)', action: 'verify', body: 'Verification is optional — it only enables password reset for account recovery. This link expires in 72 hours.', link });
       flush();
       return ok(Object.assign({ sent: true }, cfg.devMail ? { devLink: link } : {}));
     }
@@ -1943,10 +1974,11 @@ const API = {};
       if (img === null && String(imageUrl || '').trim()) return fail('invalid', 'Image link must be a valid http(s) URL.');
       const file = normalizeFile(fileData, fileName);
       if (!img && !fileName && !file) return fail('invalid', 'Please add an image link (or upload the asset file).');
+      const founderLevel = effRank(u) >= roleRank('cofounder'); // Founder / Co-Founder posts skip the approval queue
       const asset = {
         id: 'a' + uid(), ownerId: u.id, title, category, description, price,
         fileName: file ? file.name : fileName, fileMime: file ? file.mime : 'application/octet-stream', fileSize: file ? file.size : 0,
-        imageUrl: img, status: 'pending', rejectReason: null, sales: 0, createdAt: now(), updatedAt: now(), approvedAt: null,
+        imageUrl: img, status: founderLevel ? 'approved' : 'pending', rejectReason: null, sales: 0, createdAt: now(), updatedAt: now(), approvedAt: founderLevel ? now() : null,
       };
       if (file) {
         if (file.size > cfg.maxUploadBytes) return fail('invalid', 'File is too large (max 20 MB).');
@@ -1955,7 +1987,7 @@ const API = {};
       }
       store.put('assets', asset);
       flush();
-      return ok({ id: asset.id, status: 'pending' });
+      return ok({ id: asset.id, status: asset.status });
     }
 
     /* Restricted sellers' posts are blanked from the shop until the
@@ -2023,12 +2055,14 @@ const API = {};
         a.fileName = file.name; a.fileMime = file.mime; a.fileSize = file.size;
         try { await files.put(a.id, file); } catch (err) { console.error(err); return fail('storage', 'Could not store the file.'); }
       }
-      a.status = 'pending'; // any change re-enters the approval queue
+      const founderLevel = effRank(u) >= roleRank('cofounder');
+      a.status = founderLevel ? 'approved' : 'pending'; // Founder / Co-Founder edits stay live; others re-enter the approval queue
       a.rejectReason = null;
+      if (founderLevel) a.approvedAt = now();
       a.updatedAt = now();
       store.put('assets', a);
       flush();
-      return ok({ id: a.id, status: 'pending' });
+      return ok({ id: a.id, status: a.status });
     }
 
     function cascadeDelete(id) {
@@ -2068,6 +2102,47 @@ const API = {};
         return { ...systemPublic(s), owner: o ? { id: o.id, handle: o.handle, displayName: o.displayName, bio: o.bio || '', pfp: o.pfp || null, role: o.role, createdAt: o.createdAt, ...ownerTiers } : null, games: all('system_games').filter(g => g.systemId === s.id).length, devices: all('system_devices').filter(d => d.systemId === s.id).length };
       }));
     }
+    /* Plain Admins may only PAUSE a system, never delete it. The pause also
+       auto-expires after 24h unless a Co-Founder / Founder upholds it — an
+       unanswered pause means "we do not agree, the system keeps running". */
+    async function adminSetSystemState(actor, systemId, { status, staffNote } = {}) {
+      const r = requireAdmin(actor); if (r) return r;
+      const s = byIdIn('systems', systemId);
+      if (!s) return fail('notfound', 'System not found.');
+      if (status !== undefined) {
+        status = String(status || '');
+        if (!['active', 'disabled'].includes(status)) return fail('invalid', 'Invalid status.');
+        if (status === 'disabled' && effRank(actor) < roleRank('cofounder')) {
+          /* Admin pause: schedule auto-resume in 24h (Founder must uphold). */
+          s.status = 'disabled';
+          s.pausedBy = actor.id;
+          s.pauseExpiresAt = now() + 24 * 36e5;
+        } else {
+          s.status = status;
+          s.pausedBy = null; s.pauseExpiresAt = null;
+        }
+      } else if (effRank(actor) >= roleRank('cofounder')) {
+        /* Founder-level edits clear any pending admin pause window. */
+        s.pausedBy = null; s.pauseExpiresAt = null;
+      }
+      s.staffNote = String(staffNote === undefined ? (s.staffNote || '') : staffNote).trim().slice(0, 300) || null;
+      s.updatedAt = now();
+      store.put('systems', s);
+      flush();
+      return ok(true);
+    }
+    /* Boot/interval sweep: admin pauses expire after 24h without Founder
+       approval — the system resumes automatically. */
+    function processAdminPauseExpiry() {
+      const t = now();
+      all('systems').filter(s => s.status === 'disabled' && s.pauseExpiresAt && s.pauseExpiresAt <= t).forEach(s => {
+        s.status = 'active';
+        s.pausedBy = null; s.pauseExpiresAt = null;
+        s.updatedAt = t;
+        store.put('systems', s);
+      });
+      flush();
+    }
     /* Founder Panel → Registered: full detail on one system, including the
        owner's profile + plans + revenue, plus staff actions (unregister,
        restrict the system with a note the owner sees). */
@@ -2088,23 +2163,6 @@ const API = {};
         devices: all('system_devices').filter(d => d.systemId === s.id).length,
       });
     }
-    /* Staff control of one registered system: pause/unpause + a note the
-       owner sees on their dashboard. */
-    async function adminSetSystemState(actor, systemId, { status, staffNote } = {}) {
-      const r = requireAdmin(actor); if (r) return r;
-      const s = byIdIn('systems', systemId);
-      if (!s) return fail('notfound', 'System not found.');
-      if (status !== undefined) {
-        status = String(status || '');
-        if (!['active', 'disabled'].includes(status)) return fail('invalid', 'Invalid status.');
-        s.status = status;
-      }
-      s.staffNote = String(staffNote === undefined ? (s.staffNote || '') : staffNote).trim().slice(0, 300) || null;
-      s.updatedAt = now();
-      store.put('systems', s);
-      flush();
-      return ok(true);
-    }
     /* Founder Panel → Registered: profile + plans + revenue + registered
        systems for one subscriber. */
     async function adminSubscriberDetail(actor, userId) {
@@ -2123,9 +2181,12 @@ const API = {};
         systems,
       });
     }
-    /* Staff unregister: removes a system and its games/devices entirely. */
+    /* Staff unregister: removes a system and its games/devices entirely.
+       Co-Founder / Founder ONLY — plain Admins can pause + note, then request
+       deletion (their pause auto-expires in 24h without Founder approval). */
     async function adminDeleteSystem(actor, systemId) {
       const r = requireAdmin(actor); if (r) return r;
+      if (effRank(actor) < roleRank('cofounder')) return fail('forbidden', 'Only the Co-Founder / Founder can delete registered systems. Pause it and add a note instead — the Founder decides deletion.');
       const s = byIdIn('systems', systemId);
       if (!s) return fail('notfound', 'System not found.');
       store.del('systems', s.id);
@@ -2141,7 +2202,9 @@ const API = {};
       if (!a) return fail('notfound', 'Asset not found.');
       return ok({ fileName: a.fileName, mime: a.fileMime, size: a.fileSize });
     }
-    /* Staff post control: disable = hidden from the shop but restorable. */
+    /* Staff post control: disable = hidden from the shop but restorable.
+       Plain Admins moderate (disable/restore); deleting a post needs
+       Co-Founder / Founder approval. */
     async function adminSetAssetStatus(actor, id, status) {
       const r = requireAdmin(actor); if (r) return r;
       const a = byIdIn('assets', id);
@@ -2580,6 +2643,7 @@ const API = {};
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       if (!canPost(u)) return fail('vipOnly', 'Only Licensed sellers have a dashboard.');
+      if (isStaff(u)) return fail('vipOnly', 'Staff use the Admin Panel — the Licensed Dashboard needs a Contract plan (granted on the Founder Panel or the Subscription page).');
       const assets = all('assets').filter(a => a.ownerId === u.id).sort((x, y) => y.createdAt - x.createdAt);
       const ids = new Set(assets.map(a => a.id));
       const purchases = all('purchases').filter(p => ids.has(p.assetId));
@@ -2619,6 +2683,7 @@ const API = {};
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       if (!canPost(u)) return fail('vipOnly', 'Only Licensed sellers can manage licenses.');
+      if (isStaff(u) && !(Number(u.contractTier) > 0)) return fail('vipOnly', 'Staff manage licenses only with a Contract plan.');
       const assets = all('assets').filter(a => a.ownerId === u.id);
       const ids = new Set(assets.map(a => a.id));
       const list = all('purchases').filter(p => ids.has(p.assetId) && (!assetId || p.assetId === assetId))
@@ -2635,6 +2700,7 @@ const API = {};
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       if (!canPost(u)) return fail('vipOnly', 'Only the creator can manage this license.');
+      if (isStaff(u) && !(Number(u.contractTier) > 0)) return fail('vipOnly', 'Staff manage licenses only with a Contract plan.');
       const p = byIdIn('purchases', purchaseId);
       if (!p) return fail('notfound', 'License not found.');
       const a = byIdIn('assets', p.assetId);
@@ -2650,6 +2716,7 @@ const API = {};
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       if (!canPost(u)) return fail('vipOnly', 'Only the creator can revoke devices.');
+      if (isStaff(u) && !(Number(u.contractTier) > 0)) return fail('vipOnly', 'Staff manage licenses only with a Contract plan.');
       const d = byIdIn('devices', deviceId);
       if (!d) return fail('notfound', 'Device not found.');
       const a = byIdIn('assets', d.assetId);
@@ -2820,7 +2887,7 @@ const API = {};
       return links.map(l => ({ url: String((l && l.url) || '').trim() })).filter(l => /^https?:\/\//i.test(l.url)).slice(0, 12).map(l => ({ url: l.url.slice(0, 500) }));
     }
     async function createPortfolio(actor, { title, category, desc, stat, status, imageUrl, images, links, featured } = {}) {
-      const r = requireAdmin(actor); if (r) return r;
+      const r = requireCofounder(actor, 'create portfolio posts'); if (r) return r;
       title = String(title || '').trim();
       desc = String(desc || '').trim();
       if (title.length < 3 || title.length > 80) return fail('invalid', 'Project title must be 3–80 characters.');
@@ -2839,7 +2906,7 @@ const API = {};
       return ok({ id: item.id });
     }
     async function updatePortfolio(actor, id, patch = {}) {
-      const r = requireAdmin(actor); if (r) return r;
+      const r = requireCofounder(actor, 'edit portfolio posts'); if (r) return r;
       const it = byIdIn('portfolio', id);
       if (!it) return fail('notfound', 'Project not found.');
       if (patch.title !== undefined) {
@@ -2930,6 +2997,7 @@ const API = {};
     async function adminAssets(actor) { const r = requireAdmin(actor); if (r) return r; return ok(all('assets').slice().sort((x, y) => y.createdAt - x.createdAt).map(summarize)); }
     async function adminDeleteAsset(actor, id) {
       const r = requireAdmin(actor); if (r) return r;
+      if (effRank(actor) < roleRank('cofounder')) return fail('forbidden', 'Admins moderate posts (disable/restore) — deletion needs Co-Founder / Founder approval.');
       const a = byIdIn('assets', id);
       if (!a) return fail('notfound', 'Asset not found.');
       cascadeDelete(id);
@@ -2993,15 +3061,31 @@ const API = {};
       role = String(role || '');
       if (!ROLES.includes(role)) return fail('invalid', 'Invalid role.');
       if (effRank(actor) < roleRank('cofounder')) {
-        /* Plain Admins can grant Member / VIP only, and cannot touch staff or themselves. */
-        if (t.id === actor.id) return fail('self', 'You cannot change your own role.');
-        if (roleRank(role) >= roleRank('admin')) return fail('adminProtected', 'Admins cannot grant the Admin role or higher — only the Owner / Co-Founder can.');
-        if (isStaff(t)) return fail('adminProtected', 'Staff accounts are protected — only the Owner / Co-Founder can change their roles.');
+        return fail('forbidden', 'Only the Co-Founder / Founder can change roles.');
       }
+      if (t.id === actor.id && role !== 'owner') return fail('self', 'You cannot change your own role.');
+      if (t.id !== actor.id && isOwnerAccount(t) && role !== 'owner') return fail('adminProtected', 'The Founder account is protected.');
       t.role = role; t.updatedAt = now();
       store.put('users', t);
       flush();
       return ok(true);
+    }
+    /* Founder grant: set a user's Subscription / Contract tiers directly
+       (Co-Founder / Founder only) — e.g. giving an Admin a Contract so they
+       can use the Licensed Dashboard. */
+    async function adminSetUserPlan(actor, targetId, { protectionTier, contractTier, note } = {}) {
+      const r = requireAdmin(actor); if (r) return r;
+      if (effRank(actor) < roleRank('cofounder')) return fail('forbidden', 'Only the Co-Founder / Founder can grant plans directly.');
+      const t = dbUser(targetId);
+      if (!t) return fail('notfound', 'User not found.');
+      const pT = Number(protectionTier), cT = Number(contractTier);
+      if (![0, 1, 2, 3].includes(pT) || ![0, 1, 2, 3].includes(cT)) return fail('invalid', 'Tiers must be 0–3.');
+      t.protectionTier = pT;
+      t.contractTier = cT;
+      t.updatedAt = now();
+      store.put('users', t);
+      flush();
+      return ok({ protectionTier: pT, contractTier: cT });
     }
     async function adminSetTags(actor, targetId, tags) {
       const r = requireAdmin(actor); if (r) return r;
@@ -3159,7 +3243,7 @@ const API = {};
 
     /* ============ CREATORS (admin-published, like portfolio) ============ */
     async function createCreator(actor, { name, role, bio, links, handle, imageUrl } = {}) {
-      const r = requireAdmin(actor); if (r) return r;
+      const r = requireCofounder(actor, 'add creators'); if (r) return r;
       name = String(name || '').trim();
       if (name.length < 1 || name.length > 60) return fail('invalid', 'Name is required (1–60 chars).');
       const img = normalizeImageUrl(imageUrl);
@@ -3178,7 +3262,7 @@ const API = {};
       return ok({ id: item.id });
     }
     async function updateCreator(actor, id, patch = {}) {
-      const r = requireAdmin(actor); if (r) return r;
+      const r = requireCofounder(actor, 'edit creators'); if (r) return r;
       const it = byIdIn('creators', id);
       if (!it) return fail('notfound', 'Creator not found.');
       if (patch.name !== undefined) it.name = String(patch.name || '').trim().slice(0, 60);
@@ -3267,6 +3351,40 @@ const API = {};
       const u = resolveUser(user); if (!u) return fail('usernotfound', 'User not found.');
       return ok(all('tickets').filter(t => t.userId === u.id).sort((a, b) => b.lastActivityAt - a.lastActivityAt));
     }
+    /* ---- FAQ (editable from the Founder/Admin Panel) ----
+       Persisted in site_settings as JSON so staff can edit Q&A from the web. */
+    const FAQ_DEFAULTS = [
+      { q: 'What is Kings Production?', a: 'Kings Production is a marketplace for Roblox Studio assets — animations, models, plugins, and protected systems — built by verified creators.' },
+      { q: 'How do I become a Licensed seller?', a: 'Head to the Subscription page and grab a Subscription (protect + register your own systems) or a Contract plan (post and sell on the marketplace). Your account upgrades instantly after approval.' },
+      { q: 'Why do I need to verify my email?', a: 'Email verification is optional — you can browse and post without it. But if you ever forget your password, a verified email is the only way to recover your account, so we strongly recommend it (Settings → Verify email).' },
+      { q: 'What is a system license?', a: 'When you register a system you get a Lua block for Studio. Paste it at the top of your server script: it phones home, checks the license and the game\'s permission, and only then runs your actual code. Revoke a game on the web and every copy stops within minutes.' },
+      { q: 'Someone is using my system without permission — what do I do?', a: 'Open the Licensed Dashboard → Registered Systems → Games, revoke or blacklist the game, and contact staff through Support. Every check-in from that game is logged.' },
+      { q: 'How do payments work?', a: 'Orders are paid via Stripe, PayPal, or GCash. For system purchases the seller reviews your game details and activates the license — track everything under Orders.' },
+      { q: 'Can I get a refund?', a: 'Contact the seller first through their Support or profile. If they do not respond, open a ticket and staff will review the order logs.' },
+      { q: 'My post is still pending — why?', a: 'New posts are reviewed by staff before they appear in the shop. Founder and Co-Founder posts go live instantly. If it has been more than 24 hours, open a Support ticket.' },
+    ];
+    function getFaqs() {
+      const row = byIdIn('site_settings', 'faqs');
+      if (!row) return ok(FAQ_DEFAULTS.map((f, i) => ({ id: 'f' + i, ...f })));
+      try {
+        const list = JSON.parse(row.value);
+        if (!Array.isArray(list)) throw new Error('bad');
+        return ok(list);
+      } catch (e) { return ok(FAQ_DEFAULTS.map((f, i) => ({ id: 'f' + i, ...f }))); }
+    }
+    async function saveFaqs(actor, list) {
+      const r = requireAdmin(actor); if (r) return r;
+      if (!Array.isArray(list)) return fail('invalid', 'FAQ list must be an array.');
+      const clean = list.slice(0, 50).map((f, i) => ({
+        id: 'f' + i,
+        q: String(f && f.q || '').trim().slice(0, 200),
+        a: String(f && f.a || '').trim().slice(0, 2000),
+      })).filter(f => f.q && f.a);
+      if (!clean.length) return fail('invalid', 'Add at least one question with an answer.');
+      store.put('site_settings', { id: 'faqs', value: JSON.stringify(clean), updatedAt: now() });
+      flush();
+      return ok(clean);
+    }
     async function adminListTickets(actor) {
       const r = requireAdmin(actor); if (r) return r;
       return ok(all('tickets').slice().sort((a, b) => b.lastActivityAt - a.lastActivityAt).map(t => ({ ...t, user: publicUser(byIdIn('users', t.userId)) })));
@@ -3278,6 +3396,11 @@ const API = {};
       ticket.status = 'closed';
       ticket.updatedAt = now();
       store.put('tickets', ticket); flush();
+      /* Backup log: closing is recorded as a system message so the full
+         conversation survives even after a later cleanup. */
+      const staff = byIdIn('users', actor.id);
+      store.put('ticket_messages', { id: 'tm' + uid(), ticketId: ticket.id, userId: null, body: 'Ticket closed by ' + (staff ? (staff.displayName || staff.handle) : 'staff') + '.', kind: 'system', actorName: staff ? (staff.displayName || staff.handle) : 'Staff', createdAt: now() });
+      flush();
       return ok(true);
     }
     async function adminDeleteTicket(actor, ticketId) {
@@ -3366,6 +3489,7 @@ const API = {};
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       if (effRank(u) < roleRank('vip') && !isTester(u)) return fail('vipOnly', 'System registering is a Licensed feature — grab a Subscription or Contract to unlock it.');
+      if (isStaff(u) && !(Number(u.protectionTier) > 0) && !(Number(u.contractTier) > 0) && !isTester(u)) return fail('vipOnly', 'Admins register systems only with a plan — grant one on the Founder Panel, or buy on the Subscription page.');
       name = String(name || '').trim();
       password = String(password || '').trim();
       if (name.length < 3 || name.length > 60) return fail('invalid', 'System name must be 3–60 characters.');
@@ -3606,6 +3730,9 @@ const API = {};
 
     seedContent();
     ensureOwnerAccount();
+    /* Email verification is now optional — mark every existing account
+       verified once so nobody is locked out of anything. */
+    try { all('users').filter(u => !u.emailVerified).forEach(u => { u.emailVerified = 1; store.put('users', u); }); flush(); } catch (e) { /* best effort */ }
 
     return {
       register, requestRegisterCode, login, googleLogin, verify2fa, requestReset, resetPassword, logout, me,
@@ -3620,11 +3747,11 @@ const API = {};
       publicProfile, content, createPortfolio, updatePortfolio, deletePortfolio,
       createCreator, updateCreator, deleteCreator,
       createTicket, addTicketMessage, getTicket, listMyTickets,
-      adminListTickets, adminCloseTicket, adminDeleteTicket,
+      adminListTickets, adminCloseTicket, adminDeleteTicket, getFaqs, saveFaqs, processAdminPauseExpiry,
       listAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement,
       registerSystem, listSystems, deleteSystem, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice, authorizeSystemDevice, setSystemGameStatus, removeSystemGame, adminSystemDetail, adminSetSystemState, adminSubscriberDetail, adminDeleteSystem,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
-      adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSessions, adminEmails, adminSendEmail, adminListBlasts, adminDeleteBlast, adminEmailHistory, adminListInbound, adminSetUnsubscribed, inboundMailEvent, processScheduledBlasts, adminOrders, adminCompleteOrder,
+      adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSetUserPlan, adminSessions, adminEmails, adminSendEmail, adminListBlasts, adminDeleteBlast, adminEmailHistory, adminListInbound, adminSetUnsubscribed, inboundMailEvent, processScheduledBlasts, adminOrders, adminCompleteOrder,
       sellerOrders, setOrderApproval, adminTakeFile, adminSetAssetStatus, adminSetRestriction, adminRequestSubRevoke, adminResolveSubRevoke, adminListSubRevokes, adminUnsubscribePlan, adminSystems,
       setFx,
     };
@@ -3782,6 +3909,8 @@ API.assignSubscription = (user, purchaseId, a) => _wrap(async () => _mode === 'l
 /* ---- admin support tickets ---- */
 API.adminListTickets = user => _wrap(async () => _mode === 'local' ? await _engine.adminListTickets(user) : await _call('GET', '/api/admin/tickets'));
 API.adminCloseTicket = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.adminCloseTicket(user, id) : await _call('POST', '/api/admin/tickets/' + _e(id) + '/close'));
+API.getFaqs = () => _wrap(async () => _mode === 'local' ? await _engine.getFaqs() : await _call('GET', '/api/faqs'));
+API.saveFaqs = (user, faqs) => _wrap(async () => _mode === 'local' ? await _engine.saveFaqs(user, faqs) : await _call('POST', '/api/admin/faqs', { faqs }));
 API.adminDeleteTicket = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.adminDeleteTicket(user, id) : await _call('DELETE', '/api/admin/tickets/' + _e(id)));
 
 /* ---- comments & likes ---- */
@@ -3872,6 +4001,7 @@ API.adminTimeout = (user, id, minutes) => _wrap(async () => _mode === 'local' ? 
 API.adminClearTimeout = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.adminClearTimeout(user, id) : await _call('POST', '/api/admin/users/' + _e(id) + '/clear-timeout'));
 API.adminSetRole = (user, id, role) => _wrap(async () => _mode === 'local' ? await _engine.adminSetRole(user, id, role) : await _call('POST', '/api/admin/users/' + _e(id) + '/role', { role }));
 API.adminSetTags = (user, id, tags) => _wrap(async () => _mode === 'local' ? await _engine.adminSetTags(user, id, tags) : await _call('POST', '/api/admin/users/' + _e(id) + '/tags', { tags }));
+API.adminSetUserPlan = (user, id, patch) => _wrap(async () => _mode === 'local' ? await _engine.adminSetUserPlan(user, id, patch || {}) : await _call('POST', '/api/admin/users/' + _e(id) + '/plan', patch || {}));
 API.adminSessions = user => _wrap(async () => _mode === 'local' ? await _engine.adminSessions(user) : await _call('GET', '/api/admin/sessions'));
 API.adminEmails = user => _wrap(async () => _mode === 'local' ? await _engine.adminEmails(user) : await _call('GET', '/api/admin/emails'));
 API.adminSendEmail = (user, payload) => _wrap(async () => _mode === 'local' ? await _engine.adminSendEmail(user, payload) : await _call('POST', '/api/admin/emails/send', payload));
@@ -3907,9 +4037,11 @@ function proxiedImageUrl(u) {
 }
 function creatorAvatarHtml(cr, px = 78) {
   const url = proxiedImageUrl(cr && cr.imageUrl);
-  const img = url ? `<img src="${esc(url)}" alt="" loading="lazy" onerror="this.parentElement.innerHTML=this.parentElement.dataset.fallback">` : '';
+  /* Both branches keep the round .avatar shell so the circle never turns
+     into a square, and a bad URL swaps to initials instead of collapsing. */
+  const img = url ? `<span class="avatar" style="width:${px}px;height:${px}px"><img src="${esc(url)}" alt="" loading="lazy" onerror="this.closest('[data-cr-avatar]').innerHTML = this.closest('[data-cr-avatar]').dataset.fallback"></span>` : '';
   const fallback = avatarHtml({ displayName: cr && cr.name }, px);
-  return `<span data-fallback="${esc(fallback)}" style="display:block">${img || fallback}</span>`;
+  return `<span data-cr-avatar data-fallback="${esc(fallback)}" style="display:block">${img || fallback}</span>`;
 }
 function badgeHtml(role, tags) {
   let main = '';
@@ -4034,15 +4166,19 @@ const SOCIAL = { discord: 'https://discord.gg/syQfqmaA28', youtube: 'https://you
 
 /* ---- shell ---- */
 function headerHtml(user) {
-  const navItems = [...(user && canPost(user) ? [['dashboard', 'Licensed Dashboard', ICON.chart]] : []), ['portfolio', 'Portfolio', ICON.crown], ['shop', 'Shop', ICON.cart], ['subscription', 'Subscription', ICON.key], ['creators', 'Creators', ICON.user], ['support', 'Support', ICON.mail]];
+  const isMemberLevel = u => effRank(u) < roleRank('admin');
+  const showDashboard = u => !!(u && canPost(u) && (!isStaff(u) || Number(u.contractTier) > 0));
+  const navItems = [...(user && showDashboard(user) ? [['dashboard', 'Licensed Dashboard', ICON.chart]] : []), ['portfolio', 'Portfolio', ICON.crown], ['shop', 'Shop', ICON.cart], ['subscription', 'Subscription', ICON.key], ['creators', 'Creators', ICON.user], ['faq', 'FAQ', ICON.book], ['support', 'Support', ICON.mail]];
   const nav = navItems.map(([p, l]) => `<a href="#/${p}" data-nav="${p}">${l}</a>`).join('');
   const right = user
     ? `<div class="dropdown">
         <button class="btn btn-ghost" id="user-btn" style="gap:10px">${avatarHtml(user, 30)}<span class="hide-sm account-name">${esc(user.displayName)}</span><span class="acct-chev">${ICON.chevron}</span></button>
         <div class="dropdown-menu hidden" id="user-menu">
-          ${isUnverified(user) ? `<a href="#/verify" class="warn-link">${ICON.mail} Verify your email</a>` : ''}
+          ${isUnverified(user) ? `<a href="#/verify" class="warn-link">${ICON.mail} Verify email (optional)</a>` : ''}
           <a href="#/profile/${esc(user.handle)}">${ICON.user} My Profile</a>
-          ${canPost(user) ? `<a href="#/my-assets">${ICON.edit} My Assets</a><a href="#/upload">${ICON.plus} Upload Asset</a>` : `<a href="#/orders">${ICON.cart} Orders</a>`}
+          ${isMemberLevel(user) && canPost(user) ? `<a href="#/my-assets">${ICON.edit} My Assets</a><a href="#/upload">${ICON.plus} Upload Asset</a>` : ''}
+          ${!isStaff(user) ? `<a href="#/orders">${ICON.cart} Orders</a>` : ''}
+          ${isMemberLevel(user) && showDashboard(user) ? `<a href="#/dashboard">${ICON.chart} Licensed Dashboard</a>` : ''}
           ${isStaff(user) ? `<a href="#/admin">${ICON.shield} ${effRank(user) >= roleRank('cofounder') ? 'Founder Panel' : 'Admin Panel'}</a>` : ''}
           <a href="#/settings">${ICON.clock} Settings</a>
           <div class="sep"></div>
@@ -4061,12 +4197,16 @@ function drawerHtml() {
      the header the containing block for position:fixed descendants, which would
      clip the drawer to the header's height on phones. */
   const user = STATE.user;
-  const navItems = [...(user && canPost(user) ? [['dashboard', 'Licensed Dashboard', ICON.chart]] : []), ['portfolio', 'Portfolio', ICON.crown], ['shop', 'Shop', ICON.cart], ['subscription', 'Subscription', ICON.key], ['creators', 'Creators', ICON.user], ['support', 'Support', ICON.mail]];
+  const isMemberLevel = u => effRank(u) < roleRank('admin');
+  const showDashboard = u => !!(u && canPost(u) && (!isStaff(u) || Number(u.contractTier) > 0));
+  const navItems = [...(user && showDashboard(user) ? [['dashboard', 'Licensed Dashboard', ICON.chart]] : []), ['portfolio', 'Portfolio', ICON.crown], ['shop', 'Shop', ICON.cart], ['subscription', 'Subscription', ICON.key], ['creators', 'Creators', ICON.user], ['faq', 'FAQ', ICON.book], ['support', 'Support', ICON.mail]];
   const drawerNav = navItems.map(([p, l, ic]) => `<a class="m-nav-item" href="#/${p}" data-nav="${p}">${ic}<span>${l}</span></a>`).join('');
   const drawerAccount = user
     ? `       <a class="m-nav-item" href="#/profile/${esc(user.handle)}">${ICON.user}<span>My Profile</span></a>
-       ${canPost(user) ? `<a class="m-nav-item" href="#/my-assets">${ICON.edit}<span>My Assets</span></a>` : `<a class="m-nav-item" href="#/orders">${ICON.cart}<span>Orders</span></a>`}
-       ${canPost(user) ? `<a class="m-nav-item" href="#/upload">${ICON.plus}<span>Upload Asset</span></a>` : `<a class="m-nav-item" href="#/subscription">${ICON.lock}<span>Get Licensed</span></a>`}        ${isStaff(user) ? `<a class="m-nav-item" href="#/admin">${ICON.shield}<span>${effRank(user) >= roleRank('cofounder') ? 'Founder Panel' : 'Admin Panel'}</span></a>` : ''}
+       ${isMemberLevel(user) && canPost(user) ? `<a class="m-nav-item" href="#/my-assets">${ICON.edit}<span>My Assets</span></a><a class="m-nav-item" href="#/upload">${ICON.plus}<span>Upload Asset</span></a>` : ''}
+       ${!isStaff(user) ? `<a class="m-nav-item" href="#/orders">${ICON.cart}<span>Orders</span></a>` : ''}
+       ${isMemberLevel(user) ? (showDashboard(user) ? `<a class="m-nav-item" href="#/dashboard">${ICON.chart}<span>Licensed Dashboard</span></a>` : `<a class="m-nav-item" href="#/subscription">${ICON.lock}<span>Get Licensed</span></a>`) : ''}
+       ${isStaff(user) ? `<a class="m-nav-item" href="#/admin">${ICON.shield}<span>${effRank(user) >= roleRank('cofounder') ? 'Founder Panel' : 'Admin Panel'}</span></a>` : ''}
        <a class="m-nav-item" href="#/settings">${ICON.clock}<span>Settings</span></a>
        <button class="m-nav-item" id="m-logout-btn">${ICON.logout}<span>Log out</span></button>`
     : `<a class="m-nav-item" href="#/login">${ICON.user}<span>Log in</span></a><a class="m-nav-item" href="#/register">${ICON.plus}<span>Create account</span></a>`;
@@ -4104,7 +4244,7 @@ function renderShell() {
         <a class="s-btn" href="${esc(SOCIAL.youtube)}" target="_blank" rel="noopener" title="Watch on YouTube">${ICON.youtube}</a>
         <button class="s-btn help" type="button" title="Legal & help" onclick="openLegal()">!</button>
       </div>`
-    + `<button class="post-fab" type="button" id="post-fab" title="Post an asset">${ICON.plus}</button>`
+    + (STATE.user && isMemberLevel(STATE.user) && canPost(STATE.user) ? `<button class="post-fab" type="button" id="post-fab" title="Post an asset">${ICON.plus}</button>` : '')
     + `<div class="site-status" id="site-status" title="Server status — awake and ready, or still waking up"><span class="dot"></span><span id="site-status-txt">Checking…</span></div>`;
   bindHeader();
   const fab = document.getElementById('post-fab');
@@ -4139,6 +4279,7 @@ function dismissAnnounce(id) {
 function onPostFab() {
   const u = STATE.user;
   if (!u) { toast('Log in to post assets.', 'err'); go('/login'); return; }
+  if (isStaff(u)) { go('/admin'); return; }
   if (canPost(u)) { go('/upload'); return; }
   modal({ title: 'Licensed sellers only', confirmLabel: 'View license options',
     body: `<p>Posting assets is a <b style="color:var(--vip)">Licensed</b> creator feature. Members can browse, comment, and purchase — but to sell your own assets, grab a license.</p><p class="muted small">Every purchase of any asset issues a license key and upgrades your account to Licensed automatically.</p>`,
@@ -4192,7 +4333,7 @@ const TITLES = {
   home: 'Kings Production — Premium Roblox Development Studio', shop: 'Shop — Kings Production',
   portfolio: 'Portfolio — Kings Production', subscription: 'Subscription — Kings Production', creators: 'Creators — Kings Production',
   support: 'Support — Kings Production', ticket: 'Ticket — Kings Production',
-  verify: 'Verify your email — Kings Production',
+  verify: 'Verify your email — Kings Production', faq: 'FAQ & Q&A — Kings Production',
   login: 'Log in — Kings Production', register: 'Create account — Kings Production',
   settings: 'Settings — Kings Production', admin: 'Panel — Kings Production', dashboard: 'Licensed Dashboard — Kings Production',
   privacy: 'Privacy Policy — Kings Production', terms: 'Terms of Use — Kings Production',
@@ -4202,7 +4343,7 @@ async function router(opts = {}) {
   const { path, params, query } = parseHash();
   /* Auth pages are full-screen and focused — hide the site chrome around them. */
   document.body.classList.toggle('auth-mode', ['login', 'register', 'forgot', 'reset'].includes(path));
-  if (!['home', 'shop', 'portfolio', 'subscription', 'creators', 'support', 'ticket', 'verify', 'asset', 'profile', 'login', 'register', 'forgot', 'reset', 'settings', 'upload', 'my-assets', 'orders', 'dashboard', 'admin', 'privacy', 'terms'].includes(path)) { location.hash = '#/'; return; }
+  if (!['home', 'shop', 'portfolio', 'subscription', 'creators', 'support', 'ticket', 'verify', 'asset', 'profile', 'login', 'register', 'forgot', 'reset', 'settings', 'upload', 'my-assets', 'orders', 'dashboard', 'admin', 'privacy', 'terms', 'faq'].includes(path)) { location.hash = '#/'; return; }
   const me = await API.me();
   STATE.user = me.ok ? me.data : null;
   renderHeader();
@@ -4402,7 +4543,7 @@ VIEWS_BIND.login = async ({ query } = {}) => {
     if (me.ok && me.data) { STATE.user = me.data; renderHeader(); toast('Signed in with Google — welcome, ' + me.data.displayName + '!'); SFX.play('crown'); go('/'); }
     else { toast('Google signed you in, but the session could not be verified.', 'err'); go('/login'); }
   }
-  if (STATE.user && isUnverified(STATE.user)) toast('Verify your email to unlock posting and purchasing.', 'warn');
+  if (STATE.user && isUnverified(STATE.user)) toast('Tip: verify your email in Settings so you can recover your account if you forget your password.', 'warn');
 };
 function readFileAsDataURL(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
 
@@ -4745,8 +4886,9 @@ const ROLE_LABEL_UI = { member: 'Verified', test: 'Test', vip: 'Licensed', admin
 function profileRolesPanel(u) {
   const actor = STATE.user;
   const canGrantAll = effRank(actor) >= roleRank('cofounder');
-  const opts = (canGrantAll ? UI_ROLES : ['member', 'vip']).map(r => `<option value="${r}" ${u.role === r ? 'selected' : ''}>${ROLE_LABEL_UI[r]}</option>`).join('');
-  const quick = canGrantAll ? ['Founder', 'Co-Founder', 'Admin', 'Licensed', 'Verified'] : ['Licensed', 'Verified'];
+  if (!canGrantAll) return '';
+  const opts = UI_ROLES.map(r => `<option value="${r}" ${u.role === r ? 'selected' : ''}>${ROLE_LABEL_UI[r]}</option>`).join('');
+  const quick = ['Founder', 'Co-Founder', 'Admin', 'Licensed', 'Verified'];
   return `<div class="card card-pad mt2" style="border-color:rgba(212,175,55,.32);box-shadow:0 0 0 1px rgba(212,175,55,.07),0 14px 34px rgba(0,0,0,.3)">
     <div style="margin-bottom:14px"><span class="section-eyebrow">Staff tools</span><h3 style="font-family:var(--font-display);font-size:18px;margin:4px 0 4px">Manage roles &amp; tags</h3><p class="muted small" style="margin:0">Set the role — which grants permissions — and add extra display tags for <b style="color:var(--text)">${esc(u.displayName)}</b>.${canGrantAll ? '' : ' As an Admin you can only grant Verified / Licensed.'}</p></div>
     <div class="row" style="align-items:flex-end;gap:14px;flex-wrap:wrap">
@@ -4922,7 +5064,7 @@ async function handleLogin(e) {
   if (!res.ok) { toast(res.error, 'err'); if (res.code === 'banned') await router(); return; }
   if (res.data && res.data.need2fa) { STATE.twoFactorUserId = res.data.userId; await router(); return; }
   STATE.user = res.data; renderHeader();
-  if (isUnverified(res.data)) toast('Welcome back! Verify your email to unlock posting and purchasing — check your inbox.', 'warn');
+  if (isUnverified(res.data)) toast('Welcome back! Tip: verify your email in Settings for account recovery.', 'warn');
   else toast('Welcome back, ' + res.data.displayName);
   SFX.play('crown'); go('/');
 }
@@ -4931,7 +5073,7 @@ async function onVerify2fa(e) {
   const res = await API.verify2fa({ userId: STATE.twoFactorUserId, code: e.target.code.value });
   if (!res.ok) { toast(res.error, 'err'); return; }
   STATE.twoFactorUserId = null; STATE.user = res.data; renderHeader();
-  if (isUnverified(res.data)) toast('Logged in. Verify your email to unlock posting and purchasing.', 'warn');
+  if (isUnverified(res.data)) toast('Logged in. Tip: verify your email in Settings for account recovery.', 'warn');
   else toast('Logged in securely.');
   go('/');
 }
@@ -4960,7 +5102,7 @@ async function handleRegister(e) {
   const f = e.target;
   const res = await API.register({ handle: f.handle.value, displayName: f.displayName.value, email: f.email.value, password: f.password.value, country: f.country ? f.country.value : 'US', acceptTerms: !!(f.acceptTerms && f.acceptTerms.checked), code: f.code ? f.code.value.trim() : '' });
   if (!res.ok) { toast(res.error, 'err'); return; }
-  STATE.user = res.data; renderHeader(); toast('Account created — check your email to verify it!'); SFX.play('crown'); go('/');
+  STATE.user = res.data; renderHeader(); toast('Account created — welcome! (Tip: verify your email in Settings for account recovery.)'); SFX.play('crown'); go('/');
 }
 async function handleForgot(e) {
   e.preventDefault();
@@ -5007,8 +5149,8 @@ VIEWS.settings = async () => {
       </form>
     </div>
     ${isUnverified(u) ? `<div class="card card-pad" style="margin-bottom:20px;border-color:rgba(255,170,60,.4)">
-      <h3 style="font-family:var(--font-display);font-size:17px;margin-bottom:6px">${ICON.mail} Email not verified</h3>
-      <p class="muted small mb">Verify your email to unlock posting and purchasing. Check your inbox for the link we sent when you signed up (it expires after 72 hours), or send a fresh one.</p>
+      <h3 style="font-family:var(--font-display);font-size:17px;margin-bottom:6px">${ICON.mail} Email not verified — account recovery unavailable</h3>
+      <p class="muted small mb">Email verification is <b>optional</b> — it does not unlock anything. It exists so that if you ever forget your password, we can send a reset link. Without it, a lost password means a lost account. Check your inbox for the link we sent when you signed up (it expires after 72 hours), or send a fresh one.</p>
       <button class="btn btn-primary btn-sm" onclick="onResendVerify()">${ICON.mail} Resend verification email</button>
     </div>` : ''}
     <div class="card card-pad" style="margin-bottom:20px">
@@ -5194,6 +5336,7 @@ async function onSubmitAsset(e) {
 /* ---- my assets ---- */
 VIEWS['my-assets'] = async () => {
   if (!STATE.user) return `<div class="page">${emptyHtml('Not logged in', 'Log in to manage your assets.')}</div>`;
+  if (!isMemberLevel(STATE.user) || !canPost(STATE.user)) { location.hash = '#/dashboard?tab=systems'; return; }
   const mine = await API.myAssets(STATE.user);
   const list = mine.ok ? mine.data : [];
   return `<div class="page page-narrow">
@@ -5241,6 +5384,9 @@ async function onCancelMyOrder(orderId) {
 }
 VIEWS.dashboard = async ({ query = {} } = {}) => {
   if (!STATE.user) return `<div class="page">${emptyHtml('Not logged in', 'Log in to view your Licensed Dashboard.')}<div class="center mt2"><a class="btn btn-primary" href="#/login">Log in</a></div></div>`;
+  if (isStaff(STATE.user)) {
+    return `<div class="page page-narrow"><div class="card card-pad center" style="padding:56px 30px"><span class="crown" style="font-size:34px">${ICON.shield}</span><h2 style="font-family:var(--font-display);font-size:24px;margin:14px 0 8px">Staff use the ${effRank(STATE.user) >= roleRank('cofounder') ? 'Founder Panel' : 'Admin Panel'}</h2><p class="muted" style="max-width:440px;margin:0 auto">The Licensed Dashboard is for Licensed sellers. Staff get it too when they hold a <b style="color:var(--vip)">Contract</b> plan — grant one on the Founder Panel (Users → Plans), or grab it on the Subscription page.</p></div><div class="center mt2"><a class="btn btn-primary" href="#/admin">${ICON.shield} Open your panel</a> <a class="btn btn-ghost" href="#/subscription">${ICON.key} View plans</a></div></div>`;
+  }
   if (!canPost(STATE.user)) {
     return `<div class="page page-narrow">${STATE.user.role === 'member'
       ? `<div class="card card-pad center" style="padding:56px 30px"><span class="crown" style="font-size:34px">${ICON.crown}</span><h2 style="font-family:var(--font-display);font-size:24px;margin:14px 0 8px">The Licensed Dashboard is for licensed sellers</h2><p class="muted" style="max-width:440px;margin:0 auto">Buy a <b style="color:var(--vip)">Subscription or Contract</b> plan on the Subscription page — it unlocks system protection, revenue tracking, and the ability to sell on the marketplace.</p></div><div class="center mt2"><a class="btn btn-primary" href="#/subscription">${ICON.key} View plans</a></div>`
@@ -6022,8 +6168,8 @@ function openPortfolioZoom(id) {
     title: esc(p.title),
     confirmLabel: 'Close',
     cancelLabel: null,
-    body: `${p.imageUrl ? `<img src="${esc(proxiedImageUrl(p.imageUrl))}" alt="" style="width:100%;max-height:46vh;object-fit:cover;border-radius:12px;border:1px solid var(--border);margin-bottom:14px" onerror="this.remove()">` : ''}
-      ${(p.images && p.images.length) ? `<div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:14px">${p.images.map(u => `<a href="${esc(proxiedImageUrl(u))}" target="_blank" rel="noopener"><img src="${esc(proxiedImageUrl(u))}" alt="" style="width:132px;height:92px;object-fit:cover;border-radius:9px;border:1px solid var(--border)" onerror="this.parentElement.remove()"></a>`).join('')}</div>` : ''}
+    body: `${p.imageUrl ? `<img src="${esc(proxiedImageUrl(p.imageUrl))}" alt="" style="width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:12px;border:1px solid var(--border);margin-bottom:14px" onerror="this.remove()">` : ''}
+      ${(p.images && p.images.length) ? `<div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:14px">${p.images.map(u => `<a href="${esc(proxiedImageUrl(u))}" target="_blank" rel="noopener"><img src="${esc(proxiedImageUrl(u))}" alt="" style="width:186px;height:105px;object-fit:cover;border-radius:9px;border:1px solid var(--border)" onerror="this.parentElement.remove()"></a>`).join('')}</div>` : ''}
       <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:12px">${p.featured ? `<span class="badge owner">★ Spotlight</span>` : ''}<span class="badge plain">${esc(p.category || 'Project')}</span><span class="badge ${p.status === 'Live' ? 'ok' : 'plain'}">${esc(p.status || 'Live')}</span></div>
       <p style="white-space:pre-wrap">${esc(p.desc)}</p>
       ${p.stat ? `<p class="muted small" style="margin-top:10px"><b style="color:var(--gold)">${esc(p.stat)}</b></p>` : ''}
@@ -6274,10 +6420,12 @@ VIEWS.ticket = async ({ params }) => {
   if (!r.ok) return `<div class="page">${emptyHtml('Ticket not found', r.error)}</div>`;
   const { ticket, messages } = r.data;
   const isStaffUser = isStaff(STATE.user);
-  const msgHtml = m => `<div class="comment">
-    <span>${avatarHtml(m.user || { displayName: '?' }, 36)}</span>
+  const msgHtml = m => m.kind === 'system'
+    ? `<div class="comment" style="opacity:.75"><div class="comment-body" style="margin-left:0"><div class="comment-text" style="font-style:italic;color:var(--text-2)">⚙ ${esc(m.body)} <span class="comment-time">· ${timeAgo(m.createdAt)}</span></div></div></div>`
+    : `<div class="comment">
+    <span>${avatarHtml(m.user || { displayName: m.actorName || '?' }, 36)}</span>
     <div class="comment-body">
-      <div class="comment-head"><span class="comment-name">${esc(m.user ? m.user.displayName : 'Unknown')} ${badgeHtml(m.user ? m.user.role : 'member', m.user ? m.user.tags : [])}</span><span class="comment-time">${timeAgo(m.createdAt)}</span></div>
+      <div class="comment-head"><span class="comment-name">${esc(m.user ? m.user.displayName : (m.actorName || 'Unknown'))} ${badgeHtml(m.user ? m.user.role : 'member', m.user ? m.user.tags : [])}</span><span class="comment-time">${timeAgo(m.createdAt)}</span></div>
       <div class="comment-text" style="white-space:pre-wrap">${esc(m.body)}</div>
     </div>
   </div>`;
@@ -6426,6 +6574,57 @@ function legalSection(title, ...paras) {
     + paras.map(p => `<p style="margin:8px 0">${p}</p>`).join('');
 }
 
+/* ---- FAQ (Q&A) — public page, editable from the Founder/Admin Panel ---- */
+VIEWS.faq = async () => {
+  const r = await API.getFaqs();
+  const list = r.ok && Array.isArray(r.data) ? r.data : [];
+  const item = (f, i) => `
+    <details class="card card-pad" style="margin-bottom:10px;cursor:pointer" ${i === 0 ? 'open' : ''}>
+      <summary style="font-family:var(--font-display);font-size:15.5px;font-weight:600;list-style:none;display:flex;justify-content:space-between;gap:10px"><span>${esc(f.q)}</span><span class="muted">＋</span></summary>
+      <p class="muted" style="margin:10px 0 0;line-height:1.65;white-space:pre-wrap">${esc(f.a)}</p>
+    </details>`;
+  return `<div class="page page-narrow">
+    <div class="section-head"><div><span class="section-eyebrow">Help center</span><h2>FAQ &amp; Q&amp;A</h2><p>Quick answers about licensing, plans, payments, and safety on Kings Production.</p></div></div>
+    ${list.length ? list.map(item).join('') : emptyHtml('No FAQ yet', 'Staff can publish questions & answers from the Founder Panel.')}
+    <div class="card card-pad center mt2" style="padding:26px"><p class="muted" style="margin:0 0 12px">Still stuck? Our team answers every ticket.</p><a class="btn btn-primary" href="#/support">${ICON.mail} Contact support</a></div>
+  </div>`;
+};
+/* Staff FAQ editor — lives in the panel's Support tab. */
+async function adminFaqEditorHtml() {
+  const r = await API.getFaqs();
+  const list = r.ok && Array.isArray(r.data) ? r.data : [];
+  const row = (f, i) => `<div class="card card-pad" style="margin-bottom:10px" data-faq-row>
+    <div class="field"><label>Question</label><input class="input" data-faq-q value="${esc(f.q)}" maxlength="200"></div>
+    <div class="field"><label>Answer</label><textarea class="input" data-faq-a rows="3" maxlength="2000">${esc(f.a)}</textarea></div>
+    <button class="btn btn-ghost btn-sm" type="button" onclick="this.closest('[data-faq-row]').remove()">${ICON.trash} Remove</button>
+  </div>`;
+  return `<div class="card card-pad mb2">
+    <div class="row" style="justify-content:space-between;margin-bottom:10px">
+      <h3 style="font-family:var(--font-display);font-size:16px;margin:0">${ICON.system} FAQ editor (public Q&amp;A page)</h3>
+      <button class="btn btn-ghost btn-sm" type="button" id="faq-add">${ICON.plus} Add question</button>
+    </div>
+    <div id="faq-list">${list.map(row).join('') || '<p class="muted small">No questions yet — add the first one.</p>'}</div>
+    <button class="btn btn-primary" type="button" id="faq-save">${ICON.check} Save FAQ</button>
+  </div>`;
+}
+function bindFaqEditor() {
+  const addBtn = document.getElementById('faq-add'), saveBtn = document.getElementById('faq-save'), host = document.getElementById('faq-list');
+  if (!addBtn || !saveBtn || !host) return;
+  addBtn.addEventListener('click', () => {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = `<div class="card card-pad" style="margin-bottom:10px" data-faq-row>
+      <div class="field"><label>Question</label><input class="input" data-faq-q placeholder="e.g. How do licenses work?" maxlength="200"></div>
+      <div class="field"><label>Answer</label><textarea class="input" data-faq-a rows="3" placeholder="The answer shown on the FAQ page." maxlength="2000"></textarea></div>
+      <button class="btn btn-ghost btn-sm" type="button" onclick="this.closest('[data-faq-row]').remove()">${ICON.trash} Remove</button>
+    </div>`;
+    host.appendChild(wrap.firstElementChild);
+  });
+  saveBtn.addEventListener('click', async () => {
+    const faqs = [...host.querySelectorAll('[data-faq-row]')].map(rowEl => ({ q: rowEl.querySelector('[data-faq-q]').value, a: rowEl.querySelector('[data-faq-a]').value })).filter(f => f.q.trim() && f.a.trim());
+    const r = await API.saveFaqs(STATE.user, faqs);
+    r.ok ? toast('FAQ saved — the public page is updated.') : toast(r.error, 'err');
+  });
+}
 VIEWS.privacy = async () => legalShell('Legal', 'Privacy Policy', 'August 2026') + `
     <p style="margin:8px 0">Kings Production (“we”, “our”, “us”) runs this marketplace and development-studio site. This policy explains what information we collect, why we collect it, and how we protect it. By using the site you agree to the practices described here.</p>
     ${legalSection('Information we collect',
@@ -6499,6 +6698,7 @@ VIEWS_BIND.admin = async () => {
   const html = await adminTabHtml(STATE.adminTab);
   body.innerHTML = html;
   if (STATE.adminTab === 'mailbox') setTimeout(syncScheduleField, 0);
+  if (STATE.adminTab === 'support') bindFaqEditor();
 };
 async function setAdminTab(tab) { STATE.adminTab = tab; STATE.adminSys = null; STATE.adminSub = null; await router({ noVeil: true }); }
 async function onAdminDeleteTicket(id) {
@@ -6573,7 +6773,7 @@ async function adminTabHtml(tab) {
           <div class="row" style="gap:8px;flex-wrap:wrap">
             ${s.status === 'active' ? `<button class="btn btn-danger btn-sm" onclick="onAdminSystemState('${s.id}','disabled')">${ICON.ban} Pause system</button>` : `<button class="btn btn-primary btn-sm" onclick="onAdminSystemState('${s.id}','active')">${ICON.check} Resume system</button>`}
             <button class="btn btn-ghost btn-sm" onclick="onAdminSystemNote('${s.id}')">${ICON.edit} Staff note</button>
-            <button class="btn btn-danger btn-sm" onclick="onAdminUnregisterSystem('${s.id}')">${ICON.trash} Unregister</button>
+            ${canApprove ? `<button class="btn btn-danger btn-sm" onclick="onAdminUnregisterSystem('${s.id}')">${ICON.trash} Unregister</button>` : `<span class="muted small" title="Unregistering needs Co-Founder / Founder approval — pause it and add a note instead.">${ICON.lock} Unregister needs Founder approval</span>`}
           </div>
         </div>
         ${s.staffNote ? `<div class="sec-note" style="margin-top:12px"><b>${ICON.shield} Staff note (visible to the owner on their dashboard):</b> ${esc(s.staffNote)}</div>` : ''}
@@ -6631,7 +6831,7 @@ async function adminTabHtml(tab) {
           <button class="btn btn-ghost btn-sm" onclick="STATE.adminSys='${s.id}';router()">${ICON.eye} Open</button>
           ${s.status === 'active' ? `<button class="btn btn-ghost btn-sm" onclick="onAdminSystemState('${s.id}','disabled')">${ICON.ban} Pause</button>` : `<button class="btn btn-ghost btn-sm" onclick="onAdminSystemState('${s.id}','active')">${ICON.check} Resume</button>`}
           <button class="btn btn-ghost btn-sm" onclick="onAdminSystemNote('${s.id}')">${ICON.edit} Note</button>
-          <button class="btn btn-danger btn-sm" onclick="onAdminUnregisterSystem('${s.id}')">${ICON.trash} Unregister</button>
+          ${canApprove ? `<button class="btn btn-danger btn-sm" onclick="onAdminUnregisterSystem('${s.id}')">${ICON.trash} Unregister</button>` : ''}
         </div>
       </div>`).join('') : `<div class="card card-pad muted small">This user has no registered systems.</div>`}`;
     }
@@ -6683,7 +6883,9 @@ async function adminTabHtml(tab) {
       <td>${fmtDate(t.createdAt)}</td>
       <td><div class="row-actions"><a class="btn btn-ghost btn-sm" href="#/ticket/${esc(t.id)}">${ICON.mail} View</a><button class="btn btn-danger btn-sm" onclick="onAdminDeleteTicket('${t.id}')">${ICON.trash}</button></div></td>
     </tr>`;
-    return `<p class="muted small mb">Support tickets created by users. Tickets with no activity for 5 days are auto-deleted. ${list.length} ticket${list.length === 1 ? '' : 's'} total.</p>
+    return `<p class="muted small mb">Support tickets created by users. Closed tickets keep a full transcript log. ${list.length} ticket${list.length === 1 ? '' : 's'} total.</p>
+      ${await adminFaqEditorHtml()}
+      <h3 style="font-family:var(--font-display);font-size:17px;margin:18px 0 10px">Tickets</h3>
       <div class="table-wrap"><table class="table">
         <thead><tr><th>Subject</th><th>User</th><th>Status</th><th>Last activity</th><th>Created</th><th></th></tr></thead>
         <tbody>${list.length ? list.map(ticketRow).join('') : `<tr><td colspan="6"><div class="empty">No tickets yet.</div></td></tr>`}</tbody></table></div>`;
@@ -6727,6 +6929,7 @@ async function adminTabHtml(tab) {
   if (tab === 'users') {
     const r = await API.adminUsers(STATE.user);
     const list = r.ok ? r.data : [];
+    STATE._adminUsers = list;
     return `<div class="table-wrap"><table class="table">
       <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Status</th><th>Moderation</th></tr></thead>
       <tbody>${list.map(u => {
@@ -6747,11 +6950,13 @@ async function adminTabHtml(tab) {
               ${u.timeoutUntil && u.timeoutUntil > now() ? `<button class="btn btn-ghost btn-sm" onclick="onAdminClear('${u.id}')">Clear timeout</button>` : `<button class="btn btn-ghost btn-sm" onclick="onAdminTimeout('${u.id}')">${ICON.clock} Timeout</button>`}
               ${u.restrictedUntil && u.restrictedUntil > now() ? `<button class="btn btn-ghost btn-sm" onclick="onAdminRestrict('${u.id}', false)">Unrestrict</button>` : `<button class="btn btn-ghost btn-sm" onclick="onAdminRestrict('${u.id}', true)">${ICON.shield} Restrict</button>`}
               ${hasPlan ? `<button class="btn btn-ghost btn-sm" title="Request to lift their Subscription + Contract (needs Co-Founder / Founder approval)" onclick="onAdminSubRevoke('${u.id}')">Revoke subscription</button>
-              <button class="btn btn-ghost btn-sm" title="Set their plan tiers to zero (immediate, no approval needed)" onclick="onAdminUnsubscribePlan('${u.id}')">Unsubscribe</button>` : ''}
+              ${canGrantAll ? `<button class="btn btn-ghost btn-sm" title="Set their plan tiers to zero (immediate)" onclick="onAdminUnsubscribePlan('${u.id}')">Unsubscribe</button>` : ''}` : ''}
+              ${canGrantAll ? `<button class="btn btn-ghost btn-sm" title="Set their Subscription / Contract tiers (0–3)" onclick="onAdminSetPlan('${u.id}')">${ICON.key} Plans</button>` : ''}
             </div>`;
         const roleCell = isMe ? badgeHtml(u.role, u.tags) + ' <span class="muted small">(you)</span>'
           : !canManage ? badgeHtml(u.role, u.tags) + ' <span class="muted small">Protected</span>'
-          : `<select class="select" style="width:auto;padding:6px 30px 6px 10px;font-size:12.5px;border-radius:8px" onchange="onAdminRole('${u.id}', this.value)" title="Change role">${(canGrantAll ? UI_ROLES : ['member', 'vip']).map(r => `<option value="${r}" ${u.role === r ? 'selected' : ''}>${ROLE_LABEL_UI[r]}</option>`).join('')}</select>`;
+          : canGrantAll ? `<select class="select" style="width:auto;padding:6px 30px 6px 10px;font-size:12.5px;border-radius:8px" onchange="onAdminRole('${u.id}', this.value)" title="Change role">${UI_ROLES.map(r => `<option value="${r}" ${u.role === r ? 'selected' : ''}>${ROLE_LABEL_UI[r]}</option>`).join('')}</select>`
+          : badgeHtml(u.role, u.tags) + ' <span class="muted small">Founder sets roles</span>';
         return `<tr>
           <td><div class="user-row">${avatarHtml(u, 34)}<div><a class="bold" href="#/profile/${esc(u.handle)}">${esc(u.displayName)}</a><div class="muted small">@${esc(u.handle)} ${badgeHtml(u.role, u.tags)}</div></div></div></td>
           <td class="muted">${esc(u.email)}</td>
@@ -7147,9 +7352,24 @@ function onAdminUnsubscribePlan(id) {
 function onAdminResolveSubRevoke(id, decision) {
   API.adminResolveSubRevoke(STATE.user, id, decision).then(r => r.ok ? (toast(decision === 'approved' ? 'Subscription revoked.' : 'Revocation rejected — tiers restored to the user.'), router()) : toast(r.error, 'err'));
 }
+function onAdminSetPlan(id) {
+  const u = (STATE._adminUsers || []).find(x => x.id === id) || {};
+  promptModal({ title: 'Set plans for @' + (u.handle || 'user'), label: 'Format: Subscription tier, Contract tier (0–3 each)', placeholder: 'e.g. "0, 1" grants Contract 1 — enough for the Licensed Dashboard', confirmLabel: 'Save plans',
+    body: '<p class="muted small">Subscription 1–3 = system protection tiers. Contract 1–3 = marketplace selling tiers. Any plan ≥ 1 unlocks the Licensed Dashboard.</p>',
+    onConfirm: async ({ value }) => {
+      const parts = String(value || '').split(',').map(x => Number(String(x).trim()));
+      if (parts.length !== 2 || parts.some(x => !Number.isInteger(x) || x < 0 || x > 3)) { toast('Enter two numbers 0–3 separated by a comma, e.g. "0, 1".', 'err'); return; }
+      const r = await API.adminSetUserPlan(STATE.user, id, { protectionTier: parts[0], contractTier: parts[1] });
+      r.ok ? (toast('Plans updated — Subscription ' + parts[0] + ', Contract ' + parts[1] + '.'), router()) : toast(r.error, 'err');
+    } });
+}
 async function onAdminSystemState(systemId, status) {
   const r = await API.adminSetSystemState(STATE.user, systemId, { status });
-  r.ok ? (toast(status === 'disabled' ? 'System paused — every copy stops passing the license check.' : 'System resumed.'), await router()) : toast(r.error, 'err');
+  if (!r.ok) { toast(r.error, 'err'); return; }
+  toast(status === 'disabled'
+    ? (effRank(STATE.user) >= roleRank('cofounder') ? 'System paused — every copy stops passing the license check.' : 'System paused for 24h — if the Founder does not approve the pause, it auto-resumes.')
+    : 'System resumed.');
+  await router();
 }
 function onAdminSystemNote(systemId) {
   promptModal({ title: 'Staff note for this system', label: 'Note (the owner sees it on their dashboard)', placeholder: 'e.g. Leak report under review — contact support', confirmLabel: 'Save note',

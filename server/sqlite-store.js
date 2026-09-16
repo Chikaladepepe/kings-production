@@ -43,7 +43,7 @@ const SCHEMA = {
   tickets: ['id', 'userId', 'subject', 'category', 'details', 'status', 'createdAt', 'updatedAt', 'lastActivityAt'],
   ticket_messages: ['id', 'ticketId', 'userId', 'body', 'createdAt'],
   announcements: ['id', 'title', 'body', 'link', 'style', 'active', 'createdAt', 'updatedAt'],
-  systems: ['id', 'userId', 'name', 'password', 'status', 'createdAt', 'updatedAt', 'lastSeenAt'],
+  systems: ['id', 'userId', 'name', 'password', 'status', 'staffNote', 'pausedBy', 'pauseExpiresAt', 'createdAt', 'updatedAt', 'lastSeenAt'],
   system_devices: ['id', 'systemId', 'deviceId', 'deviceName', 'status', 'createdAt', 'lastSeenAt'],
   system_games: ['id', 'systemId', 'placeId', 'status', 'gameName', 'gameOwner', 'gameOwnerType', 'createdAt', 'lastSeenAt'],
   sub_revokes: ['id', 'actorId', 'targetId', 'reason', 'prevProtection', 'prevContract', 'status', 'resolvedBy', 'resolvedAt', 'createdAt'],
@@ -143,7 +143,8 @@ CREATE TABLE IF NOT EXISTS announcements (
 );
 CREATE TABLE IF NOT EXISTS systems (
   id TEXT PRIMARY KEY, userId TEXT NOT NULL, name TEXT NOT NULL, password TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'pending', createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL, lastSeenAt INTEGER
+  status TEXT NOT NULL DEFAULT 'pending', staffNote TEXT, pausedBy TEXT, pauseExpiresAt INTEGER,
+  createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL, lastSeenAt INTEGER
 );
 CREATE TABLE IF NOT EXISTS system_devices (
   id TEXT PRIMARY KEY, systemId TEXT NOT NULL, deviceId TEXT NOT NULL, deviceName TEXT,
@@ -262,6 +263,12 @@ const MIGRATIONS = [
   "ALTER TABLE system_games ADD COLUMN gameOwner TEXT",
   "ALTER TABLE system_games ADD COLUMN gameOwnerType TEXT",
   "CREATE TABLE IF NOT EXISTS sub_revokes (id TEXT PRIMARY KEY, actorId TEXT, targetId TEXT, reason TEXT, prevProtection INTEGER, prevContract INTEGER, status TEXT NOT NULL DEFAULT 'pending', resolvedBy TEXT, resolvedAt INTEGER, createdAt INTEGER NOT NULL)",
+  "ALTER TABLE systems ADD COLUMN staffNote TEXT",
+  "ALTER TABLE systems ADD COLUMN pausedBy TEXT",
+  "ALTER TABLE systems ADD COLUMN pauseExpiresAt INTEGER",
+  "ALTER TABLE ticket_messages ADD COLUMN kind TEXT",
+  "ALTER TABLE ticket_messages ADD COLUMN actorName TEXT",
+  "CREATE TABLE IF NOT EXISTS site_settings (id TEXT PRIMARY KEY, value TEXT NOT NULL, updatedAt INTEGER)",
 ];
 function ticketCleanup(db) {
   const cutoff = Date.now() - 5 * 24 * 3600 * 1000;

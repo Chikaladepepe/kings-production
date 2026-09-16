@@ -96,6 +96,10 @@ async function main() {
     try { engine.processScheduledBlasts(); } catch (e) { console.error('[blast] boot sweep failed:', e && e.message || e); }
     setInterval(() => { try { engine.processScheduledBlasts(); } catch (e) { console.error('[blast] sweep failed:', e && e.message || e); } }, 30e3).unref();
   }
+  if (engine.processAdminPauseExpiry) {
+    try { engine.processAdminPauseExpiry(); } catch (e) { console.error('[pause] boot sweep failed:', e && e.message || e); }
+    setInterval(() => { try { engine.processAdminPauseExpiry(); } catch (e) { console.error('[pause] sweep failed:', e && e.message || e); } }, 60e3).unref();
+  }
 
   /* ---- payments (Stripe · PayPal · GCash via PayMongo) ----
      Enabled by env keys; when none are set the checkout runs in dev/test
@@ -673,6 +677,13 @@ async function main() {
   app.get('/api/admin/tickets', admin(async u => engine.adminListTickets(u)));
   app.post('/api/admin/tickets/:id/close', admin(async (u, req) => engine.adminCloseTicket(u, req.params.id)));
   app.delete('/api/admin/tickets/:id', admin(async (u, req) => engine.adminDeleteTicket(u, req.params.id)));
+
+  /* ---- FAQ (public read, staff write) ---- */
+  app.get('/api/faqs', h(async (req, res) => send(res, engine.getFaqs())));
+  app.post('/api/admin/faqs', admin(async (u, req) => engine.saveFaqs(u, (req.body || {}).faqs)));
+
+  /* ---- Founder grant: set plan tiers directly (Co-Founder / Founder only) ---- */
+  app.post('/api/admin/users/:id/plan', admin(async (u, req) => engine.adminSetUserPlan(u, req.params.id, req.body || {})));
 
   /* ---- the app (single-file SPA) ---- */
   app.get('/', (req, res) => res.sendFile(path.join(ROOT, 'index.html')));

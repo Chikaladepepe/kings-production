@@ -111,7 +111,9 @@
   /* Email verification: existing accounts are verified by default; new
      registrations must confirm their email. The owner account always bypasses. */
   const isVerified = u => isOwnerAccount(u) || u == null || (u.emailVerified !== false && u.emailVerified !== 0);
-  const canPost = u => (effRank(u) >= roleRank('vip') || isTester(u)) && !isBanned(u) && !isTimedOut(u) && isVerified(u);
+  /* Email verification is OPTIONAL — it only exists so a forgotten password
+     can be reset. It never gates posting or purchasing. */
+  const canPost = u => (effRank(u) >= roleRank('vip') || isTester(u)) && !isBanned(u) && !isTimedOut(u);
   const isAdmin = u => isStaff(u);
   /* "Test" tag — assigned by admins for QA: can grab any system/asset without
      paying so the studio can verify things work before release. */
@@ -166,6 +168,13 @@
     const requireAdmin = actor => {
       if (!actor) return fail('auth', 'You must be logged in as an admin.');
       if (!isStaff(actor)) return fail('adminOnly', 'You do not have permission to do that.');
+      return null;
+    };
+    /* Showcase content (portfolio + creators) is the studio's voice — plain
+       Admins are moderation-only and cannot create or edit it. */
+    const requireCofounder = (actor, what) => {
+      if (!actor) return fail('auth', 'You must be logged in.');
+      if (effRank(actor) < roleRank('cofounder')) return fail('forbidden', 'Only the Co-Founder or Founder can ' + (what || 'do that') + '.');
       return null;
     };
     /* Posting cooldown — one new post per 24h for creators (admins are exempt). */
@@ -306,7 +315,7 @@
         passHash: await hashPassword(password), bio: '', pfp: null,
         totpSecret: null, totpEnabled: false, banned: false, banReason: null, timeoutUntil: null, country,
         googleId: null, acceptedTermsAt: now(), createdAt: now(), updatedAt: now(),
-        emailVerified: isFirst ? 1 : 0, // new registrations must confirm their email
+        emailVerified: 1, // email is OPTIONAL (account recovery only) — never gates posting
       };
       store.put('users', user);
       const s = createSession(user.id);
@@ -316,7 +325,7 @@
         const token = randomToken(18);
         store.put('tokens', { id: 't' + uid(), userId: user.id, token, purpose: 'verify', expiresAt: now() + 72 * 36e5, used: false, createdAt: now() });
         verifyLink = '#/verify?token=' + token;
-        sendEmail({ to: user.email, subject: 'Welcome to Kings Production — verify your email', action: 'verify', body: 'Welcome! Confirm your email address to unlock posting and purchasing on Kings Production. This link expires in 72 hours and can only be used once.', link: verifyLink });
+        sendEmail({ to: user.email, subject: 'Welcome to Kings Production — verify your email (optional)', action: 'verify', body: 'Welcome to Kings Production! Verification is optional and does not unlock anything — it only lets you reset your password if you ever forget it. This link expires in 72 hours and can only be used once.', link: verifyLink });
       }
       flush();
       return ok(Object.assign({ token: s.id, user: selfUser(user) }, cfg.devMail && verifyLink ? { verifyLink } : {}));
@@ -351,7 +360,7 @@
       const token = randomToken(18);
       store.put('tokens', { id: 't' + uid(), userId: u.id, token, purpose: 'verify', expiresAt: now() + 72 * 36e5, used: false, createdAt: now() });
       const link = '#/verify?token=' + token;
-      sendEmail({ to: u.email, subject: 'Verify your Kings Production email', action: 'verify', body: 'Confirm your email address to unlock posting and purchasing on Kings Production. This link expires in 72 hours.', link });
+      sendEmail({ to: u.email, subject: 'Verify your Kings Production email (optional)', action: 'verify', body: 'Verification is optional — it only enables password reset for account recovery. This link expires in 72 hours.', link });
       flush();
       return ok(Object.assign({ sent: true }, cfg.devMail ? { devLink: link } : {}));
     }
@@ -545,10 +554,11 @@
       if (img === null && String(imageUrl || '').trim()) return fail('invalid', 'Image link must be a valid http(s) URL.');
       const file = normalizeFile(fileData, fileName);
       if (!img && !fileName && !file) return fail('invalid', 'Please add an image link (or upload the asset file).');
+      const founderLevel = effRank(u) >= roleRank('cofounder'); // Founder / Co-Founder posts skip the approval queue
       const asset = {
         id: 'a' + uid(), ownerId: u.id, title, category, description, price,
         fileName: file ? file.name : fileName, fileMime: file ? file.mime : 'application/octet-stream', fileSize: file ? file.size : 0,
-        imageUrl: img, status: 'pending', rejectReason: null, sales: 0, createdAt: now(), updatedAt: now(), approvedAt: null,
+        imageUrl: img, status: founderLevel ? 'approved' : 'pending', rejectReason: null, sales: 0, createdAt: now(), updatedAt: now(), approvedAt: founderLevel ? now() : null,
       };
       if (file) {
         if (file.size > cfg.maxUploadBytes) return fail('invalid', 'File is too large (max 20 MB).');
@@ -557,7 +567,7 @@
       }
       store.put('assets', asset);
       flush();
-      return ok({ id: asset.id, status: 'pending' });
+      return ok({ id: asset.id, status: asset.status });
     }
 
     /* Restricted sellers' posts are blanked from the shop until the
@@ -625,12 +635,14 @@
         a.fileName = file.name; a.fileMime = file.mime; a.fileSize = file.size;
         try { await files.put(a.id, file); } catch (err) { console.error(err); return fail('storage', 'Could not store the file.'); }
       }
-      a.status = 'pending'; // any change re-enters the approval queue
+      const founderLevel = effRank(u) >= roleRank('cofounder');
+      a.status = founderLevel ? 'approved' : 'pending'; // Founder / Co-Founder edits stay live; others re-enter the approval queue
       a.rejectReason = null;
+      if (founderLevel) a.approvedAt = now();
       a.updatedAt = now();
       store.put('assets', a);
       flush();
-      return ok({ id: a.id, status: 'pending' });
+      return ok({ id: a.id, status: a.status });
     }
 
     function cascadeDelete(id) {
@@ -670,6 +682,47 @@
         return { ...systemPublic(s), owner: o ? { id: o.id, handle: o.handle, displayName: o.displayName, bio: o.bio || '', pfp: o.pfp || null, role: o.role, createdAt: o.createdAt, ...ownerTiers } : null, games: all('system_games').filter(g => g.systemId === s.id).length, devices: all('system_devices').filter(d => d.systemId === s.id).length };
       }));
     }
+    /* Plain Admins may only PAUSE a system, never delete it. The pause also
+       auto-expires after 24h unless a Co-Founder / Founder upholds it — an
+       unanswered pause means "we do not agree, the system keeps running". */
+    async function adminSetSystemState(actor, systemId, { status, staffNote } = {}) {
+      const r = requireAdmin(actor); if (r) return r;
+      const s = byIdIn('systems', systemId);
+      if (!s) return fail('notfound', 'System not found.');
+      if (status !== undefined) {
+        status = String(status || '');
+        if (!['active', 'disabled'].includes(status)) return fail('invalid', 'Invalid status.');
+        if (status === 'disabled' && effRank(actor) < roleRank('cofounder')) {
+          /* Admin pause: schedule auto-resume in 24h (Founder must uphold). */
+          s.status = 'disabled';
+          s.pausedBy = actor.id;
+          s.pauseExpiresAt = now() + 24 * 36e5;
+        } else {
+          s.status = status;
+          s.pausedBy = null; s.pauseExpiresAt = null;
+        }
+      } else if (effRank(actor) >= roleRank('cofounder')) {
+        /* Founder-level edits clear any pending admin pause window. */
+        s.pausedBy = null; s.pauseExpiresAt = null;
+      }
+      s.staffNote = String(staffNote === undefined ? (s.staffNote || '') : staffNote).trim().slice(0, 300) || null;
+      s.updatedAt = now();
+      store.put('systems', s);
+      flush();
+      return ok(true);
+    }
+    /* Boot/interval sweep: admin pauses expire after 24h without Founder
+       approval — the system resumes automatically. */
+    function processAdminPauseExpiry() {
+      const t = now();
+      all('systems').filter(s => s.status === 'disabled' && s.pauseExpiresAt && s.pauseExpiresAt <= t).forEach(s => {
+        s.status = 'active';
+        s.pausedBy = null; s.pauseExpiresAt = null;
+        s.updatedAt = t;
+        store.put('systems', s);
+      });
+      flush();
+    }
     /* Founder Panel → Registered: full detail on one system, including the
        owner's profile + plans + revenue, plus staff actions (unregister,
        restrict the system with a note the owner sees). */
@@ -690,23 +743,6 @@
         devices: all('system_devices').filter(d => d.systemId === s.id).length,
       });
     }
-    /* Staff control of one registered system: pause/unpause + a note the
-       owner sees on their dashboard. */
-    async function adminSetSystemState(actor, systemId, { status, staffNote } = {}) {
-      const r = requireAdmin(actor); if (r) return r;
-      const s = byIdIn('systems', systemId);
-      if (!s) return fail('notfound', 'System not found.');
-      if (status !== undefined) {
-        status = String(status || '');
-        if (!['active', 'disabled'].includes(status)) return fail('invalid', 'Invalid status.');
-        s.status = status;
-      }
-      s.staffNote = String(staffNote === undefined ? (s.staffNote || '') : staffNote).trim().slice(0, 300) || null;
-      s.updatedAt = now();
-      store.put('systems', s);
-      flush();
-      return ok(true);
-    }
     /* Founder Panel → Registered: profile + plans + revenue + registered
        systems for one subscriber. */
     async function adminSubscriberDetail(actor, userId) {
@@ -725,9 +761,12 @@
         systems,
       });
     }
-    /* Staff unregister: removes a system and its games/devices entirely. */
+    /* Staff unregister: removes a system and its games/devices entirely.
+       Co-Founder / Founder ONLY — plain Admins can pause + note, then request
+       deletion (their pause auto-expires in 24h without Founder approval). */
     async function adminDeleteSystem(actor, systemId) {
       const r = requireAdmin(actor); if (r) return r;
+      if (effRank(actor) < roleRank('cofounder')) return fail('forbidden', 'Only the Co-Founder / Founder can delete registered systems. Pause it and add a note instead — the Founder decides deletion.');
       const s = byIdIn('systems', systemId);
       if (!s) return fail('notfound', 'System not found.');
       store.del('systems', s.id);
@@ -743,7 +782,9 @@
       if (!a) return fail('notfound', 'Asset not found.');
       return ok({ fileName: a.fileName, mime: a.fileMime, size: a.fileSize });
     }
-    /* Staff post control: disable = hidden from the shop but restorable. */
+    /* Staff post control: disable = hidden from the shop but restorable.
+       Plain Admins moderate (disable/restore); deleting a post needs
+       Co-Founder / Founder approval. */
     async function adminSetAssetStatus(actor, id, status) {
       const r = requireAdmin(actor); if (r) return r;
       const a = byIdIn('assets', id);
@@ -1182,6 +1223,7 @@
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       if (!canPost(u)) return fail('vipOnly', 'Only Licensed sellers have a dashboard.');
+      if (isStaff(u)) return fail('vipOnly', 'Staff use the Admin Panel — the Licensed Dashboard needs a Contract plan (granted on the Founder Panel or the Subscription page).');
       const assets = all('assets').filter(a => a.ownerId === u.id).sort((x, y) => y.createdAt - x.createdAt);
       const ids = new Set(assets.map(a => a.id));
       const purchases = all('purchases').filter(p => ids.has(p.assetId));
@@ -1221,6 +1263,7 @@
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       if (!canPost(u)) return fail('vipOnly', 'Only Licensed sellers can manage licenses.');
+      if (isStaff(u) && !(Number(u.contractTier) > 0)) return fail('vipOnly', 'Staff manage licenses only with a Contract plan.');
       const assets = all('assets').filter(a => a.ownerId === u.id);
       const ids = new Set(assets.map(a => a.id));
       const list = all('purchases').filter(p => ids.has(p.assetId) && (!assetId || p.assetId === assetId))
@@ -1237,6 +1280,7 @@
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       if (!canPost(u)) return fail('vipOnly', 'Only the creator can manage this license.');
+      if (isStaff(u) && !(Number(u.contractTier) > 0)) return fail('vipOnly', 'Staff manage licenses only with a Contract plan.');
       const p = byIdIn('purchases', purchaseId);
       if (!p) return fail('notfound', 'License not found.');
       const a = byIdIn('assets', p.assetId);
@@ -1252,6 +1296,7 @@
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       if (!canPost(u)) return fail('vipOnly', 'Only the creator can revoke devices.');
+      if (isStaff(u) && !(Number(u.contractTier) > 0)) return fail('vipOnly', 'Staff manage licenses only with a Contract plan.');
       const d = byIdIn('devices', deviceId);
       if (!d) return fail('notfound', 'Device not found.');
       const a = byIdIn('assets', d.assetId);
@@ -1422,7 +1467,7 @@
       return links.map(l => ({ url: String((l && l.url) || '').trim() })).filter(l => /^https?:\/\//i.test(l.url)).slice(0, 12).map(l => ({ url: l.url.slice(0, 500) }));
     }
     async function createPortfolio(actor, { title, category, desc, stat, status, imageUrl, images, links, featured } = {}) {
-      const r = requireAdmin(actor); if (r) return r;
+      const r = requireCofounder(actor, 'create portfolio posts'); if (r) return r;
       title = String(title || '').trim();
       desc = String(desc || '').trim();
       if (title.length < 3 || title.length > 80) return fail('invalid', 'Project title must be 3–80 characters.');
@@ -1441,7 +1486,7 @@
       return ok({ id: item.id });
     }
     async function updatePortfolio(actor, id, patch = {}) {
-      const r = requireAdmin(actor); if (r) return r;
+      const r = requireCofounder(actor, 'edit portfolio posts'); if (r) return r;
       const it = byIdIn('portfolio', id);
       if (!it) return fail('notfound', 'Project not found.');
       if (patch.title !== undefined) {
@@ -1532,6 +1577,7 @@
     async function adminAssets(actor) { const r = requireAdmin(actor); if (r) return r; return ok(all('assets').slice().sort((x, y) => y.createdAt - x.createdAt).map(summarize)); }
     async function adminDeleteAsset(actor, id) {
       const r = requireAdmin(actor); if (r) return r;
+      if (effRank(actor) < roleRank('cofounder')) return fail('forbidden', 'Admins moderate posts (disable/restore) — deletion needs Co-Founder / Founder approval.');
       const a = byIdIn('assets', id);
       if (!a) return fail('notfound', 'Asset not found.');
       cascadeDelete(id);
@@ -1595,15 +1641,31 @@
       role = String(role || '');
       if (!ROLES.includes(role)) return fail('invalid', 'Invalid role.');
       if (effRank(actor) < roleRank('cofounder')) {
-        /* Plain Admins can grant Member / VIP only, and cannot touch staff or themselves. */
-        if (t.id === actor.id) return fail('self', 'You cannot change your own role.');
-        if (roleRank(role) >= roleRank('admin')) return fail('adminProtected', 'Admins cannot grant the Admin role or higher — only the Owner / Co-Founder can.');
-        if (isStaff(t)) return fail('adminProtected', 'Staff accounts are protected — only the Owner / Co-Founder can change their roles.');
+        return fail('forbidden', 'Only the Co-Founder / Founder can change roles.');
       }
+      if (t.id === actor.id && role !== 'owner') return fail('self', 'You cannot change your own role.');
+      if (t.id !== actor.id && isOwnerAccount(t) && role !== 'owner') return fail('adminProtected', 'The Founder account is protected.');
       t.role = role; t.updatedAt = now();
       store.put('users', t);
       flush();
       return ok(true);
+    }
+    /* Founder grant: set a user's Subscription / Contract tiers directly
+       (Co-Founder / Founder only) — e.g. giving an Admin a Contract so they
+       can use the Licensed Dashboard. */
+    async function adminSetUserPlan(actor, targetId, { protectionTier, contractTier, note } = {}) {
+      const r = requireAdmin(actor); if (r) return r;
+      if (effRank(actor) < roleRank('cofounder')) return fail('forbidden', 'Only the Co-Founder / Founder can grant plans directly.');
+      const t = dbUser(targetId);
+      if (!t) return fail('notfound', 'User not found.');
+      const pT = Number(protectionTier), cT = Number(contractTier);
+      if (![0, 1, 2, 3].includes(pT) || ![0, 1, 2, 3].includes(cT)) return fail('invalid', 'Tiers must be 0–3.');
+      t.protectionTier = pT;
+      t.contractTier = cT;
+      t.updatedAt = now();
+      store.put('users', t);
+      flush();
+      return ok({ protectionTier: pT, contractTier: cT });
     }
     async function adminSetTags(actor, targetId, tags) {
       const r = requireAdmin(actor); if (r) return r;
@@ -1761,7 +1823,7 @@
 
     /* ============ CREATORS (admin-published, like portfolio) ============ */
     async function createCreator(actor, { name, role, bio, links, handle, imageUrl } = {}) {
-      const r = requireAdmin(actor); if (r) return r;
+      const r = requireCofounder(actor, 'add creators'); if (r) return r;
       name = String(name || '').trim();
       if (name.length < 1 || name.length > 60) return fail('invalid', 'Name is required (1–60 chars).');
       const img = normalizeImageUrl(imageUrl);
@@ -1780,7 +1842,7 @@
       return ok({ id: item.id });
     }
     async function updateCreator(actor, id, patch = {}) {
-      const r = requireAdmin(actor); if (r) return r;
+      const r = requireCofounder(actor, 'edit creators'); if (r) return r;
       const it = byIdIn('creators', id);
       if (!it) return fail('notfound', 'Creator not found.');
       if (patch.name !== undefined) it.name = String(patch.name || '').trim().slice(0, 60);
@@ -1869,6 +1931,40 @@
       const u = resolveUser(user); if (!u) return fail('usernotfound', 'User not found.');
       return ok(all('tickets').filter(t => t.userId === u.id).sort((a, b) => b.lastActivityAt - a.lastActivityAt));
     }
+    /* ---- FAQ (editable from the Founder/Admin Panel) ----
+       Persisted in site_settings as JSON so staff can edit Q&A from the web. */
+    const FAQ_DEFAULTS = [
+      { q: 'What is Kings Production?', a: 'Kings Production is a marketplace for Roblox Studio assets — animations, models, plugins, and protected systems — built by verified creators.' },
+      { q: 'How do I become a Licensed seller?', a: 'Head to the Subscription page and grab a Subscription (protect + register your own systems) or a Contract plan (post and sell on the marketplace). Your account upgrades instantly after approval.' },
+      { q: 'Why do I need to verify my email?', a: 'Email verification is optional — you can browse and post without it. But if you ever forget your password, a verified email is the only way to recover your account, so we strongly recommend it (Settings → Verify email).' },
+      { q: 'What is a system license?', a: 'When you register a system you get a Lua block for Studio. Paste it at the top of your server script: it phones home, checks the license and the game\'s permission, and only then runs your actual code. Revoke a game on the web and every copy stops within minutes.' },
+      { q: 'Someone is using my system without permission — what do I do?', a: 'Open the Licensed Dashboard → Registered Systems → Games, revoke or blacklist the game, and contact staff through Support. Every check-in from that game is logged.' },
+      { q: 'How do payments work?', a: 'Orders are paid via Stripe, PayPal, or GCash. For system purchases the seller reviews your game details and activates the license — track everything under Orders.' },
+      { q: 'Can I get a refund?', a: 'Contact the seller first through their Support or profile. If they do not respond, open a ticket and staff will review the order logs.' },
+      { q: 'My post is still pending — why?', a: 'New posts are reviewed by staff before they appear in the shop. Founder and Co-Founder posts go live instantly. If it has been more than 24 hours, open a Support ticket.' },
+    ];
+    function getFaqs() {
+      const row = byIdIn('site_settings', 'faqs');
+      if (!row) return ok(FAQ_DEFAULTS.map((f, i) => ({ id: 'f' + i, ...f })));
+      try {
+        const list = JSON.parse(row.value);
+        if (!Array.isArray(list)) throw new Error('bad');
+        return ok(list);
+      } catch (e) { return ok(FAQ_DEFAULTS.map((f, i) => ({ id: 'f' + i, ...f }))); }
+    }
+    async function saveFaqs(actor, list) {
+      const r = requireAdmin(actor); if (r) return r;
+      if (!Array.isArray(list)) return fail('invalid', 'FAQ list must be an array.');
+      const clean = list.slice(0, 50).map((f, i) => ({
+        id: 'f' + i,
+        q: String(f && f.q || '').trim().slice(0, 200),
+        a: String(f && f.a || '').trim().slice(0, 2000),
+      })).filter(f => f.q && f.a);
+      if (!clean.length) return fail('invalid', 'Add at least one question with an answer.');
+      store.put('site_settings', { id: 'faqs', value: JSON.stringify(clean), updatedAt: now() });
+      flush();
+      return ok(clean);
+    }
     async function adminListTickets(actor) {
       const r = requireAdmin(actor); if (r) return r;
       return ok(all('tickets').slice().sort((a, b) => b.lastActivityAt - a.lastActivityAt).map(t => ({ ...t, user: publicUser(byIdIn('users', t.userId)) })));
@@ -1880,6 +1976,11 @@
       ticket.status = 'closed';
       ticket.updatedAt = now();
       store.put('tickets', ticket); flush();
+      /* Backup log: closing is recorded as a system message so the full
+         conversation survives even after a later cleanup. */
+      const staff = byIdIn('users', actor.id);
+      store.put('ticket_messages', { id: 'tm' + uid(), ticketId: ticket.id, userId: null, body: 'Ticket closed by ' + (staff ? (staff.displayName || staff.handle) : 'staff') + '.', kind: 'system', actorName: staff ? (staff.displayName || staff.handle) : 'Staff', createdAt: now() });
+      flush();
       return ok(true);
     }
     async function adminDeleteTicket(actor, ticketId) {
@@ -1968,6 +2069,7 @@
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       if (effRank(u) < roleRank('vip') && !isTester(u)) return fail('vipOnly', 'System registering is a Licensed feature — grab a Subscription or Contract to unlock it.');
+      if (isStaff(u) && !(Number(u.protectionTier) > 0) && !(Number(u.contractTier) > 0) && !isTester(u)) return fail('vipOnly', 'Admins register systems only with a plan — grant one on the Founder Panel, or buy on the Subscription page.');
       name = String(name || '').trim();
       password = String(password || '').trim();
       if (name.length < 3 || name.length > 60) return fail('invalid', 'System name must be 3–60 characters.');
@@ -2208,6 +2310,9 @@
 
     seedContent();
     ensureOwnerAccount();
+    /* Email verification is now optional — mark every existing account
+       verified once so nobody is locked out of anything. */
+    try { all('users').filter(u => !u.emailVerified).forEach(u => { u.emailVerified = 1; store.put('users', u); }); flush(); } catch (e) { /* best effort */ }
 
     return {
       register, requestRegisterCode, login, googleLogin, verify2fa, requestReset, resetPassword, logout, me,
@@ -2222,11 +2327,11 @@
       publicProfile, content, createPortfolio, updatePortfolio, deletePortfolio,
       createCreator, updateCreator, deleteCreator,
       createTicket, addTicketMessage, getTicket, listMyTickets,
-      adminListTickets, adminCloseTicket, adminDeleteTicket,
+      adminListTickets, adminCloseTicket, adminDeleteTicket, getFaqs, saveFaqs, processAdminPauseExpiry,
       listAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement,
       registerSystem, listSystems, deleteSystem, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice, authorizeSystemDevice, setSystemGameStatus, removeSystemGame, adminSystemDetail, adminSetSystemState, adminSubscriberDetail, adminDeleteSystem,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
-      adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSessions, adminEmails, adminSendEmail, adminListBlasts, adminDeleteBlast, adminEmailHistory, adminListInbound, adminSetUnsubscribed, inboundMailEvent, processScheduledBlasts, adminOrders, adminCompleteOrder,
+      adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSetUserPlan, adminSessions, adminEmails, adminSendEmail, adminListBlasts, adminDeleteBlast, adminEmailHistory, adminListInbound, adminSetUnsubscribed, inboundMailEvent, processScheduledBlasts, adminOrders, adminCompleteOrder,
       sellerOrders, setOrderApproval, adminTakeFile, adminSetAssetStatus, adminSetRestriction, adminRequestSubRevoke, adminResolveSubRevoke, adminListSubRevokes, adminUnsubscribePlan, adminSystems,
       setFx,
     };
