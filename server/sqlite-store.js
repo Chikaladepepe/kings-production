@@ -37,7 +37,7 @@ const SCHEMA = {
   tokens: ['id', 'userId', 'token', 'purpose', 'expiresAt', 'used', 'createdAt'],
   pending_regs: ['id', 'email', 'code', 'expiresAt', 'createdAt'],
   emails: ['id', 'to', 'subject', 'action', 'body', 'link', 'createdAt', 'read'],
-  portfolio: ['id', 'title', 'category', 'desc', 'stat', 'status', 'imageUrl', 'links', 'featured', 'createdAt'],
+  portfolio: ['id', 'title', 'category', 'desc', 'stat', 'status', 'imageUrl', 'images', 'links', 'featured', 'createdAt'],
   creators: ['id', 'name', 'role', 'bio', 'links', 'handle', 'imageUrl', 'createdAt'],
   orders: ['id', 'buyerId', 'assetId', 'method', 'amount', 'currency', 'status', 'providerRef', 'licenseKey', 'gameDetails', 'sellerId', 'approval', 'approvalNote', 'createdAt', 'paidAt', 'updatedAt'],
   tickets: ['id', 'userId', 'subject', 'category', 'details', 'status', 'createdAt', 'updatedAt', 'lastActivityAt'],
@@ -115,7 +115,7 @@ CREATE TABLE IF NOT EXISTS emails (
 );
 CREATE TABLE IF NOT EXISTS portfolio (
   id TEXT PRIMARY KEY, title TEXT NOT NULL, category TEXT, "desc" TEXT, stat TEXT, status TEXT,
-  imageUrl TEXT, links TEXT, featured INTEGER NOT NULL DEFAULT 0, createdAt INTEGER
+  imageUrl TEXT, images TEXT, links TEXT, featured INTEGER NOT NULL DEFAULT 0, createdAt INTEGER
 );
 CREATE TABLE IF NOT EXISTS creators (
   id TEXT PRIMARY KEY, name TEXT NOT NULL, role TEXT, bio TEXT, imageUrl TEXT
@@ -257,6 +257,7 @@ const MIGRATIONS = [
   "ALTER TABLE orders ADD COLUMN approval TEXT",
   "ALTER TABLE orders ADD COLUMN approvalNote TEXT",
   "ALTER TABLE creators ADD COLUMN imageUrl TEXT",
+  "ALTER TABLE portfolio ADD COLUMN images TEXT",
   "ALTER TABLE system_games ADD COLUMN gameName TEXT",
   "ALTER TABLE system_games ADD COLUMN gameOwner TEXT",
   "ALTER TABLE system_games ADD COLUMN gameOwnerType TEXT",

@@ -197,6 +197,12 @@ async function main() {
   });
   app.use(express.json({ limit: '4mb' })); // profile pictures are base64 data URLs
 
+  /* ---- image proxy: make "page" URLs work as images (imgur.com/abc → the
+     direct image) and bypass hotlink blocks for supported hosts.
+     Route handler registered after the `h` helper is defined, below. ---- */
+  const IMG_HOSTS = /^https?:\/\/(i\.imgur\.com|imgur\.com|media\.discordapp\.net|cdn\.discordapp\.com|i\.redd\.it|preview\.redd\.it|pbs\.twimg\.com|i\.ibb\.co|files\.catbox\.moe|litter\.catbox\.moe|gcdnb\.pbrd\.co|i\.imgsli\.com|i\.postimg\.cc|i\.pixhost\.to)\//i;
+  const imgCache = new Map(); // url → { t, mime, buf }
+
   /* With a cloud store, wait until every pending write has landed in Turso
      before the client sees the response (the engine writes synchronously to
      its cache; the mirror to Turso drains here). */
@@ -208,6 +214,51 @@ async function main() {
     console.error('[api]', e);
     res.status(500).json({ ok: false, code: 'server', error: 'Internal server error.' });
   });
+
+  /* ---- /api/img handler (uses h + IMG_HOSTS defined above) ---- */
+  app.get('/api/img', h(async (req, res) => {
+    const raw = String(req.query.u || '');
+    let url;
+    try { url = new URL(raw); } catch (e) { return res.status(400).json({ ok: false, error: 'Bad url.' }); }
+    if (!/^https?:$/.test(url.protocol) || !IMG_HOSTS.test(raw)) return res.status(400).json({ ok: false, error: 'Host not allowed.' });
+    const hit = imgCache.get(raw);
+    if (hit && Date.now() - hit.t < 300000) {
+      res.setHeader('Content-Type', hit.mime); res.setHeader('Cache-Control', 'public, max-age=300');
+      return res.end(hit.buf);
+    }
+    const fetchImage = async u => {
+      const upstream = await fetch(u, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36', 'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8', 'Accept-Language': 'en-US,en;q=0.9', 'Referer': new URL(u).origin + '/' }, redirect: 'follow', signal: AbortSignal.timeout(8000) });
+      if (!upstream.ok) throw new Error('upstream ' + upstream.status);
+      return upstream;
+    };
+    try {
+      let upstream = await fetchImage(raw);
+      let mime = upstream.headers.get('content-type') || 'image/jpeg';
+      /* A "page" URL (imgur album/gallery) returns HTML — pull the og:image
+         meta tag and fetch THAT image instead. */
+      if (/text\/html/i.test(mime)) {
+        const html = await upstream.text();
+        const m = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
+          || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i)
+          || html.match(/<link[^>]+rel=["']image_src["'][^>]+href=["']([^"']+)["']/i);
+        if (!m) throw new Error('no image found on page');
+        const imgUrl = m[1].replace(/&amp;/g, '&');
+        if (!IMG_HOSTS.test(imgUrl)) throw new Error('extracted image not allowed');
+        upstream = await fetchImage(imgUrl);
+        mime = upstream.headers.get('content-type') || 'image/jpeg';
+      }
+      if (!/^image\//i.test(mime)) throw new Error('not an image');
+      const ab = await upstream.arrayBuffer();
+      if (ab.byteLength > 8 * 1024 * 1024) throw new Error('too large');
+      const buf = Buffer.from(ab);
+      if (imgCache.size > 120) imgCache.clear();
+      imgCache.set(raw, { t: Date.now(), mime, buf });
+      res.setHeader('Content-Type', mime); res.setHeader('Cache-Control', 'public, max-age=300');
+      res.end(buf);
+    } catch (e) {
+      res.status(502).json({ ok: false, error: 'Image fetch failed.' });
+    }
+  }));
   /* Throttle the public license-check endpoints the Roblox script calls, so a
      leaked script or a brute-force attempt can't hammer the API. Roblox
      servers share egress IPs, so keep the limit generous: 60/min per IP. */
@@ -565,6 +616,10 @@ async function main() {
     }
   });
   app.get('/api/admin/systems', admin(async u => engine.adminSystems(u)));
+  app.get('/api/admin/systems/:id', admin(async (u, req) => engine.adminSystemDetail(u, req.params.id)));
+  app.get('/api/admin/subscribers/:id', admin(async (u, req) => engine.adminSubscriberDetail(u, req.params.id)));
+  app.post('/api/admin/systems/:id/delete', admin(async (u, req) => engine.adminDeleteSystem(u, req.params.id)));
+  app.post('/api/admin/systems/:id/state', admin(async (u, req) => engine.adminSetSystemState(u, req.params.id, req.body || {})));
   app.get('/api/admin/reports', admin(async u => engine.adminReports(u)));
   app.post('/api/admin/reports/:id/resolve', admin(async (u, req) => engine.adminResolveReport(u, req.params.id)));
   app.get('/api/admin/orders', admin(async u => engine.adminOrders(u)));
@@ -574,6 +629,7 @@ async function main() {
   app.post('/api/admin/assets/:id/status', admin(async (u, req) => engine.adminSetAssetStatus(u, req.params.id, (req.body || {}).status)));
   app.get('/api/admin/assets/:id/take-file', admin(async (u, req) => engine.adminTakeFile(u, req.params.id)));
   app.post('/api/admin/sub-revokes', admin(async (u, req) => engine.adminRequestSubRevoke(u, (req.body || {}).targetId, (req.body || {}).reason)));
+  app.post('/api/admin/users/:id/unsubscribe-plan', admin(async (u, req) => engine.adminUnsubscribePlan(u, req.params.id, (req.body || {}).reason)));
   app.post('/api/admin/sub-revokes/:id/resolve', admin(async (u, req) => engine.adminResolveSubRevoke(u, req.params.id, (req.body || {}).decision)));
   app.get('/api/admin/sub-revokes', admin(async u => engine.adminListSubRevokes(u)));
   /* Seller order queue (Licensed Dashboard → Orders). */

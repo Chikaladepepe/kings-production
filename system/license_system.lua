@@ -195,20 +195,37 @@ local function deviceLabel()
 	return "Studio"
 end
 
--- One full check: first run uses /activate, later runs use /heartbeat
-local function creatorLabel()
-	-- e.g. "User 12345" or "Group 9876" — shown on the web dashboard
-	return tostring(game.CreatorType) .. " " .. tostring(game.CreatorId)
+-- Resolve the experience's real name + creator (see gameMeta below)
+local function gameMeta()
+	-- Resolve the experience's REAL name + creator name via MarketplaceService
+	-- (works in Studio and in published games, no HTTP request needed).
+	-- Falls back to game.Name / "User <id>" or "Group <id>" if unavailable.
+	local name, owner = game.Name, nil
+	local ok, info = pcall(function()
+		return MarketplaceService:GetProductInfo(game.PlaceId, Enum.InfoType.Game)
+	end)
+	if ok and info then
+		if info.Name and info.Name ~= "" then name = info.Name end
+		if info.Creator and info.Creator.Name and info.Creator.Name ~= "" then
+			owner = info.Creator.Name
+		end
+	end
+	if not owner then
+		local t = tostring(game.CreatorType):gsub("Enum%.CreatorType%.", "")
+		owner = t .. " " .. tostring(game.CreatorId)
+	end
+	return name, owner
 end
 local function check(heartbeat)
+	local gmName, gmOwner = gameMeta()
 	local payload = {
 		systemName = CONFIG.SystemName,
 		systemPassword = CONFIG.SystemPassword,
 		deviceId = tostring(game.JobId),   -- per-server id; pair with UserId for device view
 		deviceName = deviceLabel(),
 		placeId = tostring(game.PlaceId),  -- so the creator sees (and can gate) each game using the system
-		gameName = game.Name,
-		gameOwner = creatorLabel(),
+		gameName = gmName,
+		gameOwner = gmOwner,
 		gameOwnerType = tostring(game.CreatorType),
 	}
 	local res = post(heartbeat and CONFIG.HeartbeatUrl or CONFIG.ApiUrl, payload)
@@ -224,16 +241,17 @@ end
 -- kick immediately if that player's device was already kicked.
 local function registerPlayer(player)
 	task.spawn(function()
-	local res = post(CONFIG.PlayerUrl, {
-		systemName = CONFIG.SystemName,
-		systemPassword = CONFIG.SystemPassword,
-		playerId = tostring(player.UserId),
-		playerName = player.Name,
-		placeId = tostring(game.PlaceId),  -- registers which game the player is using the system in
-		gameName = game.Name,
-		gameOwner = creatorLabel(),
-		gameOwnerType = tostring(game.CreatorType),
-	})
+		local gmName, gmOwner = gameMeta()
+		local res = post(CONFIG.PlayerUrl, {
+			systemName = CONFIG.SystemName,
+			systemPassword = CONFIG.SystemPassword,
+			playerId = tostring(player.UserId),
+			playerName = player.Name,
+			placeId = tostring(game.PlaceId),  -- registers which game the player is using the system in
+			gameName = gmName,
+			gameOwner = gmOwner,
+			gameOwnerType = tostring(game.CreatorType),
+		})
 		if res and res.ok == true and res.data and res.data.active == false and res.data.kicked then
 			player:Kick("This device is not authorized for this system.")
 		end

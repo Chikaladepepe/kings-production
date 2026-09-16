@@ -381,8 +381,8 @@ main{flex:1;width:100%}
 .creator-card{text-align:center;padding:30px 22px}
 .creator-card .avatar{width:78px;height:78px;font-size:28px;margin:0 auto 16px}
 .creator-card h3{font-family:var(--font-display);font-size:18px;font-weight:700}
-.creator-card .role{color:var(--vip);font-size:12.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-top:3px}
-.creator-card p{color:var(--text-2);font-size:13.5px;margin-top:12px;line-height:1.6}
+.creator-card .role{color:var(--vip);font-size:12.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-top:3px}  .creator-card p{color:var(--text-2);font-size:13.5px;margin-top:12px;line-height:1.6}
+  .creator-card .pf-note{color:var(--text-2);font-size:13.5px;margin-top:12px;line-height:1.6}
 
 /* license */
 .tier-grid{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
@@ -2064,8 +2064,75 @@ const API = {};
       const r = requireAdmin(actor); if (r) return r;
       return ok(all('systems').sort((a, b) => b.createdAt - a.createdAt).map(s => {
         const o = dbUser(s.userId);
-        return { ...systemPublic(s), owner: o ? { handle: o.handle, displayName: o.displayName } : null, games: all('system_games').filter(g => g.systemId === s.id).length, devices: all('system_devices').filter(d => d.systemId === s.id).length };
+        const ownerTiers = o ? { protectionTier: Number(o.protectionTier) || 0, contractTier: Number(o.contractTier) || 0, restrictedUntil: o.restrictedUntil || null, restrictReason: o.restrictReason || null, banned: !!o.banned } : null;
+        return { ...systemPublic(s), owner: o ? { id: o.id, handle: o.handle, displayName: o.displayName, bio: o.bio || '', pfp: o.pfp || null, role: o.role, createdAt: o.createdAt, ...ownerTiers } : null, games: all('system_games').filter(g => g.systemId === s.id).length, devices: all('system_devices').filter(d => d.systemId === s.id).length };
       }));
+    }
+    /* Founder Panel → Registered: full detail on one system, including the
+       owner's profile + plans + revenue, plus staff actions (unregister,
+       restrict the system with a note the owner sees). */
+    async function adminSystemDetail(actor, systemId) {
+      const r = requireAdmin(actor); if (r) return r;
+      const s = byIdIn('systems', systemId);
+      if (!s) return fail('notfound', 'System not found.');
+      const o = dbUser(s.userId);
+      const ownerAssets = o ? all('assets').filter(x => x.ownerId === o.id) : [];
+      const ownerSales = ownerAssets.reduce((sum, x) => sum + (x.sales || 0), 0);
+      const ownerRevenue = all('purchases').filter(p => ownerAssets.some(x => x.id === p.assetId)).reduce((sum, p) => sum + (p.price || 0), 0);
+      return ok({
+        id: s.id, name: s.name, status: s.status, createdAt: s.createdAt, lastSeenAt: s.lastSeenAt,
+        owner: o ? { id: o.id, handle: o.handle, displayName: o.displayName, bio: o.bio || '', pfp: o.pfp || null, role: o.role, email: o.email, createdAt: o.createdAt, protectionTier: Number(o.protectionTier) || 0, contractTier: Number(o.contractTier) || 0, banned: !!o.banned, restrictedUntil: o.restrictedUntil || null, restrictReason: o.restrictReason || null } : null,
+        stats: { assets: ownerAssets.length, sales: ownerSales, revenue: ownerRevenue },
+        games: all('system_games').filter(g => g.systemId === s.id).sort((a, b) => b.lastSeenAt - a.lastSeenAt)
+          .map(g => ({ id: g.id, placeId: g.placeId, status: g.status, gameName: g.gameName || null, gameOwner: g.gameOwner || null, lastSeenAt: g.lastSeenAt })),
+        devices: all('system_devices').filter(d => d.systemId === s.id).length,
+      });
+    }
+    /* Staff control of one registered system: pause/unpause + a note the
+       owner sees on their dashboard. */
+    async function adminSetSystemState(actor, systemId, { status, staffNote } = {}) {
+      const r = requireAdmin(actor); if (r) return r;
+      const s = byIdIn('systems', systemId);
+      if (!s) return fail('notfound', 'System not found.');
+      if (status !== undefined) {
+        status = String(status || '');
+        if (!['active', 'disabled'].includes(status)) return fail('invalid', 'Invalid status.');
+        s.status = status;
+      }
+      s.staffNote = String(staffNote === undefined ? (s.staffNote || '') : staffNote).trim().slice(0, 300) || null;
+      s.updatedAt = now();
+      store.put('systems', s);
+      flush();
+      return ok(true);
+    }
+    /* Founder Panel → Registered: profile + plans + revenue + registered
+       systems for one subscriber. */
+    async function adminSubscriberDetail(actor, userId) {
+      const r = requireAdmin(actor); if (r) return r;
+      const u = dbUser(userId);
+      if (!u) return fail('notfound', 'User not found.');
+      const assets = all('assets').filter(x => x.ownerId === u.id);
+      const sales = assets.reduce((s, x) => s + (x.sales || 0), 0);
+      const revenue = all('purchases').filter(p => assets.some(x => x.id === p.assetId)).reduce((s, p) => s + (p.price || 0), 0);
+      const systems = all('systems').filter(s => s.userId === u.id).sort((a, b) => b.createdAt - a.createdAt)
+        .map(s => ({ id: s.id, name: s.name, status: s.status, createdAt: s.createdAt, lastSeenAt: s.lastSeenAt, staffNote: s.staffNote || null, games: all('system_games').filter(g => g.systemId === s.id).length, devices: all('system_devices').filter(d => d.systemId === s.id).length }));
+      return ok({
+        profile: { id: u.id, handle: u.handle, displayName: u.displayName, bio: u.bio || '', pfp: u.pfp || null, role: u.role, email: u.email, createdAt: u.createdAt, country: u.country || null, banned: !!u.banned, restrictedUntil: u.restrictedUntil || null, restrictReason: u.restrictReason || null },
+        protectionTier: Number(u.protectionTier) || 0, contractTier: Number(u.contractTier) || 0,
+        stats: { assets: assets.length, sales, revenue },
+        systems,
+      });
+    }
+    /* Staff unregister: removes a system and its games/devices entirely. */
+    async function adminDeleteSystem(actor, systemId) {
+      const r = requireAdmin(actor); if (r) return r;
+      const s = byIdIn('systems', systemId);
+      if (!s) return fail('notfound', 'System not found.');
+      store.del('systems', s.id);
+      all('system_games').filter(g => g.systemId === s.id).forEach(g => store.del('system_games', g.id));
+      all('system_devices').filter(d => d.systemId === s.id).forEach(d => store.del('system_devices', d.id));
+      flush();
+      return ok(true);
     }
     /* Staff file access — admins can fetch a copy of any asset's file. */
     async function adminTakeFile(actor, id) {
@@ -2146,6 +2213,20 @@ const API = {};
       req.resolvedBy = actor.id;
       req.resolvedAt = now();
       store.put('sub_revokes', req);
+      flush();
+      return ok(true);
+    }
+    /* Immediate unsubscribe: set the user's plan tiers to zero. Founder /       Co-Founder only — Admins should use "Revoke subscription" (approval flow). */
+    async function adminUnsubscribePlan(actor, targetId, reason) {
+      const r = requireAdmin(actor); if (r) return r;
+      if (effRank(actor) < roleRank('cofounder')) return fail('forbidden', 'Only the Co-Founder or Founder can unsubscribe a plan directly.');
+      const t = dbUser(targetId);
+      if (!t) return fail('notfound', 'User not found.');
+      if (!(Number(t.protectionTier) > 0) && !(Number(t.contractTier) > 0)) return fail('invalid', 'This user has no active subscription.');
+      t.protectionTier = 0;
+      t.contractTier = 0;
+      t.updatedAt = now();
+      store.put('users', t);
       flush();
       return ok(true);
     }
@@ -2723,7 +2804,11 @@ const API = {};
     }
     async function content() {
       const parseLinks = it => { try { const l = JSON.parse(it.links || '[]'); return Array.isArray(l) ? l : []; } catch (e) { return []; } };
-      const portfolio = all('portfolio').slice().sort((a, b) => ((b.featured ? 1 : 0) - (a.featured ? 1 : 0)) || ((b.createdAt || 0) - (a.createdAt || 0))).map(it => ({ ...it, links: parseLinks(it) }));
+      const portfolio = all('portfolio').slice().sort((a, b) => ((b.featured ? 1 : 0) - (a.featured ? 1 : 0)) || ((b.createdAt || 0) - (a.createdAt || 0))).map(it => {
+        let imgs = [];
+        try { imgs = JSON.parse(it.images || '[]'); if (!Array.isArray(imgs)) imgs = []; } catch (e) { imgs = []; }
+        return { ...it, images: imgs, links: parseLinks(it) };
+      });
       /* Creators are listed in publish order — new ones append after existing. */
       const creators = all('creators').slice().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).map(it => ({ ...it, links: parseLinks(it) }));
       return ok({ portfolio, creators });
@@ -2734,17 +2819,19 @@ const API = {};
       if (!Array.isArray(links)) return [];
       return links.map(l => ({ url: String((l && l.url) || '').trim() })).filter(l => /^https?:\/\//i.test(l.url)).slice(0, 12).map(l => ({ url: l.url.slice(0, 500) }));
     }
-    async function createPortfolio(actor, { title, category, desc, stat, status, imageUrl, links, featured } = {}) {
+    async function createPortfolio(actor, { title, category, desc, stat, status, imageUrl, images, links, featured } = {}) {
       const r = requireAdmin(actor); if (r) return r;
       title = String(title || '').trim();
       desc = String(desc || '').trim();
       if (title.length < 3 || title.length > 80) return fail('invalid', 'Project title must be 3–80 characters.');
       if (desc.length < 10) return fail('invalid', 'A description is required (at least 10 characters).');
       const img = normalizeImageUrl(imageUrl);
+      const imgs = (Array.isArray(images) ? images : [])
+        .map(x => normalizeImageUrl(x)).filter(Boolean).slice(0, 12);
       const item = {
         id: 'pp' + uid(), title, category: String(category || '').trim().slice(0, 40),
         desc, stat: String(stat || '').trim().slice(0, 60), status: String(status || 'Live').trim().slice(0, 24),
-        imageUrl: img, links: JSON.stringify(cleanPortfolioLinks(links)), featured: !!featured, createdAt: now(),
+        imageUrl: img, images: JSON.stringify(imgs), links: JSON.stringify(cleanPortfolioLinks(links)), featured: !!featured, createdAt: now(),
       };
       if (item.featured) all('portfolio').filter(x => x.featured && x.id !== item.id).forEach(x => { x.featured = false; store.put('portfolio', x); });
       store.put('portfolio', item);
@@ -2772,6 +2859,11 @@ const API = {};
         const img = normalizeImageUrl(patch.imageUrl);
         if (img === null && String(patch.imageUrl || '').trim()) return fail('invalid', 'Image link must be a valid http(s) URL.');
         it.imageUrl = img;
+      }
+      if (patch.images !== undefined) {
+        const imgs = (Array.isArray(patch.images) ? patch.images : [])
+          .map(x => normalizeImageUrl(x)).filter(x => !!x).slice(0, 12);
+        it.images = JSON.stringify(imgs);
       }
       if (patch.links !== undefined) it.links = JSON.stringify(cleanPortfolioLinks(patch.links));
       if (patch.featured !== undefined) {
@@ -3261,7 +3353,7 @@ const API = {};
       return all('systems').find(s => String(s.name || '').trim().toLowerCase() === String(name || '').trim().toLowerCase() && s.password === String(password || ''));
     }
     function systemPublic(s) {
-      return { id: s.id, name: s.name, status: s.status, createdAt: s.createdAt, lastSeenAt: s.lastSeenAt };
+      return { id: s.id, name: s.name, status: s.status, createdAt: s.createdAt, lastSeenAt: s.lastSeenAt, staffNote: s.staffNote || null };
     }
     function systemForOwner(s) {
       const devices = all('system_devices').filter(d => d.systemId === s.id).sort((a, b) => b.lastSeenAt - a.lastSeenAt)
@@ -3357,8 +3449,11 @@ const API = {};
       if (existing) {
         existing.lastSeenAt = now();
         if (meta) {
-          if (meta.gameName && !existing.gameName) existing.gameName = String(meta.gameName).slice(0, 80);
-          if (meta.gameOwner != null && (existing.gameOwner == null || existing.gameOwner === '')) existing.gameOwner = String(meta.gameOwner).slice(0, 80);
+          /* The Lua sends the live game's real name + creator on every
+             check-in — always refresh so old rows self-heal (e.g. rows that
+             stored the raw "Enum.CreatorType.Group 123" label). */
+          if (meta.gameName) existing.gameName = String(meta.gameName).slice(0, 80);
+          if (meta.gameOwner != null && meta.gameOwner !== '') existing.gameOwner = String(meta.gameOwner).slice(0, 80);
           if (meta.gameOwnerType && !existing.gameOwnerType) existing.gameOwnerType = String(meta.gameOwnerType).slice(0, 20);
         }
         store.put('system_games', existing);
@@ -3527,10 +3622,10 @@ const API = {};
       createTicket, addTicketMessage, getTicket, listMyTickets,
       adminListTickets, adminCloseTicket, adminDeleteTicket,
       listAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement,
-      registerSystem, listSystems, deleteSystem, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice, authorizeSystemDevice, setSystemGameStatus, removeSystemGame,
+      registerSystem, listSystems, deleteSystem, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice, authorizeSystemDevice, setSystemGameStatus, removeSystemGame, adminSystemDetail, adminSetSystemState, adminSubscriberDetail, adminDeleteSystem,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
       adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSessions, adminEmails, adminSendEmail, adminListBlasts, adminDeleteBlast, adminEmailHistory, adminListInbound, adminSetUnsubscribed, inboundMailEvent, processScheduledBlasts, adminOrders, adminCompleteOrder,
-      sellerOrders, setOrderApproval, adminTakeFile, adminSetAssetStatus, adminSetRestriction, adminRequestSubRevoke, adminResolveSubRevoke, adminListSubRevokes, adminSystems,
+      sellerOrders, setOrderApproval, adminTakeFile, adminSetAssetStatus, adminSetRestriction, adminRequestSubRevoke, adminResolveSubRevoke, adminListSubRevokes, adminUnsubscribePlan, adminSystems,
       setFx,
     };
   }
@@ -3738,6 +3833,10 @@ API.mySystems = user => _wrap(async () => _mode === 'local' ? await _engine.list
 API.dashboardOrders = user => _wrap(async () => _mode === 'local' ? await _engine.sellerOrders(user) : await _call('GET', '/api/dashboard/orders'));
 API.setOrderApproval = (user, id, decision, note) => _wrap(async () => _mode === 'local' ? await _engine.setOrderApproval(user, id, decision, note) : await _call('POST', '/api/dashboard/orders/' + _e(id) + '/approval', { decision, note }));
 API.adminSystems = user => _wrap(async () => _mode === 'local' ? await _engine.adminSystems(user) : await _call('GET', '/api/admin/systems'));
+API.adminSystemDetail = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.adminSystemDetail(user, id) : await _call('GET', '/api/admin/systems/' + _e(id)));
+API.adminSubscriberDetail = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.adminSubscriberDetail(user, id) : await _call('GET', '/api/admin/subscribers/' + _e(id)));
+API.adminDeleteSystem = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.adminDeleteSystem(user, id) : await _call('POST', '/api/admin/systems/' + _e(id) + '/delete'));
+API.adminSetSystemState = (user, id, patch) => _wrap(async () => _mode === 'local' ? await _engine.adminSetSystemState(user, id, patch || {}) : await _call('POST', '/api/admin/systems/' + _e(id) + '/state', patch || {}));
 API.adminSetAssetStatus = (user, id, status) => _wrap(async () => _mode === 'local' ? await _engine.adminSetAssetStatus(user, id, status) : await _call('POST', '/api/admin/assets/' + _e(id) + '/status', { status }));
 API.adminSetRestriction = (user, id, a) => _wrap(async () => _mode === 'local' ? await _engine.adminSetRestriction(user, id, a) : await _call('POST', '/api/admin/users/' + _e(id) + '/restrict', a));
 API.adminRequestSubRevoke = (user, id, reason) => _wrap(async () => _mode === 'local' ? await _engine.adminRequestSubRevoke(user, id, reason) : await _call('POST', '/api/admin/sub-revokes', { targetId: id, reason }));
@@ -3781,6 +3880,7 @@ API.adminDeleteBlast = (user, id) => _wrap(async () => _mode === 'local' ? await
 API.adminEmailHistory = (user, userId) => _wrap(async () => _mode === 'local' ? await _engine.adminEmailHistory(user, userId) : await _call('GET', '/api/admin/emails/history/' + _e(userId)));
 API.adminListInbound = user => _wrap(async () => _mode === 'local' ? await _engine.adminListInbound(user) : await _call('GET', '/api/admin/emails/inbound'));
 API.adminSetUnsubscribed = (user, id, unsubscribed) => _wrap(async () => _mode === 'local' ? await _engine.adminSetUnsubscribed(user, id, unsubscribed) : await _call('POST', '/api/admin/users/' + _e(id) + '/unsubscribe', { unsubscribed }));
+API.adminUnsubscribePlan = (user, id, reason) => _wrap(async () => _mode === 'local' ? await _engine.adminUnsubscribePlan(user, id, reason) : await _call('POST', '/api/admin/users/' + _e(id) + '/unsubscribe-plan', { reason }));
 API.adminReports = user => _wrap(async () => _mode === 'local' ? await _engine.adminReports(user) : await _call('GET', '/api/admin/reports'));
 API.adminResolveReport = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.adminResolveReport(user, id) : await _call('POST', '/api/admin/reports/' + _e(id) + '/resolve'));
 
@@ -3795,8 +3895,18 @@ function avatarHtml(u, px = 36) {
 }
 /* Creator avatar: image URL if valid, else initials — never collapses when
    the image fails to load (falls back to initials instead). */
+/* Route known image hosts through the server's /api/img proxy — it turns
+   imgur "page" links (imgur.com/abc) into the direct image and adds browser
+   headers so hotlink-blocked CDNs serve the picture. Falls back to the raw
+   URL for anything else. */
+function proxiedImageUrl(u) {
+  const s = String(u || '');
+  if (!s) return '';
+  if (/^https?:\/\/(i\.imgur\.com|imgur\.com|media\.discordapp\.net|cdn\.discordapp\.com|i\.redd\.it|preview\.redd\.it|pbs\.twimg\.com|i\.ibb\.co|files\.catbox\.moe|litter\.catbox\.moe|gcdnb\.pbrd\.co|i\.imgsli\.com|i\.postimg\.cc|i\.pixhost\.to)\//i.test(s)) return '/api/img?u=' + encodeURIComponent(s);
+  return s;
+}
 function creatorAvatarHtml(cr, px = 78) {
-  const url = cr && cr.imageUrl;
+  const url = proxiedImageUrl(cr && cr.imageUrl);
   const img = url ? `<img src="${esc(url)}" alt="" loading="lazy" onerror="this.parentElement.innerHTML=this.parentElement.dataset.fallback">` : '';
   const fallback = avatarHtml({ displayName: cr && cr.name }, px);
   return `<span data-fallback="${esc(fallback)}" style="display:block">${img || fallback}</span>`;
@@ -3820,7 +3930,7 @@ function statusBadge(status, rejectReason) {
 }
 function catBadge(cat) { return `<span class="badge plain"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${CAT_ICON[cat].replace(/<svg[^>]*>/i, '').replace(/<\/svg>/i, '')}</svg>${CAT_LABEL[cat]}</span>`; }
 function thumbHtml(a, size = 44) {
-  if (a && a.imageUrl) return `<img class="thumb-img" src="${esc(a.imageUrl)}" alt="" loading="lazy" onerror="this.remove()">`;
+  if (a && a.imageUrl) return `<img class="thumb-img" src="${esc(proxiedImageUrl(a.imageUrl))}" alt="" loading="lazy" onerror="this.remove()">`;
   const cat = a && a.category;
   return `<div class="thumb-bg ${CAT_THUMB[cat] || 'thumb-default'}"></div><span class="thumb-icon" style="width:${size}px;height:${size}px">${CAT_ICON[cat]}</span>`;
 }
@@ -3933,7 +4043,7 @@ function headerHtml(user) {
           ${isUnverified(user) ? `<a href="#/verify" class="warn-link">${ICON.mail} Verify your email</a>` : ''}
           <a href="#/profile/${esc(user.handle)}">${ICON.user} My Profile</a>
           ${canPost(user) ? `<a href="#/my-assets">${ICON.edit} My Assets</a><a href="#/upload">${ICON.plus} Upload Asset</a>` : `<a href="#/orders">${ICON.cart} Orders</a>`}
-          ${isStaff(user) ? `<a href="#/admin">${ICON.shield} Admin Panel</a>` : ''}
+          ${isStaff(user) ? `<a href="#/admin">${ICON.shield} ${effRank(user) >= roleRank('cofounder') ? 'Founder Panel' : 'Admin Panel'}</a>` : ''}
           <a href="#/settings">${ICON.clock} Settings</a>
           <div class="sep"></div>
           <button id="logout-btn">${ICON.logout} Log out</button>
@@ -3956,8 +4066,7 @@ function drawerHtml() {
   const drawerAccount = user
     ? `       <a class="m-nav-item" href="#/profile/${esc(user.handle)}">${ICON.user}<span>My Profile</span></a>
        ${canPost(user) ? `<a class="m-nav-item" href="#/my-assets">${ICON.edit}<span>My Assets</span></a>` : `<a class="m-nav-item" href="#/orders">${ICON.cart}<span>Orders</span></a>`}
-       ${canPost(user) ? `<a class="m-nav-item" href="#/upload">${ICON.plus}<span>Upload Asset</span></a>` : `<a class="m-nav-item" href="#/subscription">${ICON.lock}<span>Get Licensed</span></a>`}
-       ${isStaff(user) ? `<a class="m-nav-item" href="#/admin">${ICON.shield}<span>Admin Panel</span></a>` : ''}
+       ${canPost(user) ? `<a class="m-nav-item" href="#/upload">${ICON.plus}<span>Upload Asset</span></a>` : `<a class="m-nav-item" href="#/subscription">${ICON.lock}<span>Get Licensed</span></a>`}        ${isStaff(user) ? `<a class="m-nav-item" href="#/admin">${ICON.shield}<span>${effRank(user) >= roleRank('cofounder') ? 'Founder Panel' : 'Admin Panel'}</span></a>` : ''}
        <a class="m-nav-item" href="#/settings">${ICON.clock}<span>Settings</span></a>
        <button class="m-nav-item" id="m-logout-btn">${ICON.logout}<span>Log out</span></button>`
     : `<a class="m-nav-item" href="#/login">${ICON.user}<span>Log in</span></a><a class="m-nav-item" href="#/register">${ICON.plus}<span>Create account</span></a>`;
@@ -4085,7 +4194,7 @@ const TITLES = {
   support: 'Support — Kings Production', ticket: 'Ticket — Kings Production',
   verify: 'Verify your email — Kings Production',
   login: 'Log in — Kings Production', register: 'Create account — Kings Production',
-  settings: 'Settings — Kings Production', admin: 'Admin Panel — Kings Production', dashboard: 'Licensed Dashboard — Kings Production',
+  settings: 'Settings — Kings Production', admin: 'Panel — Kings Production', dashboard: 'Licensed Dashboard — Kings Production',
   privacy: 'Privacy Policy — Kings Production', terms: 'Terms of Use — Kings Production',
 };
 let _firstRoute = true;
@@ -5359,6 +5468,7 @@ function sysCardHtml(s) {
   const active = s.status === 'active';
   const badge = active ? '<span class="badge ok">ACTIVE</span>' : '<span class="badge plain">PAUSED</span>';
   return `<div class="card" style="margin-bottom:16px;overflow:hidden">
+    ${s.staffNote ? `<div class="sec-note" style="margin:0;border-radius:0;border-left:0;border-right:0;border-top:0"><b>${ICON.shield} Staff note:</b> ${esc(s.staffNote)}</div>` : ''}
     <div class="row" style="padding:16px 20px;gap:14px;border-bottom:1px solid var(--border);flex-wrap:wrap">
       <div style="flex:1;min-width:200px">
         <div class="row" style="gap:10px"><span class="crown" style="color:var(--gold)">${ICON.system}</span><b style="font-family:var(--font-display);font-size:16px">${esc(s.name)}</b>${badge}</div>
@@ -5367,47 +5477,52 @@ function sysCardHtml(s) {
       <div class="row" style="gap:8px;flex-wrap:wrap">
         <button class="btn btn-primary btn-sm" onclick="onCopySystemCode('${s.id}')">${ICON.copy} Studio code</button>
         ${active ? `<button class="btn btn-danger btn-sm" onclick="onSetSystemStatus('${s.id}','disabled')">${ICON.ban} Pause</button>` : `<button class="btn btn-ghost btn-sm" onclick="onSetSystemStatus('${s.id}','active')">${ICON.check} Resume</button>`}
-        <button class="btn btn-ghost btn-sm" onclick="onDeleteSystem('${s.id}')" title="Delete system">${ICON.trash}</button>
       </div>
     </div>
-    ${s.devices && s.devices.length ? `<div style="padding:8px 20px 14px">
-      <div class="muted small" style="padding:8px 0 4px">Devices using this system</div>
-      ${s.devices.map(d => `<div class="row" style="gap:8px;padding:5px 0;flex-wrap:wrap">
-        <span class="lic-device">${ICON.system} <b>${esc(d.deviceName || d.deviceId || 'Device')}</b>${d.status === 'revoked' ? ' <span class="off">· kicked</span>' : ` · last seen ${timeAgo(d.lastSeenAt)}`}</span>
-        ${d.status === 'active' ? `<button class="btn btn-danger btn-sm" style="padding:3px 10px;font-size:12px" onclick="onRevokeSystemDevice('${d.id}')" title="Auto-kicks this device on its next check-in">${ICON.ban} Kick</button>` : `<button class="btn btn-ghost btn-sm" style="padding:3px 10px;font-size:12px" onclick="onAuthorizeSystemDevice('${d.id}')">${ICON.check} Authorize</button>`}
-      </div>`).join('')}
-    </div>` : ''}
   </div>`;
 }function sysGameBadge(st) {
   return st === 'active' ? '<span class="badge ok">ALLOWED</span>' : st === 'pending' ? '<span class="badge warn">PENDING APPROVAL</span>' : st === 'revoked' ? '<span class="badge warn">REVOKED</span>' : '<span class="badge" style="background:rgba(220,38,38,.14);color:#f87171">BLACKLISTED</span>';
 }
 function sysGameRow(g) {
-  return `<div class="row" style="padding:11px 20px;border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap">
-    <span class="lic-device" style="flex:1;min-width:160px">${ICON.system} <b style="color:var(--text)">${g.gameName ? esc(g.gameName) : 'Place ' + esc(g.placeId)}</b>${g.gameOwner ? `<span class="muted small"> — owner: ${esc(g.gameOwner)}</span>` : ''} <span class="muted small">(ID ${esc(g.placeId)}) · last seen ${timeAgo(g.lastSeenAt)}</span> ${sysGameBadge(g.status)}</span>
+  const ownerLabel = g.gameOwner ? esc(g.gameOwner) : '<span class="off">unknown</span>';
+  return `<div class="row" style="padding:12px 20px;border-bottom:1px solid var(--border);gap:12px;flex-wrap:wrap">
+    <span class="lic-device" style="flex:1;min-width:220px">${ICON.system} <b style="color:var(--text)">${g.gameName ? esc(g.gameName) : 'Unknown game'}</b> ${sysGameBadge(g.status)}<br>
+      <span class="muted small">Game creator: <b style="color:var(--text)">${ownerLabel}</b> · Place ID: <b style="color:var(--text)">${esc(g.placeId)}</b> · Last seen ${timeAgo(g.lastSeenAt)}</span>
+    </span>
     ${g.status === 'active' ? `<button class="btn btn-ghost btn-sm" onclick="onSetSystemGameStatus('${g.id}','revoked')" title="Blocks this game on its next check-in">${ICON.ban} Revoke</button>
       <button class="btn btn-danger btn-sm" onclick="onSetSystemGameStatus('${g.id}','blacklisted')" title="Hard-ban this game — it is denied instantly and stays banned">${ICON.flag} Blacklist</button>`
     : `<button class="btn btn-primary btn-sm" onclick="onSetSystemGameStatus('${g.id}','active')">${ICON.check} Allow</button>
       ${g.status === 'revoked' ? `<button class="btn btn-danger btn-sm" onclick="onSetSystemGameStatus('${g.id}','blacklisted')">${ICON.flag} Blacklist</button>` : ''}`}
-    <button class="btn btn-ghost btn-sm" onclick="onRemoveSystemGame('${g.id}')" title="Remove from the list — it reappears automatically if the game checks in again">${ICON.trash}</button>
   </div>`;
 }
 function sysGamesHtml(s) {
   const games = s.games || [];
   const allowed = games.filter(g => g.status === 'active');
   const notAllowed = games.filter(g => g.status !== 'active');
+  const gState = k => k === 'active' ? 'allowed' : 'other';
+  const chosen = STATE._sysGameFilter || 'all';
+  const isOn = k => (chosen === k) || (chosen === 'all');
   const list = rows => rows.length ? rows.map(sysGameRow).join('') : `<div class="muted small" style="padding:10px 20px">${rows === allowed ? 'No active licensed games yet.' : 'Nothing here — new games appear automatically when they check in and wait for your approval.'}</div>`;
-  return `<div class="card" style="margin-bottom:16px;overflow:hidden">
+  return `<div class="card" id="sysgames-${s.id}" style="margin-bottom:16px;overflow:hidden">
     <div class="row" style="padding:12px 20px;border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap">
       <span class="crown" style="color:var(--gold)">${ICON.system}</span><b style="font-family:var(--font-display)">${esc(s.name)}</b>
       <span class="muted small" style="margin-left:auto">${games.length} game${games.length === 1 ? '' : 's'} using this system</span>
     </div>
     <div class="row" style="padding:9px 20px 0;gap:8px;flex-wrap:wrap">
-      <span class="badge soft-ok">${ICON.check} Active licensed (${allowed.length})</span>
-      <span class="badge plain">No license (${notAllowed.length})</span>
+      <button class="chip ${chosen === 'active' ? 'active' : ''}" onclick="onSysGameFilter('${s.id}','active')" style="cursor:pointer">${ICON.check} Active licensed (${allowed.length})</button>
+      <button class="chip ${chosen === 'other' ? 'active' : ''}" onclick="onSysGameFilter('${s.id}','other')" style="cursor:pointer">No license (${notAllowed.length})</button>
     </div>
-    ${list(notAllowed)}
-    ${list(allowed)}
+    ${isOn('other') ? list(notAllowed) : ''}
+    ${isOn('active') ? list(allowed) : ''}
   </div>`;
+}
+let _sysFilterFor = null;
+async function onSysGameFilter(systemId, filter) {
+  STATE._sysGameFilter = (STATE._sysGameFilter === filter) ? 'all' : filter;
+  _sysFilterFor = systemId;
+  await router({ noVeil: true });
+  const el = document.getElementById('sysgames-' + systemId);
+  if (el) el.scrollIntoView({ block: 'center' });
 }
 async function onSetSystemGameStatus(gameId, status) {
   const label = status === 'active' ? 'allowed' : status === 'revoked' ? 'revoked — it is denied on its next check-in' : 'blacklisted — it is denied instantly and stays banned';
@@ -5636,20 +5751,37 @@ local function deviceLabel()
 	return "Studio"
 end
 
--- One full check: first run uses /activate, later runs use /heartbeat
-local function creatorLabel()
-	-- e.g. "User 12345" or "Group 9876" — shown on the web dashboard
-	return tostring(game.CreatorType) .. " " .. tostring(game.CreatorId)
+-- Resolve the experience's real name + creator (see gameMeta below)
+local function gameMeta()
+	-- Resolve the experience's REAL name + creator name via MarketplaceService
+	-- (works in Studio and in published games, no HTTP request needed).
+	-- Falls back to game.Name / "User <id>" or "Group <id>" if unavailable.
+	local name, owner = game.Name, nil
+	local ok, info = pcall(function()
+		return MarketplaceService:GetProductInfo(game.PlaceId, Enum.InfoType.Game)
+	end)
+	if ok and info then
+		if info.Name and info.Name ~= "" then name = info.Name end
+		if info.Creator and info.Creator.Name and info.Creator.Name ~= "" then
+			owner = info.Creator.Name
+		end
+	end
+	if not owner then
+		local t = tostring(game.CreatorType):gsub("Enum%.CreatorType%.", "")
+		owner = t .. " " .. tostring(game.CreatorId)
+	end
+	return name, owner
 end
 local function check(heartbeat)
+	local gmName, gmOwner = gameMeta()
 	local payload = {
 		systemName = CONFIG.SystemName,
 		systemPassword = CONFIG.SystemPassword,
 		deviceId = tostring(game.JobId),   -- per-server id; pair with UserId for device view
 		deviceName = deviceLabel(),
 		placeId = tostring(game.PlaceId),  -- so the creator sees (and can gate) each game using the system
-		gameName = game.Name,
-		gameOwner = creatorLabel(),
+		gameName = gmName,
+		gameOwner = gmOwner,
 		gameOwnerType = tostring(game.CreatorType),
 	}
 	local res = post(heartbeat and CONFIG.HeartbeatUrl or CONFIG.ApiUrl, payload)
@@ -5665,16 +5797,17 @@ end
 -- kick immediately if that player's device was already kicked.
 local function registerPlayer(player)
 	task.spawn(function()
-	local res = post(CONFIG.PlayerUrl, {
-		systemName = CONFIG.SystemName,
-		systemPassword = CONFIG.SystemPassword,
-		playerId = tostring(player.UserId),
-		playerName = player.Name,
-		placeId = tostring(game.PlaceId),  -- registers which game the player is using the system in
-		gameName = game.Name,
-		gameOwner = creatorLabel(),
-		gameOwnerType = tostring(game.CreatorType),
-	})
+		local gmName, gmOwner = gameMeta()
+		local res = post(CONFIG.PlayerUrl, {
+			systemName = CONFIG.SystemName,
+			systemPassword = CONFIG.SystemPassword,
+			playerId = tostring(player.UserId),
+			playerName = player.Name,
+			placeId = tostring(game.PlaceId),  -- registers which game the player is using the system in
+			gameName = gmName,
+			gameOwner = gmOwner,
+			gameOwnerType = tostring(game.CreatorType),
+		})
 		if res and res.ok == true and res.data and res.data.active == false and res.data.kicked then
 			player:Kick("This device is not authorized for this system.")
 		end
@@ -5889,7 +6022,8 @@ function openPortfolioZoom(id) {
     title: esc(p.title),
     confirmLabel: 'Close',
     cancelLabel: null,
-    body: `${p.imageUrl ? `<img src="${esc(p.imageUrl)}" alt="" style="width:100%;max-height:46vh;object-fit:cover;border-radius:12px;border:1px solid var(--border);margin-bottom:14px" onerror="this.remove()">` : ''}
+    body: `${p.imageUrl ? `<img src="${esc(proxiedImageUrl(p.imageUrl))}" alt="" style="width:100%;max-height:46vh;object-fit:cover;border-radius:12px;border:1px solid var(--border);margin-bottom:14px" onerror="this.remove()">` : ''}
+      ${(p.images && p.images.length) ? `<div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:14px">${p.images.map(u => `<a href="${esc(proxiedImageUrl(u))}" target="_blank" rel="noopener"><img src="${esc(proxiedImageUrl(u))}" alt="" style="width:132px;height:92px;object-fit:cover;border-radius:9px;border:1px solid var(--border)" onerror="this.parentElement.remove()"></a>`).join('')}</div>` : ''}
       <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:12px">${p.featured ? `<span class="badge owner">★ Spotlight</span>` : ''}<span class="badge plain">${esc(p.category || 'Project')}</span><span class="badge ${p.status === 'Live' ? 'ok' : 'plain'}">${esc(p.status || 'Live')}</span></div>
       <p style="white-space:pre-wrap">${esc(p.desc)}</p>
       ${p.stat ? `<p class="muted small" style="margin-top:10px"><b style="color:var(--gold)">${esc(p.stat)}</b></p>` : ''}
@@ -5914,7 +6048,7 @@ function portfolioCardHtml(p, opts = {}) {
   const lock = !!opts.spotlightLock;
   const clickable = !!opts.clickable;
   return `<article class="card ${clickable ? 'card-hover ' : ''}project-card${p.featured && !lock ? ' spotlight' : ''}"${clickable ? ` onclick="openPortfolioZoom('${p.id}')" role="button" tabindex="0" style="cursor:pointer"` : ''}>`
-    + `<div class="project-banner">${p.imageUrl ? `<img class="proj-img" src="${esc(p.imageUrl)}" alt="" loading="lazy" onerror="this.remove()">` : `<div class="thumb-bg thumb-default"></div><span style="position:relative">${ICON.model}</span>`}</div>`
+    + `<div class="project-banner">${p.imageUrl ? `<img class="proj-img" src="${esc(proxiedImageUrl(p.imageUrl))}" alt="" loading="lazy" onerror="this.remove()">` : `<div class="thumb-bg thumb-default"></div><span style="position:relative">${ICON.model}</span>`}</div>`
     + `<div class="project-body">`
     + `<div class="project-tags">${p.featured && !lock ? `<span class="badge owner">★ Spotlight</span>` : ''}<span class="badge plain">${esc(p.category || 'Project')}</span><span class="badge ${p.status === 'Live' ? 'ok' : 'plain'}">${esc(p.status || 'Live')}</span></div>`
     + `<h3>${esc(p.title)}</h3>`
@@ -5944,6 +6078,11 @@ function openPortfolioEditor(id) {
           <div class="field" style="flex:1;min-width:180px"><label>Cover image link</label><input class="input" id="pf-img" type="url" placeholder="https://i.imgur.com/…" value="${esc(item ? (item.imageUrl || '') : '')}">
             <div class="hint">Optional — a direct image URL for the banner.</div></div>
         </div>
+        <div class="field"><label>Additional photos <span class="muted small" style="font-weight:400">— shown in the zoom view (up to 12)</span></label>
+          <div id="pf-imgs" style="display:flex;flex-direction:column;gap:8px"></div>
+          <button class="btn btn-ghost btn-sm" type="button" id="pf-add-img" style="margin-top:8px">${ICON.plus} Add photo</button>
+          <div id="pf-img-preview" class="row" style="gap:8px;flex-wrap:wrap;margin-top:10px"></div>
+        </div>
         <div class="field"><label>Links <span class="muted small" style="font-weight:400">— auto-detected: Discord, YouTube, Twitch, X, Roblox, MediaFire, GitHub, Spotify, Telegram, Drive…</span></label>
           <div id="pf-links" style="display:flex;flex-direction:column;gap:8px"></div>
           <button class="btn btn-ghost btn-sm" type="button" id="pf-add-link" style="margin-top:8px">${ICON.plus} Add link</button></div>
@@ -5956,7 +6095,8 @@ function openPortfolioEditor(id) {
       const img = o.querySelector('#pf-img').value.trim();
       if (img && !/^https?:\/\//i.test(img)) { toast('Cover image must be a valid http(s) URL.', 'err'); return false; }
       const links = [...o.querySelectorAll('.pf-link-row')].map(r => ({ url: r.querySelector('input').value.trim() })).filter(l => l.url);
-      const payload = { title, category: o.querySelector('#pf-cat').value.trim(), desc, stat: o.querySelector('#pf-stat').value.trim(), status: o.querySelector('#pf-status').value.trim() || 'Live', imageUrl: img, links, featured: !!o.querySelector('#pf-featured').checked };
+      const images = [...o.querySelectorAll('.pf-img-row')].map(r => r.querySelector('input').value.trim()).filter(u => u);
+      const payload = { title, category: o.querySelector('#pf-cat').value.trim(), desc, stat: o.querySelector('#pf-stat').value.trim(), status: o.querySelector('#pf-status').value.trim() || 'Live', imageUrl: img, images, links, featured: !!o.querySelector('#pf-featured').checked };
       const res = isEdit ? await API.updatePortfolio(STATE.user, item.id, payload) : await API.createPortfolio(STATE.user, payload);
       if (!res.ok) { toast(res.error, 'err'); return false; }
       toast(isEdit ? 'Project updated.' : 'Project published!');
@@ -5968,6 +6108,25 @@ function openPortfolioEditor(id) {
   (item && item.links || []).forEach(l => addPfLinkRow(box, l.url));
   if (!box.childElementCount) addPfLinkRow(box, '');
   ov.querySelector('#pf-add-link').onclick = () => addPfLinkRow(box, '');
+  const imgBox = ov.querySelector('#pf-imgs');
+  const imgPrev = ov.querySelector('#pf-img-preview');
+  const paintImgPrev = () => {
+    const urls = [...imgBox.querySelectorAll('input')].map(i => i.value.trim()).filter(Boolean);
+    imgPrev.innerHTML = urls.map(u => `<img src="${esc(proxiedImageUrl(u))}" alt="" style="width:56px;height:40px;object-fit:cover;border-radius:7px;border:1px solid var(--border)" onerror="this.style.opacity=.25">`).join('');
+  };
+  (item && item.images || []).forEach(u => addPfImgRow(imgBox, u, paintImgPrev));
+  if (!imgBox.childElementCount) addPfImgRow(imgBox, '', paintImgPrev);
+  ov.querySelector('#pf-add-img').onclick = () => addPfImgRow(imgBox, '', paintImgPrev);
+  paintImgPrev();
+}
+function addPfImgRow(box, url, onPaint) {
+  const row = document.createElement('div');
+  row.className = 'pf-img-row';
+  row.innerHTML = `<input class="input" type="url" placeholder="https://i.imgur.com/…jpg" value="${esc(url)}"><button class="btn btn-ghost btn-sm" type="button" title="Remove photo">${ICON.close}</button>`;
+  const inp = row.querySelector('input');
+  inp.addEventListener('input', () => onPaint && onPaint());
+  row.querySelector('button').onclick = () => { row.remove(); onPaint && onPaint(); };
+  box.appendChild(row);
 }
 function addPfLinkRow(box, url) {
   const row = document.createElement('div');
@@ -6005,7 +6164,7 @@ VIEWS.creators = async () => {
         <span>${creatorAvatarHtml(cr, 78)}</span>
         <h3>${esc(cr.name)}</h3>
         <div class="role">${esc(cr.role)}</div>
-        <p>${esc(cr.bio || '')}</p>
+        <div class="pf-note">${esc(cr.bio || '')}</div>
         ${cr.handle ? `<p class="muted small" style="margin-top:8px">@${esc(cr.handle)} ${ICON.chevron} View profile</p>` : ''}
         ${cr.links && cr.links.length ? `<div class="project-links" aria-label="Creator links" style="margin-top:10px;justify-content:center">${cr.links.map(l => linkIconHtml(l)).join('')}</div>` : ''}
         ${adminRow}
@@ -6323,10 +6482,12 @@ VIEWS.admin = async () => {
   if (!STATE.user || !isStaff(STATE.user)) {
     return `<div class="page">${emptyHtml('Admins only', 'This is a separate interface for administrators.')}</div>`;
   }
-  const tabs = [['overview', 'Overview'], ['approvals', 'Approvals'], ['assets', 'Assets'], ['users', 'Users'], ['security', 'Security'], ['support', 'Support'], ['reports', 'Reports'], ['orders', 'Orders'], ['online', 'Online'], ['announcements', 'Announcements'], ['mailbox', 'Mailbox']];
+  const isFounderish = effRank(STATE.user) >= roleRank('cofounder');
+  const panelLabel = isFounderish ? 'Founder Panel' : 'Admin Panel';
+  const tabs = [['overview', 'Overview'], ['approvals', 'Approvals'], ['assets', 'Assets'], ['users', 'Users'], ['registered', 'Registered'], ['support', 'Support'], ['reports', 'Reports'], ['orders', 'Orders'], ['online', 'Online'], ['announcements', 'Announcements'], ['mailbox', 'Mailbox']];
   const tabbar = `<div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${STATE.adminTab === k ? 'active' : ''}" onclick="setAdminTab('${k}')">${l}</button>`).join('')}</div>`;
   return `<div class="page" style="max-width:1080px">
-    <div class="section-head"><div><span class="section-eyebrow">Administration</span><h2>Admin Panel</h2><p>Moderate submissions, users, and review marketplace activity.</p></div></div>
+    <div class="section-head"><div><span class="section-eyebrow">Administration</span><h2>${panelLabel}</h2><p>Moderate submissions, users, and review marketplace activity.</p></div></div>
     ${tabbar}
     <div id="admin-body">${loadingHtml()}</div>
   </div>`;
@@ -6339,7 +6500,7 @@ VIEWS_BIND.admin = async () => {
   body.innerHTML = html;
   if (STATE.adminTab === 'mailbox') setTimeout(syncScheduleField, 0);
 };
-async function setAdminTab(tab) { STATE.adminTab = tab; await router({ noVeil: true }); }
+async function setAdminTab(tab) { STATE.adminTab = tab; STATE.adminSys = null; STATE.adminSub = null; await router({ noVeil: true }); }
 async function onAdminDeleteTicket(id) {
   if (!isStaff(STATE.user)) return;
   modal({ title: 'Delete this ticket?', danger: true, confirmLabel: 'Delete',
@@ -6383,31 +6544,133 @@ async function adminTabHtml(tab) {
         <td>${o.status === 'created' ? `<button class="btn btn-primary btn-sm" onclick="onAdminCompleteOrder('${o.id}')">Mark paid &amp; complete</button>` : ''}</td>
       </tr>`).join('') || `<tr><td colspan="7"><div class="empty">No orders yet.</div></td></tr>`}</tbody></table></div>`;
   }
-  if (tab === 'security') {
-    const [sysR, subR] = await Promise.all([API.adminSystems(STATE.user), API.adminListSubRevokes(STATE.user)]);
+  if (tab === 'registered') {
+    /* Drill-down: ?sub=<userId> → subscriber detail · ?sys=<systemId> → system detail */
+    const [sysR, subR, usrR] = await Promise.all([API.adminSystems(STATE.user), API.adminListSubRevokes(STATE.user), API.adminUsers(STATE.user)]);
     const systems = sysR.ok ? sysR.data : [];
     const revokes = subR.ok ? subR.data : [];
     const canApprove = effRank(STATE.user) >= roleRank('cofounder');
     const pendingRevs = revokes.filter(x => x.status === 'pending');
-    return `<p class="muted small" style="margin:0 0 12px">Registered license systems across the marketplace — pause a leaked system or hand over to the Licensed Dashboard owner for device/game control.</p>
-    ${pendingRevs.length ? `<div class="card card-pad" style="border-color:rgba(255,170,60,.4);margin-bottom:16px">
+    const revokesBlock = `${pendingRevs.length ? `<div class="card card-pad" style="border-color:rgba(255,170,60,.4);margin-bottom:16px">
       <h3 style="font-family:var(--font-display);font-size:16px;margin-bottom:10px">${ICON.shield} Subscription revocations awaiting approval</h3>
       ${pendingRevs.map(x => `<div class="row" style="padding:9px 0;border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap">
         <span style="flex:1;min-width:180px"><b>@${esc(x.targetHandle)}</b> <span class="muted small">— requested by @${esc(x.actorHandle)} · ${x.reason ? esc(x.reason) : 'no reason given'}</span></span>
         ${canApprove ? `<span class="row" style="gap:8px"><button class="btn btn-danger btn-sm" onclick="onAdminResolveSubRevoke('${x.id}','approved')">Approve &amp; revoke</button><button class="btn btn-ghost btn-sm" onclick="onAdminResolveSubRevoke('${x.id}','rejected')">Reject</button></span>` : '<span class="muted small">Only the Co-Founder / Founder can approve.</span>'}
       </div>`).join('')}
     </div>` : ''}
+    ${revokes.filter(x => x.status !== 'pending').length ? `<div class="card card-pad mb2"><h3 style="font-family:var(--font-display);font-size:15px;margin-bottom:8px">Past revocation requests</h3>${revokes.filter(x => x.status !== 'pending').map(x => `<div class="muted small" style="padding:5px 0">@${esc(x.targetHandle)} — <b style="color:var(--text)">${x.status}</b>${x.resolvedAt ? ' · ' + fmtDate(x.resolvedAt) : ''}</div>`).join('')}</div>` : ''}`;
+    /* --- System detail view --- */
+    if (STATE.adminSys) {
+      const d = await API.adminSystemDetail(STATE.user, STATE.adminSys);
+      if (!d.ok) { STATE.adminSys = null; return `<p class="form-error">${esc(d.error)}</p>`; }
+      const s = d.data;
+      const o = s.owner || {};
+      return `<button class="btn btn-ghost btn-sm" style="margin-bottom:14px" onclick="STATE.adminSys=null;router()">${ICON.chevron} All registered</button>
+      <div class="card card-pad" style="margin-bottom:16px">
+        <div class="row" style="justify-content:space-between;gap:10px;flex-wrap:wrap">
+          <div><h3 style="font-family:var(--font-display);font-size:18px;margin-bottom:4px">${ICON.system} ${esc(s.name)} ${s.status === 'active' ? '<span class="badge ok">ACTIVE</span>' : '<span class="badge plain">PAUSED</span>'}</h3>
+          <div class="muted small">Registered ${fmtDate(s.createdAt)} · last seen ${s.lastSeenAt ? timeAgo(s.lastSeenAt) : 'never'} · ${s.games.length} game${s.games.length === 1 ? '' : 's'} · ${s.devices} device${s.devices === 1 ? '' : 's'}</div></div>
+          <div class="row" style="gap:8px;flex-wrap:wrap">
+            ${s.status === 'active' ? `<button class="btn btn-danger btn-sm" onclick="onAdminSystemState('${s.id}','disabled')">${ICON.ban} Pause system</button>` : `<button class="btn btn-primary btn-sm" onclick="onAdminSystemState('${s.id}','active')">${ICON.check} Resume system</button>`}
+            <button class="btn btn-ghost btn-sm" onclick="onAdminSystemNote('${s.id}')">${ICON.edit} Staff note</button>
+            <button class="btn btn-danger btn-sm" onclick="onAdminUnregisterSystem('${s.id}')">${ICON.trash} Unregister</button>
+          </div>
+        </div>
+        ${s.staffNote ? `<div class="sec-note" style="margin-top:12px"><b>${ICON.shield} Staff note (visible to the owner on their dashboard):</b> ${esc(s.staffNote)}</div>` : ''}
+      </div>
+      <div class="card card-pad" style="margin-bottom:16px">
+        <h3 style="font-family:var(--font-display);font-size:15px;margin-bottom:10px">Owner</h3>
+        <div class="row" style="gap:12px;align-items:center;flex-wrap:wrap">
+          ${avatarHtml(o, 44)}
+          <div style="flex:1;min-width:180px"><a class="bold" href="#/profile/${esc(o.handle || '')}">${esc(o.displayName || '(deleted)')}</a> ${o.role ? badgeHtml(o.role) : ''}<div class="muted small">@${esc(o.handle || '')} · Subscription ${Number(o.protectionTier) || 0} · Contract ${Number(o.contractTier) || 0}${o.restrictedUntil && o.restrictedUntil > now() ? ' · <b style=\"color:var(--gold)\">RESTRICTED</b>' : ''}</div></div>
+          <button class="btn btn-ghost btn-sm" onclick="STATE.adminSub='${o.id}';STATE.adminSys=null;router()">${ICON.eye} Open subscriber view</button>
+        </div>
+      </div>
+      <h3 style="font-family:var(--font-display);font-size:15px;margin-bottom:10px">Games using this system</h3>
+      ${s.games.length ? s.games.map(g => `<div class="row" style="padding:10px 16px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;gap:10px;flex-wrap:wrap">
+        <span style="flex:1;min-width:200px"><b>${g.gameName ? esc(g.gameName) : 'Unknown game'}</b> ${sysGameBadge(g.status)}<div class="muted small">Place ID ${esc(g.placeId)} · ${g.gameOwner ? esc(g.gameOwner) : 'unknown creator'} · last seen ${timeAgo(g.lastSeenAt)}</div></span>
+        ${g.status === 'active' ? `<button class="btn btn-ghost btn-sm" onclick="onSetSystemGameStatus('${g.id}','revoked')">${ICON.ban} Revoke</button><button class="btn btn-danger btn-sm" onclick="onSetSystemGameStatus('${g.id}','blacklisted')">${ICON.flag} Blacklist</button>` : `<button class="btn btn-primary btn-sm" onclick="onSetSystemGameStatus('${g.id}','active')">${ICON.check} Allow</button>`}
+      </div>`).join('') : `<div class="card card-pad muted small">No games have checked in yet.</div>`}`;
+    }
+    /* --- Subscriber detail view --- */
+    if (STATE.adminSub) {
+      const d = await API.adminSubscriberDetail(STATE.user, STATE.adminSub);
+      if (!d.ok) { STATE.adminSub = null; return `<p class="form-error">${esc(d.error)}</p>`; }
+      const u = d.data;
+      const p = u.profile;
+      const tierLine = t => t === 0 ? '<span class="off">none</span>' : `<b style="color:var(--gold)">${t} / 3</b>`;
+      return `<button class="btn btn-ghost btn-sm" style="margin-bottom:14px" onclick="STATE.adminSub=null;router()">${ICON.chevron} All registered</button>
+      <div class="card card-pad" style="margin-bottom:16px">
+        <div class="row" style="gap:14px;align-items:center;flex-wrap:wrap">
+          ${avatarHtml(p, 56)}
+          <div style="flex:1;min-width:200px">
+            <a class="bold" style="font-family:var(--font-display);font-size:17px" href="#/profile/${esc(p.handle)}">${esc(p.displayName)}</a> ${badgeHtml(p.role)}
+            <div class="muted small">@${esc(p.handle)} · ${esc(p.email)} · joined ${fmtDate(p.createdAt)}${p.country ? ' · ' + esc(p.country) : ''}</div>
+            ${p.bio ? `<div class="muted small" style="margin-top:6px">${esc(p.bio)}</div>` : ''}
+          </div>
+          ${p.banned ? '<span class="badge soft-red">BANNED</span>' : ''}${p.restrictedUntil && p.restrictedUntil > now() ? `<span class="badge warn" title="${esc(p.restrictReason || '')}">RESTRICTED</span>` : ''}
+        </div>
+      </div>
+      <div class="dash-grid" style="margin-bottom:16px">
+        <div class="dash-stat"><div class="k">Subscription tier</div><div class="v">${tierLine(u.protectionTier)}</div></div>
+        <div class="dash-stat"><div class="k">Contract tier</div><div class="v">${tierLine(u.contractTier)}</div></div>
+        <div class="dash-stat"><div class="k">Posts</div><div class="v">${u.stats.assets}</div></div>
+        <div class="dash-stat"><div class="k">Sales</div><div class="v blue">${u.stats.sales}</div></div>
+        <div class="dash-stat"><div class="k">Revenue</div><div class="v">${fmtUsd(u.stats.revenue)}</div></div>
+      </div>
+      ${revokesBlock}
+      <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:16px">
+        ${(u.protectionTier > 0 || u.contractTier > 0) ? `<button class="btn btn-ghost btn-sm" onclick="onAdminSubRevoke('${p.id}')">Revoke subscription</button>${canApprove ? `<button class="btn btn-danger btn-sm" onclick="onAdminUnsubscribePlan('${p.id}')">Unsubscribe now</button>` : ''}` : ''}
+        ${p.restrictedUntil && p.restrictedUntil > now() ? `<button class="btn btn-ghost btn-sm" onclick="onAdminRestrict('${p.id}', false)">Unrestrict user</button>` : `<button class="btn btn-ghost btn-sm" onclick="onAdminRestrict('${p.id}', true)">${ICON.shield} Restrict user</button>`}
+      </div>
+      <h3 style="font-family:var(--font-display);font-size:15px;margin-bottom:10px">Registered systems (${u.systems.length})</h3>
+      ${u.systems.length ? u.systems.map(s => `<div class="card" style="margin-bottom:10px;overflow:hidden">
+        <div class="row" style="padding:12px 18px;gap:10px;flex-wrap:wrap">
+          <span style="flex:1;min-width:200px"><b>${ICON.system} ${esc(s.name)}</b> ${s.status === 'active' ? '<span class="badge ok">ACTIVE</span>' : '<span class="badge plain">PAUSED</span>'}${s.staffNote ? ` <span class="badge warn" title="${esc(s.staffNote)}">note</span>` : ''}
+            <div class="muted small">Registered ${fmtDate(s.createdAt)} · last seen ${s.lastSeenAt ? timeAgo(s.lastSeenAt) : 'never'} · ${s.games} game${s.games === 1 ? '' : 's'} · ${s.devices} device${s.devices === 1 ? '' : 's'}</div></span>
+          <button class="btn btn-ghost btn-sm" onclick="STATE.adminSys='${s.id}';router()">${ICON.eye} Open</button>
+          ${s.status === 'active' ? `<button class="btn btn-ghost btn-sm" onclick="onAdminSystemState('${s.id}','disabled')">${ICON.ban} Pause</button>` : `<button class="btn btn-ghost btn-sm" onclick="onAdminSystemState('${s.id}','active')">${ICON.check} Resume</button>`}
+          <button class="btn btn-ghost btn-sm" onclick="onAdminSystemNote('${s.id}')">${ICON.edit} Note</button>
+          <button class="btn btn-danger btn-sm" onclick="onAdminUnregisterSystem('${s.id}')">${ICON.trash} Unregister</button>
+        </div>
+      </div>`).join('') : `<div class="card card-pad muted small">This user has no registered systems.</div>`}`;
+    }
+    /* --- Subscriber list (everyone with a plan, then everyone else) --- */
+    const users = usrR.ok ? usrR.data : [];
+    const subRow = u => `<tr>
+      <td><div class="user-row">${avatarHtml(u, 32)}<div><a class="bold" href="#/profile/${esc(u.handle)}">${esc(u.displayName)}</a><div class="muted small">@${esc(u.handle)}</div></div></div></td>
+      <td>${badgeHtml(u.role)}</td>
+      <td><span class="badge ${u.protectionTier > 0 ? 'vip' : 'plain'}">Subscription ${u.protectionTier || 0}</span> <span class="badge ${u.contractTier > 0 ? 'vip' : 'plain'}">Contract ${u.contractTier || 0}</span></td>
+      <td>${u.systems != null ? u.systems : ''}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="STATE.adminSub='${u.id}';STATE.adminSys=null;router()">${ICON.eye} View</button></td>
+    </tr>`;
+    const sysCountByOwner = {};
+    systems.forEach(s => { const k = s.owner && s.owner.id; if (k) sysCountByOwner[k] = (sysCountByOwner[k] || 0) + 1; });
+    const withSys = users.map(u => ({ ...u, systems: sysCountByOwner[u.id] || 0 }));
+    const withPlanFull = withSys.filter(u => (Number(u.protectionTier) || 0) > 0 || (Number(u.contractTier) || 0) > 0);
+    const othersFull = withSys.filter(u => !withPlanFull.includes(u));
+    return `<p class="muted small" style="margin:0 0 12px">Everyone with a subscription or contract, plus every registered system on the marketplace. Click a user to see their profile, plans, revenue, and systems — pause, unregister, or restrict a system with a note the owner sees.</p>
+    ${revokesBlock}
+    <div class="section-head" style="margin-bottom:10px"><div><h2 style="font-size:19px">Subscribers <span class="muted small" style="font-weight:400">(${withPlanFull.length})</span></h2></div></div>
     <div class="table-wrap"><table class="table">
-      <thead><tr><th>System</th><th>Owner</th><th>Status</th><th>Games</th><th>Devices</th><th>Registered</th><th>Last seen</th></tr></thead>
+      <thead><tr><th>User</th><th>Role</th><th>Plans</th><th>Systems</th><th></th></tr></thead>
+      <tbody>${withPlanFull.length ? withPlanFull.map(subRow).join('') : `<tr><td colspan="5"><div class="empty">No subscribers yet.</div></td></tr>`}</tbody></table></div>
+    <div class="section-head" style="margin:18px 0 10px"><div><h2 style="font-size:19px">All registered systems <span class="muted small" style="font-weight:400">(${systems.length})</span></h2></div></div>
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th>System</th><th>Owner</th><th>Status</th><th>Games</th><th>Devices</th><th>Registered</th><th>Last seen</th><th></th></tr></thead>
       <tbody>${systems.map(s => `<tr>
-        <td><b>${esc(s.name)}</b></td>
+        <td><b>${esc(s.name)}</b>${s.staffNote ? ` <span class="badge warn" title="${esc(s.staffNote)}">note</span>` : ''}</td>
         <td>${s.owner ? `<a href="#/profile/${esc(s.owner.handle)}">${esc(s.owner.displayName)}</a>` : '—'}</td>
         <td>${s.status === 'active' ? '<span class="badge ok">ACTIVE</span>' : '<span class="badge plain">PAUSED</span>'}</td>
         <td>${s.games}</td><td>${s.devices}</td>
         <td class="muted">${fmtDate(s.createdAt)}</td>
         <td class="muted">${s.lastSeenAt ? timeAgo(s.lastSeenAt) : 'never'}</td>
-      </tr>`).join('') || `<tr><td colspan="7"><div class="empty">No systems registered yet.</div></td></tr>`}</tbody></table></div>
-    ${revokes.filter(x => x.status !== 'pending').length ? `<div class="card card-pad mt2"><h3 style="font-family:var(--font-display);font-size:15px;margin-bottom:8px">Past revocation requests</h3>${revokes.filter(x => x.status !== 'pending').map(x => `<div class="muted small" style="padding:5px 0">@${esc(x.targetHandle)} — <b style="color:var(--text)">${x.status}</b>${x.resolvedAt ? ' · ' + fmtDate(x.resolvedAt) : ''}</div>`).join('')}</div>` : ''}`;
+        <td><button class="btn btn-ghost btn-sm" onclick="STATE.adminSys='${s.id}';STATE.adminSub=null;router()">${ICON.eye} Open</button></td>
+      </tr>`).join('') || `<tr><td colspan="8"><div class="empty">No systems registered yet.</div></td></tr>`}</tbody></table></div>
+    <div class="section-head" style="margin:18px 0 10px"><div><h2 style="font-size:19px">Other users <span class="muted small" style="font-weight:400">(${othersFull.length})</span></h2></div></div>
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th>User</th><th>Role</th><th>Plans</th><th>Systems</th><th></th></tr></thead>
+      <tbody>${othersFull.length ? othersFull.map(subRow).join('') : `<tr><td colspan="5"><div class="empty">No other users.</div></td></tr>`}</tbody></table></div>`;
   }
   if (tab === 'support') {
     const r = await API.adminListTickets(STATE.user);
@@ -6476,14 +6739,15 @@ async function adminTabHtml(tab) {
           : u.restrictedUntil && u.restrictedUntil > now() ? `<span class="status-pill status-pending" title="${esc(u.restrictReason || '')}">Restricted (${esc(timeoutText({ timeoutUntil: u.restrictedUntil }))})</span>`
           : u.unsubscribed ? '<span class="status-pill status-pending">Unsubscribed</span>'
           : '<span class="status-pill status-approved">Active</span>';
+        const hasPlan = (Number(u.protectionTier) || 0) > 0 || (Number(u.contractTier) || 0) > 0;
         const actions = isStaffUser
           ? `<span class="muted small">${ICON.shield} Protected — staff cannot be moderated</span>`
           : `<div class="row-actions">
               ${u.banned ? `<button class="btn btn-ghost btn-sm" onclick="onAdminUnban('${u.id}')">Unban</button>` : `<button class="btn btn-danger btn-sm" onclick="onAdminBan('${u.id}')">${ICON.ban} Ban</button>`}
               ${u.timeoutUntil && u.timeoutUntil > now() ? `<button class="btn btn-ghost btn-sm" onclick="onAdminClear('${u.id}')">Clear timeout</button>` : `<button class="btn btn-ghost btn-sm" onclick="onAdminTimeout('${u.id}')">${ICON.clock} Timeout</button>`}
               ${u.restrictedUntil && u.restrictedUntil > now() ? `<button class="btn btn-ghost btn-sm" onclick="onAdminRestrict('${u.id}', false)">Unrestrict</button>` : `<button class="btn btn-ghost btn-sm" onclick="onAdminRestrict('${u.id}', true)">${ICON.shield} Restrict</button>`}
-              <button class="btn btn-ghost btn-sm" title="Request to lift their subscription (needs Co-Founder / Founder approval)" onclick="onAdminSubRevoke('${u.id}')">Revoke sub…</button>
-              <button class="btn btn-ghost btn-sm" title="Email subscription" onclick="onAdminUnsub('${u.id}', ${u.unsubscribed ? 'false' : 'true'})">${u.unsubscribed ? 'Unsubscribed' : 'Unsubscribe'}</button>
+              ${hasPlan ? `<button class="btn btn-ghost btn-sm" title="Request to lift their Subscription + Contract (needs Co-Founder / Founder approval)" onclick="onAdminSubRevoke('${u.id}')">Revoke subscription</button>
+              <button class="btn btn-ghost btn-sm" title="Set their plan tiers to zero (immediate, no approval needed)" onclick="onAdminUnsubscribePlan('${u.id}')">Unsubscribe</button>` : ''}
             </div>`;
         const roleCell = isMe ? badgeHtml(u.role, u.tags) + ' <span class="muted small">(you)</span>'
           : !canManage ? badgeHtml(u.role, u.tags) + ' <span class="muted small">Protected</span>'
@@ -6872,11 +7136,29 @@ function onAdminRestrict(id, restricted) {
 }
 function onAdminSubRevoke(id) {
   promptModal({ title: 'Revoke subscription?', label: 'Reason', placeholder: 'e.g. Chargeback / abuse', required: true, danger: true, confirmLabel: 'Request revocation',
-    body: '<p>This <b>requests</b> lifting the user\'s Subscription and Contract tiers. It only takes effect after a <b>Co-Founder or Founder approves it</b> in the Security tab.</p>',
+    body: '<p>This <b>requests</b> lifting the user\'s Subscription and Contract tiers. It only takes effect after a <b>Co-Founder or Founder approves it</b> in the Registered tab.</p>',
     onConfirm: async ({ value }) => { const r = await API.adminRequestSubRevoke(STATE.user, id, value); r.ok ? (toast('Revocation requested — awaiting Co-Founder / Founder approval.'), router()) : toast(r.error, 'err'); } });
+}
+function onAdminUnsubscribePlan(id) {
+  promptModal({ title: 'Unsubscribe this user\'s plan?', label: 'Reason (internal note)', placeholder: 'e.g. Refund issued', danger: true, confirmLabel: 'Unsubscribe plan',
+    body: '<p>Sets the user\'s Subscription and Contract tiers to <b>zero immediately</b> — no approval needed. Their registered systems stop passing the license check. Founder / Co-Founder only.</p>',
+    onConfirm: async ({ value }) => { const r = await API.adminUnsubscribePlan(STATE.user, id, value); r.ok ? (toast('Plan unsubscribed — tiers set to zero.'), router()) : toast(r.error, 'err'); } });
 }
 function onAdminResolveSubRevoke(id, decision) {
   API.adminResolveSubRevoke(STATE.user, id, decision).then(r => r.ok ? (toast(decision === 'approved' ? 'Subscription revoked.' : 'Revocation rejected — tiers restored to the user.'), router()) : toast(r.error, 'err'));
+}
+async function onAdminSystemState(systemId, status) {
+  const r = await API.adminSetSystemState(STATE.user, systemId, { status });
+  r.ok ? (toast(status === 'disabled' ? 'System paused — every copy stops passing the license check.' : 'System resumed.'), await router()) : toast(r.error, 'err');
+}
+function onAdminSystemNote(systemId) {
+  promptModal({ title: 'Staff note for this system', label: 'Note (the owner sees it on their dashboard)', placeholder: 'e.g. Leak report under review — contact support', confirmLabel: 'Save note',
+    onConfirm: async ({ value }) => { const r = await API.adminSetSystemState(STATE.user, systemId, { staffNote: value }); r.ok ? (toast('Note saved — the owner will see it.'), await router()) : toast(r.error, 'err'); } });
+}
+function onAdminUnregisterSystem(systemId) {
+  modal({ title: 'Unregister this system?', danger: true, confirmLabel: 'Unregister',
+    body: '<p>Removes the system and its games/devices entirely — its Studio code stops working immediately. Use <b>Pause</b> if you may restore it later.</p>',
+    onConfirm: async () => { const r = await API.adminDeleteSystem(STATE.user, systemId); r.ok ? (toast('System unregistered.'), await router()) : toast(r.error, 'err'); } });
 }
 async function onAdminDisableAsset(id) {
   const r = await API.adminSetAssetStatus(STATE.user, id, 'disabled');

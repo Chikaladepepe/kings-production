@@ -666,8 +666,75 @@
       const r = requireAdmin(actor); if (r) return r;
       return ok(all('systems').sort((a, b) => b.createdAt - a.createdAt).map(s => {
         const o = dbUser(s.userId);
-        return { ...systemPublic(s), owner: o ? { handle: o.handle, displayName: o.displayName } : null, games: all('system_games').filter(g => g.systemId === s.id).length, devices: all('system_devices').filter(d => d.systemId === s.id).length };
+        const ownerTiers = o ? { protectionTier: Number(o.protectionTier) || 0, contractTier: Number(o.contractTier) || 0, restrictedUntil: o.restrictedUntil || null, restrictReason: o.restrictReason || null, banned: !!o.banned } : null;
+        return { ...systemPublic(s), owner: o ? { id: o.id, handle: o.handle, displayName: o.displayName, bio: o.bio || '', pfp: o.pfp || null, role: o.role, createdAt: o.createdAt, ...ownerTiers } : null, games: all('system_games').filter(g => g.systemId === s.id).length, devices: all('system_devices').filter(d => d.systemId === s.id).length };
       }));
+    }
+    /* Founder Panel → Registered: full detail on one system, including the
+       owner's profile + plans + revenue, plus staff actions (unregister,
+       restrict the system with a note the owner sees). */
+    async function adminSystemDetail(actor, systemId) {
+      const r = requireAdmin(actor); if (r) return r;
+      const s = byIdIn('systems', systemId);
+      if (!s) return fail('notfound', 'System not found.');
+      const o = dbUser(s.userId);
+      const ownerAssets = o ? all('assets').filter(x => x.ownerId === o.id) : [];
+      const ownerSales = ownerAssets.reduce((sum, x) => sum + (x.sales || 0), 0);
+      const ownerRevenue = all('purchases').filter(p => ownerAssets.some(x => x.id === p.assetId)).reduce((sum, p) => sum + (p.price || 0), 0);
+      return ok({
+        id: s.id, name: s.name, status: s.status, createdAt: s.createdAt, lastSeenAt: s.lastSeenAt,
+        owner: o ? { id: o.id, handle: o.handle, displayName: o.displayName, bio: o.bio || '', pfp: o.pfp || null, role: o.role, email: o.email, createdAt: o.createdAt, protectionTier: Number(o.protectionTier) || 0, contractTier: Number(o.contractTier) || 0, banned: !!o.banned, restrictedUntil: o.restrictedUntil || null, restrictReason: o.restrictReason || null } : null,
+        stats: { assets: ownerAssets.length, sales: ownerSales, revenue: ownerRevenue },
+        games: all('system_games').filter(g => g.systemId === s.id).sort((a, b) => b.lastSeenAt - a.lastSeenAt)
+          .map(g => ({ id: g.id, placeId: g.placeId, status: g.status, gameName: g.gameName || null, gameOwner: g.gameOwner || null, lastSeenAt: g.lastSeenAt })),
+        devices: all('system_devices').filter(d => d.systemId === s.id).length,
+      });
+    }
+    /* Staff control of one registered system: pause/unpause + a note the
+       owner sees on their dashboard. */
+    async function adminSetSystemState(actor, systemId, { status, staffNote } = {}) {
+      const r = requireAdmin(actor); if (r) return r;
+      const s = byIdIn('systems', systemId);
+      if (!s) return fail('notfound', 'System not found.');
+      if (status !== undefined) {
+        status = String(status || '');
+        if (!['active', 'disabled'].includes(status)) return fail('invalid', 'Invalid status.');
+        s.status = status;
+      }
+      s.staffNote = String(staffNote === undefined ? (s.staffNote || '') : staffNote).trim().slice(0, 300) || null;
+      s.updatedAt = now();
+      store.put('systems', s);
+      flush();
+      return ok(true);
+    }
+    /* Founder Panel → Registered: profile + plans + revenue + registered
+       systems for one subscriber. */
+    async function adminSubscriberDetail(actor, userId) {
+      const r = requireAdmin(actor); if (r) return r;
+      const u = dbUser(userId);
+      if (!u) return fail('notfound', 'User not found.');
+      const assets = all('assets').filter(x => x.ownerId === u.id);
+      const sales = assets.reduce((s, x) => s + (x.sales || 0), 0);
+      const revenue = all('purchases').filter(p => assets.some(x => x.id === p.assetId)).reduce((s, p) => s + (p.price || 0), 0);
+      const systems = all('systems').filter(s => s.userId === u.id).sort((a, b) => b.createdAt - a.createdAt)
+        .map(s => ({ id: s.id, name: s.name, status: s.status, createdAt: s.createdAt, lastSeenAt: s.lastSeenAt, staffNote: s.staffNote || null, games: all('system_games').filter(g => g.systemId === s.id).length, devices: all('system_devices').filter(d => d.systemId === s.id).length }));
+      return ok({
+        profile: { id: u.id, handle: u.handle, displayName: u.displayName, bio: u.bio || '', pfp: u.pfp || null, role: u.role, email: u.email, createdAt: u.createdAt, country: u.country || null, banned: !!u.banned, restrictedUntil: u.restrictedUntil || null, restrictReason: u.restrictReason || null },
+        protectionTier: Number(u.protectionTier) || 0, contractTier: Number(u.contractTier) || 0,
+        stats: { assets: assets.length, sales, revenue },
+        systems,
+      });
+    }
+    /* Staff unregister: removes a system and its games/devices entirely. */
+    async function adminDeleteSystem(actor, systemId) {
+      const r = requireAdmin(actor); if (r) return r;
+      const s = byIdIn('systems', systemId);
+      if (!s) return fail('notfound', 'System not found.');
+      store.del('systems', s.id);
+      all('system_games').filter(g => g.systemId === s.id).forEach(g => store.del('system_games', g.id));
+      all('system_devices').filter(d => d.systemId === s.id).forEach(d => store.del('system_devices', d.id));
+      flush();
+      return ok(true);
     }
     /* Staff file access — admins can fetch a copy of any asset's file. */
     async function adminTakeFile(actor, id) {
@@ -748,6 +815,20 @@
       req.resolvedBy = actor.id;
       req.resolvedAt = now();
       store.put('sub_revokes', req);
+      flush();
+      return ok(true);
+    }
+    /* Immediate unsubscribe: set the user's plan tiers to zero. Founder /       Co-Founder only — Admins should use "Revoke subscription" (approval flow). */
+    async function adminUnsubscribePlan(actor, targetId, reason) {
+      const r = requireAdmin(actor); if (r) return r;
+      if (effRank(actor) < roleRank('cofounder')) return fail('forbidden', 'Only the Co-Founder or Founder can unsubscribe a plan directly.');
+      const t = dbUser(targetId);
+      if (!t) return fail('notfound', 'User not found.');
+      if (!(Number(t.protectionTier) > 0) && !(Number(t.contractTier) > 0)) return fail('invalid', 'This user has no active subscription.');
+      t.protectionTier = 0;
+      t.contractTier = 0;
+      t.updatedAt = now();
+      store.put('users', t);
       flush();
       return ok(true);
     }
@@ -1325,7 +1406,11 @@
     }
     async function content() {
       const parseLinks = it => { try { const l = JSON.parse(it.links || '[]'); return Array.isArray(l) ? l : []; } catch (e) { return []; } };
-      const portfolio = all('portfolio').slice().sort((a, b) => ((b.featured ? 1 : 0) - (a.featured ? 1 : 0)) || ((b.createdAt || 0) - (a.createdAt || 0))).map(it => ({ ...it, links: parseLinks(it) }));
+      const portfolio = all('portfolio').slice().sort((a, b) => ((b.featured ? 1 : 0) - (a.featured ? 1 : 0)) || ((b.createdAt || 0) - (a.createdAt || 0))).map(it => {
+        let imgs = [];
+        try { imgs = JSON.parse(it.images || '[]'); if (!Array.isArray(imgs)) imgs = []; } catch (e) { imgs = []; }
+        return { ...it, images: imgs, links: parseLinks(it) };
+      });
       /* Creators are listed in publish order — new ones append after existing. */
       const creators = all('creators').slice().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).map(it => ({ ...it, links: parseLinks(it) }));
       return ok({ portfolio, creators });
@@ -1336,17 +1421,19 @@
       if (!Array.isArray(links)) return [];
       return links.map(l => ({ url: String((l && l.url) || '').trim() })).filter(l => /^https?:\/\//i.test(l.url)).slice(0, 12).map(l => ({ url: l.url.slice(0, 500) }));
     }
-    async function createPortfolio(actor, { title, category, desc, stat, status, imageUrl, links, featured } = {}) {
+    async function createPortfolio(actor, { title, category, desc, stat, status, imageUrl, images, links, featured } = {}) {
       const r = requireAdmin(actor); if (r) return r;
       title = String(title || '').trim();
       desc = String(desc || '').trim();
       if (title.length < 3 || title.length > 80) return fail('invalid', 'Project title must be 3–80 characters.');
       if (desc.length < 10) return fail('invalid', 'A description is required (at least 10 characters).');
       const img = normalizeImageUrl(imageUrl);
+      const imgs = (Array.isArray(images) ? images : [])
+        .map(x => normalizeImageUrl(x)).filter(Boolean).slice(0, 12);
       const item = {
         id: 'pp' + uid(), title, category: String(category || '').trim().slice(0, 40),
         desc, stat: String(stat || '').trim().slice(0, 60), status: String(status || 'Live').trim().slice(0, 24),
-        imageUrl: img, links: JSON.stringify(cleanPortfolioLinks(links)), featured: !!featured, createdAt: now(),
+        imageUrl: img, images: JSON.stringify(imgs), links: JSON.stringify(cleanPortfolioLinks(links)), featured: !!featured, createdAt: now(),
       };
       if (item.featured) all('portfolio').filter(x => x.featured && x.id !== item.id).forEach(x => { x.featured = false; store.put('portfolio', x); });
       store.put('portfolio', item);
@@ -1374,6 +1461,11 @@
         const img = normalizeImageUrl(patch.imageUrl);
         if (img === null && String(patch.imageUrl || '').trim()) return fail('invalid', 'Image link must be a valid http(s) URL.');
         it.imageUrl = img;
+      }
+      if (patch.images !== undefined) {
+        const imgs = (Array.isArray(patch.images) ? patch.images : [])
+          .map(x => normalizeImageUrl(x)).filter(x => !!x).slice(0, 12);
+        it.images = JSON.stringify(imgs);
       }
       if (patch.links !== undefined) it.links = JSON.stringify(cleanPortfolioLinks(patch.links));
       if (patch.featured !== undefined) {
@@ -1863,7 +1955,7 @@
       return all('systems').find(s => String(s.name || '').trim().toLowerCase() === String(name || '').trim().toLowerCase() && s.password === String(password || ''));
     }
     function systemPublic(s) {
-      return { id: s.id, name: s.name, status: s.status, createdAt: s.createdAt, lastSeenAt: s.lastSeenAt };
+      return { id: s.id, name: s.name, status: s.status, createdAt: s.createdAt, lastSeenAt: s.lastSeenAt, staffNote: s.staffNote || null };
     }
     function systemForOwner(s) {
       const devices = all('system_devices').filter(d => d.systemId === s.id).sort((a, b) => b.lastSeenAt - a.lastSeenAt)
@@ -1959,8 +2051,11 @@
       if (existing) {
         existing.lastSeenAt = now();
         if (meta) {
-          if (meta.gameName && !existing.gameName) existing.gameName = String(meta.gameName).slice(0, 80);
-          if (meta.gameOwner != null && (existing.gameOwner == null || existing.gameOwner === '')) existing.gameOwner = String(meta.gameOwner).slice(0, 80);
+          /* The Lua sends the live game's real name + creator on every
+             check-in — always refresh so old rows self-heal (e.g. rows that
+             stored the raw "Enum.CreatorType.Group 123" label). */
+          if (meta.gameName) existing.gameName = String(meta.gameName).slice(0, 80);
+          if (meta.gameOwner != null && meta.gameOwner !== '') existing.gameOwner = String(meta.gameOwner).slice(0, 80);
           if (meta.gameOwnerType && !existing.gameOwnerType) existing.gameOwnerType = String(meta.gameOwnerType).slice(0, 20);
         }
         store.put('system_games', existing);
@@ -2129,10 +2224,10 @@
       createTicket, addTicketMessage, getTicket, listMyTickets,
       adminListTickets, adminCloseTicket, adminDeleteTicket,
       listAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement,
-      registerSystem, listSystems, deleteSystem, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice, authorizeSystemDevice, setSystemGameStatus, removeSystemGame,
+      registerSystem, listSystems, deleteSystem, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice, authorizeSystemDevice, setSystemGameStatus, removeSystemGame, adminSystemDetail, adminSetSystemState, adminSubscriberDetail, adminDeleteSystem,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
       adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSessions, adminEmails, adminSendEmail, adminListBlasts, adminDeleteBlast, adminEmailHistory, adminListInbound, adminSetUnsubscribed, inboundMailEvent, processScheduledBlasts, adminOrders, adminCompleteOrder,
-      sellerOrders, setOrderApproval, adminTakeFile, adminSetAssetStatus, adminSetRestriction, adminRequestSubRevoke, adminResolveSubRevoke, adminListSubRevokes, adminSystems,
+      sellerOrders, setOrderApproval, adminTakeFile, adminSetAssetStatus, adminSetRestriction, adminRequestSubRevoke, adminResolveSubRevoke, adminListSubRevokes, adminUnsubscribePlan, adminSystems,
       setFx,
     };
   }
