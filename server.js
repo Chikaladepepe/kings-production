@@ -681,6 +681,8 @@ async function main() {
   /* ---- FAQ (public read, staff write) ---- */
   app.get('/api/faqs', h(async (req, res) => send(res, engine.getFaqs())));
   app.post('/api/admin/faqs', admin(async (u, req) => engine.saveFaqs(u, (req.body || {}).faqs)));
+  app.get('/api/legal/:key', h(async (req, res) => send(res, engine.getLegalDoc(String(req.params.key)))));
+  app.post('/api/admin/legal/:key', admin(async (u, req) => engine.saveLegalDoc(u, String(req.params.key), (req.body || {}).body)));
 
   /* ---- Founder grant: set plan tiers directly (Co-Founder / Founder only) ---- */
   app.post('/api/admin/users/:id/plan', admin(async (u, req) => engine.adminSetUserPlan(u, req.params.id, req.body || {})));
