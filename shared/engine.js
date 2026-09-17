@@ -259,7 +259,10 @@
     function summarize(a, viewerId) {
       const o = dbUser(a.ownerId);
       const rv = assetRating(a);
-      return { id: a.id, title: a.title, category: a.category, price: a.price, sales: a.sales, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, imageUrl: a.imageUrl, owner: o ? publicUser(o) : null, rating: rv ? rv.rating : null, ratingCount: rv ? rv.count : 0, likes: likeCount(a.id), liked: likedBy(a.id, viewerId) };
+      let images = [], paymentMethods = [];
+      try { images = a.images ? JSON.parse(a.images) : []; } catch (e) {}
+      try { paymentMethods = a.paymentMethods ? JSON.parse(a.paymentMethods) : []; } catch (e) {}
+      return { id: a.id, title: a.title, category: a.category, price: a.price, sales: a.sales, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, imageUrl: a.imageUrl, images, paymentMethods, owner: o ? publicUser(o) : null, rating: rv ? rv.rating : null, ratingCount: rv ? rv.count : 0, likes: likeCount(a.id), liked: likedBy(a.id, viewerId) };
     }
     function sendEmail(rec) {
       const row = { id: 'e' + uid(), to: rec.to, subject: rec.subject, action: rec.action, body: rec.body, link: rec.link || null, createdAt: now(), read: false };
@@ -538,7 +541,7 @@
       if (v.length > 2000) return null;
       return v;
     }
-    async function createAsset(user, { title, category, description, price, fileName, fileData, imageUrl } = {}) {
+    async function createAsset(user, { title, category, description, price, fileName, fileData, imageUrl, images, paymentMethods } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to post assets.');
       if (!canPost(u)) {
@@ -564,9 +567,13 @@
       if (!file && !fileName) return fail('invalid', 'A system file is required — attach the actual file buyers will receive (.lua, .rbxm, .rbxl, .zip…).');
       if (!img) return fail('invalid', 'An image link is required — staff compare the post picture with the file when verifying.');
       const founderLevel = effRank(u) >= roleRank('cofounder'); // Founder / Co-Founder posts skip the approval queue
+      const cleanImages = Array.isArray(images) ? images.map(x => normalizeImageUrl(x)).filter(Boolean).slice(0, 12) : [];
+      const allowedPm = ['stripe', 'paypal', 'gcash', 'kofi'];
+      const sellerPm = Array.isArray(paymentMethods) ? paymentMethods.filter(m => allowedPm.includes(m)).slice(0, 4) : [];
       const asset = {
         id: 'a' + uid(), ownerId: u.id, title, category, description, price,
         fileName: file ? file.name : fileName, fileMime: file ? file.mime : 'application/octet-stream', fileSize: file ? file.size : 0,
+        images: JSON.stringify(cleanImages), paymentMethods: JSON.stringify(sellerPm),
         imageUrl: img, status: founderLevel ? 'approved' : 'pending', rejectReason: null, sales: 0, createdAt: now(), updatedAt: now(), approvedAt: founderLevel ? now() : null,
       };
       if (file) {
@@ -606,7 +613,7 @@
       });
     }
 
-    async function updateAsset(user, id, { title, category, description, price, fileName, fileData, imageUrl } = {}) {
+    async function updateAsset(user, id, { title, category, description, price, fileName, fileData, imageUrl, images, paymentMethods } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       const a = byIdIn('assets', id);
@@ -635,8 +642,16 @@
       }
       if (imageUrl !== undefined) {
         const img = normalizeImageUrl(imageUrl);
-        if (img === null && String(imageUrl || '').trim()) return fail('invalid', 'Image link must be a valid http(s) URL.');
+ if (img === null && String(imageUrl || '').trim()) return fail('invalid', 'Image link must be a valid http(s) URL.');
         a.imageUrl = img;
+      }
+      if (images !== undefined) {
+        const list = Array.isArray(images) ? images.map(x => normalizeImageUrl(x)).filter(Boolean).slice(0, 12) : [];
+        a.images = JSON.stringify(list);
+      }
+      if (paymentMethods !== undefined) {
+        const allowedPm = ['stripe', 'paypal', 'gcash', 'kofi'];
+        a.paymentMethods = JSON.stringify(Array.isArray(paymentMethods) ? paymentMethods.filter(m => allowedPm.includes(m)).slice(0, 4) : []);
       }
       const file = normalizeFile(fileData, fileName);
       if (file) {

@@ -1680,7 +1680,10 @@ const API = {};
     function summarize(a, viewerId) {
       const o = dbUser(a.ownerId);
       const rv = assetRating(a);
-      return { id: a.id, title: a.title, category: a.category, price: a.price, sales: a.sales, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, imageUrl: a.imageUrl, owner: o ? publicUser(o) : null, rating: rv ? rv.rating : null, ratingCount: rv ? rv.count : 0, likes: likeCount(a.id), liked: likedBy(a.id, viewerId) };
+      let images = [], paymentMethods = [];
+      try { images = a.images ? JSON.parse(a.images) : []; } catch (e) {}
+      try { paymentMethods = a.paymentMethods ? JSON.parse(a.paymentMethods) : []; } catch (e) {}
+      return { id: a.id, title: a.title, category: a.category, price: a.price, sales: a.sales, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, imageUrl: a.imageUrl, images, paymentMethods, owner: o ? publicUser(o) : null, rating: rv ? rv.rating : null, ratingCount: rv ? rv.count : 0, likes: likeCount(a.id), liked: likedBy(a.id, viewerId) };
     }
     function sendEmail(rec) {
       const row = { id: 'e' + uid(), to: rec.to, subject: rec.subject, action: rec.action, body: rec.body, link: rec.link || null, createdAt: now(), read: false };
@@ -1959,7 +1962,7 @@ const API = {};
       if (v.length > 2000) return null;
       return v;
     }
-    async function createAsset(user, { title, category, description, price, fileName, fileData, imageUrl } = {}) {
+    async function createAsset(user, { title, category, description, price, fileName, fileData, imageUrl, images, paymentMethods } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to post assets.');
       if (!canPost(u)) {
@@ -1985,9 +1988,13 @@ const API = {};
       if (!file && !fileName) return fail('invalid', 'A system file is required — attach the actual file buyers will receive (.lua, .rbxm, .rbxl, .zip…).');
       if (!img) return fail('invalid', 'An image link is required — staff compare the post picture with the file when verifying.');
       const founderLevel = effRank(u) >= roleRank('cofounder'); // Founder / Co-Founder posts skip the approval queue
+      const cleanImages = Array.isArray(images) ? images.map(x => normalizeImageUrl(x)).filter(Boolean).slice(0, 12) : [];
+      const allowedPm = ['stripe', 'paypal', 'gcash', 'kofi'];
+      const sellerPm = Array.isArray(paymentMethods) ? paymentMethods.filter(m => allowedPm.includes(m)).slice(0, 4) : [];
       const asset = {
         id: 'a' + uid(), ownerId: u.id, title, category, description, price,
         fileName: file ? file.name : fileName, fileMime: file ? file.mime : 'application/octet-stream', fileSize: file ? file.size : 0,
+        images: JSON.stringify(cleanImages), paymentMethods: JSON.stringify(sellerPm),
         imageUrl: img, status: founderLevel ? 'approved' : 'pending', rejectReason: null, sales: 0, createdAt: now(), updatedAt: now(), approvedAt: founderLevel ? now() : null,
       };
       if (file) {
@@ -2027,7 +2034,7 @@ const API = {};
       });
     }
 
-    async function updateAsset(user, id, { title, category, description, price, fileName, fileData, imageUrl } = {}) {
+    async function updateAsset(user, id, { title, category, description, price, fileName, fileData, imageUrl, images, paymentMethods } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       const a = byIdIn('assets', id);
@@ -2056,8 +2063,16 @@ const API = {};
       }
       if (imageUrl !== undefined) {
         const img = normalizeImageUrl(imageUrl);
-        if (img === null && String(imageUrl || '').trim()) return fail('invalid', 'Image link must be a valid http(s) URL.');
+ if (img === null && String(imageUrl || '').trim()) return fail('invalid', 'Image link must be a valid http(s) URL.');
         a.imageUrl = img;
+      }
+      if (images !== undefined) {
+        const list = Array.isArray(images) ? images.map(x => normalizeImageUrl(x)).filter(Boolean).slice(0, 12) : [];
+        a.images = JSON.stringify(list);
+      }
+      if (paymentMethods !== undefined) {
+        const allowedPm = ['stripe', 'paypal', 'gcash', 'kofi'];
+        a.paymentMethods = JSON.stringify(Array.isArray(paymentMethods) ? paymentMethods.filter(m => allowedPm.includes(m)).slice(0, 4) : []);
       }
       const file = normalizeFile(fileData, fileName);
       if (file) {
@@ -4765,11 +4780,24 @@ async function openCheckout(assetId, plan) {
   const isAsset = !!assetId && !plan;
   const isVip = plan === 'vip';
   const isSub = plan && plan.startsWith('sub:');
+  /* For a post, honor the seller's accepted payment methods (empty = all). */
+  let sellerMethods = null;
+  if (isAsset) {
+    const ar = await API.getAsset(assetId, STATE.user && STATE.user.id);
+    if (ar.ok && ar.data && Array.isArray(ar.data.paymentMethods) && ar.data.paymentMethods.length) {
+      const map = { gcash: 'gcash_manual', kofi: 'kofi_manual', paypal: 'paypal', stripe: 'stripe' };
+      sellerMethods = ar.data.paymentMethods.map(m => map[m] || m);
+    }
+  }
   const subCategory = isSub ? plan.split(':')[1] : null;
   const subTier = isSub ? Number(plan.split(':')[2]) : null;
   const pm = await API.paymentMethods();
-  const data = pm.ok && pm.data ? pm.data : { dev: true, methods: [{ id: 'stripe', label: 'Stripe', enabled: true }, { id: 'paypal', label: 'PayPal', enabled: true }, { id: 'gcash', label: 'GCash', enabled: true }] };
-  const methods = data.methods || [];
+  let data = pm.ok && pm.data ? pm.data : { dev: true, methods: [] };
+  let methods = data.methods || [];
+  if (sellerMethods) {
+    methods = methods.filter(m => sellerMethods.includes(m.id));
+    if (!methods.length) methods = [{ id: 'gcash_manual', label: 'GCash · manual (QR)', enabled: true, manual: true }];
+  }
   const pmIcon = id => id.startsWith('stripe') ? 'S' : id.startsWith('paypal') ? 'P' : id.startsWith('gcash') ? 'G' : 'K';
   const cards = methods.map(m => `<button class="pm-card" type="button" data-method="${m.id}">
       <span class="pm-icon">${pmIcon(m.id)}</span>
@@ -4974,9 +5002,12 @@ VIEWS.asset = async ({ params }) => {
         <div class="asset-meta"><span class="price" style="font-size:22px">${fmtMoney(a.price)}</span><span class="muted small">· posted ${fmtDate(a.createdAt)}</span></div>
         <div class="row" style="gap:12px;margin-top:10px"><button class="like-btn lg ${a.liked ? 'on' : ''}" title="Like this asset" onclick="onLike(event,'${a.id}',this)">${ICON.heart}<span>${a.likes || 0}</span></button><span class="muted small" style="align-self:center">${a.likes || 0} like${a.likes === 1 ? '' : 's'} — the more likes and higher ratings, the higher it ranks.</span></div>
         <div class="asset-desc">${esc(a.description)}</div>
+        ${a.paymentMethods && a.paymentMethods.length ? `<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:12px"><span class="muted small" style="align-self:center">${ICON.check} The seller accepts:</span>${a.paymentMethods.map(m => `<span class="chip" style="cursor:default">${({ gcash: 'GCash', kofi: 'Ko-fi', paypal: 'PayPal', stripe: 'Stripe' })[m] || esc(m)}</span>`).join('')}</div>` : ''}
         <div class="buy-box">${buyHtml || `<span class="muted small">This asset is not for sale yet.</span>`}</div>
       </div>
     </div>
+    ${(a.images && a.images.length) ? `<div class="section-head" style="margin-top:34px"><div><h2 style="font-size:19px">Photos</h2><p>Click any photo to view it full-size.</p></div></div>
+    <div class="row" style="gap:10px;flex-wrap:wrap">${a.images.map(u => `<a href="${esc(proxiedImageUrl(u))}" target="_blank" rel="noopener"><img src="${esc(proxiedImageUrl(u))}" alt="" loading="lazy" style="width:170px;aspect-ratio:16/9;object-fit:cover;border-radius:10px;border:1px solid var(--border)" onerror="this.parentElement.remove()"></a>`).join('')}</div>` : ''}
     <div class="poster-row">
       ${avatarHtml(a.owner, 44)}
       <div style="flex:1"><div class="row" style="gap:8px"><a href="#/profile/${esc(a.owner.handle)}" class="bold">${esc(a.owner.displayName)}</a>${badgeHtml(a.owner.role, a.owner.tags)}</div><div class="muted small">Creator · joined ${fmtDate(a.owner.createdAt)}</div></div>
@@ -5507,13 +5538,15 @@ VIEWS.upload = async ({ query }) => {
     if (!r.ok) return `<div class="page">${emptyHtml('Asset not found', r.error)}</div>`;
     if (!r.data.isOwner) return `<div class="page">${emptyHtml('Not your asset', 'Only the creator can edit this asset.')}</div>`;
     a = r.data;
+    STATE._uploadAsset = a;
   } else {
+    STATE._uploadAsset = null;
     const ps = await API.postStatus(STATE.user);
     cooldown = ps.ok && ps.data && !ps.data.allowed && ps.data.reason === 'cooldown' ? ps.data : null;
   }
   return `<div class="page page-narrow">
     ${cooldown ? `<div class="cooldown-banner"><span class="crown">${ICON.clock}</span><div><b>Posting cooldown active</b><br><span class="muted small">You can post again in <b style="color:var(--gold)">${esc(cooldown.text)}</b> — this keeps the marketplace fresh and spam-free. You can still edit your existing posts.</span></div></div>` : ''}
-    <div class="section-head"><div><span class="section-eyebrow">${a ? 'Edit' : 'Sell'}</span><h2>${a ? 'Edit asset' : 'Upload a new asset'}</h2><p>${a ? 'Changes send the asset back into the pending approval queue.' : cooldown ? 'Your next post unlocks when the cooldown ends.' : 'Licensed sellers can post one new asset every 24 hours. Submissions are reviewed by an admin before going live.'}</p></div></div>
+    <div class="section-head"><div><span class="section-eyebrow">${a ? 'Edit' : 'Sell'}</span><h2>${a ? 'Edit asset' : 'Upload a new asset'}</h2><p>${a ? 'Changes stay live instantly for Founder / Co-Founder posts; other sellers return to the approval queue.' : cooldown ? 'Your next post unlocks when the cooldown ends.' : (STATE.user && effRank(STATE.user) >= roleRank('cofounder')) ? 'Your posts go live instantly — no approval wait.' : 'Licensed sellers can post one new asset every 24 hours. Submissions are reviewed by an admin before going live.'}</p></div></div>
     <div class="card card-pad">
       <form onsubmit="onSubmitAsset(event)">
         <input type="hidden" name="id" value="${a ? a.id : ''}">
@@ -5526,6 +5559,16 @@ VIEWS.upload = async ({ query }) => {
         <div class="field"><label>Image link<span class="req">*</span></label>
           <input class="input" name="imageUrl" type="url" placeholder="https://i.imgur.com/…" value="${esc(a ? (a.imageUrl || '') : '')}" ${a ? '' : 'required'}>
           <div class="hint">Paste a direct image URL for your asset's cover — no file upload needed, so nothing gets stored.</div>
+        </div>
+        <div class="field"><label>Additional photos <span class="muted small" style="font-weight:400">— buyers browse these on the post (up to 12)</span></label>
+          <div id="up-imgs" style="display:flex;flex-direction:column;gap:8px"></div>
+          <button class="btn btn-ghost btn-sm" type="button" id="up-add-img" style="margin-top:8px">${ICON.plus} Add photo</button>
+        </div>
+        <div class="field"><label>Accepted payment methods <span class="muted small" style="font-weight:400">— buyers pick from these on your post (leave empty for all staff methods)</span></label>
+          <div class="row" style="gap:8px;flex-wrap:wrap">
+            ${[['gcash', 'GCash (QR / manual)'], ['kofi', 'Ko-fi (manual)'], ['paypal', 'PayPal'], ['stripe', 'Stripe']].map(([v, l]) => `<label class="chip" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;padding:7px 12px"><input type="checkbox" name="pm" value="${v}" style="accent-color:var(--gold)"> ${l}</label>`).join('')}
+          </div>
+          <div class="hint">For manual methods (GCash QR, Ko-fi) buyers pay you directly and staff verify the proof — automatic ones need API keys.</div>
         </div>
         <div class="field"><label>System file<span class="req">*</span></label>
           <input class="input" type="file" name="file" accept=".rbxl,.rbxm,.rbxmx,.lua,.luau,.zip,.txt" ${a ? '' : 'required'}>
@@ -5544,18 +5587,20 @@ async function onSubmitAsset(e) {
   const file = fileInput.files && fileInput.files[0];
   if (file && file.size > 20 * 1024 * 1024) { toast('File is too large (max 20 MB).', 'err'); return; }
   if (!file && !f.id.value) { toast('A system file is required.', 'err'); return; }
+  const images = [...f.querySelectorAll('#up-imgs input')].map(i => i.value.trim()).filter(Boolean);
+  const paymentMethods = [...f.querySelectorAll('input[name=pm]:checked')].map(c => c.value);
   const btn = f.querySelector('button[type=submit]');
   const origLabel = btn.textContent;
   btn.disabled = true; btn.textContent = 'Submitting…';
   try {
     let fileData = null, fileName = null;
     if (file) { fileData = await readFileAsDataURL(file); fileName = file.name; }
-    const payload = { title: f.title.value, category: f.category.value, description: f.description.value, price: f.price.value, imageUrl: f.imageUrl.value.trim(), fileName, fileData };
+    const payload = { title: f.title.value, category: f.category.value, description: f.description.value, price: f.price.value, imageUrl: f.imageUrl.value.trim(), images, paymentMethods, fileName, fileData };
     const res = f.id.value
       ? await API.updateAsset(STATE.user, f.id.value, payload)
       : await API.createAsset(STATE.user, payload);
     if (!res.ok) { toast(res.error, 'err'); return; }
-    toast(f.id.value ? 'Changes submitted — back in the approval queue.' : 'Asset submitted for admin approval.');
+    toast(f.id.value ? 'Changes saved.' : (res.data && res.data.status === 'approved') ? 'Posted! It is live in the shop.' : 'Asset submitted for admin approval.');
     go('/my-assets');
   } catch (err) {
     console.error(err);
@@ -5565,6 +5610,25 @@ async function onSubmitAsset(e) {
     btn.textContent = origLabel;
   }
 }
+/* One extra-photo row in the upload form. */
+function addUploadImageRow(url = '') {
+  const host = document.getElementById('up-imgs');
+  if (!host) return;
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:8px;align-items:center';
+  row.innerHTML = `<input class="input" type="url" placeholder="https://i.imgur.com/…" value="${url}" style="flex:1"><button class="btn btn-ghost btn-sm" type="button" title="Remove">${ICON.close}</button>`;
+  row.querySelector('button').onclick = () => row.remove();
+  host.appendChild(row);
+}
+function initUploadExtras(asset) {
+  (asset && asset.images ? asset.images : []).forEach(u => addUploadImageRow(u));
+  const addBtn = document.getElementById('up-add-img');
+  if (addBtn) addBtn.onclick = () => addUploadImageRow();
+  if (asset && Array.isArray(asset.paymentMethods)) {
+    document.querySelectorAll('input[name=pm]').forEach(c => { c.checked = asset.paymentMethods.includes(c.value); });
+  }
+}
+VIEWS_BIND.upload = () => { initUploadExtras(STATE._uploadAsset || null); };
 
 /* ---- my assets ---- */
 VIEWS['my-assets'] = async () => {

@@ -27,7 +27,7 @@ const fs = require('node:fs');
 const SCHEMA = {
   users: ['id', 'handle', 'email', 'displayName', 'passHash', 'bio', 'pfp', 'role', 'banned', 'banReason', 'timeoutUntil', 'restrictedUntil', 'restrictReason', 'totpSecret', 'totpEnabled', 'country', 'tags', 'googleId', 'acceptedTermsAt', 'emailVerified', 'unsubscribed', 'needsPasswordSetup', 'protectionTier', 'contractTier', 'createdAt', 'updatedAt'],
   sessions: ['id', 'userId', 'label', 'createdAt', 'lastSeen', 'expiresAt'],
-  assets: ['id', 'ownerId', 'title', 'category', 'description', 'price', 'fileName', 'fileMime', 'fileSize', 'imageUrl', 'status', 'rejectReason', 'sales', 'createdAt', 'updatedAt', 'approvedAt'],
+  assets: ['id', 'ownerId', 'title', 'category', 'description', 'price', 'fileName', 'fileMime', 'fileSize', 'imageUrl', 'images', 'paymentMethods', 'status', 'rejectReason', 'sales', 'createdAt', 'updatedAt', 'approvedAt'],
   purchases: ['id', 'assetId', 'buyerId', 'price', 'licenseKey', 'gameId', 'gameName', 'status', 'activatedAt', 'deviceId', 'deviceName', 'lastSeen', 'createdAt'],
   comments: ['id', 'assetId', 'userId', 'body', 'rating', 'createdAt'],
   likes: ['id', 'assetId', 'userId', 'createdAt'],
@@ -258,6 +258,8 @@ const MIGRATIONS = [
   "ALTER TABLE orders ADD COLUMN approval TEXT",
   "ALTER TABLE orders ADD COLUMN approvalNote TEXT",
   "ALTER TABLE creators ADD COLUMN imageUrl TEXT",
+  "ALTER TABLE assets ADD COLUMN images TEXT",
+  "ALTER TABLE assets ADD COLUMN paymentMethods TEXT",
   "ALTER TABLE creators ADD COLUMN docs TEXT",
   "ALTER TABLE users ADD COLUMN needsPasswordSetup INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE portfolio ADD COLUMN images TEXT",
