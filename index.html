@@ -1980,7 +1980,10 @@ const API = {};
       const img = normalizeImageUrl(imageUrl);
       if (img === null && String(imageUrl || '').trim()) return fail('invalid', 'Image link must be a valid http(s) URL.');
       const file = normalizeFile(fileData, fileName);
-      if (!img && !fileName && !file) return fail('invalid', 'Please add an image link (or upload the asset file).');
+      /* The deliverable file is mandatory — staff verify it against the
+         seller's registered system before approving the post. */
+      if (!file && !fileName) return fail('invalid', 'A system file is required — attach the actual file buyers will receive (.lua, .rbxm, .rbxl, .zip…).');
+      if (!img) return fail('invalid', 'An image link is required — staff compare the post picture with the file when verifying.');
       const founderLevel = effRank(u) >= roleRank('cofounder'); // Founder / Co-Founder posts skip the approval queue
       const asset = {
         id: 'a' + uid(), ownerId: u.id, title, category, description, price,
@@ -2351,7 +2354,69 @@ const API = {};
     }
 
     /* ---- payment orders (Stripe · PayPal · GCash) ---- */
-    const PAY_METHODS = ['stripe', 'paypal', 'gcash'];
+    const PAY_METHODS = ['stripe', 'paypal', 'gcash', 'stripe_manual', 'paypal_manual', 'gcash_manual', 'kofi_manual'];
+    const MANUAL_METHODS = ['stripe_manual', 'paypal_manual', 'gcash_manual', 'kofi_manual'];
+    const methodLabel = m => ({ stripe: 'Stripe (automatic)', paypal: 'PayPal (automatic)', gcash: 'GCash (automatic)', stripe_manual: 'Stripe (manual)', paypal_manual: 'PayPal (manual)', gcash_manual: 'GCash (manual)', kofi_manual: 'Ko-fi (manual)' })[m] || m;
+    /* Manual-payment proof storage + staff verification queue. */
+    async function submitPaymentProof(user, orderId, payload = {}) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const order = byIdIn('orders', orderId);
+      if (!order || order.buyerId !== u.id) return fail('forbidden', 'Order not found.');
+      if (!MANUAL_METHODS.includes(order.method)) return fail('invalid', 'This order is not a manual payment.');
+      if (order.status === 'completed') return fail('invalid', 'This order is already completed.');
+      const reference = String(payload.reference || '').trim().slice(0, 80);
+      if (!reference) return fail('invalid', 'A payment reference number is required.');
+      order.proof = JSON.stringify({
+        reference,
+        proofUrl: String(payload.proofUrl || '').trim().slice(0, 300) || null,
+        note: String(payload.note || '').trim().slice(0, 400) || null,
+        submittedAt: now(),
+      });
+      order.status = 'pending_verification';
+      order.updatedAt = now();
+      store.put('orders', order);
+      flush();
+      return ok(true);
+    }
+    async function adminReviewManualOrder(actor, orderId, decision, note) {
+      const r = requireAdmin(actor); if (r) return r;
+      const order = byIdIn('orders', orderId);
+      if (!order) return fail('notfound', 'Order not found.');
+      if (order.status !== 'pending_verification') return fail('invalid', 'This order has no payment proof to review.');
+      decision = String(decision || '');
+      if (!['approve', 'reject'].includes(decision)) return fail('invalid', 'Invalid decision.');
+      if (decision === 'approve') return finalizeOrder(order, dbUser(order.buyerId));
+      order.status = 'awaiting_proof';
+      order.proofAttempts = (Number(order.proofAttempts) || 0) + 1;
+      order.proofRejectedNote = String(note || '').trim().slice(0, 300) || null;
+      order.updatedAt = now();
+      store.put('orders', order);
+      flush();
+      return ok(true);
+    }
+    /* Payment configuration (QR codes, account details, per-method instructions),
+       edited by Co-Founder/Founder from the panel. */
+    async function getPaymentConfig() {
+      const row = byIdIn('site_settings', 'payment_config');
+      const empty = { gcashQrUrl: '', gcashDetails: '', gcashInstructions: '', kofiUrl: '', kofiInstructions: '', paypalAccount: '', paypalInstructions: '', stripeInstructions: '' };
+      if (!row) return ok(empty);
+      try { return ok({ ...empty, ...JSON.parse(row.value) }); } catch (e) { return ok(empty); }
+    }
+    async function adminSetPaymentConfig(actor, cfg = {}) {
+      const r = requireCofounder(actor, 'edit payment settings'); if (r) return r;
+      const cur = (await getPaymentConfig()).data || {};
+      const keys = ['gcashQrUrl', 'gcashDetails', 'gcashInstructions', 'kofiUrl', 'kofiInstructions', 'paypalAccount', 'paypalInstructions', 'stripeInstructions'];
+      const clean = {};
+      keys.forEach(k => {
+        clean[k] = cfg[k] !== undefined ? String(cfg[k] || '').trim().slice(0, 4000) : (cur[k] || '');
+      });
+      const img = normalizeImageUrl(clean.gcashQrUrl);
+      clean.gcashQrUrl = img || '';
+      store.put('site_settings', { id: 'payment_config', value: JSON.stringify(clean), updatedAt: now() });
+      flush();
+      return ok(clean);
+    }
     /* The Licensed plan is sold directly for 500 PHP (base) — converting
        to the buyer's local currency the same way asset prices convert. */
     const VIP_PLAN_PRICE_PHP = 500;
@@ -2361,7 +2426,7 @@ const API = {};
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       method = String(method || '').toLowerCase();
-      if (!PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, or GCash.');
+      if (!PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, GCash, or Ko-fi.');
       if (isTimedOut(u)) return fail('timeout', 'You are currently timed out and cannot make purchases.');
       if (isBanned(u)) return fail('banned', 'Your account is banned.');
       if (effRank(u) >= roleRank('vip')) return fail('owned', 'Your account is already Licensed — no need to buy it again.');
@@ -2369,7 +2434,7 @@ const API = {};
         return fail('pending', 'You already have a pending Licensed order.');
       const currency = currencyOf(u.country);
       const amount = convertFromPhp(VIP_PLAN_PRICE_PHP, u.country);
-      const order = { id: 'o' + uid(), buyerId: u.id, assetId: 'vip', method, amount, currency, status: 'created', providerRef: null, licenseKey: null, createdAt: now(), paidAt: null, updatedAt: now() };
+      const order = { id: 'o' + uid(), buyerId: u.id, assetId: 'vip', method, amount, currency, status: MANUAL_METHODS.includes(method) ? 'awaiting_proof' : 'created', providerRef: null, licenseKey: null, createdAt: now(), paidAt: null, updatedAt: now() };
       store.put('orders', order);
       flush();
       return ok({ orderId: order.id, amount: order.amount, currency: order.currency });
@@ -2385,7 +2450,7 @@ const API = {};
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       method = String(method || '').toLowerCase();
-      if (!PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, or GCash.');
+      if (!PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, GCash, or Ko-fi.');
       if (!SUB_PLANS[category]) return fail('invalid', 'Unknown plan category.');
       tier = Number(tier);
       if (![1, 2, 3].includes(tier)) return fail('invalid', 'Choose a valid plan tier.');
@@ -2397,7 +2462,7 @@ const API = {};
         return fail('pending', 'You already have a pending order for this plan.');
       const currency = currencyOf(u.country);
       const amount = convertFromPhp(SUB_PLANS[category][tier - 1].php, u.country);
-      const order = { id: 'o' + uid(), buyerId: u.id, assetId: 'sub:' + category + ':' + tier, method, amount, currency, status: 'created', providerRef: null, licenseKey: null, createdAt: now(), paidAt: null, updatedAt: now() };
+      const order = { id: 'o' + uid(), buyerId: u.id, assetId: 'sub:' + category + ':' + tier, method, amount, currency, status: MANUAL_METHODS.includes(method) ? 'awaiting_proof' : 'created', providerRef: null, licenseKey: null, createdAt: now(), paidAt: null, updatedAt: now() };
       store.put('orders', order);
       flush();
       return ok({ orderId: order.id, amount: order.amount, currency: order.currency });
@@ -2409,7 +2474,7 @@ const API = {};
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       method = String(method || '').toLowerCase();
-      if (!PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, or GCash.');
+      if (!PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, GCash, or Ko-fi.');
       const a = byIdIn('assets', assetId);
       if (isRestricted(u)) return fail('restricted', 'Your account is restricted — you cannot make purchases right now. You may appeal or wait out the restriction.');
       if (!a) return fail('notfound', 'Asset not found.');
@@ -2429,7 +2494,7 @@ const API = {};
         gameOwner: String(gd.gameOwner || '').trim().slice(0, 80) || null,
         notes: String(gd.notes || '').trim().slice(0, 400) || null,
       };
-      const order = { id: 'o' + uid(), buyerId: u.id, assetId: a.id, method, amount, currency, status: 'created', providerRef: null, licenseKey: null, gameDetails: JSON.stringify(details), sellerId: a.ownerId, approval: 'pending', createdAt: now(), paidAt: null, updatedAt: now() };
+      const order = { id: 'o' + uid(), buyerId: u.id, assetId: a.id, method, amount, currency, status: MANUAL_METHODS.includes(method) ? 'awaiting_proof' : 'created', providerRef: null, licenseKey: null, gameDetails: JSON.stringify(details), sellerId: a.ownerId, approval: 'pending', createdAt: now(), paidAt: null, updatedAt: now() };
       store.put('orders', order);
       flush();
       return ok({ orderId: order.id, amount: order.amount, currency: order.currency });
@@ -2556,7 +2621,11 @@ const API = {};
     async function myOrders(user) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
-      return ok(all('orders').filter(o => o.buyerId === u.id).sort((x, y) => y.createdAt - x.createdAt).map(o => ({ ...o, vip: isVipOrder(o), sub: isSubOrder(o) ? { category: String(o.assetId).split(':')[1], tier: Number(String(o.assetId).split(':')[2]) } : null, asset: (isVipOrder(o) || isSubOrder(o)) ? null : summarize(byIdIn('assets', o.assetId)) })));
+      return ok(all('orders').filter(o => o.buyerId === u.id).sort((x, y) => y.createdAt - x.createdAt).map(o => {
+        let proof = null;
+        try { proof = o.proof ? JSON.parse(o.proof) : null; } catch (e) {}
+        return { ...o, proof, manual: MANUAL_METHODS.includes(o.method), vip: isVipOrder(o), sub: isSubOrder(o) ? { category: String(o.assetId).split(':')[1], tier: Number(String(o.assetId).split(':')[2]) } : null, asset: (isVipOrder(o) || isSubOrder(o)) ? null : summarize(byIdIn('assets', o.assetId)) };
+      }));
     }
     async function adminOrders(actor) {
       const r = requireAdmin(actor); if (r) return r;
@@ -3817,7 +3886,7 @@ const API = {};
       verifyEmail, resendVerification,
       updateProfile, setup2fa, enable2fa, disable2fa,
       createAsset, postStatus, listApproved, topSelling, getAsset, updateAsset, deleteAsset, myAssets, download,
-      purchase, myPurchases, assignLicense, createOrder, createVipOrder, createSubscriptionOrder, completeOrder, settleOrder, cancelOrder, myOrders, adminOrders, adminCompleteOrder,
+      purchase, myPurchases, assignLicense, createOrder, createVipOrder, createSubscriptionOrder, completeOrder, settleOrder, cancelOrder, myOrders, adminOrders, adminCompleteOrder, submitPaymentProof, adminReviewManualOrder, getPaymentConfig, adminSetPaymentConfig,
       addComment, listComments, toggleLike,
       listReviews, addReview, deleteReview,
       createReport, adminReports, adminResolveReport,
@@ -3987,8 +4056,20 @@ API.download = (id, user) => _wrap(async () => {
 /* ---- purchases & licenses ---- */
 API.purchase = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.purchase(user, id) : await _call('POST', '/api/assets/' + _e(id) + '/purchase'));
 API.paymentMethods = () => _wrap(async () => _mode === 'local'
-  ? { ok: true, data: { dev: true, currency: 'PHP', methods: [{ id: 'stripe', label: 'Stripe', enabled: true }, { id: 'paypal', label: 'PayPal', enabled: true }, { id: 'gcash', label: 'GCash', enabled: true }] } }
+  ? { ok: true, data: { dev: true, currency: 'PHP', methods: [
+      { id: 'stripe', label: 'Stripe · automatic', enabled: true, auto: true },
+      { id: 'paypal', label: 'PayPal · automatic', enabled: true, auto: true },
+      { id: 'gcash', label: 'GCash · automatic', enabled: true, auto: true },
+      { id: 'stripe_manual', label: 'Stripe · manual', enabled: true, manual: true },
+      { id: 'paypal_manual', label: 'PayPal · manual', enabled: true, manual: true },
+      { id: 'gcash_manual', label: 'GCash · manual (QR)', enabled: true, manual: true },
+      { id: 'kofi_manual', label: 'Ko-fi · manual', enabled: true, manual: true },
+    ] } }
   : await _call('GET', '/api/payment/methods'));
+API.getPaymentConfig = () => _wrap(async () => _mode === 'local' ? await _engine.getPaymentConfig() : await _call('GET', '/api/admin/payment-config'));
+API.setPaymentConfig = (user, cfg) => _wrap(async () => _mode === 'local' ? await _engine.adminSetPaymentConfig(user, cfg) : await _call('POST', '/api/admin/payment-config', cfg));
+API.submitPaymentProof = (user, orderId, proof) => _wrap(async () => _mode === 'local' ? await _engine.submitPaymentProof(user, orderId, proof) : await _call('POST', '/api/orders/' + orderId + '/proof', proof));
+API.adminReviewOrder = (user, orderId, decision, note) => _wrap(async () => _mode === 'local' ? await _engine.adminReviewManualOrder(user, orderId, decision, note) : await _call('POST', '/api/admin/orders/' + orderId + '/review', { decision, note }));
 API.checkout = (user, assetId, method, plan, gameDetails) => _wrap(async () => _mode === 'local'
   ? await (async () => {
       const isVip = plan === 'vip';
@@ -4689,9 +4770,10 @@ async function openCheckout(assetId, plan) {
   const pm = await API.paymentMethods();
   const data = pm.ok && pm.data ? pm.data : { dev: true, methods: [{ id: 'stripe', label: 'Stripe', enabled: true }, { id: 'paypal', label: 'PayPal', enabled: true }, { id: 'gcash', label: 'GCash', enabled: true }] };
   const methods = data.methods || [];
+  const pmIcon = id => id.startsWith('stripe') ? 'S' : id.startsWith('paypal') ? 'P' : id.startsWith('gcash') ? 'G' : 'K';
   const cards = methods.map(m => `<button class="pm-card" type="button" data-method="${m.id}">
-      <span class="pm-icon">${m.id === 'stripe' ? 'S' : m.id === 'paypal' ? 'P' : 'G'}</span>
-      <span><b>${esc(m.label)}</b><small>${m.enabled ? 'Online payment · card / wallet' : 'Not configured yet'}</small></span>
+      <span class="pm-icon">${pmIcon(m.id)}</span>
+      <span><b>${esc(m.label)}</b><small>${m.manual ? 'Pay manually · submit proof · staff verifies' : m.enabled ? 'Online payment · card / wallet' : 'Not configured yet'}</small></span>
     </button>`).join('');
   let body = '';
   let title = 'Checkout';
@@ -4735,11 +4817,12 @@ async function openCheckout(assetId, plan) {
   ov.querySelectorAll('.pm-card').forEach(c => c.addEventListener('click', async () => {
     const entry = methods.find(m => m.id === c.dataset.method);
     if (!entry || !entry.enabled) { toast('This payment method is not configured yet.', 'err'); return; }
-    ov.remove();
     const gameDetails = isAsset ? { gameName: document.getElementById('gd-name') && document.getElementById('gd-name').value, placeId: document.getElementById('gd-place') && document.getElementById('gd-place').value, gameOwner: document.getElementById('gd-owner') && document.getElementById('gd-owner').value, notes: document.getElementById('gd-notes') && document.getElementById('gd-notes').value } : null;
     const res = await API.checkout(STATE.user, assetId, entry.id, plan, gameDetails);
     if (!res.ok) { toast(res.error, 'err'); if (res.code === 'timeout' || res.code === 'owned' || res.code === 'banned' || res.code === 'pending') await router(); return; }
+    ov.remove();
     if (res.data && res.data.redirect) { location.href = res.data.redirect; return; }
+    if (res.data && res.data.orderId && entry.manual) { await openManualPayment(res.data.orderId, entry.id); return; }
     if (res.data && (res.data.licenseKey || res.data.vipUpgrade)) {
       toast(res.data.vipUpgrade ? 'You are now Licensed — you can post assets. 👑' : 'Subscription issued! It is on your Subscription page.');
       burstAt(innerWidth / 2, innerHeight / 2, 30);
@@ -4750,6 +4833,48 @@ async function openCheckout(assetId, plan) {
     }
     toast('Purchase complete.'); await router();
   }));
+}
+/* Manual payment: show the buyer the account details / QR, take their proof, route to staff verification. */
+async function openManualPayment(orderId, method) {
+  const cfg = await API.getPaymentConfig();
+  const c = cfg.ok && cfg.data ? cfg.data : {};
+  const isGcash = method.startsWith('gcash'), isKofi = method.startsWith('kofi'), isPaypal = method.startsWith('paypal'), isStripe = method.startsWith('stripe');
+  const amountLine = c && fmtMoney;
+  const blocks = [];
+  if (isGcash) {
+    if (c.gcashQrUrl) blocks.push(`<div class="center"><img src="${esc(proxiedImageUrl(c.gcashQrUrl))}" alt="GCash QR" style="width:210px;height:210px;object-fit:contain;border-radius:12px;border:1px solid var(--border);background:#fff;padding:8px"></div>`);
+    if (c.gcashDetails) blocks.push(`<div class="card card-pad" style="padding:12px 14px"><b style="font-size:13px">GCash details</b><p class="muted small" style="margin:4px 0 0;white-space:pre-wrap">${esc(c.gcashDetails)}</p></div>`);
+    blocks.push(`<p class="muted small" style="margin:0">${esc(c.gcashInstructions || 'Open GCash, scan the QR (or send to the number above), then enter the reference number from your receipt below.')}</p>`);
+  } else if (isKofi) {
+    if (c.kofiUrl) blocks.push(`<a class="btn btn-primary" href="${esc(c.kofiUrl)}" target="_blank" rel="noopener">${ICON.link} Open our Ko-fi page</a>`);
+    blocks.push(`<p class="muted small" style="margin:0">${esc(c.kofiInstructions || 'Send the payment on Ko-fi, then paste the Ko-fi transaction/receipt URL or reference below.')}</p>`);
+  } else if (isPaypal) {
+    if (c.paypalAccount) blocks.push(`<div class="card card-pad" style="padding:12px 14px"><b style="font-size:13px">PayPal account</b><p class="muted small" style="margin:4px 0 0">${esc(c.paypalAccount)}</p></div>`);
+    blocks.push(`<p class="muted small" style="margin:0">${esc(c.paypalInstructions || 'Send the payment as “Friends & Family” or note the order ID, then paste the PayPal transaction ID below.')}</p>`);
+  } else if (isStripe) {
+    blocks.push(`<p class="muted small" style="margin:0">${esc(c.stripeInstructions || 'Manual card payment — follow the staff instructions, then paste the payment receipt reference below.')}</p>`);
+  }
+  const ov = modal({
+    title: 'Complete your payment',
+    wide: true,
+    confirmLabel: 'Submit proof',
+    cancelLabel: 'Pay later',
+    body: `<p class="muted small" style="margin:0 0 10px">Order <b>${esc(orderId)}</b> — send the exact amount, then submit your proof. Staff verify it before your license is issued.</p>
+      <div style="display:grid;gap:10px;margin-bottom:14px">${blocks.join('')}</div>
+      <div class="field"><label>Payment reference number / transaction ID<span class="req">*</span></label><input class="input" id="mp-ref" maxlength="80" placeholder="e.g. GCash ref no. 1234-5678-9012"></div>
+      <div class="field"><label>Proof link <span class="muted small" style="font-weight:400">(optional — screenshot URL)</span></label><input class="input" id="mp-url" type="url" placeholder="https://i.imgur.com/…"></div>
+      <div class="field"><label>Note for staff <span class="muted small" style="font-weight:400">(optional)</span></label><input class="input" id="mp-note" maxlength="400" placeholder="anything that helps verification"></div>`,
+    validate: ov => {
+      const ref = ov.querySelector('#mp-ref').value.trim();
+      if (!ref) { toast('The payment reference number is required.', 'err'); return false; }
+      return { reference: ref, proofUrl: ov.querySelector('#mp-url').value.trim(), note: ov.querySelector('#mp-note').value.trim() };
+    },
+    onConfirm: async v => {
+      const r = await API.submitPaymentProof(STATE.user, orderId, v);
+      if (r.ok) { toast('Proof submitted — staff will verify it shortly. Track it under Orders.'); await router(); }
+      else toast(r.error, 'err');
+    },
+  });
 }
 async function triggerFileDownload(res) {
   if (!res.ok) { toast(res.error, 'err'); return; }
@@ -5402,9 +5527,9 @@ VIEWS.upload = async ({ query }) => {
           <input class="input" name="imageUrl" type="url" placeholder="https://i.imgur.com/…" value="${esc(a ? (a.imageUrl || '') : '')}" ${a ? '' : 'required'}>
           <div class="hint">Paste a direct image URL for your asset's cover — no file upload needed, so nothing gets stored.</div>
         </div>
-        <div class="field"><label>Asset file (optional)</label>
-          <input class="input" type="file" name="file" accept=".rbxl,.rbxm,.rbxmx,.lua,.luau,.zip,.txt">
-          ${a ? `<div class="hint">Current file: ${esc(a.fileName)} — choose a new file to replace it.</div>` : '<div class="hint">Optional — attach the actual Roblox file (.rbxl, .rbxm, .rbxmx, .lua, .luau, .zip) if you deliver downloads.'}</div>
+        <div class="field"><label>System file<span class="req">*</span></label>
+          <input class="input" type="file" name="file" accept=".rbxl,.rbxm,.rbxmx,.lua,.luau,.zip,.txt" ${a ? '' : 'required'}>
+          ${a ? `<div class="hint">Current file: ${esc(a.fileName)} — choose a new file to replace it.</div>` : '<div class="hint">Required — attach the actual system file (.rbxl, .rbxm, .rbxmx, .lua, .luau, .zip). Staff verify this file against your registered system and post picture before the post goes live.'}</div>
         </div>
         <div class="row"><button class="btn btn-primary" type="submit" ${cooldown ? 'disabled' : ''}>${a ? 'Save & resubmit' : 'Submit for approval'}</button>${a ? '<a class="btn btn-ghost" href="#/my-assets">Cancel</a>' : ''}</div>
         ${cooldown ? `<p class="muted small mt">Submit is locked while the cooldown runs. Come back in ${esc(cooldown.text)}.</p>` : ''}
@@ -5418,6 +5543,7 @@ async function onSubmitAsset(e) {
   const fileInput = f.file;
   const file = fileInput.files && fileInput.files[0];
   if (file && file.size > 20 * 1024 * 1024) { toast('File is too large (max 20 MB).', 'err'); return; }
+  if (!file && !f.id.value) { toast('A system file is required.', 'err'); return; }
   const btn = f.querySelector('button[type=submit]');
   const origLabel = btn.textContent;
   btn.disabled = true; btn.textContent = 'Submitting…';
@@ -5469,14 +5595,28 @@ VIEWS.orders = async () => {
     const a = o.asset || null;
     const title = o.sub ? (o.sub.category === 'protection' ? 'Subscription ' : 'Contract ') + o.sub.tier : o.vip ? 'Licensed seller plan' : (a ? a.title : '(deleted asset)');
     const completed = o.status === 'completed';
+    const proof = o.proof && typeof o.proof === 'object' ? o.proof : null;
+    const statusBadge = completed ? '<span class="badge ok">COMPLETED</span>'
+      : o.status === 'cancelled' ? '<span class="badge plain">Cancelled</span>'
+      : o.status === 'pending_verification' ? '<span class="badge warn">Proof submitted — under review</span>'
+      : o.status === 'awaiting_proof' && o.manual ? '<span class="badge warn">Payment proof needed</span>'
+      : '<span class="badge warn">PENDING</span>';
+    const proofBlock = o.manual && !completed ? `
+      <div style="padding:10px 20px 4px" class="muted small">
+        ${o.status === 'awaiting_proof' ? (proof && proof.reference ? '' : 'This is a <b>manual</b> payment — send the amount first, then submit your proof (reference number, screenshot link).') : ''}
+        ${o.status === 'pending_verification' ? 'Your proof is with staff for verification — you\'ll get an email once it\'s confirmed.' : ''}
+        ${proof && proof.reference ? `Reference submitted: <b style="color:var(--text)">${esc(proof.reference)}</b>${proof.proofUrl ? ` · <a href="${esc(proof.proofUrl)}" target="_blank" rel="noopener">proof link</a>` : ''}` : ''}
+      </div>
+      <div style="padding:4px 20px 16px"><button class="btn btn-ghost btn-sm" onclick="openManualPayment('${o.id}', '${esc(o.method)}')">${proof ? 'Update proof' : 'Submit payment proof'}</button></div>` : '';
     return `<div class="card" style="margin-bottom:12px;overflow:hidden">
       <div class="row" style="padding:14px 20px;gap:12px;border-bottom:1px solid var(--border);flex-wrap:wrap">
         <div style="flex:1;min-width:200px"><b style="font-family:var(--font-display)">${esc(title)}</b><div class="muted small">Ordered ${fmtDate(o.createdAt)} · <span class="price" style="font-size:13px">${o.amount} ${esc(o.currency)}</span></div></div>
-        ${completed ? '<span class="badge ok">COMPLETED</span>' : o.status === 'cancelled' ? '<span class="badge plain">Cancelled</span>' : '<span class="badge warn">PENDING</span>'}
+        ${statusBadge}
         ${completed ? '<span class="badge soft-ok">Delivered</span>' : ''}
       </div>
-      ${a && !completed ? `<div style="padding:10px 20px 4px" class="muted small">The seller reviews your game details before activation — you will get an email once it is approved.</div>` : ''}
-      ${completed ? '' : `<div style="padding:10px 20px 16px"><button class="btn btn-ghost btn-sm" onclick="onCancelMyOrder('${o.id}')">Cancel order</button></div>`}
+      ${a && !completed && !o.manual ? `<div style="padding:10px 20px 4px" class="muted small">The seller reviews your game details before activation — you will get an email once it is approved.</div>` : ''}
+      ${proofBlock}
+      ${completed || o.manual && o.status === 'pending_verification' ? '' : `<div style="padding:10px 20px 16px"><button class="btn btn-ghost btn-sm" onclick="onCancelMyOrder('${o.id}')">Cancel order</button></div>`}
     </div>`;
   }).join('');
   return `<div class="page page-narrow">
@@ -6889,6 +7029,60 @@ async function onAdminDeleteTicket(id) {
     body: '<p>Removes the ticket and all its messages permanently.</p>',
     onConfirm: async () => { const r = await API.adminDeleteTicket(STATE.user, id); r.ok ? (toast('Ticket deleted.'), await router()) : toast(r.error, 'err'); } });
 }
+/* Staff review of a manual payment's proof — approve completes the order. */
+async function onAdminReviewProof(orderId) {
+  const r0 = await API.adminOrders(STATE.user);
+  const ord = (r0.ok ? r0.data : []).find(o => o.id === orderId);
+  if (!ord) { toast('Order not found.', 'err'); return; }
+  const proof = ord.proof && typeof ord.proof === 'object' ? ord.proof : null;
+  modal({
+    title: 'Review manual payment',
+    wide: true,
+    confirmLabel: 'Approve & complete',
+    body: `<div style="display:grid;gap:12px;margin-bottom:14px">
+      <div class="card card-pad" style="padding:12px 14px"><b>${ord.vip ? 'Licensed plan' : (ord.asset ? ord.asset.title : 'Order')}</b> · ${esc(ord.method)} · ${ord.amount} ${esc(ord.currency)}<br><span class="muted small">Buyer: ${ord.buyer ? '@' + esc(ord.buyer.handle) : '—'} · Order ${esc(ord.id)}</span></div>
+      ${proof ? `<div class="card card-pad" style="padding:12px 14px"><b style="font-size:13px">Buyer's proof</b><p class="muted small" style="margin:6px 0 0">Reference: <b style="color:var(--text)">${esc(proof.reference || '—')}</b>${proof.proofUrl ? `<br>Proof link: <a href="${esc(proof.proofUrl)}" target="_blank" rel="noopener">${esc(proof.proofUrl)}</a>` : ''}${proof.note ? `<br>Note: ${esc(proof.note)}` : ''}${proof.submittedAt ? `<br>Submitted ${fmtDate(proof.submittedAt)}` : ''}</p></div>`
+      : '<p class="form-error">No proof recorded on this order.</p>'}
+      ${ord.asset && ord.asset.id ? `<a class="btn btn-ghost btn-sm" href="#/asset/${ord.asset.id}">${ICON.eye} Open the asset page — compare picture &amp; registered system</a>` : ''}
+      <div class="field"><label>Rejection note <span class="muted small" style="font-weight:400">(used only if you reject)</span></label><input class="input" id="rp-note" maxlength="300" placeholder="why the proof was not accepted"></div>
+    </div>`,
+    onConfirm: async () => {
+      const r = await API.adminReviewOrder(STATE.user, orderId, 'approve');
+      if (r.ok) { toast('Payment approved — order completed.'); await router(); } else toast(r.error, 'err');
+    },
+  });
+  const ov = document.querySelector('.modal-overlay:last-child');
+  if (ov) { const c = ov.querySelector('[data-act=cancel]'); if (c) { c.textContent = 'Reject'; c.onclick = async () => { const note = ov.querySelector('#rp-note').value.trim(); const r = await API.adminReviewOrder(STATE.user, orderId, 'reject', note); ov.remove(); r.ok ? (toast('Proof rejected — the buyer can submit a new one.'), await router()) : toast(r.error, 'err'); }; } }
+}
+/* Co-Founder/Founder settings for manual payments: QR, account details, instructions. */
+async function openPaymentSettings() {
+  const cfg = await API.getPaymentConfig();
+  const c = cfg.ok && cfg.data ? cfg.data : {};
+  modal({
+    title: 'Payment settings',
+    wide: true,
+    confirmLabel: 'Save settings',
+    body: `<p class="muted small" style="margin:0 0 12px">These power the <b>manual</b> checkout options. Buyers see exactly what you enter here.</p>
+      <div class="field"><label>GCash QR image URL</label><input class="input" id="pc-gqr" type="url" value="${esc(c.gcashQrUrl || '')}" placeholder="https://i.imgur.com/…"><div class="hint">Your own QR code — shown big in the GCash manual checkout.</div></div>
+      <div class="field"><label>GCash details</label><textarea class="textarea" id="pc-gdet" rows="2" placeholder="Name: Juan Dela Cruz · Number: 09XX-XXX-XXXX">${esc(c.gcashDetails || '')}</textarea></div>
+      <div class="field"><label>GCash instructions</label><textarea class="textarea" id="pc-gins" rows="2">${esc(c.gcashInstructions || '')}</textarea></div>
+      <div class="field"><label>Ko-fi page URL</label><input class="input" id="pc-kurl" type="url" value="${esc(c.kofiUrl || '')}" placeholder="https://ko-fi.com/yourpage"></div>
+      <div class="field"><label>Ko-fi instructions</label><textarea class="textarea" id="pc-kins" rows="2">${esc(c.kofiInstructions || '')}</textarea></div>
+      <div class="field"><label>PayPal account (email)</label><input class="input" id="pc-pacc" type="text" value="${esc(c.paypalAccount || '')}" placeholder="paypal@kingsproduction.cc"></div>
+      <div class="field"><label>PayPal instructions</label><textarea class="textarea" id="pc-pins" rows="2">${esc(c.paypalInstructions || '')}</textarea></div>
+      <div class="field"><label>Stripe manual instructions</label><textarea class="textarea" id="pc-sins" rows="2">${esc(c.stripeInstructions || '')}</textarea></div>`,
+    validate: ov => ({
+      gcashQrUrl: ov.querySelector('#pc-gqr').value.trim(), gcashDetails: ov.querySelector('#pc-gdet').value.trim(), gcashInstructions: ov.querySelector('#pc-gins').value.trim(),
+      kofiUrl: ov.querySelector('#pc-kurl').value.trim(), kofiInstructions: ov.querySelector('#pc-kins').value.trim(),
+      paypalAccount: ov.querySelector('#pc-pacc').value.trim(), paypalInstructions: ov.querySelector('#pc-pins').value.trim(),
+      stripeInstructions: ov.querySelector('#pc-sins').value.trim(),
+    }),
+    onConfirm: async v => {
+      const r = await API.setPaymentConfig(STATE.user, v);
+      r.ok ? (toast('Payment settings saved.'), await router()) : toast(r.error, 'err');
+    },
+  });
+}
 async function onAdminCompleteOrder(orderId) {
   modal({
     title: 'Complete this order?', confirmLabel: 'Complete',
@@ -6912,9 +7106,16 @@ async function adminTabHtml(tab) {
     const list = r.ok ? r.data : [];
     const oStatus = s => s === 'completed' ? `<span class="badge ok">Completed</span>`
       : s === 'paid' ? `<span class="badge warn">Paid</span>`
+      : s === 'pending_verification' ? `<span class="badge warn">Proof submitted</span>`
+      : s === 'awaiting_proof' ? `<span class="badge plain">Awaiting proof</span>`
       : s === 'cancelled' ? `<span class="badge plain">Cancelled</span>`
       : `<span class="badge warn">Created</span>`;
-    return `<div class="table-wrap"><table class="table">
+    const parseProof = o => { try { return o.proof ? (typeof o.proof === 'string' ? JSON.parse(o.proof) : o.proof) : null; } catch (e) { return null; } };
+    return `<div class="row" style="justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px">
+      <p class="muted small" style="margin:0">Manual payments (GCash QR, Ko-fi, PayPal, Stripe manual) arrive here for verification once the buyer submits proof.</p>
+      ${effRank(STATE.user) >= roleRank('cofounder') ? `<button class="btn btn-ghost btn-sm" onclick="openPaymentSettings()">${ICON.edit} Payment settings</button>` : ''}
+    </div>
+    <div class="table-wrap"><table class="table">
       <thead><tr><th>Asset</th><th>Buyer</th><th>Method</th><th>Amount</th><th>Status</th><th>Date</th><th></th></tr></thead>
       <tbody>${list.map(o => `<tr>
         <td>${o.vip ? `<span class="badge vip">Licensed plan</span>` : (o.asset ? `<a href="#/asset/${o.asset.id}">${esc(o.asset.title)}</a>` : '(deleted asset)')}</td>
@@ -6923,7 +7124,8 @@ async function adminTabHtml(tab) {
         <td>${o.amount} ${esc(o.currency)}</td>
         <td>${oStatus(o.status)}</td>
         <td class="muted">${fmtDate(o.createdAt)}</td>
-        <td>${o.status === 'created' ? `<button class="btn btn-primary btn-sm" onclick="onAdminCompleteOrder('${o.id}')">Mark paid &amp; complete</button>` : ''}</td>
+        <td>${o.status === 'created' ? `<button class="btn btn-primary btn-sm" onclick="onAdminCompleteOrder('${o.id}')">Mark paid &amp; complete</button>`
+          : o.status === 'pending_verification' ? `<button class="btn btn-primary btn-sm" onclick="onAdminReviewProof('${o.id}')">Review proof</button>` : ''}</td>
       </tr>`).join('') || `<tr><td colspan="7"><div class="empty">No orders yet.</div></td></tr>`}</tbody></table></div>`;
   }
   if (tab === 'registered') {

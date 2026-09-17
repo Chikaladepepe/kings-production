@@ -477,9 +477,13 @@ async function main() {
       dev: PAYMENT.dev,
       currency: PAYMENT.currency,
       methods: [
-        { id: 'stripe', label: 'Stripe', enabled: !!PAYMENT.stripe },
-        { id: 'paypal', label: 'PayPal', enabled: !!PAYMENT.paypal },
-        { id: 'gcash', label: 'GCash', enabled: !!PAYMENT.paymongo },
+        { id: 'stripe', label: 'Stripe · automatic', enabled: !!PAYMENT.stripe, auto: true },
+        { id: 'paypal', label: 'PayPal · automatic', enabled: !!PAYMENT.paypal, auto: true },
+        { id: 'gcash', label: 'GCash · automatic', enabled: !!PAYMENT.paymongo, auto: true },
+        { id: 'stripe_manual', label: 'Stripe · manual', enabled: true, manual: true },
+        { id: 'paypal_manual', label: 'PayPal · manual', enabled: true, manual: true },
+        { id: 'gcash_manual', label: 'GCash · manual (QR)', enabled: true, manual: true },
+        { id: 'kofi_manual', label: 'Ko-fi · manual', enabled: true, manual: true },
       ],
     },
   }));
@@ -493,9 +497,14 @@ async function main() {
       : await engine.createOrder(u, assetId, method, gameDetails);
     if (!r.ok) return send(res, r);
     const { orderId, amount, currency } = r.data;
-    if (PAYMENT.dev) {
+    if (PAYMENT.dev && !String(method || '').endsWith('_manual')) {
       // No gateway keys configured — complete instantly (test mode, no money moves).
+      // Manual methods are exempt: they wait for the buyer's proof + staff verification.
       return send(res, await engine.completeOrder(u, orderId, 'dev'));
+    }
+    if (String(method || '').endsWith('_manual')) {
+      // Manual payment — the buyer gets payment details, pays off-site, and submits proof.
+      return send(res, { ok: true, data: { orderId, manual: true } });
     }
     try {
       let title = 'Kings Production asset';
@@ -564,6 +573,7 @@ async function main() {
     return send(res, { ok: false, code: 'unavailable', error: 'That payment method is not configured.' });
   }));
   app.get('/api/orders/mine', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.myOrders(u)); }));
+  app.post('/api/orders/:id/proof', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.submitPaymentProof(u, req.params.id, req.body || {})); }));
   app.post('/api/orders/:id/cancel', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.cancelOrder(u, req.params.id)); }));
 
   /* ---- profiles & content ---- */
@@ -576,6 +586,9 @@ async function main() {
     if (!u) return;
     send(res, await fn(u, req));
   });
+  app.post('/api/admin/orders/:id/review', admin(async (u, req) => engine.adminReviewManualOrder(u, req.params.id, (req.body || {}).decision, (req.body || {}).note)));
+  app.get('/api/admin/payment-config', admin(async u => engine.getPaymentConfig()));
+  app.post('/api/admin/payment-config', admin(async (u, req) => engine.adminSetPaymentConfig(u, req.body || {})));
   app.get('/api/admin/overview', admin(async u => engine.adminOverview(u)));
   app.get('/api/admin/approvals', admin(async u => {
     const p = await engine.adminPending(u);

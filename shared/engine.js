@@ -559,7 +559,10 @@
       const img = normalizeImageUrl(imageUrl);
       if (img === null && String(imageUrl || '').trim()) return fail('invalid', 'Image link must be a valid http(s) URL.');
       const file = normalizeFile(fileData, fileName);
-      if (!img && !fileName && !file) return fail('invalid', 'Please add an image link (or upload the asset file).');
+      /* The deliverable file is mandatory — staff verify it against the
+         seller's registered system before approving the post. */
+      if (!file && !fileName) return fail('invalid', 'A system file is required — attach the actual file buyers will receive (.lua, .rbxm, .rbxl, .zip…).');
+      if (!img) return fail('invalid', 'An image link is required — staff compare the post picture with the file when verifying.');
       const founderLevel = effRank(u) >= roleRank('cofounder'); // Founder / Co-Founder posts skip the approval queue
       const asset = {
         id: 'a' + uid(), ownerId: u.id, title, category, description, price,
@@ -930,7 +933,69 @@
     }
 
     /* ---- payment orders (Stripe · PayPal · GCash) ---- */
-    const PAY_METHODS = ['stripe', 'paypal', 'gcash'];
+    const PAY_METHODS = ['stripe', 'paypal', 'gcash', 'stripe_manual', 'paypal_manual', 'gcash_manual', 'kofi_manual'];
+    const MANUAL_METHODS = ['stripe_manual', 'paypal_manual', 'gcash_manual', 'kofi_manual'];
+    const methodLabel = m => ({ stripe: 'Stripe (automatic)', paypal: 'PayPal (automatic)', gcash: 'GCash (automatic)', stripe_manual: 'Stripe (manual)', paypal_manual: 'PayPal (manual)', gcash_manual: 'GCash (manual)', kofi_manual: 'Ko-fi (manual)' })[m] || m;
+    /* Manual-payment proof storage + staff verification queue. */
+    async function submitPaymentProof(user, orderId, payload = {}) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const order = byIdIn('orders', orderId);
+      if (!order || order.buyerId !== u.id) return fail('forbidden', 'Order not found.');
+      if (!MANUAL_METHODS.includes(order.method)) return fail('invalid', 'This order is not a manual payment.');
+      if (order.status === 'completed') return fail('invalid', 'This order is already completed.');
+      const reference = String(payload.reference || '').trim().slice(0, 80);
+      if (!reference) return fail('invalid', 'A payment reference number is required.');
+      order.proof = JSON.stringify({
+        reference,
+        proofUrl: String(payload.proofUrl || '').trim().slice(0, 300) || null,
+        note: String(payload.note || '').trim().slice(0, 400) || null,
+        submittedAt: now(),
+      });
+      order.status = 'pending_verification';
+      order.updatedAt = now();
+      store.put('orders', order);
+      flush();
+      return ok(true);
+    }
+    async function adminReviewManualOrder(actor, orderId, decision, note) {
+      const r = requireAdmin(actor); if (r) return r;
+      const order = byIdIn('orders', orderId);
+      if (!order) return fail('notfound', 'Order not found.');
+      if (order.status !== 'pending_verification') return fail('invalid', 'This order has no payment proof to review.');
+      decision = String(decision || '');
+      if (!['approve', 'reject'].includes(decision)) return fail('invalid', 'Invalid decision.');
+      if (decision === 'approve') return finalizeOrder(order, dbUser(order.buyerId));
+      order.status = 'awaiting_proof';
+      order.proofAttempts = (Number(order.proofAttempts) || 0) + 1;
+      order.proofRejectedNote = String(note || '').trim().slice(0, 300) || null;
+      order.updatedAt = now();
+      store.put('orders', order);
+      flush();
+      return ok(true);
+    }
+    /* Payment configuration (QR codes, account details, per-method instructions),
+       edited by Co-Founder/Founder from the panel. */
+    async function getPaymentConfig() {
+      const row = byIdIn('site_settings', 'payment_config');
+      const empty = { gcashQrUrl: '', gcashDetails: '', gcashInstructions: '', kofiUrl: '', kofiInstructions: '', paypalAccount: '', paypalInstructions: '', stripeInstructions: '' };
+      if (!row) return ok(empty);
+      try { return ok({ ...empty, ...JSON.parse(row.value) }); } catch (e) { return ok(empty); }
+    }
+    async function adminSetPaymentConfig(actor, cfg = {}) {
+      const r = requireCofounder(actor, 'edit payment settings'); if (r) return r;
+      const cur = (await getPaymentConfig()).data || {};
+      const keys = ['gcashQrUrl', 'gcashDetails', 'gcashInstructions', 'kofiUrl', 'kofiInstructions', 'paypalAccount', 'paypalInstructions', 'stripeInstructions'];
+      const clean = {};
+      keys.forEach(k => {
+        clean[k] = cfg[k] !== undefined ? String(cfg[k] || '').trim().slice(0, 4000) : (cur[k] || '');
+      });
+      const img = normalizeImageUrl(clean.gcashQrUrl);
+      clean.gcashQrUrl = img || '';
+      store.put('site_settings', { id: 'payment_config', value: JSON.stringify(clean), updatedAt: now() });
+      flush();
+      return ok(clean);
+    }
     /* The Licensed plan is sold directly for 500 PHP (base) — converting
        to the buyer's local currency the same way asset prices convert. */
     const VIP_PLAN_PRICE_PHP = 500;
@@ -940,7 +1005,7 @@
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       method = String(method || '').toLowerCase();
-      if (!PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, or GCash.');
+      if (!PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, GCash, or Ko-fi.');
       if (isTimedOut(u)) return fail('timeout', 'You are currently timed out and cannot make purchases.');
       if (isBanned(u)) return fail('banned', 'Your account is banned.');
       if (effRank(u) >= roleRank('vip')) return fail('owned', 'Your account is already Licensed — no need to buy it again.');
@@ -948,7 +1013,7 @@
         return fail('pending', 'You already have a pending Licensed order.');
       const currency = currencyOf(u.country);
       const amount = convertFromPhp(VIP_PLAN_PRICE_PHP, u.country);
-      const order = { id: 'o' + uid(), buyerId: u.id, assetId: 'vip', method, amount, currency, status: 'created', providerRef: null, licenseKey: null, createdAt: now(), paidAt: null, updatedAt: now() };
+      const order = { id: 'o' + uid(), buyerId: u.id, assetId: 'vip', method, amount, currency, status: MANUAL_METHODS.includes(method) ? 'awaiting_proof' : 'created', providerRef: null, licenseKey: null, createdAt: now(), paidAt: null, updatedAt: now() };
       store.put('orders', order);
       flush();
       return ok({ orderId: order.id, amount: order.amount, currency: order.currency });
@@ -964,7 +1029,7 @@
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       method = String(method || '').toLowerCase();
-      if (!PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, or GCash.');
+      if (!PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, GCash, or Ko-fi.');
       if (!SUB_PLANS[category]) return fail('invalid', 'Unknown plan category.');
       tier = Number(tier);
       if (![1, 2, 3].includes(tier)) return fail('invalid', 'Choose a valid plan tier.');
@@ -976,7 +1041,7 @@
         return fail('pending', 'You already have a pending order for this plan.');
       const currency = currencyOf(u.country);
       const amount = convertFromPhp(SUB_PLANS[category][tier - 1].php, u.country);
-      const order = { id: 'o' + uid(), buyerId: u.id, assetId: 'sub:' + category + ':' + tier, method, amount, currency, status: 'created', providerRef: null, licenseKey: null, createdAt: now(), paidAt: null, updatedAt: now() };
+      const order = { id: 'o' + uid(), buyerId: u.id, assetId: 'sub:' + category + ':' + tier, method, amount, currency, status: MANUAL_METHODS.includes(method) ? 'awaiting_proof' : 'created', providerRef: null, licenseKey: null, createdAt: now(), paidAt: null, updatedAt: now() };
       store.put('orders', order);
       flush();
       return ok({ orderId: order.id, amount: order.amount, currency: order.currency });
@@ -988,7 +1053,7 @@
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       method = String(method || '').toLowerCase();
-      if (!PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, or GCash.');
+      if (!PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, GCash, or Ko-fi.');
       const a = byIdIn('assets', assetId);
       if (isRestricted(u)) return fail('restricted', 'Your account is restricted — you cannot make purchases right now. You may appeal or wait out the restriction.');
       if (!a) return fail('notfound', 'Asset not found.');
@@ -1008,7 +1073,7 @@
         gameOwner: String(gd.gameOwner || '').trim().slice(0, 80) || null,
         notes: String(gd.notes || '').trim().slice(0, 400) || null,
       };
-      const order = { id: 'o' + uid(), buyerId: u.id, assetId: a.id, method, amount, currency, status: 'created', providerRef: null, licenseKey: null, gameDetails: JSON.stringify(details), sellerId: a.ownerId, approval: 'pending', createdAt: now(), paidAt: null, updatedAt: now() };
+      const order = { id: 'o' + uid(), buyerId: u.id, assetId: a.id, method, amount, currency, status: MANUAL_METHODS.includes(method) ? 'awaiting_proof' : 'created', providerRef: null, licenseKey: null, gameDetails: JSON.stringify(details), sellerId: a.ownerId, approval: 'pending', createdAt: now(), paidAt: null, updatedAt: now() };
       store.put('orders', order);
       flush();
       return ok({ orderId: order.id, amount: order.amount, currency: order.currency });
@@ -1135,7 +1200,11 @@
     async function myOrders(user) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
-      return ok(all('orders').filter(o => o.buyerId === u.id).sort((x, y) => y.createdAt - x.createdAt).map(o => ({ ...o, vip: isVipOrder(o), sub: isSubOrder(o) ? { category: String(o.assetId).split(':')[1], tier: Number(String(o.assetId).split(':')[2]) } : null, asset: (isVipOrder(o) || isSubOrder(o)) ? null : summarize(byIdIn('assets', o.assetId)) })));
+      return ok(all('orders').filter(o => o.buyerId === u.id).sort((x, y) => y.createdAt - x.createdAt).map(o => {
+        let proof = null;
+        try { proof = o.proof ? JSON.parse(o.proof) : null; } catch (e) {}
+        return { ...o, proof, manual: MANUAL_METHODS.includes(o.method), vip: isVipOrder(o), sub: isSubOrder(o) ? { category: String(o.assetId).split(':')[1], tier: Number(String(o.assetId).split(':')[2]) } : null, asset: (isVipOrder(o) || isSubOrder(o)) ? null : summarize(byIdIn('assets', o.assetId)) };
+      }));
     }
     async function adminOrders(actor) {
       const r = requireAdmin(actor); if (r) return r;
@@ -2396,7 +2465,7 @@
       verifyEmail, resendVerification,
       updateProfile, setup2fa, enable2fa, disable2fa,
       createAsset, postStatus, listApproved, topSelling, getAsset, updateAsset, deleteAsset, myAssets, download,
-      purchase, myPurchases, assignLicense, createOrder, createVipOrder, createSubscriptionOrder, completeOrder, settleOrder, cancelOrder, myOrders, adminOrders, adminCompleteOrder,
+      purchase, myPurchases, assignLicense, createOrder, createVipOrder, createSubscriptionOrder, completeOrder, settleOrder, cancelOrder, myOrders, adminOrders, adminCompleteOrder, submitPaymentProof, adminReviewManualOrder, getPaymentConfig, adminSetPaymentConfig,
       addComment, listComments, toggleLike,
       listReviews, addReview, deleteReview,
       createReport, adminReports, adminResolveReport,
