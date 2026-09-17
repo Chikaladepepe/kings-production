@@ -683,6 +683,7 @@ async function main() {
   app.post('/api/systems/devices/:id/revoke', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.revokeSystemDevice(u, req.params.id)); }));
   app.post('/api/systems/devices/:id/authorize', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.authorizeSystemDevice(u, req.params.id)); }));
   app.post('/api/systems/games/:id/status', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.setSystemGameStatus(u, req.params.id, (req.body || {}).status)); }));
+  app.post('/api/systems/:id/enforcement', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.setSystemEnforcement(u, req.params.id, req.body || {})); }));
   app.delete('/api/systems/games/:id', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.removeSystemGame(u, req.params.id)); }));
 
   /* ---- support tickets & chat ---- */

@@ -2264,7 +2264,7 @@
         .map(d => ({ id: d.id, deviceId: d.deviceId, deviceName: d.deviceName, status: d.status, lastSeenAt: d.lastSeenAt }));
       const games = all('system_games').filter(g => g.systemId === s.id).sort((a, b) => b.lastSeenAt - a.lastSeenAt)
         .map(g => ({ id: g.id, placeId: g.placeId, status: g.status, gameName: g.gameName || null, gameOwner: g.gameOwner || null, gameOwnerType: g.gameOwnerType || null, lastSeenAt: g.lastSeenAt }));
-      return { ...systemPublic(s), password: s.password, devices, games };
+      return { ...systemPublic(s), password: s.password, kickOnDeny: s.kickOnDeny !== 0, banOnBlacklist: s.banOnBlacklist === 1, devices, games };
     }
     async function registerSystem(user, { name, password } = {}) {
       const u = resolveUser(user);
@@ -2390,8 +2390,8 @@
       const game = gameRow(s, placeId);
       if (!game) return { pending: true, reason: 'This game is not yet approved to use this system. The system creator must approve it on the Licensed Dashboard (Registered Systems → Games).' };
       if (game.status === 'pending') return { pending: true, reason: 'Waiting for approval — the system creator must allow this game on the Licensed Dashboard.' };
-      if (game.status === 'revoked') return { denied: true, reason: 'This game\'s permission to use this system has been revoked by the creator.' };
-      if (game.status === 'blacklisted') return { denied: true, reason: 'This game has been blacklisted by the creator.' };
+      if (game.status === 'revoked') return { denied: true, game, reason: 'This game\'s permission to use this system has been revoked by the creator.' };
+      if (game.status === 'blacklisted') return { denied: true, game, reason: 'This game has been blacklisted by the creator.' };
       return { game };
     }
     async function systemActivate({ systemName, systemPassword, deviceId, deviceName, placeId, gameName, gameOwner, gameOwnerType } = {}) {
@@ -2402,12 +2402,12 @@
       const dev = deviceState(s, deviceId);
       if (dev && dev.status === 'revoked') return ok({ active: false, reason: 'This device has been kicked by the creator and can no longer use the system.', revokedPlayers: revokedPlayerIds(s) });
       const gate = gameGate(s, placeId);
-      if (gate.denied) return ok({ active: false, reason: gate.reason, revokedPlayers: revokedPlayerIds(s) });
+      if (gate.denied) return ok({ active: false, reason: gate.reason, revokeAll: s.kickOnDeny !== 0, banAll: gate.game && gate.game.status === 'blacklisted' && s.banOnBlacklist === 1, revokedPlayers: revokedPlayerIds(s) });
       if (placeId) { recordGame(s, placeId, { gameName, gameOwner, gameOwnerType }); pruneStaleGames(s); }
-      if (gate.pending) return ok({ active: false, pendingApproval: true, reason: gate.reason, revokedPlayers: revokedPlayerIds(s) });
+      if (gate.pending) return ok({ active: false, pendingApproval: true, reason: gate.reason, revokeAll: s.kickOnDeny !== 0, banAll: false, revokedPlayers: revokedPlayerIds(s) });
       bumpSystem(s);
       if (deviceId) recordDevice(s, deviceId, deviceName);
-      return ok({ active: true, reason: 'Licensed and active.', revokedPlayers: revokedPlayerIds(s) });
+      return ok({ active: true, reason: 'Licensed and active.', revokeAll: false, banAll: false, unban: true, revokedPlayers: revokedPlayerIds(s) });
     }
     async function systemHeartbeat({ systemName, systemPassword, deviceId, deviceName, placeId, gameName, gameOwner, gameOwnerType } = {}) {
       const chk = checkSystemCreds({ systemName, systemPassword });
@@ -2417,12 +2417,12 @@
       const dev = deviceState(s, deviceId);
       if (dev && dev.status === 'revoked') return ok({ active: false, reason: 'This device has been kicked by the creator and can no longer use the system.', revokedPlayers: revokedPlayerIds(s) });
       const gate = gameGate(s, placeId);
-      if (gate.denied) return ok({ active: false, reason: gate.reason, revokedPlayers: revokedPlayerIds(s) });
+      if (gate.denied) return ok({ active: false, reason: gate.reason, revokeAll: s.kickOnDeny !== 0, banAll: gate.game && gate.game.status === 'blacklisted' && s.banOnBlacklist === 1, revokedPlayers: revokedPlayerIds(s) });
       if (placeId) { recordGame(s, placeId, { gameName, gameOwner, gameOwnerType }); pruneStaleGames(s); }
-      if (gate.pending) return ok({ active: false, pendingApproval: true, reason: gate.reason, revokedPlayers: revokedPlayerIds(s) });
+      if (gate.pending) return ok({ active: false, pendingApproval: true, reason: gate.reason, revokeAll: s.kickOnDeny !== 0, banAll: false, revokedPlayers: revokedPlayerIds(s) });
       bumpSystem(s);
       if (deviceId) recordDevice(s, deviceId, deviceName);
-      return ok({ active: true, reason: 'Licensed and active.', revokedPlayers: revokedPlayerIds(s) });
+      return ok({ active: true, reason: 'Licensed and active.', revokeAll: false, banAll: false, unban: true, revokedPlayers: revokedPlayerIds(s) });
     }
     /* Player device registration from the Lua script — records who is using the
        system so the creator can see and revoke individual players. */
@@ -2482,6 +2482,27 @@
       flush();
       return ok(true);
     }
+    /* Per-system enforcement toggles, set from the Licensed Dashboard.
+       kickOnDeny        — when denied/pending/revoked, EVERY player in that
+                           game is force-disconnected immediately (default ON:
+                           a leaked copy must not keep working).
+       banOnBlacklist    — when a game is BLACKLISTED (leak response), players
+                           joining it get a permanent Roblox ban via the
+                           Players:BanAsync API. Lifted automatically when the
+                           game is allowed again (creators can also disable
+                           the toggle to lift all bans on the next check-in). */
+    async function setSystemEnforcement(user, id, { kickOnDeny, banOnBlacklist } = {}) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const s = byIdIn('systems', id);
+      if (!s || s.userId !== u.id) return fail('forbidden', 'System not found.');
+      if (kickOnDeny !== undefined) s.kickOnDeny = !!kickOnDeny ? 1 : 0;
+      if (banOnBlacklist !== undefined) s.banOnBlacklist = !!banOnBlacklist ? 1 : 0;
+      s.updatedAt = now();
+      store.put('systems', s);
+      flush();
+      return ok(systemForOwner(s));
+    }
     /* Creator-side game controls: allow / revoke / blacklist a place, or
        remove it from the list entirely. */
     async function setSystemGameStatus(user, gameId, status) {
@@ -2532,7 +2553,7 @@
       createTicket, addTicketMessage, getTicket, listMyTickets,
       adminListTickets, adminCloseTicket, adminDeleteTicket, getFaqs, saveFaqs, getLegalDoc, saveLegalDoc, processAdminPauseExpiry,
       listAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement,
-      registerSystem, listSystems, deleteSystem, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice, authorizeSystemDevice, setSystemGameStatus, removeSystemGame, adminSystemDetail, adminSetSystemState, adminSubscriberDetail, adminDeleteSystem,
+      registerSystem, listSystems, deleteSystem, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice, authorizeSystemDevice, setSystemGameStatus, removeSystemGame, adminSystemDetail, adminSetSystemState, adminSubscriberDetail, adminDeleteSystem, setSystemEnforcement,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
       adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSetUserPlan, adminSessions, adminEmails, adminSendEmail, adminListBlasts, adminDeleteBlast, adminEmailHistory, adminListInbound, adminSetUnsubscribed, inboundMailEvent, processScheduledBlasts, adminOrders, adminCompleteOrder,
       sellerOrders, setOrderApproval, adminTakeFile, adminSetAssetStatus, adminSetRestriction, adminRequestSubRevoke, adminResolveSubRevoke, adminListSubRevokes, adminUnsubscribePlan, adminSystems,

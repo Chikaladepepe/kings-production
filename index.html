@@ -3685,7 +3685,7 @@ const API = {};
         .map(d => ({ id: d.id, deviceId: d.deviceId, deviceName: d.deviceName, status: d.status, lastSeenAt: d.lastSeenAt }));
       const games = all('system_games').filter(g => g.systemId === s.id).sort((a, b) => b.lastSeenAt - a.lastSeenAt)
         .map(g => ({ id: g.id, placeId: g.placeId, status: g.status, gameName: g.gameName || null, gameOwner: g.gameOwner || null, gameOwnerType: g.gameOwnerType || null, lastSeenAt: g.lastSeenAt }));
-      return { ...systemPublic(s), password: s.password, devices, games };
+      return { ...systemPublic(s), password: s.password, kickOnDeny: s.kickOnDeny !== 0, banOnBlacklist: s.banOnBlacklist === 1, devices, games };
     }
     async function registerSystem(user, { name, password } = {}) {
       const u = resolveUser(user);
@@ -3811,8 +3811,8 @@ const API = {};
       const game = gameRow(s, placeId);
       if (!game) return { pending: true, reason: 'This game is not yet approved to use this system. The system creator must approve it on the Licensed Dashboard (Registered Systems → Games).' };
       if (game.status === 'pending') return { pending: true, reason: 'Waiting for approval — the system creator must allow this game on the Licensed Dashboard.' };
-      if (game.status === 'revoked') return { denied: true, reason: 'This game\'s permission to use this system has been revoked by the creator.' };
-      if (game.status === 'blacklisted') return { denied: true, reason: 'This game has been blacklisted by the creator.' };
+      if (game.status === 'revoked') return { denied: true, game, reason: 'This game\'s permission to use this system has been revoked by the creator.' };
+      if (game.status === 'blacklisted') return { denied: true, game, reason: 'This game has been blacklisted by the creator.' };
       return { game };
     }
     async function systemActivate({ systemName, systemPassword, deviceId, deviceName, placeId, gameName, gameOwner, gameOwnerType } = {}) {
@@ -3823,12 +3823,12 @@ const API = {};
       const dev = deviceState(s, deviceId);
       if (dev && dev.status === 'revoked') return ok({ active: false, reason: 'This device has been kicked by the creator and can no longer use the system.', revokedPlayers: revokedPlayerIds(s) });
       const gate = gameGate(s, placeId);
-      if (gate.denied) return ok({ active: false, reason: gate.reason, revokedPlayers: revokedPlayerIds(s) });
+      if (gate.denied) return ok({ active: false, reason: gate.reason, revokeAll: s.kickOnDeny !== 0, banAll: gate.game && gate.game.status === 'blacklisted' && s.banOnBlacklist === 1, revokedPlayers: revokedPlayerIds(s) });
       if (placeId) { recordGame(s, placeId, { gameName, gameOwner, gameOwnerType }); pruneStaleGames(s); }
-      if (gate.pending) return ok({ active: false, pendingApproval: true, reason: gate.reason, revokedPlayers: revokedPlayerIds(s) });
+      if (gate.pending) return ok({ active: false, pendingApproval: true, reason: gate.reason, revokeAll: s.kickOnDeny !== 0, banAll: false, revokedPlayers: revokedPlayerIds(s) });
       bumpSystem(s);
       if (deviceId) recordDevice(s, deviceId, deviceName);
-      return ok({ active: true, reason: 'Licensed and active.', revokedPlayers: revokedPlayerIds(s) });
+      return ok({ active: true, reason: 'Licensed and active.', revokeAll: false, banAll: false, unban: true, revokedPlayers: revokedPlayerIds(s) });
     }
     async function systemHeartbeat({ systemName, systemPassword, deviceId, deviceName, placeId, gameName, gameOwner, gameOwnerType } = {}) {
       const chk = checkSystemCreds({ systemName, systemPassword });
@@ -3838,12 +3838,12 @@ const API = {};
       const dev = deviceState(s, deviceId);
       if (dev && dev.status === 'revoked') return ok({ active: false, reason: 'This device has been kicked by the creator and can no longer use the system.', revokedPlayers: revokedPlayerIds(s) });
       const gate = gameGate(s, placeId);
-      if (gate.denied) return ok({ active: false, reason: gate.reason, revokedPlayers: revokedPlayerIds(s) });
+      if (gate.denied) return ok({ active: false, reason: gate.reason, revokeAll: s.kickOnDeny !== 0, banAll: gate.game && gate.game.status === 'blacklisted' && s.banOnBlacklist === 1, revokedPlayers: revokedPlayerIds(s) });
       if (placeId) { recordGame(s, placeId, { gameName, gameOwner, gameOwnerType }); pruneStaleGames(s); }
-      if (gate.pending) return ok({ active: false, pendingApproval: true, reason: gate.reason, revokedPlayers: revokedPlayerIds(s) });
+      if (gate.pending) return ok({ active: false, pendingApproval: true, reason: gate.reason, revokeAll: s.kickOnDeny !== 0, banAll: false, revokedPlayers: revokedPlayerIds(s) });
       bumpSystem(s);
       if (deviceId) recordDevice(s, deviceId, deviceName);
-      return ok({ active: true, reason: 'Licensed and active.', revokedPlayers: revokedPlayerIds(s) });
+      return ok({ active: true, reason: 'Licensed and active.', revokeAll: false, banAll: false, unban: true, revokedPlayers: revokedPlayerIds(s) });
     }
     /* Player device registration from the Lua script — records who is using the
        system so the creator can see and revoke individual players. */
@@ -3903,6 +3903,27 @@ const API = {};
       flush();
       return ok(true);
     }
+    /* Per-system enforcement toggles, set from the Licensed Dashboard.
+       kickOnDeny        — when denied/pending/revoked, EVERY player in that
+                           game is force-disconnected immediately (default ON:
+                           a leaked copy must not keep working).
+       banOnBlacklist    — when a game is BLACKLISTED (leak response), players
+                           joining it get a permanent Roblox ban via the
+                           Players:BanAsync API. Lifted automatically when the
+                           game is allowed again (creators can also disable
+                           the toggle to lift all bans on the next check-in). */
+    async function setSystemEnforcement(user, id, { kickOnDeny, banOnBlacklist } = {}) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const s = byIdIn('systems', id);
+      if (!s || s.userId !== u.id) return fail('forbidden', 'System not found.');
+      if (kickOnDeny !== undefined) s.kickOnDeny = !!kickOnDeny ? 1 : 0;
+      if (banOnBlacklist !== undefined) s.banOnBlacklist = !!banOnBlacklist ? 1 : 0;
+      s.updatedAt = now();
+      store.put('systems', s);
+      flush();
+      return ok(systemForOwner(s));
+    }
     /* Creator-side game controls: allow / revoke / blacklist a place, or
        remove it from the list entirely. */
     async function setSystemGameStatus(user, gameId, status) {
@@ -3953,7 +3974,7 @@ const API = {};
       createTicket, addTicketMessage, getTicket, listMyTickets,
       adminListTickets, adminCloseTicket, adminDeleteTicket, getFaqs, saveFaqs, getLegalDoc, saveLegalDoc, processAdminPauseExpiry,
       listAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement,
-      registerSystem, listSystems, deleteSystem, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice, authorizeSystemDevice, setSystemGameStatus, removeSystemGame, adminSystemDetail, adminSetSystemState, adminSubscriberDetail, adminDeleteSystem,
+      registerSystem, listSystems, deleteSystem, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice, authorizeSystemDevice, setSystemGameStatus, removeSystemGame, adminSystemDetail, adminSetSystemState, adminSubscriberDetail, adminDeleteSystem, setSystemEnforcement,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
       adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSetUserPlan, adminSessions, adminEmails, adminSendEmail, adminListBlasts, adminDeleteBlast, adminEmailHistory, adminListInbound, adminSetUnsubscribed, inboundMailEvent, processScheduledBlasts, adminOrders, adminCompleteOrder,
       sellerOrders, setOrderApproval, adminTakeFile, adminSetAssetStatus, adminSetRestriction, adminRequestSubRevoke, adminResolveSubRevoke, adminListSubRevokes, adminUnsubscribePlan, adminSystems,
@@ -4215,6 +4236,7 @@ API.adminResolveSubRevoke = (user, id, decision) => _wrap(async () => _mode === 
 API.adminListSubRevokes = user => _wrap(async () => _mode === 'local' ? await _engine.adminListSubRevokes(user) : await _call('GET', '/api/admin/sub-revokes'));
 API.deleteSystem = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.deleteSystem(user, id) : await _call('DELETE', '/api/systems/' + _e(id)));
 API.setSystemStatus = (user, id, status) => _wrap(async () => _mode === 'local' ? await _engine.setSystemStatus(user, id, status) : await _call('POST', '/api/systems/' + _e(id) + '/status', { status }));
+API.setSystemEnforcement = (user, id, flags) => _wrap(async () => _mode === 'local' ? await _engine.setSystemEnforcement(user, id, flags) : await _call('POST', '/api/systems/' + _e(id) + '/enforcement', flags));
 API.revokeSystemDevice = (user, deviceId) => _wrap(async () => _mode === 'local' ? await _engine.revokeSystemDevice(user, deviceId) : await _call('POST', '/api/systems/devices/' + _e(deviceId) + '/revoke'));
 API.authorizeSystemDevice = (user, deviceId) => _wrap(async () => _mode === 'local' ? await _engine.authorizeSystemDevice(user, deviceId) : await _call('POST', '/api/systems/devices/' + _e(deviceId) + '/authorize'));
 API.setSystemGameStatus = (user, gameId, status) => _wrap(async () => _mode === 'local' ? await _engine.setSystemGameStatus(user, gameId, status) : await _call('POST', '/api/systems/games/' + _e(gameId) + '/status', { status }));
@@ -5991,20 +6013,31 @@ function sysCardHtml(s) {
         ${active ? `<button class="btn btn-danger btn-sm" onclick="onSetSystemStatus('${s.id}','disabled')">${ICON.ban} Pause</button>` : `<button class="btn btn-ghost btn-sm" onclick="onSetSystemStatus('${s.id}','active')">${ICON.check} Resume</button>`}
       </div>
     </div>
+    <div class="row" style="padding:10px 20px;border-bottom:1px solid var(--border);gap:14px;flex-wrap:wrap;background:var(--surface-2)">
+      <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer" title="When the license is denied, revoked, or the game awaits approval, EVERY player in that game is kicked immediately — a leaked copy can never run on a free activation">
+        <input type="checkbox" ${s.kickOnDeny ? 'checked' : ''} onchange="onSetEnforcement('${s.id}','kickOnDeny',this.checked)" style="accent-color:var(--gold);width:16px;height:16px">
+        <span class="small"><b>Kick everyone on deny</b> <span class="muted">— leaked copy = instant mass kick</span></span>
+      </label>
+      <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer" title="When you blacklist a game (leak response), every player in it gets a real Roblox ban via Players:BanAsync. Bans lift automatically once the game is allowed again.">
+        <input type="checkbox" ${s.banOnBlacklist ? 'checked' : ''} onchange="onSetEnforcement('${s.id}','banOnBlacklist',this.checked)" style="accent-color:var(--gold);width:16px;height:16px">
+        <span class="small"><b>Ban on blacklist</b> <span class="muted">— blacklist a leak = Roblox ban for its players, auto-lifted when re-allowed</span></span>
+      </label>
+    </div>
   </div>`;
 }function sysGameBadge(st) {
   return st === 'active' ? '<span class="badge ok">ALLOWED</span>' : st === 'pending' ? '<span class="badge warn">PENDING APPROVAL</span>' : st === 'revoked' ? '<span class="badge warn">REVOKED</span>' : '<span class="badge" style="background:rgba(220,38,38,.14);color:#f87171">BLACKLISTED</span>';
 }
-function sysGameRow(g) {
+function sysGameRow(g, s) {
+  const banNote = s && s.banOnBlacklist ? ' — players get a Roblox ban (Ban on blacklist is on)' : '';
   const ownerLabel = g.gameOwner ? esc(g.gameOwner) : '<span class="off">unknown</span>';
   return `<div class="row" style="padding:12px 20px;border-bottom:1px solid var(--border);gap:12px;flex-wrap:wrap">
     <span class="lic-device" style="flex:1;min-width:220px">${ICON.system} <b style="color:var(--text)">${g.gameName ? esc(g.gameName) : 'Unknown game'}</b> ${sysGameBadge(g.status)}<br>
       <span class="muted small">Game creator: <b style="color:var(--text)">${ownerLabel}</b> · Place ID: <b style="color:var(--text)">${esc(g.placeId)}</b> · Last seen ${timeAgo(g.lastSeenAt)}</span>
     </span>
     ${g.status === 'active' ? `<button class="btn btn-ghost btn-sm" onclick="onSetSystemGameStatus('${g.id}','revoked')" title="Blocks this game on its next check-in">${ICON.ban} Revoke</button>
-      <button class="btn btn-danger btn-sm" onclick="onSetSystemGameStatus('${g.id}','blacklisted')" title="Hard-ban this game — it is denied instantly and stays banned">${ICON.flag} Blacklist</button>`
+      <button class="btn btn-danger btn-sm" onclick="onSetSystemGameStatus('${g.id}','blacklisted')" title="Hard-ban this game — it is denied instantly and stays banned${banNote}">${ICON.flag} Blacklist</button>`
     : `<button class="btn btn-primary btn-sm" onclick="onSetSystemGameStatus('${g.id}','active')">${ICON.check} Allow</button>
-      ${g.status === 'revoked' ? `<button class="btn btn-danger btn-sm" onclick="onSetSystemGameStatus('${g.id}','blacklisted')">${ICON.flag} Blacklist</button>` : ''}`}
+      ${g.status === 'revoked' ? `<button class="btn btn-danger btn-sm" onclick="onSetSystemGameStatus('${g.id}','blacklisted')" title="Hard-ban this game — it is denied instantly and stays banned${banNote}">${ICON.flag} Blacklist</button>` : ''}`}
   </div>`;
 }
 function sysGamesHtml(s) {
@@ -6014,7 +6047,7 @@ function sysGamesHtml(s) {
   const gState = k => k === 'active' ? 'allowed' : 'other';
   const chosen = STATE._sysGameFilter || 'all';
   const isOn = k => (chosen === k) || (chosen === 'all');
-  const list = rows => rows.length ? rows.map(sysGameRow).join('') : `<div class="muted small" style="padding:10px 20px">${rows === allowed ? 'No active licensed games yet.' : 'Nothing here — new games appear automatically when they check in and wait for your approval.'}</div>`;
+  const list = rows => rows.length ? rows.map(g => sysGameRow(g, s)).join('') : `<div class="muted small" style="padding:10px 20px">${rows === allowed ? 'No active licensed games yet.' : 'Nothing here — new games appear automatically when they check in and wait for your approval.'}</div>`;
   return `<div class="card" id="sysgames-${s.id}" style="margin-bottom:16px;overflow:hidden">
     <div class="row" style="padding:12px 20px;border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap">
       <span class="crown" style="color:var(--gold)">${ICON.system}</span><b style="font-family:var(--font-display)">${esc(s.name)}</b>
@@ -6124,6 +6157,12 @@ HOW IT WORKS
 	- Kicked devices are DENIED on their next check-in, and any kicked player
 	  is force-disconnected (auto-kick) even mid-game.
 	- If DENIED: the protected object is disabled and License.OnDenied fires.
+	- With Kick-on-deny ON (default): when the license is denied/revoked or
+	  the game is still awaiting approval, EVERY player in the game is kicked
+	  immediately — a leaked copy can never run on a free activation.
+	- With Ban-on-blacklist ON: blacklisting the game (leak response) BANS
+	  every player in it from Roblox (Players:BanAsync) and the bans are
+	  lifted automatically once the game is allowed again.
 
 	ANTI-TAMPER
 	-----------
@@ -6172,6 +6211,14 @@ local CONFIG = {
 -- fingerprint stops matching and the system hard-fails instead of running.
 -- ("" = unlocked spec copy — the site's "Studio code" button fills it in.)
 local TAMPER_KEY = "__FINGERPRINT__"
+
+-- ENFORCEMENT — the web answers with revokeAll / banAll / unban flags (the
+-- Licensed Dashboard's Kick-on-deny and Ban-on-blacklist toggles):
+--   revokeAll=true  → EVERY player in the game is force-disconnected now.
+--   banAll=true     → every player is BANNED from Roblox (Players:BanAsync).
+--   unban=true      → the license is good again; past kick-bans are lifted.
+-- Default kickOnDeny=ON: a leaked copy cannot keep running with a free
+-- activation — everyone is kicked until the creator fixes the license.
 
 -- Roblox's crypt.hash returns a BASE64-encoded SHA-256; the site bakes the
 -- same encoding. script.Source is only readable in Studio, so in a live game
@@ -6260,17 +6307,79 @@ local function kickPlayers(ids)
 	end
 end
 
+-- Ban enforcement: the creator blacklisted this game (leak response) with
+-- Ban-on-blacklist enabled — every player here gets a real Roblox ban via
+-- Players:BanAsync. Ban configs are deduplicated per user per day.
+local bannedThisSession = {}
+local function banPlayers(reason)
+	for _, player in ipairs(Players:GetPlayers()) do
+		local uid = player.UserId
+		if not bannedThisSession[uid] then
+			bannedThisSession[uid] = true
+			local cfg = Instance.new("BanConfig")
+			cfg.Duration = -1                -- permanent until lifted
+			cfg.DisplayReason = "This game is using an unlicensed copy of " .. CONFIG.SystemName .. ". Kings Production license enforcement."
+			cfg.ExcludeAltAccounts = false
+			cfg.ApplyToUniverse = true
+			local okBan, err = pcall(function()
+				Players:BanAsync({ UserIds = { uid }, BanConfigs = { cfg } })
+			end)
+			if okBan then
+				log("Banned " .. player.Name)
+			else
+				log("Ban failed for " .. player.Name .. " (" .. tostring(err) .. ") — kicking instead")
+				player:Kick(cfg.DisplayReason)
+			end
+		end
+	end
+end
+
+-- License restored → lift bans for players present in the game (they are
+-- the ones rejoining now that the game is allowed again).
+local unbannedThisSession = {}
+local function unbanPlayers()
+	for _, player in ipairs(Players:GetPlayers()) do
+		local uid = player.UserId
+		if not unbannedThisSession[uid] then
+			unbannedThisSession[uid] = true
+			local okUnban, err = pcall(function()
+				Players:UnbanAsync({ UserIds = { uid } })
+			end)
+			if okUnban then log("Lifted ban for " .. player.Name)
+			else log("Unban failed for " .. player.Name .. " (" .. tostring(err) .. ")") end
+		end
+	end
+end
+
+-- Kick EVERY player in the game (revokeAll) — used when the license is
+-- denied/revoked/pending and Kick-on-deny is enabled, so a leaked copy
+-- never keeps running with a free activation.
+local function kickEveryone(reason)
+	for _, player in ipairs(Players:GetPlayers()) do
+		player:Kick(tostring(reason or "This game is not licensed to use this system."))
+	end
+end
+
 local function applyDecision(res)
 	local active = res and res.ok == true and res.data and res.data.active == true
 	License.IsActive = active
 	License.LastCheck = os.time()
 	if active then
 		log("ACTIVE — system is licensed")
+		if res.data.unban then task.spawn(unbanPlayers) end
 	else
 		log("DENIED — " .. tostring(res and res.data and res.data.reason or "license not active") .. " — disabling protected system")
 	end
 	setProtectedDisabled(not active)
 	kickPlayers(res and res.data and res.data.revokedPlayers)
+	if not active then
+		-- Escalation ladder (flags come from the web dashboard toggles):
+		if res.data and res.data.banAll then
+			banPlayers(res and res.data and res.data.reason)
+		elseif res.data and res.data.revokeAll then
+			kickEveryone(res and res.data and res.data.reason)
+		end
+	end
 	if not active and License.OnDenied then
 		License.OnDenied()
 	end
@@ -6342,8 +6451,14 @@ local function registerPlayer(player)
 			gameOwner = gmOwner,
 			gameOwnerType = tostring(game.CreatorType),
 		})
-		if res and res.ok == true and res.data and res.data.active == false and res.data.kicked then
-			player:Kick("This device is not authorized for this system.")
+		if res and res.ok == true and res.data then
+			if res.data.kicked then
+				player:Kick("This device is not authorized for this system.")
+			elseif res.data.banAll then
+				banPlayers(res and res.data and res.data.reason)
+			elseif res.data.revokeAll then
+				player:Kick(tostring(res.data.reason or "This game is not licensed to use this system."))
+			end
 		end
 	end)
 end
@@ -6450,6 +6565,15 @@ async function onRegisterSystem(e) {
   await router();
   const sys = (STATE._systems || []).filter(s => s.name === name && s.password === password).sort((a, b) => b.createdAt - a.createdAt)[0];
   if (sys) onCopySystemCode(sys.id);
+}
+/* Enforcement toggles (Licensed Dashboard → system card). Changing
+   Ban-on-blacklist OFF also un-blacklists nothing — the creator lifts bans
+   by allowing the game again (unban) or pausing the system. */
+async function onSetEnforcement(id, key, value) {
+  const r = await API.setSystemEnforcement(STATE.user, id, { [key]: value });
+  r.ok ? toast(key === 'banOnBlacklist'
+    ? (value ? 'Ban on blacklist ON — blacklisting a game will Roblox-ban its players; allowing the game again lifts the bans.' : 'Ban on blacklist OFF — blacklisting will only deny/kick, no Roblox bans.')
+    : (value ? 'Kick everyone ON — any deny now mass-kicks the whole server.' : 'Kick everyone OFF — denials only disable the protected code.'), await router()) : toast(r.error, 'err');
 }
 async function onSetSystemStatus(id, status) {
   const r = await API.setSystemStatus(STATE.user, id, status);

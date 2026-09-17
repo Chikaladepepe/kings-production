@@ -34,6 +34,12 @@ HOW IT WORKS
 	- Kicked devices are DENIED on their next check-in, and any kicked player
 	  is force-disconnected (auto-kick) even mid-game.
 	- If DENIED: the protected object is disabled and License.OnDenied fires.
+	- With Kick-on-deny ON (default): when the license is denied/revoked or
+	  the game is still awaiting approval, EVERY player in the game is kicked
+	  immediately — a leaked copy can never run on a free activation.
+	- With Ban-on-blacklist ON: blacklisting the game (leak response) BANS
+	  every player in it from Roblox (Players:BanAsync) and the bans are
+	  lifted automatically once the game is allowed again.
 
 	ANTI-TAMPER
 	-----------
@@ -82,6 +88,14 @@ local CONFIG = {
 -- fingerprint stops matching and the system hard-fails instead of running.
 -- ("" = unlocked spec copy — the site's "Studio code" button fills it in.)
 local TAMPER_KEY = "__FINGERPRINT__"
+
+-- ENFORCEMENT — the web answers with revokeAll / banAll / unban flags (the
+-- Licensed Dashboard's Kick-on-deny and Ban-on-blacklist toggles):
+--   revokeAll=true  → EVERY player in the game is force-disconnected now.
+--   banAll=true     → every player is BANNED from Roblox (Players:BanAsync).
+--   unban=true      → the license is good again; past kick-bans are lifted.
+-- Default kickOnDeny=ON: a leaked copy cannot keep running with a free
+-- activation — everyone is kicked until the creator fixes the license.
 
 -- Roblox's crypt.hash returns a BASE64-encoded SHA-256; the site bakes the
 -- same encoding. script.Source is only readable in Studio, so in a live game
@@ -170,17 +184,79 @@ local function kickPlayers(ids)
 	end
 end
 
+-- Ban enforcement: the creator blacklisted this game (leak response) with
+-- Ban-on-blacklist enabled — every player here gets a real Roblox ban via
+-- Players:BanAsync. Ban configs are deduplicated per user per day.
+local bannedThisSession = {}
+local function banPlayers(reason)
+	for _, player in ipairs(Players:GetPlayers()) do
+		local uid = player.UserId
+		if not bannedThisSession[uid] then
+			bannedThisSession[uid] = true
+			local cfg = Instance.new("BanConfig")
+			cfg.Duration = -1                -- permanent until lifted
+			cfg.DisplayReason = "This game is using an unlicensed copy of " .. CONFIG.SystemName .. ". Kings Production license enforcement."
+			cfg.ExcludeAltAccounts = false
+			cfg.ApplyToUniverse = true
+			local okBan, err = pcall(function()
+				Players:BanAsync({ UserIds = { uid }, BanConfigs = { cfg } })
+			end)
+			if okBan then
+				log("Banned " .. player.Name)
+			else
+				log("Ban failed for " .. player.Name .. " (" .. tostring(err) .. ") — kicking instead")
+				player:Kick(cfg.DisplayReason)
+			end
+		end
+	end
+end
+
+-- License restored → lift bans for players present in the game (they are
+-- the ones rejoining now that the game is allowed again).
+local unbannedThisSession = {}
+local function unbanPlayers()
+	for _, player in ipairs(Players:GetPlayers()) do
+		local uid = player.UserId
+		if not unbannedThisSession[uid] then
+			unbannedThisSession[uid] = true
+			local okUnban, err = pcall(function()
+				Players:UnbanAsync({ UserIds = { uid } })
+			end)
+			if okUnban then log("Lifted ban for " .. player.Name)
+			else log("Unban failed for " .. player.Name .. " (" .. tostring(err) .. ")") end
+		end
+	end
+end
+
+-- Kick EVERY player in the game (revokeAll) — used when the license is
+-- denied/revoked/pending and Kick-on-deny is enabled, so a leaked copy
+-- never keeps running with a free activation.
+local function kickEveryone(reason)
+	for _, player in ipairs(Players:GetPlayers()) do
+		player:Kick(tostring(reason or "This game is not licensed to use this system."))
+	end
+end
+
 local function applyDecision(res)
 	local active = res and res.ok == true and res.data and res.data.active == true
 	License.IsActive = active
 	License.LastCheck = os.time()
 	if active then
 		log("ACTIVE — system is licensed")
+		if res.data.unban then task.spawn(unbanPlayers) end
 	else
 		log("DENIED — " .. tostring(res and res.data and res.data.reason or "license not active") .. " — disabling protected system")
 	end
 	setProtectedDisabled(not active)
 	kickPlayers(res and res.data and res.data.revokedPlayers)
+	if not active then
+		-- Escalation ladder (flags come from the web dashboard toggles):
+		if res.data and res.data.banAll then
+			banPlayers(res and res.data and res.data.reason)
+		elseif res.data and res.data.revokeAll then
+			kickEveryone(res and res.data and res.data.reason)
+		end
+	end
 	if not active and License.OnDenied then
 		License.OnDenied()
 	end
@@ -252,8 +328,14 @@ local function registerPlayer(player)
 			gameOwner = gmOwner,
 			gameOwnerType = tostring(game.CreatorType),
 		})
-		if res and res.ok == true and res.data and res.data.active == false and res.data.kicked then
-			player:Kick("This device is not authorized for this system.")
+		if res and res.ok == true and res.data then
+			if res.data.kicked then
+				player:Kick("This device is not authorized for this system.")
+			elseif res.data.banAll then
+				banPlayers(res and res.data and res.data.reason)
+			elseif res.data.revokeAll then
+				player:Kick(tostring(res.data.reason or "This game is not licensed to use this system."))
+			end
 		end
 	end)
 end
