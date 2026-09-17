@@ -25,7 +25,7 @@ const { createR2Files } = require('./server/r2-files.js');
 const { createMailer } = require('./server/mail.js');
 
 const ROOT = __dirname;
-const PORT = Number(process.env.PORT || 3000);
+const PORT = Number(process.env.PORT) || 3000; // treats PORT=0 as unset so a stray empty env value can't bind a random port
 const PUBLIC_URL = String(process.env.PUBLIC_URL || `http://localhost:${PORT}`).replace(/\/+$/, '');
 const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(ROOT, 'uploads');
@@ -655,6 +655,7 @@ async function main() {
   /* Seller order queue (Licensed Dashboard → Orders). */
   app.get('/api/dashboard/orders', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.sellerOrders(u)); }));
   app.post('/api/dashboard/orders/:id/approval', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.setOrderApproval(u, req.params.id, (req.body || {}).decision, (req.body || {}).note)); }));
+  app.post('/api/dashboard/orders/:id/review-proof', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.sellerReviewProof(u, req.params.id, (req.body || {}).decision, (req.body || {}).note)); }));
   /* ---- announcements (admin) ---- */
   app.post('/api/admin/announcements', admin(async (u, req) => engine.createAnnouncement(u, req.body || {})));
   app.patch('/api/admin/announcements/:id', admin(async (u, req) => engine.updateAnnouncement(u, req.params.id, req.body || {})));

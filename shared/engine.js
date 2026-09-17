@@ -262,7 +262,7 @@
       let images = [], paymentMethods = [];
       try { images = a.images ? JSON.parse(a.images) : []; } catch (e) {}
       try { paymentMethods = a.paymentMethods ? JSON.parse(a.paymentMethods) : []; } catch (e) {}
-      return { id: a.id, title: a.title, category: a.category, price: a.price, sales: a.sales, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, imageUrl: a.imageUrl, images, paymentMethods, owner: o ? publicUser(o) : null, rating: rv ? rv.rating : null, ratingCount: rv ? rv.count : 0, likes: likeCount(a.id), liked: likedBy(a.id, viewerId) };
+      return { id: a.id, title: a.title, category: a.category, price: a.price, sales: a.sales, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, imageUrl: a.imageUrl, images, paymentMethods, deliverDuringPending: !!a.deliverDuringPending, owner: o ? publicUser(o) : null, rating: rv ? rv.rating : null, ratingCount: rv ? rv.count : 0, likes: likeCount(a.id), liked: likedBy(a.id, viewerId) };
     }
     function sendEmail(rec) {
       const row = { id: 'e' + uid(), to: rec.to, subject: rec.subject, action: rec.action, body: rec.body, link: rec.link || null, createdAt: now(), read: false };
@@ -541,7 +541,7 @@
       if (v.length > 2000) return null;
       return v;
     }
-    async function createAsset(user, { title, category, description, price, fileName, fileData, imageUrl, images, paymentMethods } = {}) {
+    async function createAsset(user, { title, category, description, price, fileName, fileData, imageUrl, images, paymentMethods, deliverDuringPending } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to post assets.');
       if (!canPost(u)) {
@@ -573,7 +573,7 @@
       const asset = {
         id: 'a' + uid(), ownerId: u.id, title, category, description, price,
         fileName: file ? file.name : fileName, fileMime: file ? file.mime : 'application/octet-stream', fileSize: file ? file.size : 0,
-        images: JSON.stringify(cleanImages), paymentMethods: JSON.stringify(sellerPm),
+        images: JSON.stringify(cleanImages), paymentMethods: JSON.stringify(sellerPm), deliverDuringPending: deliverDuringPending ? 1 : 0,
         imageUrl: img, status: founderLevel ? 'approved' : 'pending', rejectReason: null, sales: 0, createdAt: now(), updatedAt: now(), approvedAt: founderLevel ? now() : null,
       };
       if (file) {
@@ -613,7 +613,7 @@
       });
     }
 
-    async function updateAsset(user, id, { title, category, description, price, fileName, fileData, imageUrl, images, paymentMethods } = {}) {
+    async function updateAsset(user, id, { title, category, description, price, fileName, fileData, imageUrl, images, paymentMethods, deliverDuringPending } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       const a = byIdIn('assets', id);
@@ -653,6 +653,7 @@
         const allowedPm = ['stripe', 'paypal', 'gcash', 'kofi'];
         a.paymentMethods = JSON.stringify(Array.isArray(paymentMethods) ? paymentMethods.filter(m => allowedPm.includes(m)).slice(0, 4) : []);
       }
+      if (deliverDuringPending !== undefined) a.deliverDuringPending = !!deliverDuringPending ? 1 : 0;
       const file = normalizeFile(fileData, fileName);
       if (file) {
         if (file.size > cfg.maxUploadBytes) return fail('invalid', 'File is too large (max 20 MB).');
@@ -973,6 +974,26 @@
       flush();
       return ok(true);
     }
+    /* The seller verifies a manual-payment proof (reference etc.) — the seller
+       is the first line of defense; staff can still review from the panel. */
+    async function sellerReviewProof(user, orderId, decision, note) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const order = byIdIn('orders', orderId);
+      if (!order || order.sellerId !== u.id) return fail('forbidden', 'Order not found.');
+      if (!MANUAL_METHODS.includes(order.method)) return fail('invalid', 'This order is not a manual payment.');
+      if (order.status !== 'pending_verification') return fail('invalid', 'This order has no payment proof to review.');
+      decision = String(decision || '');
+      if (!['approve', 'reject'].includes(decision)) return fail('invalid', 'Invalid decision.');
+      if (decision === 'approve') return finalizeOrder(order, dbUser(order.buyerId));
+      order.status = 'awaiting_proof';
+      order.proofAttempts = (Number(order.proofAttempts) || 0) + 1;
+      order.proofRejectedNote = String(note || '').trim().slice(0, 300) || null;
+      order.updatedAt = now();
+      store.put('orders', order);
+      flush();
+      return ok(true);
+    }
     async function adminReviewManualOrder(actor, orderId, decision, note) {
       const r = requireAdmin(actor); if (r) return r;
       const order = byIdIn('orders', orderId);
@@ -1105,7 +1126,9 @@
           const b = dbUser(o.buyerId);
           let details = null;
           try { details = o.gameDetails ? JSON.parse(o.gameDetails) : null; } catch (e) {}
-          return { id: o.id, assetId: o.assetId, assetTitle: a ? a.title : '(deleted asset)', amount: o.amount, currency: o.currency, status: o.status, approval: o.approval || (o.status === 'completed' ? 'approved' : 'pending'), buyer: b ? { handle: b.handle, displayName: b.displayName } : null, gameDetails: details, createdAt: o.createdAt, completedAt: o.updatedAt };
+          let proof = null;
+          try { proof = o.proof ? JSON.parse(o.proof) : null; } catch (e) {}
+          return { id: o.id, assetId: o.assetId, assetTitle: a ? a.title : '(deleted asset)', amount: o.amount, currency: o.currency, method: o.method, manual: MANUAL_METHODS.includes(o.method), proof, status: o.status, approval: o.approval || (o.status === 'completed' ? 'approved' : 'pending'), buyer: b ? { handle: b.handle, displayName: b.displayName } : null, gameDetails: details, createdAt: o.createdAt, completedAt: o.updatedAt };
         });
       return ok(rows);
     }
@@ -1150,6 +1173,21 @@
       } else {
         const a = byIdIn('assets', order.assetId);
         if (!a) return fail('notfound', 'The asset for this order no longer exists.');
+        /* The seller can hand the file over early, while the order is still
+           waiting on their license activation — optional, set at posting. */
+        if (a.deliverDuringPending && a.ownerId !== buyer.id) {
+          try {
+            const cfgRow = byIdIn('site_settings', 'payment_config');
+            const cfg = cfgRow ? JSON.parse(cfgRow.value) : {};
+            sendEmail({
+              to: buyer.email,
+              subject: 'Your system file — ' + a.title + ' (Kings Production)',
+              action: 'receipt',
+              body: 'The seller of "' + a.title + '" has released the system file while your license activation is still pending.\n\nDownload it from the asset page: ' + (cfg.siteUrl || '') + '#/asset/' + a.id + '\n\nYou can download it there any time. Your license will be activated by the seller after they verify your game details.',
+              link: '#/asset/' + a.id,
+            });
+          } catch (e) { console.error('early-delivery email failed', e); }
+        }
         const r = grantLicense(buyer, a);
         out = { licenseKey: r.licenseKey, vipUpgrade: r.vipUpgrade };
       }
@@ -1313,7 +1351,9 @@
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       if (!canPost(u)) return fail('vipOnly', 'Only Licensed sellers have a dashboard.');
-      if (isStaff(u)) return fail('vipOnly', 'Staff use the Admin Panel — the Licensed Dashboard needs a Contract plan (granted on the Founder Panel or the Subscription page).');
+      /* Founder / Co-Founder own the platform — the dashboard is theirs too;
+         plain Admins still need a Contract plan to use it. */
+      if (isStaff(u) && effRank(u) < roleRank('cofounder')) return fail('vipOnly', 'Staff use the Admin Panel — the Licensed Dashboard needs a Contract plan (granted on the Founder Panel or the Subscription page).');
       const assets = all('assets').filter(a => a.ownerId === u.id).sort((x, y) => y.createdAt - x.createdAt);
       const ids = new Set(assets.map(a => a.id));
       const purchases = all('purchases').filter(p => ids.has(p.assetId));
@@ -1353,7 +1393,7 @@
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       if (!canPost(u)) return fail('vipOnly', 'Only Licensed sellers can manage licenses.');
-      if (isStaff(u) && !(Number(u.contractTier) > 0)) return fail('vipOnly', 'Staff manage licenses only with a Contract plan.');
+      if (isStaff(u) && effRank(u) < roleRank('cofounder') && !(Number(u.contractTier) > 0)) return fail('vipOnly', 'Staff manage licenses only with a Contract plan.');
       const assets = all('assets').filter(a => a.ownerId === u.id);
       const ids = new Set(assets.map(a => a.id));
       const list = all('purchases').filter(p => ids.has(p.assetId) && (!assetId || p.assetId === assetId))
@@ -1370,7 +1410,7 @@
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       if (!canPost(u)) return fail('vipOnly', 'Only the creator can manage this license.');
-      if (isStaff(u) && !(Number(u.contractTier) > 0)) return fail('vipOnly', 'Staff manage licenses only with a Contract plan.');
+      if (isStaff(u) && effRank(u) < roleRank('cofounder') && !(Number(u.contractTier) > 0)) return fail('vipOnly', 'Staff manage licenses only with a Contract plan.');
       const p = byIdIn('purchases', purchaseId);
       if (!p) return fail('notfound', 'License not found.');
       const a = byIdIn('assets', p.assetId);
@@ -1386,7 +1426,7 @@
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       if (!canPost(u)) return fail('vipOnly', 'Only the creator can revoke devices.');
-      if (isStaff(u) && !(Number(u.contractTier) > 0)) return fail('vipOnly', 'Staff manage licenses only with a Contract plan.');
+      if (isStaff(u) && effRank(u) < roleRank('cofounder') && !(Number(u.contractTier) > 0)) return fail('vipOnly', 'Staff manage licenses only with a Contract plan.');
       const d = byIdIn('devices', deviceId);
       if (!d) return fail('notfound', 'Device not found.');
       const a = byIdIn('assets', d.assetId);
@@ -2230,7 +2270,9 @@
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       if (effRank(u) < roleRank('vip') && !isTester(u)) return fail('vipOnly', 'System registering is a Licensed feature — grab a Subscription or Contract to unlock it.');
-      if (isStaff(u) && !(Number(u.protectionTier) > 0) && !(Number(u.contractTier) > 0) && !isTester(u)) return fail('vipOnly', 'Admins register systems only with a plan — grant one on the Founder Panel, or buy on the Subscription page.');
+      /* Founder / Co-Founder run the platform, so they register freely —
+         the plan gate applies to Admins and below. */
+      if (isStaff(u) && effRank(u) < roleRank('cofounder') && !(Number(u.protectionTier) > 0) && !(Number(u.contractTier) > 0) && !isTester(u)) return fail('vipOnly', 'Admins register systems only with a plan — grant one on the Founder Panel, or buy on the Subscription page.');
       name = String(name || '').trim();
       password = String(password || '').trim();
       if (name.length < 3 || name.length > 60) return fail('invalid', 'System name must be 3–60 characters.');
@@ -2480,7 +2522,7 @@
       verifyEmail, resendVerification,
       updateProfile, setup2fa, enable2fa, disable2fa,
       createAsset, postStatus, listApproved, topSelling, getAsset, updateAsset, deleteAsset, myAssets, download,
-      purchase, myPurchases, assignLicense, createOrder, createVipOrder, createSubscriptionOrder, completeOrder, settleOrder, cancelOrder, myOrders, adminOrders, adminCompleteOrder, submitPaymentProof, adminReviewManualOrder, getPaymentConfig, adminSetPaymentConfig,
+      purchase, myPurchases, assignLicense, createOrder, createVipOrder, createSubscriptionOrder, completeOrder, settleOrder, cancelOrder, myOrders, adminOrders, adminCompleteOrder, submitPaymentProof, sellerReviewProof, adminReviewManualOrder, getPaymentConfig, adminSetPaymentConfig,
       addComment, listComments, toggleLike,
       listReviews, addReview, deleteReview,
       createReport, adminReports, adminResolveReport,

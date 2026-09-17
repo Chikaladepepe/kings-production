@@ -1683,7 +1683,7 @@ const API = {};
       let images = [], paymentMethods = [];
       try { images = a.images ? JSON.parse(a.images) : []; } catch (e) {}
       try { paymentMethods = a.paymentMethods ? JSON.parse(a.paymentMethods) : []; } catch (e) {}
-      return { id: a.id, title: a.title, category: a.category, price: a.price, sales: a.sales, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, imageUrl: a.imageUrl, images, paymentMethods, owner: o ? publicUser(o) : null, rating: rv ? rv.rating : null, ratingCount: rv ? rv.count : 0, likes: likeCount(a.id), liked: likedBy(a.id, viewerId) };
+      return { id: a.id, title: a.title, category: a.category, price: a.price, sales: a.sales, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, imageUrl: a.imageUrl, images, paymentMethods, deliverDuringPending: !!a.deliverDuringPending, owner: o ? publicUser(o) : null, rating: rv ? rv.rating : null, ratingCount: rv ? rv.count : 0, likes: likeCount(a.id), liked: likedBy(a.id, viewerId) };
     }
     function sendEmail(rec) {
       const row = { id: 'e' + uid(), to: rec.to, subject: rec.subject, action: rec.action, body: rec.body, link: rec.link || null, createdAt: now(), read: false };
@@ -1962,7 +1962,7 @@ const API = {};
       if (v.length > 2000) return null;
       return v;
     }
-    async function createAsset(user, { title, category, description, price, fileName, fileData, imageUrl, images, paymentMethods } = {}) {
+    async function createAsset(user, { title, category, description, price, fileName, fileData, imageUrl, images, paymentMethods, deliverDuringPending } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to post assets.');
       if (!canPost(u)) {
@@ -1994,7 +1994,7 @@ const API = {};
       const asset = {
         id: 'a' + uid(), ownerId: u.id, title, category, description, price,
         fileName: file ? file.name : fileName, fileMime: file ? file.mime : 'application/octet-stream', fileSize: file ? file.size : 0,
-        images: JSON.stringify(cleanImages), paymentMethods: JSON.stringify(sellerPm),
+        images: JSON.stringify(cleanImages), paymentMethods: JSON.stringify(sellerPm), deliverDuringPending: deliverDuringPending ? 1 : 0,
         imageUrl: img, status: founderLevel ? 'approved' : 'pending', rejectReason: null, sales: 0, createdAt: now(), updatedAt: now(), approvedAt: founderLevel ? now() : null,
       };
       if (file) {
@@ -2034,7 +2034,7 @@ const API = {};
       });
     }
 
-    async function updateAsset(user, id, { title, category, description, price, fileName, fileData, imageUrl, images, paymentMethods } = {}) {
+    async function updateAsset(user, id, { title, category, description, price, fileName, fileData, imageUrl, images, paymentMethods, deliverDuringPending } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       const a = byIdIn('assets', id);
@@ -2074,6 +2074,7 @@ const API = {};
         const allowedPm = ['stripe', 'paypal', 'gcash', 'kofi'];
         a.paymentMethods = JSON.stringify(Array.isArray(paymentMethods) ? paymentMethods.filter(m => allowedPm.includes(m)).slice(0, 4) : []);
       }
+      if (deliverDuringPending !== undefined) a.deliverDuringPending = !!deliverDuringPending ? 1 : 0;
       const file = normalizeFile(fileData, fileName);
       if (file) {
         if (file.size > cfg.maxUploadBytes) return fail('invalid', 'File is too large (max 20 MB).');
@@ -2394,6 +2395,26 @@ const API = {};
       flush();
       return ok(true);
     }
+    /* The seller verifies a manual-payment proof (reference etc.) — the seller
+       is the first line of defense; staff can still review from the panel. */
+    async function sellerReviewProof(user, orderId, decision, note) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const order = byIdIn('orders', orderId);
+      if (!order || order.sellerId !== u.id) return fail('forbidden', 'Order not found.');
+      if (!MANUAL_METHODS.includes(order.method)) return fail('invalid', 'This order is not a manual payment.');
+      if (order.status !== 'pending_verification') return fail('invalid', 'This order has no payment proof to review.');
+      decision = String(decision || '');
+      if (!['approve', 'reject'].includes(decision)) return fail('invalid', 'Invalid decision.');
+      if (decision === 'approve') return finalizeOrder(order, dbUser(order.buyerId));
+      order.status = 'awaiting_proof';
+      order.proofAttempts = (Number(order.proofAttempts) || 0) + 1;
+      order.proofRejectedNote = String(note || '').trim().slice(0, 300) || null;
+      order.updatedAt = now();
+      store.put('orders', order);
+      flush();
+      return ok(true);
+    }
     async function adminReviewManualOrder(actor, orderId, decision, note) {
       const r = requireAdmin(actor); if (r) return r;
       const order = byIdIn('orders', orderId);
@@ -2526,7 +2547,9 @@ const API = {};
           const b = dbUser(o.buyerId);
           let details = null;
           try { details = o.gameDetails ? JSON.parse(o.gameDetails) : null; } catch (e) {}
-          return { id: o.id, assetId: o.assetId, assetTitle: a ? a.title : '(deleted asset)', amount: o.amount, currency: o.currency, status: o.status, approval: o.approval || (o.status === 'completed' ? 'approved' : 'pending'), buyer: b ? { handle: b.handle, displayName: b.displayName } : null, gameDetails: details, createdAt: o.createdAt, completedAt: o.updatedAt };
+          let proof = null;
+          try { proof = o.proof ? JSON.parse(o.proof) : null; } catch (e) {}
+          return { id: o.id, assetId: o.assetId, assetTitle: a ? a.title : '(deleted asset)', amount: o.amount, currency: o.currency, method: o.method, manual: MANUAL_METHODS.includes(o.method), proof, status: o.status, approval: o.approval || (o.status === 'completed' ? 'approved' : 'pending'), buyer: b ? { handle: b.handle, displayName: b.displayName } : null, gameDetails: details, createdAt: o.createdAt, completedAt: o.updatedAt };
         });
       return ok(rows);
     }
@@ -2571,6 +2594,21 @@ const API = {};
       } else {
         const a = byIdIn('assets', order.assetId);
         if (!a) return fail('notfound', 'The asset for this order no longer exists.');
+        /* The seller can hand the file over early, while the order is still
+           waiting on their license activation — optional, set at posting. */
+        if (a.deliverDuringPending && a.ownerId !== buyer.id) {
+          try {
+            const cfgRow = byIdIn('site_settings', 'payment_config');
+            const cfg = cfgRow ? JSON.parse(cfgRow.value) : {};
+            sendEmail({
+              to: buyer.email,
+              subject: 'Your system file — ' + a.title + ' (Kings Production)',
+              action: 'receipt',
+              body: 'The seller of "' + a.title + '" has released the system file while your license activation is still pending.\n\nDownload it from the asset page: ' + (cfg.siteUrl || '') + '#/asset/' + a.id + '\n\nYou can download it there any time. Your license will be activated by the seller after they verify your game details.',
+              link: '#/asset/' + a.id,
+            });
+          } catch (e) { console.error('early-delivery email failed', e); }
+        }
         const r = grantLicense(buyer, a);
         out = { licenseKey: r.licenseKey, vipUpgrade: r.vipUpgrade };
       }
@@ -2734,7 +2772,9 @@ const API = {};
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       if (!canPost(u)) return fail('vipOnly', 'Only Licensed sellers have a dashboard.');
-      if (isStaff(u)) return fail('vipOnly', 'Staff use the Admin Panel — the Licensed Dashboard needs a Contract plan (granted on the Founder Panel or the Subscription page).');
+      /* Founder / Co-Founder own the platform — the dashboard is theirs too;
+         plain Admins still need a Contract plan to use it. */
+      if (isStaff(u) && effRank(u) < roleRank('cofounder')) return fail('vipOnly', 'Staff use the Admin Panel — the Licensed Dashboard needs a Contract plan (granted on the Founder Panel or the Subscription page).');
       const assets = all('assets').filter(a => a.ownerId === u.id).sort((x, y) => y.createdAt - x.createdAt);
       const ids = new Set(assets.map(a => a.id));
       const purchases = all('purchases').filter(p => ids.has(p.assetId));
@@ -2774,7 +2814,7 @@ const API = {};
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       if (!canPost(u)) return fail('vipOnly', 'Only Licensed sellers can manage licenses.');
-      if (isStaff(u) && !(Number(u.contractTier) > 0)) return fail('vipOnly', 'Staff manage licenses only with a Contract plan.');
+      if (isStaff(u) && effRank(u) < roleRank('cofounder') && !(Number(u.contractTier) > 0)) return fail('vipOnly', 'Staff manage licenses only with a Contract plan.');
       const assets = all('assets').filter(a => a.ownerId === u.id);
       const ids = new Set(assets.map(a => a.id));
       const list = all('purchases').filter(p => ids.has(p.assetId) && (!assetId || p.assetId === assetId))
@@ -2791,7 +2831,7 @@ const API = {};
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       if (!canPost(u)) return fail('vipOnly', 'Only the creator can manage this license.');
-      if (isStaff(u) && !(Number(u.contractTier) > 0)) return fail('vipOnly', 'Staff manage licenses only with a Contract plan.');
+      if (isStaff(u) && effRank(u) < roleRank('cofounder') && !(Number(u.contractTier) > 0)) return fail('vipOnly', 'Staff manage licenses only with a Contract plan.');
       const p = byIdIn('purchases', purchaseId);
       if (!p) return fail('notfound', 'License not found.');
       const a = byIdIn('assets', p.assetId);
@@ -2807,7 +2847,7 @@ const API = {};
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       if (!canPost(u)) return fail('vipOnly', 'Only the creator can revoke devices.');
-      if (isStaff(u) && !(Number(u.contractTier) > 0)) return fail('vipOnly', 'Staff manage licenses only with a Contract plan.');
+      if (isStaff(u) && effRank(u) < roleRank('cofounder') && !(Number(u.contractTier) > 0)) return fail('vipOnly', 'Staff manage licenses only with a Contract plan.');
       const d = byIdIn('devices', deviceId);
       if (!d) return fail('notfound', 'Device not found.');
       const a = byIdIn('assets', d.assetId);
@@ -3651,7 +3691,9 @@ const API = {};
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       if (effRank(u) < roleRank('vip') && !isTester(u)) return fail('vipOnly', 'System registering is a Licensed feature — grab a Subscription or Contract to unlock it.');
-      if (isStaff(u) && !(Number(u.protectionTier) > 0) && !(Number(u.contractTier) > 0) && !isTester(u)) return fail('vipOnly', 'Admins register systems only with a plan — grant one on the Founder Panel, or buy on the Subscription page.');
+      /* Founder / Co-Founder run the platform, so they register freely —
+         the plan gate applies to Admins and below. */
+      if (isStaff(u) && effRank(u) < roleRank('cofounder') && !(Number(u.protectionTier) > 0) && !(Number(u.contractTier) > 0) && !isTester(u)) return fail('vipOnly', 'Admins register systems only with a plan — grant one on the Founder Panel, or buy on the Subscription page.');
       name = String(name || '').trim();
       password = String(password || '').trim();
       if (name.length < 3 || name.length > 60) return fail('invalid', 'System name must be 3–60 characters.');
@@ -3901,7 +3943,7 @@ const API = {};
       verifyEmail, resendVerification,
       updateProfile, setup2fa, enable2fa, disable2fa,
       createAsset, postStatus, listApproved, topSelling, getAsset, updateAsset, deleteAsset, myAssets, download,
-      purchase, myPurchases, assignLicense, createOrder, createVipOrder, createSubscriptionOrder, completeOrder, settleOrder, cancelOrder, myOrders, adminOrders, adminCompleteOrder, submitPaymentProof, adminReviewManualOrder, getPaymentConfig, adminSetPaymentConfig,
+      purchase, myPurchases, assignLicense, createOrder, createVipOrder, createSubscriptionOrder, completeOrder, settleOrder, cancelOrder, myOrders, adminOrders, adminCompleteOrder, submitPaymentProof, sellerReviewProof, adminReviewManualOrder, getPaymentConfig, adminSetPaymentConfig,
       addComment, listComments, toggleLike,
       listReviews, addReview, deleteReview,
       createReport, adminReports, adminResolveReport,
@@ -4160,6 +4202,7 @@ API.registerSystem = (user, a) => _wrap(async () => _mode === 'local' ? await _e
 API.mySystems = user => _wrap(async () => _mode === 'local' ? await _engine.listSystems(user) : await _call('GET', '/api/systems/mine'));
 API.dashboardOrders = user => _wrap(async () => _mode === 'local' ? await _engine.sellerOrders(user) : await _call('GET', '/api/dashboard/orders'));
 API.setOrderApproval = (user, id, decision, note) => _wrap(async () => _mode === 'local' ? await _engine.setOrderApproval(user, id, decision, note) : await _call('POST', '/api/dashboard/orders/' + _e(id) + '/approval', { decision, note }));
+API.sellerReviewProof = (user, id, decision, note) => _wrap(async () => _mode === 'local' ? await _engine.sellerReviewProof(user, id, decision, note) : await _call('POST', '/api/dashboard/orders/' + _e(id) + '/review-proof', { decision, note }));
 API.adminSystems = user => _wrap(async () => _mode === 'local' ? await _engine.adminSystems(user) : await _call('GET', '/api/admin/systems'));
 API.adminSystemDetail = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.adminSystemDetail(user, id) : await _call('GET', '/api/admin/systems/' + _e(id)));
 API.adminSubscriberDetail = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.adminSubscriberDetail(user, id) : await _call('GET', '/api/admin/subscribers/' + _e(id)));
@@ -4366,7 +4409,7 @@ const SOCIAL = { discord: 'https://discord.gg/syQfqmaA28', youtube: 'https://you
 /* ---- shell ---- */
 function headerHtml(user) {
   const isMemberLevel = u => effRank(u) < roleRank('admin');
-  const showDashboard = u => !!(u && canPost(u) && (!isStaff(u) || Number(u.contractTier) > 0));
+  const showDashboard = u => !!(u && canPost(u) && (effRank(u) >= roleRank('cofounder') || !isStaff(u) || Number(u.contractTier) > 0));
   const navItems = [...(user && showDashboard(user) ? [['dashboard', 'Licensed Dashboard', ICON.chart]] : []), ['portfolio', 'Portfolio', ICON.crown], ['shop', 'Shop', ICON.cart], ['subscription', 'Subscription', ICON.key], ['creators', 'Creators', ICON.user], ['faq', 'FAQ', ICON.book], ['support', 'Support', ICON.mail]];
   const nav = navItems.map(([p, l]) => `<a href="#/${p}" data-nav="${p}">${l}</a>`).join('');
   const right = user
@@ -4397,7 +4440,7 @@ function drawerHtml() {
      clip the drawer to the header's height on phones. */
   const user = STATE.user;
   const isMemberLevel = u => effRank(u) < roleRank('admin');
-  const showDashboard = u => !!(u && canPost(u) && (!isStaff(u) || Number(u.contractTier) > 0));
+  const showDashboard = u => !!(u && canPost(u) && (effRank(u) >= roleRank('cofounder') || !isStaff(u) || Number(u.contractTier) > 0));
   const navItems = [...(user && showDashboard(user) ? [['dashboard', 'Licensed Dashboard', ICON.chart]] : []), ['portfolio', 'Portfolio', ICON.crown], ['shop', 'Shop', ICON.cart], ['subscription', 'Subscription', ICON.key], ['creators', 'Creators', ICON.user], ['faq', 'FAQ', ICON.book], ['support', 'Support', ICON.mail]];
   const drawerNav = navItems.map(([p, l, ic]) => `<a class="m-nav-item" href="#/${p}" data-nav="${p}">${ic}<span>${l}</span></a>`).join('');
   const drawerAccount = user
@@ -5568,13 +5611,16 @@ VIEWS.upload = async ({ query }) => {
           <div class="row" style="gap:8px;flex-wrap:wrap">
             ${[['gcash', 'GCash (QR / manual)'], ['kofi', 'Ko-fi (manual)'], ['paypal', 'PayPal'], ['stripe', 'Stripe']].map(([v, l]) => `<label class="chip" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;padding:7px 12px"><input type="checkbox" name="pm" value="${v}" style="accent-color:var(--gold)"> ${l}</label>`).join('')}
           </div>
-          <div class="hint">For manual methods (GCash QR, Ko-fi) buyers pay you directly and staff verify the proof — automatic ones need API keys.</div>
+          <div class="hint">Manual methods (GCash QR, Ko-fi) go to <b>you</b> — the seller verifies the buyer's payment proof and activates their license. Automatic ones (PayPal, Stripe) need API keys to work.</div>
         </div>
         <div class="field"><label>System file<span class="req">*</span></label>
           <input class="input" type="file" name="file" accept=".rbxl,.rbxm,.rbxmx,.lua,.luau,.zip,.txt" ${a ? '' : 'required'}>
           ${a ? `<div class="hint">Current file: ${esc(a.fileName)} — choose a new file to replace it.</div>` : '<div class="hint">Required — attach the actual system file (.rbxl, .rbxm, .rbxmx, .lua, .luau, .zip). Staff verify this file against your registered system and post picture before the post goes live.'}</div>
         </div>
-        <div class="row"><button class="btn btn-primary" type="submit" ${cooldown ? 'disabled' : ''}>${a ? 'Save & resubmit' : 'Submit for approval'}</button>${a ? '<a class="btn btn-ghost" href="#/my-assets">Cancel</a>' : ''}</div>
+        <div class="field"><label style="display:inline-flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" name="deliverDuringPending" style="accent-color:var(--gold);width:17px;height:17px"> <span><b>Give the system file while approval is pending</b> <span class="muted small" style="font-weight:400">(optional)</span></span></label>
+          <div class="hint">When checked, buyers who paid get the file immediately — they only wait for you to activate the license for their game. When unchecked (default), buyers wait for your full approval before the file unlocks.</div>
+        </div>
+        <div class="row"><button class="btn btn-primary" type="submit" ${cooldown ? 'disabled' : ''}>${a ? 'Save & resubmit' : (STATE.user && effRank(STATE.user) >= roleRank('cofounder')) ? 'Post it' : 'Submit for approval'}</button>${a ? '<a class="btn btn-ghost" href="#/my-assets">Cancel</a>' : ''}</div>
         ${cooldown ? `<p class="muted small mt">Submit is locked while the cooldown runs. Come back in ${esc(cooldown.text)}.</p>` : ''}
       </form>
     </div>
@@ -5589,13 +5635,14 @@ async function onSubmitAsset(e) {
   if (!file && !f.id.value) { toast('A system file is required.', 'err'); return; }
   const images = [...f.querySelectorAll('#up-imgs input')].map(i => i.value.trim()).filter(Boolean);
   const paymentMethods = [...f.querySelectorAll('input[name=pm]:checked')].map(c => c.value);
+  const deliverDuringPending = f.querySelector('input[name=deliverDuringPending]').checked;
   const btn = f.querySelector('button[type=submit]');
   const origLabel = btn.textContent;
   btn.disabled = true; btn.textContent = 'Submitting…';
   try {
     let fileData = null, fileName = null;
     if (file) { fileData = await readFileAsDataURL(file); fileName = file.name; }
-    const payload = { title: f.title.value, category: f.category.value, description: f.description.value, price: f.price.value, imageUrl: f.imageUrl.value.trim(), images, paymentMethods, fileName, fileData };
+    const payload = { title: f.title.value, category: f.category.value, description: f.description.value, price: f.price.value, imageUrl: f.imageUrl.value.trim(), images, paymentMethods, deliverDuringPending, fileName, fileData };
     const res = f.id.value
       ? await API.updateAsset(STATE.user, f.id.value, payload)
       : await API.createAsset(STATE.user, payload);
@@ -5627,6 +5674,10 @@ function initUploadExtras(asset) {
   if (asset && Array.isArray(asset.paymentMethods)) {
     document.querySelectorAll('input[name=pm]').forEach(c => { c.checked = asset.paymentMethods.includes(c.value); });
   }
+  if (asset) {
+    const ddp = document.querySelector('input[name=deliverDuringPending]');
+    if (ddp) ddp.checked = !!asset.deliverDuringPending;
+  }
 }
 VIEWS_BIND.upload = () => { initUploadExtras(STATE._uploadAsset || null); };
 
@@ -5645,7 +5696,7 @@ VIEWS['my-assets'] = async () => {
         <div>${statusBadge(a.status, a.rejectReason)}</div>
         <div class="row" style="gap:8px"><button class="btn btn-ghost btn-sm" onclick="onEditAsset('${a.id}')">${ICON.edit} Edit</button><button class="btn btn-danger btn-sm" onclick="onDeleteAsset('${a.id}')">${ICON.trash}</button></div>
       </div>`).join('')}</div>`
-    : emptyHtml('No assets yet', canPost(STATE.user) ? 'Upload your first asset — it will be reviewed before going live.' : 'Members cannot post assets. Upgrade to a Licensed seller to sell on the marketplace.')}
+    : emptyHtml('No assets yet', canPost(STATE.user) ? 'Upload your first asset — Founder / Co-Founder posts go live instantly; other sellers are reviewed before going live.' : 'Members cannot post assets. Upgrade to a Licensed seller to sell on the marketplace.')}
   </div>`;
 };
 
@@ -5662,13 +5713,13 @@ VIEWS.orders = async () => {
     const proof = o.proof && typeof o.proof === 'object' ? o.proof : null;
     const statusBadge = completed ? '<span class="badge ok">COMPLETED</span>'
       : o.status === 'cancelled' ? '<span class="badge plain">Cancelled</span>'
-      : o.status === 'pending_verification' ? '<span class="badge warn">Proof submitted — under review</span>'
+      : o.status === 'pending_verification' ? '<span class="badge warn">Proof submitted — the seller is verifying</span>'
       : o.status === 'awaiting_proof' && o.manual ? '<span class="badge warn">Payment proof needed</span>'
       : '<span class="badge warn">PENDING</span>';
     const proofBlock = o.manual && !completed ? `
       <div style="padding:10px 20px 4px" class="muted small">
-        ${o.status === 'awaiting_proof' ? (proof && proof.reference ? '' : 'This is a <b>manual</b> payment — send the amount first, then submit your proof (reference number, screenshot link).') : ''}
-        ${o.status === 'pending_verification' ? 'Your proof is with staff for verification — you\'ll get an email once it\'s confirmed.' : ''}
+        ${o.status === 'awaiting_proof' ? (proof && proof.reference ? '' : 'This is a <b>manual</b> payment — send the amount to the seller first, then submit your proof (reference number, screenshot link).') : ''}
+        ${o.status === 'pending_verification' ? 'Your proof is with the <b>seller</b> for verification — they check the reference against their GCash / Ko-fi history. You\'ll get an email once it\'s confirmed.' : ''}
         ${proof && proof.reference ? `Reference submitted: <b style="color:var(--text)">${esc(proof.reference)}</b>${proof.proofUrl ? ` · <a href="${esc(proof.proofUrl)}" target="_blank" rel="noopener">proof link</a>` : ''}` : ''}
       </div>
       <div style="padding:4px 20px 16px"><button class="btn btn-ghost btn-sm" onclick="openManualPayment('${o.id}', '${esc(o.method)}')">${proof ? 'Update proof' : 'Submit payment proof'}</button></div>` : '';
@@ -5679,6 +5730,7 @@ VIEWS.orders = async () => {
         ${completed ? '<span class="badge soft-ok">Delivered</span>' : ''}
       </div>
       ${a && !completed && !o.manual ? `<div style="padding:10px 20px 4px" class="muted small">The seller reviews your game details before activation — you will get an email once it is approved.</div>` : ''}
+      ${a && completed ? `<div style="padding:10px 20px 4px" class="muted small">License delivered${a.deliverDuringPending ? ' — the seller released the file early, so you can download it right now' : ' — the file unlocks on the asset page'}.</div><div style="padding:4px 20px 16px"><a class="btn btn-ghost btn-sm" href="#/asset/${esc(a.id)}">${ICON.download} Go to asset &amp; download</a></div>` : ''}
       ${proofBlock}
       ${completed || o.manual && o.status === 'pending_verification' ? '' : `<div style="padding:10px 20px 16px"><button class="btn btn-ghost btn-sm" onclick="onCancelMyOrder('${o.id}')">Cancel order</button></div>`}
     </div>`;
@@ -5695,8 +5747,8 @@ async function onCancelMyOrder(orderId) {
 }
 VIEWS.dashboard = async ({ query = {} } = {}) => {
   if (!STATE.user) return `<div class="page">${emptyHtml('Not logged in', 'Log in to view your Licensed Dashboard.')}<div class="center mt2"><a class="btn btn-primary" href="#/login">Log in</a></div></div>`;
-  if (isStaff(STATE.user)) {
-    return `<div class="page page-narrow"><div class="card card-pad center" style="padding:56px 30px"><span class="crown" style="font-size:34px">${ICON.shield}</span><h2 style="font-family:var(--font-display);font-size:24px;margin:14px 0 8px">Staff use the ${effRank(STATE.user) >= roleRank('cofounder') ? 'Founder Panel' : 'Admin Panel'}</h2><p class="muted" style="max-width:440px;margin:0 auto">The Licensed Dashboard is for Licensed sellers. Staff get it too when they hold a <b style="color:var(--vip)">Contract</b> plan — grant one on the Founder Panel (Users → Plans), or grab it on the Subscription page.</p></div><div class="center mt2"><a class="btn btn-primary" href="#/admin">${ICON.shield} Open your panel</a> <a class="btn btn-ghost" href="#/subscription">${ICON.key} View plans</a></div></div>`;
+  if (isStaff(STATE.user) && effRank(STATE.user) < roleRank('cofounder')) {
+    return `<div class="page page-narrow"><div class="card card-pad center" style="padding:56px 30px"><span class="crown" style="font-size:34px">${ICON.shield}</span><h2 style="font-family:var(--font-display);font-size:24px;margin:14px 0 8px">Staff use the Admin Panel</h2><p class="muted" style="max-width:440px;margin:0 auto">The Licensed Dashboard is for Licensed sellers. Admins get it too when they hold a <b style="color:var(--vip)">Contract</b> plan — grant one on the Founder Panel (Users → Plans), or grab it on the Subscription page.</p></div><div class="center mt2"><a class="btn btn-primary" href="#/admin">${ICON.shield} Open your panel</a> <a class="btn btn-ghost" href="#/subscription">${ICON.key} View plans</a></div></div>`;
   }
   if (!canPost(STATE.user)) {
     return `<div class="page page-narrow">${STATE.user.role === 'member'
@@ -5816,13 +5868,14 @@ VIEWS.dashboard = async ({ query = {} } = {}) => {
     const completed = o.status === 'completed';
     const approval = o.approval || (completed ? 'approved' : 'pending');
     const gd = o.gameDetails || {};
+    const proof = o.proof && typeof o.proof === 'object' ? o.proof : null;
     return `<div class="card" style="margin-bottom:14px;overflow:hidden">
       <div class="row" style="padding:14px 20px;gap:12px;border-bottom:1px solid var(--border);flex-wrap:wrap">
         <div style="flex:1;min-width:200px">
           <b style="font-family:var(--font-display)">${esc(o.assetTitle)}</b>
-          <div class="muted small">${o.buyer ? esc('@' + o.buyer.handle) : 'unknown buyer'} · ${fmtDate(o.createdAt)} · <span class="price" style="font-size:13px">${o.amount} ${esc(o.currency)}</span></div>
+          <div class="muted small">${o.buyer ? esc('@' + o.buyer.handle) : 'unknown buyer'} · ${fmtDate(o.createdAt)} · <span class="price" style="font-size:13px">${o.amount} ${esc(o.currency)}</span>${o.method ? ' · ' + esc(o.method.replace(/_/g, ' ')) : ''}</div>
         </div>
-        ${completed ? '<span class="badge ok">COMPLETED</span>' : '<span class="badge warn">PENDING</span>'}
+        ${completed ? '<span class="badge ok">COMPLETED</span>' : o.status === 'pending_verification' ? '<span class="badge warn">Proof submitted</span>' : o.status === 'awaiting_proof' ? '<span class="badge plain">Awaiting payment proof</span>' : '<span class="badge warn">PENDING</span>'}
         ${approval === 'approved' ? '<span class="badge soft-ok">Details approved</span>' : approval === 'rejected' ? '<span class="badge soft-red">Details rejected</span>' : '<span class="badge plain">Details not reviewed</span>'}
       </div>
       <div style="padding:12px 20px 16px">
@@ -5833,11 +5886,13 @@ VIEWS.dashboard = async ({ query = {} } = {}) => {
           <span class="muted small">Owner: <b style="color:var(--text)">${gd.gameOwner ? esc(gd.gameOwner) : '—'}</b></span>
         </div>
         ${gd.notes ? `<div class="muted small" style="margin-bottom:10px">Buyer notes: ${esc(gd.notes)}</div>` : ''}
+        ${proof ? `<div class="card card-pad" style="padding:12px 14px;margin-bottom:10px;background:var(--surface-2)"><b style="font-size:13px">Payment proof</b><div class="muted small" style="margin-top:4px">Reference: <b style="color:var(--text)">${esc(proof.reference)}</b>${proof.proofUrl ? ` · <a href="${esc(proof.proofUrl)}" target="_blank" rel="noopener">proof link</a>` : ''}${proof.note ? ` · ${esc(proof.note)}` : ''}</div></div>` : ''}
         ${o.approvalNote ? `<div class="muted small" style="margin-bottom:10px">Your note: ${esc(o.approvalNote)}</div>` : ''}
         ${!completed ? `<div class="row" style="gap:8px;flex-wrap:wrap">
           <button class="btn btn-primary btn-sm" onclick="onOrderApproval('${o.id}','approved')">${ICON.check} Approve details</button>
           <button class="btn btn-danger btn-sm" onclick="onOrderApproval('${o.id}','rejected')">${ICON.ban} Reject</button>
           ${o.status === 'paid' ? `<button class="btn btn-ghost btn-sm" onclick="onOrderApproveAndComplete('${o.id}')">${ICON.crown} Approve &amp; complete</button>` : ''}
+          ${o.status === 'pending_verification' ? `<button class="btn btn-primary btn-sm" onclick="onSellerReviewProof('${o.id}','approve')">${ICON.crown} Verify payment &amp; deliver</button><button class="btn btn-ghost btn-sm" onclick="onSellerReviewProof('${o.id}','reject')">${ICON.ban} Reject proof</button>` : ''}
         </div>` : ''}
       </div>
     </div>`;
@@ -5845,7 +5900,7 @@ VIEWS.dashboard = async ({ query = {} } = {}) => {
   const ordersPending = orders.filter(o => o.status !== 'completed');
   const ordersDone = orders.filter(o => o.status === 'completed');
   const ordersTab = `
-    <p class="muted small" style="margin:0 0 14px">People who bought your systems. Each buyer entered their <b>game details</b> at checkout — check the game ID / name, then approve. A new game using your system also appears under <b>Registered Systems</b> for final approval.</p>
+    <p class="muted small" style="margin:0 0 14px">People who bought your systems. Each buyer entered their <b>game details</b> at checkout — check the game ID / name, then approve. For <b>manual payments</b> (GCash QR, Ko-fi) the buyer submits a payment proof — <b>you</b> verify it (match the reference against your GCash / Ko-fi history) and deliver: the license is activated the moment you confirm. A new game using your system also appears under <b>Registered Systems</b> for final approval.</p>
     <div class="section-head" style="margin:0 0 10px"><div><h2 style="font-size:19px">Pending <span class="muted small" style="font-weight:400">(${ordersPending.length})</span></h2></div></div>
     ${ordersPending.length ? ordersPending.map(orderRow).join('') : `<div class="card card-pad muted small">No pending orders.</div>`}
     <div class="section-head" style="margin:18px 0 10px"><div><h2 style="font-size:19px">Completed <span class="muted small" style="font-weight:400">(${ordersDone.length})</span></h2></div></div>
@@ -5993,6 +6048,28 @@ async function onRemoveSystemGame(gameId) {
 async function onOrderApproval(orderId, decision) {
   const r = await API.setOrderApproval(STATE.user, orderId, decision);
   r.ok ? (toast(decision === 'approved' ? 'Game details approved.' : 'Game details rejected — tell the buyer to resubmit.'), await router()) : toast(r.error, 'err');
+}
+/* Seller-side manual-payment verification: the seller checks the buyer's
+   proof against their own GCash / Ko-fi history and confirms or bounces it. */
+function onSellerReviewProof(orderId, decision) {
+  if (decision === 'approve') {
+    modal({ title: 'Verify payment & deliver?', confirmLabel: 'Yes — deliver',
+      body: '<p>Confirm you received this buyer\'s payment (reference matches your GCash / Ko-fi history). The order completes instantly: the buyer gets their <b>license key</b> and, if you enabled early delivery, the file is available right away.</p>',
+      onConfirm: async () => {
+        const r = await API.sellerReviewProof(STATE.user, orderId, 'approve');
+        r.ok ? (toast('Payment verified — license delivered to the buyer.'), burstAt(innerWidth / 2, innerHeight / 2, 24), SFX.play('purchase')) : toast(r.error, 'err');
+        await router();
+      } });
+  } else {
+    modal({ title: 'Reject this payment proof?', danger: true, confirmLabel: 'Reject proof',
+      body: '<p>The order goes back to <b>awaiting payment proof</b> — the buyer can submit a new one.</p><div class="field" style="margin-top:10px"><label>Reason for the buyer (optional)</label><input class="input" id="spr-note" maxlength="300" placeholder="e.g. Reference number not found in my GCash history"></div>',
+      onConfirm: async () => {
+        const note = document.getElementById('spr-note') ? document.getElementById('spr-note').value.trim() : '';
+        const r = await API.sellerReviewProof(STATE.user, orderId, 'reject', note);
+        r.ok ? toast('Proof rejected — the buyer can submit a new one.') : toast(r.error, 'err');
+        await router();
+      } });
+  }
 }
 function onOrderApproveAndComplete(orderId) {
   modal({ title: 'Approve & complete this order?', confirmLabel: 'Approve & complete',
