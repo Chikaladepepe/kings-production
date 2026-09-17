@@ -23,17 +23,21 @@ const ACTION_META = {
   default: { eyebrow: 'Kings Production', btn: 'Open Kings Production' },
 };
 const CROWN_SVG = '<svg viewBox="0 0 24 24" width="46" height="46" fill="#d4af37" xmlns="http://www.w3.org/2000/svg"><path d="M4 16.5V10l4.2 3.6L12 6.5l3.8 7.1L20 10v6.5a1.6 1.6 0 0 1-1.6 1.6H5.6A1.6 1.6 0 0 1 4 16.5Z"/><rect x="5.2" y="19" width="13.6" height="1.8" rx="0.9"/></svg>';
-function emailHtml({ subject, body, url, action } = {}) {
+function emailHtml({ subject, body, url, action, logoUrl } = {}) {
   const m = ACTION_META[action] || ACTION_META.default;
   const text = escHtml(body).replace(/\n/g, '<br>');
   const btn = url ? `<a href="${escHtml(url)}" style="display:inline-block;background:#d4af37;color:#101014;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;text-decoration:none;padding:13px 28px;border-radius:10px;margin-top:24px;">${escHtml(m.btn)}</a>` : '';
+  /* Gmail/Outlook strip <svg> — the brand mark must be a hosted PNG to render. */
+  const logo = logoUrl
+    ? `<img src="${escHtml(logoUrl)}" width="88" height="88" alt="Kings Production" style="display:block;margin:0 auto;border-radius:20px;" />`
+    : CROWN_SVG;
   return `<!doctype html>
 <html><body style="margin:0;padding:0;background-color:#0b0b0e;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#0b0b0e;">
 <tr><td align="center" style="padding:36px 16px;">
 <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
 <tr><td align="center" style="padding:0 0 24px;">
-  ${CROWN_SVG}
+  ${logo}
   <div style="font-family:Georgia,'Times New Roman',serif;font-size:23px;font-weight:700;color:#ffffff;letter-spacing:2px;margin-top:10px;">KINGS <span style="color:#d4af37;">PRODUCTION</span></div>
   <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#7c7c88;letter-spacing:4px;margin-top:6px;">WHERE EXCELLENCE MEETS INNOVATION</div>
 </td></tr>
@@ -51,7 +55,7 @@ function emailHtml({ subject, body, url, action } = {}) {
 </body></html>`;
 }
 
-function createMailer({ baseUrl, smtp } = {}) {
+function createMailer({ baseUrl, smtp, logoUrl } = {}) {
   const root = String(baseUrl || 'http://localhost:3000').replace(/\/+$/, '');
   let transporter = null;
   if (smtp && smtp.host) {
@@ -86,7 +90,7 @@ function createMailer({ baseUrl, smtp } = {}) {
           to: email.to,
           subject: email.subject,
           text: email.body + (url ? '\n\n' + url : ''),
-          html: emailHtml({ subject: email.subject, body: email.body, url, action: email.action }),
+          html: emailHtml({ subject: email.subject, body: email.body, url, action: email.action, logoUrl }),
         }).then(() => console.log(`[mail] delivered to ${email.to}`))
           .catch(e => console.warn('[mail] SMTP send failed:', e.message));
       }

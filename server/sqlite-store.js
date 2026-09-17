@@ -25,7 +25,7 @@ const fs = require('node:fs');
    map only — never from untrusted input — so the dynamic INSERT/REPLACE below
    cannot be injection points. */
 const SCHEMA = {
-  users: ['id', 'handle', 'email', 'displayName', 'passHash', 'bio', 'pfp', 'role', 'banned', 'banReason', 'timeoutUntil', 'restrictedUntil', 'restrictReason', 'totpSecret', 'totpEnabled', 'country', 'tags', 'googleId', 'acceptedTermsAt', 'emailVerified', 'unsubscribed', 'protectionTier', 'contractTier', 'createdAt', 'updatedAt'],
+  users: ['id', 'handle', 'email', 'displayName', 'passHash', 'bio', 'pfp', 'role', 'banned', 'banReason', 'timeoutUntil', 'restrictedUntil', 'restrictReason', 'totpSecret', 'totpEnabled', 'country', 'tags', 'googleId', 'acceptedTermsAt', 'emailVerified', 'unsubscribed', 'needsPasswordSetup', 'protectionTier', 'contractTier', 'createdAt', 'updatedAt'],
   sessions: ['id', 'userId', 'label', 'createdAt', 'lastSeen', 'expiresAt'],
   assets: ['id', 'ownerId', 'title', 'category', 'description', 'price', 'fileName', 'fileMime', 'fileSize', 'imageUrl', 'status', 'rejectReason', 'sales', 'createdAt', 'updatedAt', 'approvedAt'],
   purchases: ['id', 'assetId', 'buyerId', 'price', 'licenseKey', 'gameId', 'gameName', 'status', 'activatedAt', 'deviceId', 'deviceName', 'lastSeen', 'createdAt'],
@@ -38,7 +38,7 @@ const SCHEMA = {
   pending_regs: ['id', 'email', 'code', 'expiresAt', 'createdAt'],
   emails: ['id', 'to', 'subject', 'action', 'body', 'link', 'createdAt', 'read'],
   portfolio: ['id', 'title', 'category', 'desc', 'stat', 'status', 'imageUrl', 'images', 'links', 'featured', 'createdAt'],
-  creators: ['id', 'name', 'role', 'bio', 'links', 'handle', 'imageUrl', 'createdAt'],
+  creators: ['id', 'name', 'role', 'bio', 'docs', 'links', 'handle', 'imageUrl', 'createdAt'],
   orders: ['id', 'buyerId', 'assetId', 'method', 'amount', 'currency', 'status', 'providerRef', 'licenseKey', 'gameDetails', 'sellerId', 'approval', 'approvalNote', 'createdAt', 'paidAt', 'updatedAt'],
   tickets: ['id', 'userId', 'subject', 'category', 'details', 'status', 'createdAt', 'updatedAt', 'lastActivityAt'],
   ticket_messages: ['id', 'ticketId', 'userId', 'body', 'createdAt'],
@@ -258,6 +258,8 @@ const MIGRATIONS = [
   "ALTER TABLE orders ADD COLUMN approval TEXT",
   "ALTER TABLE orders ADD COLUMN approvalNote TEXT",
   "ALTER TABLE creators ADD COLUMN imageUrl TEXT",
+  "ALTER TABLE creators ADD COLUMN docs TEXT",
+  "ALTER TABLE users ADD COLUMN needsPasswordSetup INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE portfolio ADD COLUMN images TEXT",
   "ALTER TABLE system_games ADD COLUMN gameName TEXT",
   "ALTER TABLE system_games ADD COLUMN gameOwner TEXT",

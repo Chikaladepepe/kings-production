@@ -14,6 +14,7 @@
    Run:  npm install && npm start        (Node >= 22.13)
    ============================================================================ */
 const path = require('node:path');
+const fs = require('node:fs');
 const crypto = require('node:crypto');
 const express = require('express');
 const multer = require('multer');
@@ -53,6 +54,7 @@ async function main() {
   });
   const mail = createMailer({
     baseUrl: PUBLIC_URL,
+    logoUrl: process.env.MAIL_LOGO_URL || (PUBLIC_URL + '/logo.png'),
     smtp: process.env.SMTP_HOST ? {
       host: process.env.SMTP_HOST,
       port: Number(process.env.SMTP_PORT || 587),
@@ -376,7 +378,8 @@ async function main() {
       if (!info || !info.email) return failRedirect('Google did not return a profile.');
       const r = await engine.googleLogin({ googleId: String(info.sub || ''), email: info.email, displayName: info.name || info.given_name || null, picture: info.picture || null });
       if (!r.ok) return failRedirect(r.error);
-      return res.redirect(PUBLIC_URL + '/#/login?google=1&token=' + encodeURIComponent(r.data.token));
+      const needPw = r.data.user && r.data.user.needsPasswordSetup ? '&pw=1' : '';
+      return res.redirect(PUBLIC_URL + '/#/login?google=1' + needPw + '&token=' + encodeURIComponent(r.data.token));
     } catch (e) {
       console.error('[google] callback error:', e);
       return failRedirect('Google sign-in hit a server error — please try again.');
@@ -689,6 +692,11 @@ async function main() {
 
   /* ---- the app (single-file SPA) ---- */
   app.get('/', (req, res) => res.sendFile(path.join(ROOT, 'index.html')));
+  app.get('/logo.png', (req, res) => {
+    const p = path.join(ROOT, 'public', 'logo.png');
+    if (fs.existsSync(p)) { res.setHeader('content-type', 'image/png'); res.setHeader('cache-control', 'public, max-age=86400'); res.sendFile(p); }
+    else res.status(404).end();
+  });
 
   /* ---- multer errors (e.g. oversized uploads) ---- */
   app.use((err, req, res, next) => {

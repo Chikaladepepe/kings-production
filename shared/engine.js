@@ -131,7 +131,7 @@
     u.tags = JSON.stringify(clean);
   };
   const publicUser = u => u ? ({ id: u.id, handle: u.handle, displayName: u.displayName, role: u.role, roleLabel: ROLE_LABEL[u.role] || 'Verified', tags: parseTags(u), pfp: u.pfp, bio: u.bio, createdAt: u.createdAt }) : null;
-  const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled, country: u.country, acceptedTermsAt: u.acceptedTermsAt || null, emailVerified: u.emailVerified !== false && u.emailVerified !== 0, unsubscribed: !!(u.unsubscribed), protectionTier: Number(u.protectionTier) || 0, contractTier: Number(u.contractTier) || 0 }) : null;
+  const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled, country: u.country, acceptedTermsAt: u.acceptedTermsAt || null, emailVerified: u.emailVerified !== false && u.emailVerified !== 0, unsubscribed: !!(u.unsubscribed), needsPasswordSetup: !!u.needsPasswordSetup, protectionTier: Number(u.protectionTier) || 0, contractTier: Number(u.contractTier) || 0 }) : null;
   function timeoutText(u) {
     if (!u || !u.timeoutUntil) return null;
     const ms = u.timeoutUntil - now();
@@ -394,7 +394,7 @@
         while (all('users').some(x => x.handle.toLowerCase() === handle.toLowerCase())) handle = base.slice(0, 18 - String(n).length) + n++;
         u = {
           id: 'u' + uid(), handle, displayName: String(displayName || '').trim().slice(0, 40) || email.split('@')[0],
-          email, role: isFirst ? 'admin' : 'member', passHash: await hashPassword(randomToken(16)),
+          email, role: isFirst ? 'admin' : 'member',          passHash: await hashPassword(randomToken(16)), needsPasswordSetup: true,
           bio: '', pfp: picture || null, totpSecret: null, totpEnabled: false, banned: false, banReason: null,
           timeoutUntil: null, country: 'US', googleId, acceptedTermsAt: now(), createdAt: now(), updatedAt: now(),
           emailVerified: 1, // Google verified this email
@@ -469,9 +469,15 @@
     }
 
     /* ============ PROFILE & 2FA ============ */
-    async function updateProfile(user, { displayName, handle, bio, pfp, country } = {}) {
+    async function updateProfile(user, { displayName, handle, bio, pfp, country, password } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'Account not found.');
+      if (password !== undefined) {
+        const pw = String(password || '');
+        if (pw.length < 6) return fail('invalid', 'Password must be at least 6 characters.');
+        u.passHash = await hashPassword(pw);
+        u.needsPasswordSetup = 0;
+      }
       displayName = String(displayName || '').trim();
       handle = String(handle || '').trim();
       if (displayName.length < 2 || displayName.length > 40) return fail('invalid', 'Display name must be 2–40 characters.');
@@ -1822,7 +1828,7 @@
     }
 
     /* ============ CREATORS (admin-published, like portfolio) ============ */
-    async function createCreator(actor, { name, role, bio, links, handle, imageUrl } = {}) {
+    async function createCreator(actor, { name, role, bio, docs, links, handle, imageUrl } = {}) {
       const r = requireCofounder(actor, 'add creators'); if (r) return r;
       name = String(name || '').trim();
       if (name.length < 1 || name.length > 60) return fail('invalid', 'Name is required (1–60 chars).');
@@ -1832,6 +1838,7 @@
         id: 'cr' + uid(), name,
         role: String(role || '').trim().slice(0, 60),
         bio: String(bio || '').trim().slice(0, 300),
+        docs: String(docs || '').trim().slice(0, 12000),
         imageUrl: img,
         links: JSON.stringify(cleanPortfolioLinks(links)),
         handle: String(handle || '').trim().slice(0, 30),
@@ -1848,6 +1855,7 @@
       if (patch.name !== undefined) it.name = String(patch.name || '').trim().slice(0, 60);
       if (patch.role !== undefined) it.role = String(patch.role || '').trim().slice(0, 60);
       if (patch.bio !== undefined) it.bio = String(patch.bio || '').trim().slice(0, 300);
+      if (patch.docs !== undefined) it.docs = String(patch.docs || '').trim().slice(0, 12000);
       if (patch.imageUrl !== undefined) it.imageUrl = String(patch.imageUrl || '').trim().slice(0, 300) || null;
       if (patch.handle !== undefined) it.handle = String(patch.handle || '').trim().slice(0, 30);
       if (patch.links !== undefined) it.links = JSON.stringify(cleanPortfolioLinks(patch.links));

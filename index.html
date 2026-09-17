@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Kings Production — Premium Roblox Development Studio</title>
 <meta name="description" content="Kings Production — premium Roblox assets: scripts, models, plugins, animations, and systems.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%230c0c0e'/%3E%3Cpath d='M4 16.5V10l4.2 3.6L12 6.5l3.8 7.1L20 10v6.5a1.6 1.6 0 0 1-1.6 1.6H5.6A1.6 1.6 0 0 1 4 16.5Z' fill='%23d4af37'/%3E%3Crect x='5.2' y='19' width='13.6' height='1.8' rx='0.9' fill='%23d4af37'/%3E%3C/svg%3E">
+<link rel="icon" href="/logo.png" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -313,6 +313,7 @@ main{flex:1;width:100%}
 .auth-alt a{color:var(--text);font-weight:600;border-bottom:1px solid var(--border-strong)}
 .auth-alt a:hover{border-color:var(--text)}
 .demo-box{margin-top:26px;border:1px dashed var(--border-strong);border-radius:11px;padding:14px 16px;background:var(--bg-2);font-size:12.5px;color:var(--text-3)}
+@media (max-width:760px){.pf-zoom{grid-template-columns:1fr !important}}
 .demo-box b{color:var(--text-2)}
 .demo-box code{color:#c9c9d1}
 
@@ -1551,7 +1552,7 @@ const API = {};
     u.tags = JSON.stringify(clean);
   };
   const publicUser = u => u ? ({ id: u.id, handle: u.handle, displayName: u.displayName, role: u.role, roleLabel: ROLE_LABEL[u.role] || 'Verified', tags: parseTags(u), pfp: u.pfp, bio: u.bio, createdAt: u.createdAt }) : null;
-  const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled, country: u.country, acceptedTermsAt: u.acceptedTermsAt || null, emailVerified: u.emailVerified !== false && u.emailVerified !== 0, unsubscribed: !!(u.unsubscribed), protectionTier: Number(u.protectionTier) || 0, contractTier: Number(u.contractTier) || 0 }) : null;
+  const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled, country: u.country, acceptedTermsAt: u.acceptedTermsAt || null, emailVerified: u.emailVerified !== false && u.emailVerified !== 0, unsubscribed: !!(u.unsubscribed), needsPasswordSetup: !!u.needsPasswordSetup, protectionTier: Number(u.protectionTier) || 0, contractTier: Number(u.contractTier) || 0 }) : null;
   function timeoutText(u) {
     if (!u || !u.timeoutUntil) return null;
     const ms = u.timeoutUntil - now();
@@ -1814,7 +1815,7 @@ const API = {};
         while (all('users').some(x => x.handle.toLowerCase() === handle.toLowerCase())) handle = base.slice(0, 18 - String(n).length) + n++;
         u = {
           id: 'u' + uid(), handle, displayName: String(displayName || '').trim().slice(0, 40) || email.split('@')[0],
-          email, role: isFirst ? 'admin' : 'member', passHash: await hashPassword(randomToken(16)),
+          email, role: isFirst ? 'admin' : 'member',          passHash: await hashPassword(randomToken(16)), needsPasswordSetup: true,
           bio: '', pfp: picture || null, totpSecret: null, totpEnabled: false, banned: false, banReason: null,
           timeoutUntil: null, country: 'US', googleId, acceptedTermsAt: now(), createdAt: now(), updatedAt: now(),
           emailVerified: 1, // Google verified this email
@@ -1889,9 +1890,15 @@ const API = {};
     }
 
     /* ============ PROFILE & 2FA ============ */
-    async function updateProfile(user, { displayName, handle, bio, pfp, country } = {}) {
+    async function updateProfile(user, { displayName, handle, bio, pfp, country, password } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'Account not found.');
+      if (password !== undefined) {
+        const pw = String(password || '');
+        if (pw.length < 6) return fail('invalid', 'Password must be at least 6 characters.');
+        u.passHash = await hashPassword(pw);
+        u.needsPasswordSetup = 0;
+      }
       displayName = String(displayName || '').trim();
       handle = String(handle || '').trim();
       if (displayName.length < 2 || displayName.length > 40) return fail('invalid', 'Display name must be 2–40 characters.');
@@ -3242,7 +3249,7 @@ const API = {};
     }
 
     /* ============ CREATORS (admin-published, like portfolio) ============ */
-    async function createCreator(actor, { name, role, bio, links, handle, imageUrl } = {}) {
+    async function createCreator(actor, { name, role, bio, docs, links, handle, imageUrl } = {}) {
       const r = requireCofounder(actor, 'add creators'); if (r) return r;
       name = String(name || '').trim();
       if (name.length < 1 || name.length > 60) return fail('invalid', 'Name is required (1–60 chars).');
@@ -3252,6 +3259,7 @@ const API = {};
         id: 'cr' + uid(), name,
         role: String(role || '').trim().slice(0, 60),
         bio: String(bio || '').trim().slice(0, 300),
+        docs: String(docs || '').trim().slice(0, 12000),
         imageUrl: img,
         links: JSON.stringify(cleanPortfolioLinks(links)),
         handle: String(handle || '').trim().slice(0, 30),
@@ -3268,6 +3276,7 @@ const API = {};
       if (patch.name !== undefined) it.name = String(patch.name || '').trim().slice(0, 60);
       if (patch.role !== undefined) it.role = String(patch.role || '').trim().slice(0, 60);
       if (patch.bio !== undefined) it.bio = String(patch.bio || '').trim().slice(0, 300);
+      if (patch.docs !== undefined) it.docs = String(patch.docs || '').trim().slice(0, 12000);
       if (patch.imageUrl !== undefined) it.imageUrl = String(patch.imageUrl || '').trim().slice(0, 300) || null;
       if (patch.handle !== undefined) it.handle = String(patch.handle || '').trim().slice(0, 30);
       if (patch.links !== undefined) it.links = JSON.stringify(cleanPortfolioLinks(patch.links));
@@ -3913,6 +3922,29 @@ API.resendVerify = user => _wrap(async () => _mode === 'local' ? await _engine.r
 
 /* ---- profile & 2FA ---- */
 API.updateProfile = (user, patch) => _wrap(async () => _mode === 'local' ? await _engine.updateProfile(user, patch) : await _call('PATCH', '/api/profile', patch));
+/* First-time Google users set a real password for their account. */
+function openPasswordSetup() {
+  const ov = modal({
+    title: 'Set your password',
+    confirmLabel: 'Save password',
+    confirmOnly: false,
+    body: `<p class="muted small" style="margin:0 0 12px">Your account was created with Google — set a password too, so you can always log in even without Google, and recover your account with your email if you ever forget it.</p>
+      <div class="field"><label>Password</label><input class="input" id="pw-setup-1" type="password" minlength="6" placeholder="At least 6 characters" autocomplete="new-password"></div>
+      <div class="field"><label>Confirm password</label><input class="input" id="pw-setup-2" type="password" minlength="6" placeholder="Repeat the same password" autocomplete="new-password"></div>`,
+    validate: ov => {
+      const a = ov.querySelector('#pw-setup-1').value, b = ov.querySelector('#pw-setup-2').value;
+      if (a.length < 6) { toast('Password must be at least 6 characters.', 'err'); return false; }
+      if (a !== b) { toast('The two passwords do not match.', 'err'); return false; }
+      return { password: a };
+    },
+    onConfirm: async v => {
+      const r = await API.updateProfile(STATE.user, { password: v.password });
+      if (r.ok) { STATE.user = { ...STATE.user, needsPasswordSetup: false }; toast('Password set — you can now log in with your email and password anytime.'); go('/'); }
+      else { toast(r.error, 'err'); openPasswordSetup(); }
+    },
+  });
+  return ov;
+}
 API.setup2fa = user => _wrap(async () => _mode === 'local' ? await _engine.setup2fa(user) : await _call('POST', '/api/auth/2fa/setup'));
 API.enable2fa = (user, a) => _wrap(async () => _mode === 'local' ? await _engine.enable2fa(user, a) : await _call('POST', '/api/auth/2fa/enable', a));
 API.disable2fa = (user, a) => _wrap(async () => _mode === 'local' ? await _engine.disable2fa(user, a) : await _call('POST', '/api/auth/2fa/disable', a));
@@ -4555,8 +4587,15 @@ VIEWS.shop = async () => {
       <div id="shop-grid-${id}"></div>`;
   }
 
+  const meStaff = isStaff(STATE.user);
+  const meLicensed = STATE.user && (effRank(STATE.user) >= roleRank('vip')) && !meStaff;
+  const cta = meStaff
+    ? `<button class="btn btn-primary" onclick="go('/upload')">${ICON.plus} Post a system</button>`
+    : (meLicensed
+      ? `<button class="btn btn-primary" onclick="go('/upload')">${ICON.plus} Sell your system</button>`
+      : `<button class="btn btn-primary" onclick="go('/subscription')">${ICON.key} Sell on Kings Production</button>`);
   return `<div class="page">
-    <div class="section-head"><div><span class="section-eyebrow">Shop</span><h2>Marketplace</h2><p>Our official systems come first, followed by listings from licensed community sellers.</p></div></div>
+    <div class="section-head"><div><span class="section-eyebrow">Shop</span><h2>Marketplace</h2><p>Our official systems come first, followed by listings from licensed community sellers.</p></div>${cta}</div>
     ${sectionHtml('Our Systems', 'Official', 'Hand-crafted systems by the Kings Production team.', 'our', STATE.shopOur)}
     <div style="margin-top:56px">${sectionHtml('Licensed Seller Systems', 'Community', 'Systems published by verified licensed sellers.', 'seller', STATE.shopSeller)}</div>
   </div>`;
@@ -4611,7 +4650,17 @@ VIEWS_BIND.login = async ({ query } = {}) => {
   if (query && query.google === '1' && query.token) {
     _setToken(query.token);
     const me = await API.me();
-    if (me.ok && me.data) { STATE.user = me.data; renderHeader(); toast('Signed in with Google — welcome, ' + me.data.displayName + '!'); SFX.play('crown'); go('/'); }
+    if (me.ok && me.data) {
+      STATE.user = me.data; renderHeader();
+      SFX.play('crown');
+      if (me.data.needsPasswordSetup) {
+        toast('Welcome, ' + me.data.displayName + '! One last step — set a password for your account.');
+        openPasswordSetup();
+      } else {
+        toast('Signed in with Google — welcome, ' + me.data.displayName + '!');
+        go('/');
+      }
+    }
     else { toast('Google signed you in, but the session could not be verified.', 'err'); go('/login'); }
   }
   if (STATE.user && isUnverified(STATE.user)) toast('Tip: verify your email in Settings so you can recover your account if you forget your password.', 'warn');
@@ -4926,10 +4975,8 @@ VIEWS.profile = async ({ params }) => {
         <div class="profile-name">${esc(user.displayName)} ${badgeHtml(user.role, user.tags)}</div>
         <div class="profile-handle">@${esc(user.handle)} · joined ${fmtDateFull(user.createdAt)}</div>
         <div class="profile-meta">
-          <div><b>${assetCount}</b><span>Assets</span></div>
-          <div><b>${purchases.length}</b><span>Purchases</span></div>
-          <div><b>${comments.length}</b><span>Comments</span></div>
-          <div><b>${fmtMoney(boughtTotal)}</b><span>Spent</span></div>
+          <div><b>${assetCount}</b><span>Systems posted</span></div>
+          <div><b>Joined ${fmtDateFull(user.createdAt).split(',')[0]}</b><span>Member since</span></div>
         </div>
         ${user.bio ? `<p class="profile-bio">${esc(user.bio)}</p>` : ''}
         ${me && me.id !== user.id ? `<div class="mt"><button class="btn btn-ghost btn-sm" onclick="onReport('user','${user.id}')">${ICON.flag} Report user</button></div>` : ''}
@@ -4937,18 +4984,7 @@ VIEWS.profile = async ({ params }) => {
     </div>
     ${staffPanel}
     <div class="section-head"><div><span class="section-eyebrow">Portfolio</span><h2>Assets posted</h2><p>Approved assets by ${esc(user.displayName)}.</p></div></div>
-    ${assets.length ? `<div class="grid grid-assets">${assets.map(a => assetCardHtml(a)).join('')}</div>` : emptyHtml('No assets posted', canPost(user) ? 'This creator has not published any approved assets yet.' : 'Members can purchase and comment — only Licensed sellers can post assets.')}
-    <div class="section-head"><div><span class="section-eyebrow">Activity</span><h2>Recent purchases</h2><p>What ${esc(user.displayName)} has bought recently.</p></div></div>
-    ${purchases.length ? `<div class="card card-pad" style="padding:6px 0">${purchases.map(p => `
-      <div class="row" style="padding:12px 20px;border-bottom:1px solid var(--border);gap:12px">
-        ${p.asset && p.asset.owner ? avatarHtml(p.asset.owner, 28) : ''}
-        <div style="flex:1;min-width:0">${p.asset ? `<a href="#/asset/${p.asset.id}" class="bold">${esc(p.asset.title)}</a>` : '<span class="muted">(deleted asset)</span>'}<div class="muted small">Purchased ${fmtDate(p.createdAt)}</div></div>
-        <span class="price">${fmtMoney(p.price)}</span>
-      </div>`).join('')}</div>` : emptyHtml('No purchases yet', 'Nothing here yet — purchases show up publicly once made.')}
-    <div class="section-head"><div><span class="section-eyebrow">Activity</span><h2>Recent comments</h2><p>Latest comments by ${esc(user.displayName)}.</p></div></div>
-    ${comments.length ? `<div class="card card-pad" style="padding:6px 0">${comments.map(c => `
-      <div class="comment" style="border:none">${avatarHtml(user, 34)}
-        <div class="comment-body"><div class="comment-head"><span class="comment-time">${timeAgo(c.createdAt)}</span>${c.asset ? `on <a href="#/asset/${c.asset.id}" class="muted">${esc(c.asset.title)}</a>` : ''}</div><div class="comment-text">${esc(c.body)}</div></div></div>`).join('')}</div>` : emptyHtml('No comments yet', 'No public comments from this user yet.')}
+    ${assets.length ? `<div class="grid grid-assets">${assets.map(a => assetCardHtml(a)).join('')}</div>` : emptyHtml('No systems posted', canPost(user) ? 'This creator has not published any approved systems yet.' : 'Members can purchase and comment — only Licensed sellers can post systems.')}
   </div>`;
 };
 
@@ -5073,7 +5109,7 @@ VIEWS.login = async ({ query } = {}) => {
       <p class="auth-sub">${need2fa ? 'Enter the 6-digit code from your authenticator app.' : 'Log in to your Kings Production account.'}</p>
       ${body}
       ${need2fa ? `<p class="auth-alt"><a href="#/login" onclick="STATE.twoFactorUserId=null">← Back to log in</a></p>` : `<p class="auth-alt">New here? <a href="#/register">Create an account</a></p>`}
-      ${need2fa ? '' : '<div class="demo-box"><b>Security</b><br>Passwords are stored as salted PBKDF2 hashes; two-factor authentication uses TOTP (RFC 6238).</div>'}
+      ${need2fa ? '' : '<div class="demo-box"><b>Play safe. Rule the game.</b><br>Your account is guarded around the clock — and with two-factor authentication you lock it down like a fortress. Focus on creating; we handle the security.</div>'}
     </div>
   </div>`;
 };
@@ -6239,12 +6275,18 @@ function openPortfolioZoom(id) {
     title: esc(p.title),
     confirmLabel: 'Close',
     cancelLabel: null,
-    body: `${p.imageUrl ? `<img src="${esc(proxiedImageUrl(p.imageUrl))}" alt="" style="width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:12px;border:1px solid var(--border);margin-bottom:14px" onerror="this.remove()">` : ''}
-      ${(p.images && p.images.length) ? `<div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:14px">${p.images.map(u => `<a href="${esc(proxiedImageUrl(u))}" target="_blank" rel="noopener"><img src="${esc(proxiedImageUrl(u))}" alt="" style="width:186px;height:105px;object-fit:cover;border-radius:9px;border:1px solid var(--border)" onerror="this.parentElement.remove()"></a>`).join('')}</div>` : ''}
+    wide: true,
+    body: `<div class="pf-zoom" style="display:grid;grid-template-columns:minmax(0,1.55fr) minmax(240px,1fr);gap:18px">
+      <div>${p.imageUrl ? `<img src="${esc(proxiedImageUrl(p.imageUrl))}" alt="" style="width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:12px;border:1px solid var(--border);margin-bottom:14px" onerror="this.remove()">` : ''}
+      ${(p.images && p.images.length) ? `<div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:14px">${p.images.map(u => `<a href="${esc(proxiedImageUrl(u))}" target="_blank" rel="noopener"><img src="${esc(proxiedImageUrl(u))}" alt="" style="width:100%;max-width:230px;aspect-ratio:16/9;object-fit:cover;border-radius:9px;border:1px solid var(--border)" onerror="this.parentElement.remove()"></a>`).join('')}</div>` : ''}
+      </div>
+      <div style="min-width:0">
       <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:12px">${p.featured ? `<span class="badge owner">★ Spotlight</span>` : ''}<span class="badge plain">${esc(p.category || 'Project')}</span><span class="badge ${p.status === 'Live' ? 'ok' : 'plain'}">${esc(p.status || 'Live')}</span></div>
       <p style="white-space:pre-wrap">${esc(p.desc)}</p>
       ${p.stat ? `<p class="muted small" style="margin-top:10px"><b style="color:var(--gold)">${esc(p.stat)}</b></p>` : ''}
-      ${p.links && p.links.length ? `<div class="project-links" style="margin-top:14px">${p.links.map(l => linkIconHtml(l)).join('')}</div>` : ''}`,
+      ${p.links && p.links.length ? `<div class="project-links" style="margin-top:14px">${p.links.map(l => linkIconHtml(l)).join('')}</div>` : ''}
+      </div>
+    </div>`,
     onConfirm: () => {},
   });
   const ov = document.querySelector('.modal-overlay:last-child');
@@ -6377,11 +6419,13 @@ VIEWS.creators = async () => {
       const canDeleteCr = effRank(STATE.user) >= roleRank('cofounder');
       const adminRow = isAdmin ? `<div class="row" style="gap:8px;margin-top:12px"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openCreatorEditor('${cr.id}')">${ICON.edit} Edit</button>${canDeleteCr ? `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();onDeleteCreator('${cr.id}')">${ICON.trash}</button>` : ''}</div>` : '';
       const profileLink = cr.handle ? `onclick="go('/profile/${_e(cr.handle)}')" role="link" tabindex="0" style="cursor:pointer"` : '';
+      const hasDocs = !!(cr.docs && String(cr.docs).trim());
       return `<div class="card card-hover creator-card" ${profileLink}>
         <span>${creatorAvatarHtml(cr, 78)}</span>
         <h3>${esc(cr.name)}</h3>
         <div class="role">${esc(cr.role)}</div>
         <div class="pf-note">${esc(cr.bio || '')}</div>
+        ${hasDocs ? `<p class="muted small" style="margin-top:8px"><a href="javascript:void(0)" onclick="event.stopPropagation();openCreatorDocs('${cr.id}')">${ICON.book} View documentation</a></p>` : ''}
         ${cr.handle ? `<p class="muted small" style="margin-top:8px">@${esc(cr.handle)} ${ICON.chevron} View profile</p>` : ''}
         ${cr.links && cr.links.length ? `<div class="project-links" aria-label="Creator links" style="margin-top:10px;justify-content:center">${cr.links.map(l => linkIconHtml(l)).join('')}</div>` : ''}
         ${adminRow}
@@ -6389,6 +6433,27 @@ VIEWS.creators = async () => {
     }).join('') || emptyHtml('No creators yet', 'The studio team will appear here.')}</div>
   </div>`;
 };
+/* Creator documentation — a public viewer, editable by staff in the creator editor. */
+function openCreatorDocs(id) {
+  const cr = STATE._crItems[id];
+  if (!cr) return;
+  const staff = isStaff(STATE.user);
+  modal({
+    title: cr.name + ' — documentation',
+    wide: true,
+    confirmLabel: staff ? 'Save documentation' : 'Close',
+    cancelLabel: staff ? 'Cancel' : null,
+    body: staff
+      ? `<p class="muted small" style="margin:0 0 10px">Documentaries, guides, or notes about the systems this creator built. Users see this via the "View documentation" link on the card.</p>
+         <textarea class="input" id="cr-docs" rows="14" style="font-family:ui-monospace,monospace;font-size:12.5px;line-height:1.6;white-space:pre-wrap" maxlength="12000">${esc(cr.docs || '')}</textarea>`
+      : `<div style="white-space:pre-wrap;line-height:1.7;font-size:14px">${esc(cr.docs || 'No documentation has been published yet.')}</div>`,
+    validate: staff ? (ov => ({ docs: ov.querySelector('#cr-docs').value })) : undefined,
+    onConfirm: staff ? (async v => {
+      const r = await API.updateCreator(STATE.user, id, { docs: v.docs });
+      r.ok ? (toast('Documentation saved.'), await router()) : toast(r.error, 'err');
+    }) : (() => {}),
+  });
+}
 /* ---- admin creator publishing (admin-only, like portfolio) ---- */
 function openCreatorEditor(id) {
   if (!isStaff(STATE.user)) { toast('Only admins can publish creators.', 'err'); return; }
@@ -6405,6 +6470,7 @@ function openCreatorEditor(id) {
           <div class="field" style="flex:1;min-width:160px"><label>Account handle</label><input class="input" id="cr-handle" maxlength="30" value="${esc(item ? item.handle : '')}" placeholder="their @handle"><div class="hint">Links to their profile on this site.</div></div>
         </div>
         <div class="field"><label>Bio</label><textarea class="textarea" id="cr-bio" maxlength="300" placeholder="A short description…">${esc(item ? item.bio : '')}</textarea></div>
+        <div class="field"><label>Documentation <span class="muted small" style="font-weight:400">— documentaries, guides & notes about the systems this creator built (users can view it from the Creators page)</span></label><textarea class="textarea" id="cr-docs" rows="5" maxlength="12000" placeholder="Write anything users should know — how the systems were built, update logs, showcases…">${esc(item ? (item.docs || '') : '')}</textarea></div>
         <div class="field"><label>Links <span class="muted small" style="font-weight:400">— auto-detected platform icons</span></label>
           <div id="cr-links" style="display:flex;flex-direction:column;gap:8px"></div>
           <button class="btn btn-ghost btn-sm" type="button" id="cr-add-link" style="margin-top:8px">${ICON.plus} Add link</button></div>`,
@@ -6412,7 +6478,7 @@ function openCreatorEditor(id) {
       const name = o.querySelector('#cr-name').value.trim();
       if (name.length < 1) { toast('Name is required.', 'err'); return false; }
       const links = [...o.querySelectorAll('.pf-link-row')].map(r => ({ url: r.querySelector('input').value.trim() })).filter(l => l.url);
-      const payload = { name, role: o.querySelector('#cr-role').value.trim(), bio: o.querySelector('#cr-bio').value.trim(), handle: o.querySelector('#cr-handle').value.trim(), imageUrl: o.querySelector('#cr-img') ? o.querySelector('#cr-img').value.trim() : undefined, links };
+      const payload = { name, role: o.querySelector('#cr-role').value.trim(), bio: o.querySelector('#cr-bio').value.trim(), docs: o.querySelector('#cr-docs') ? o.querySelector('#cr-docs').value.trim() : undefined, handle: o.querySelector('#cr-handle').value.trim(), imageUrl: o.querySelector('#cr-img') ? o.querySelector('#cr-img').value.trim() : undefined, links };
       const res = isEdit ? await API.updateCreator(STATE.user, item.id, payload) : await API.createCreator(STATE.user, payload);
       if (!res.ok) { toast(res.error, 'err'); return false; }
       toast(isEdit ? 'Creator updated.' : 'Creator added!');
@@ -6617,8 +6683,11 @@ VIEWS.subscription = async ({ query } = {}) => {
     ${user ? currentPlans : ''}
     ${subHtml('protection', 'Subscriptions', protectionPlans, protectionTier)}
     ${subHtml('contract', 'Contracts', contractPlans, contractTier)}
-    ${vipCard}
-    ${my}
+    <div class="card card-pad center mt2" style="padding:30px;border-color:rgba(212,165,11,.35);background:linear-gradient(180deg,rgba(212,165,11,.07),rgba(255,255,255,0) 60%),var(--surface)">
+      <div style="font-size:26px">${ICON.crown.replace('width="24" height="24"', 'width="30" height="30"')}</div>
+      <p style="margin:10px auto 0;max-width:560px;font-family:var(--font-display);font-size:17px;color:var(--text)">Every great creator started as a member — your journey from player to seller starts here.</p>
+      ${isVipUser ? `<p class="muted small" style="margin-top:10px"><span class="badge ok">${ICON.check} You are Licensed</span></p>` : ''}
+    </div>
   </div>`;
 };
 async function handleSubPaidReturn(query) {
@@ -6653,22 +6722,38 @@ function faqEditorRowHtml(f = {}) {
     <button class="btn btn-ghost btn-sm" type="button" onclick="this.closest('[data-faq-row]').remove()">${ICON.trash} Remove</button>
   </div>`;
 }
-async function onFaqPageAdd() {
-  const host = document.getElementById('faq-page-list');
-  if (!host) return;
-  host.insertAdjacentHTML('beforeend', faqEditorRowHtml());
-  const rows = host.querySelectorAll('[data-faq-row]');
-  const q = rows.length && rows[rows.length - 1].querySelector('[data-faq-q]');
-  q && q.focus();
-}
-async function onFaqPageSave() {
-  const host = document.getElementById('faq-page-list');
-  if (!host) return;
-  const faqs = [...host.querySelectorAll('[data-faq-row]')]
-    .map(rowEl => ({ q: rowEl.querySelector('[data-faq-q]').value, a: rowEl.querySelector('[data-faq-a]').value }))
-    .filter(f => f.q.trim() && f.a.trim());
-  const r = await API.saveFaqs(STATE.user, faqs);
-  if (r.ok) { toast('FAQ saved — published to the page.'); await router(); } else toast(r.error, 'err');
+/* Staff FAQ editor — opens as a clean modal from the FAQ page (or the panel). */
+function openFaqEditor() {
+  if (!isStaff(STATE.user)) { toast('Only staff can edit the FAQ.', 'err'); return; }
+  modal({
+    title: 'Edit FAQ',
+    wide: true,
+    confirmLabel: 'Save & publish',
+    body: `<div id="faq-modal-list" style="max-height:60vh;overflow:auto;padding-right:4px"></div>
+      <button class="btn btn-ghost btn-sm" type="button" id="faq-modal-add" style="margin-top:10px">${ICON.plus} Add question</button>`,
+    validate: ov => ({
+      faqs: [...ov.querySelectorAll('[data-faq-row]')]
+        .map(rowEl => ({ q: rowEl.querySelector('[data-faq-q]').value, a: rowEl.querySelector('[data-faq-a]').value }))
+        .filter(f => f.q.trim() && f.a.trim()),
+    }),
+    onConfirm: async v => {
+      const r = await API.saveFaqs(STATE.user, v.faqs);
+      if (r.ok) { toast('FAQ saved — published to the page.'); await router(); } else toast(r.error, 'err');
+    },
+  });
+  const host = document.querySelector('.modal-overlay:last-child #faq-modal-list');
+  const ov = host ? host.closest('.modal-overlay') : null;
+  if (!host || !ov) return;
+  API.getFaqs().then(r => {
+    const list = r.ok && Array.isArray(r.data) ? r.data : [];
+    host.innerHTML = list.length ? list.map(faqEditorRowHtml).join('') : '<p class="muted small">No questions yet — add the first one.</p>';
+  });
+  ov.querySelector('#faq-modal-add').onclick = () => {
+    host.insertAdjacentHTML('beforeend', faqEditorRowHtml());
+    const rows = host.querySelectorAll('[data-faq-row]');
+    const q = rows.length && rows[rows.length - 1].querySelector('[data-faq-q]');
+    q && q.focus();
+  };
 }
 VIEWS.faq = async () => {
   const r = await API.getFaqs();
@@ -6679,19 +6764,10 @@ VIEWS.faq = async () => {
       <summary style="font-family:var(--font-display);font-size:15.5px;font-weight:600;list-style:none;display:flex;justify-content:space-between;gap:10px"><span>${esc(f.q)}</span><span class="muted">＋</span></summary>
       <p class="muted" style="margin:10px 0 0;line-height:1.65;white-space:pre-wrap">${esc(f.a)}</p>
     </details>`;
-  const editor = staff ? `
-    <div class="card card-pad" style="margin-bottom:18px;border-color:rgba(212,165,11,.35)">
-      <div class="row" style="justify-content:space-between;margin-bottom:12px">
-        <h3 style="font-family:var(--font-display);font-size:16px;margin:0">${ICON.edit} Edit FAQ (staff only)</h3>
-        <button class="btn btn-ghost btn-sm" type="button" onclick="onFaqPageAdd()">${ICON.plus} Add question</button>
-      </div>
-      <div id="faq-page-list">${list.length ? list.map(faqEditorRowHtml).join('') : '<p class="muted small">No questions yet — add the first one.</p>'}</div>
-      <button class="btn btn-primary" type="button" onclick="onFaqPageSave()" style="margin-top:6px">${ICON.check} Save &amp; publish</button>
-    </div>` : '';
+  const staffBtn = staff ? `<button class="btn btn-ghost btn-sm" onclick="openFaqEditor()">${ICON.edit} Edit FAQ</button>` : '';
   return `<div class="page page-narrow">
-    <div class="section-head"><div><span class="section-eyebrow">Help center</span><h2>FAQ &amp; Q&amp;A</h2><p>Quick answers about licensing, plans, payments, and safety on Kings Production.</p></div></div>
-    ${editor}
-    ${list.length ? list.map(item).join('') : emptyHtml('No FAQ yet', staff ? 'Add your first question above.' : 'Staff can publish questions & answers here soon.')}
+    <div class="section-head"><div><span class="section-eyebrow">Help center</span><h2>FAQ &amp; Q&amp;A</h2><p>Quick answers about licensing, plans, payments, and safety on Kings Production.</p></div>${staffBtn}</div>
+    ${list.length ? list.map(item).join('') : emptyHtml('No FAQ yet', staff ? 'Use the Edit FAQ button to add your first question.' : 'Staff can publish questions & answers here soon.')}
     <div class="card card-pad center mt2" style="padding:26px"><p class="muted" style="margin:0 0 12px">Still stuck? Our team answers every ticket.</p><a class="btn btn-primary" href="#/support">${ICON.mail} Contact support</a></div>
   </div>`;
 };
