@@ -587,10 +587,10 @@
       const hostedFileUrl = normalizeImageUrl(fileUrl);
       if (!file && !fileName && !hostedFileUrl) return fail('invalid', 'A system file is required — attach the actual file buyers will receive (.lua, .rbxm, .rbxl, .zip…).');
       if (!img) return fail('invalid', 'An image link is required — staff compare the post picture with the file when verifying.');
-      /* Optional mirror link (MediaFire / Mega / GoFile…) — buyers fall back to
+      /* Required mirror link (MediaFire / Mega / GoFile…) — buyers fall back to
          it automatically if the primary host refuses the download. */
-      let backup = normalizeImageUrl(backupUrl);
-      if (backup === null && String(backupUrl || '').trim()) return fail('invalid', 'Backup link must be a valid http(s) URL.');
+      const backup = normalizeImageUrl(backupUrl);
+      if (!backup) return fail('invalid', 'A backup download link is required — upload the same file to MediaFire, Mega, GoFile, or Drive and paste the link.');
       const founderLevel = effRank(u) >= roleRank('cofounder'); // Founder / Co-Founder posts skip the approval queue
       const cleanImages = Array.isArray(images) ? images.map(x => normalizeImageUrl(x)).filter(Boolean).slice(0, 12) : [];
       const allowedPm = ['stripe', 'paypal', 'gcash', 'kofi'];
@@ -693,7 +693,7 @@
       if (deliverDuringPending !== undefined) a.deliverDuringPending = !!deliverDuringPending ? 1 : 0;
       if (backupUrl !== undefined) {
         const bu = normalizeImageUrl(backupUrl);
-        if (bu === null && String(backupUrl || '').trim()) return fail('invalid', 'Backup link must be a valid http(s) URL.');
+        if (!bu) return fail('invalid', 'A backup download link is required — upload the same file to MediaFire, Mega, GoFile, or Drive and paste the link.');
         a.backupUrl = bu;
       }
       const file = normalizeFile(fileData, fileName);
@@ -736,9 +736,10 @@
       if (!a) return fail('notfound', 'Asset not found.');
       const own = a.ownerId === u.id;
       const staff = isStaff(u);
-      /* Staff cannot delete creators' posts — they can only disable them. */
-      if (!own && staff) return fail('forbidden', 'Staff cannot delete other users\' posts. Disable the asset instead (Admin → Assets).');
-      if (!own) return fail('forbidden', 'Only the creator of this asset can delete it.');
+      const founderish = effRank(u) >= roleRank('cofounder');
+      /* Co-Founder / Founder can hard-delete any post from the Founder Panel;
+         plain Admins can only disable. Owners can always delete their own. */
+      if (!own && !founderish) return fail('forbidden', staff ? 'Staff cannot delete other users\' posts. Disable the asset instead (Admin → Assets).' : 'Only the creator of this asset can delete it.');
       cascadeDelete(id);
       flush();
       return ok(true);
@@ -2342,47 +2343,6 @@
        A lightweight buyer↔seller conversation attached to an asset. Messages
        are EPHEMERAL: any message older than 24h is pruned on read, only the
        stable chat code ("ticket number") survives, so nothing is kept forever. */
-    const CHAT_TTL_MS = 24 * 36e5;
-    const chatCodeFor = assetId => 'KP-CHT-' + String(assetId || 'x').replace(/[^a-z0-9]/gi, '').slice(-8).toUpperCase();
-    function pruneChat(assetId, buyerId) {
-      const cutoff = now() - CHAT_TTL_MS;
-      /* buyerId null = seller broadcast rows — they belong to every buyer's view of this asset */
-      all('chats').filter(m => m.assetId === assetId && (m.buyerId === buyerId || m.buyerId === null) && m.createdAt < cutoff).forEach(m => store.del('chats', m.id));
-    }
-    async function chatWithSeller(user, assetId, body) {
-      const u = resolveUser(user); if (!u) return fail('auth', 'You must be logged in to do that.');
-      const a = byIdIn('assets', assetId);
-      if (!a) return fail('notfound', 'Asset not found.');
-      const isSeller = a.ownerId === u.id;
-      /* Open to every logged-in user: pre-sale questions are the point of
-         "Contact seller". Messages still auto-delete after 24h. */
-      if (isStaff(u) && !isSeller) return fail('forbidden', 'Staff use their own channels — this chat is between the buyer and the seller.');
-      body = String(body || '').trim().slice(0, 2000);
-      if (body) {
-        /* Seller replying: attach to the most recently active buyer thread on
-           this asset so the buyer actually receives it. If no buyer has written
-           yet, the reply becomes a broadcast row visible to every buyer. */
-        let threadBuyerId = isSeller ? null : u.id;
-        if (isSeller) {
-          const last = all('chats').filter(m => m.assetId === assetId && m.buyerId)
-            .sort((x, y) => y.createdAt - x.createdAt)[0];
-          threadBuyerId = last ? last.buyerId : null;
-        }
-        store.put('chats', { id: 'ch' + uid(), assetId, buyerId: threadBuyerId, sellerId: a.ownerId, userId: u.id, body, createdAt: now() });
-        flush();
-      }
-      const buyerId = isSeller ? null : u.id;
-      pruneChat(assetId, buyerId);
-      /* The seller sees one merged thread across buyers; each buyer sees their
-         own thread plus the seller's broadcast replies. The conversation code
-         is derived from the asset so both sides see the SAME "ticket number". */
-      const who = isSeller ? null : u.id;
-      const raw = all('chats').filter(m => m.assetId === assetId && (isSeller ? true : (m.buyerId === who || m.buyerId === null)))
-        .sort((x, y) => x.createdAt - y.createdAt);
-      const code = chatCodeFor(assetId);
-      const msgs = raw.map(m => ({ id: m.id, body: m.body, createdAt: m.createdAt, mine: m.userId === u.id, from: publicUser(byIdIn('users', m.userId)) }));
-      return ok({ code, messages: msgs, ttlHours: 24 });
-    }
     /* ---- FAQ (editable from the Founder/Admin Panel) ----
        Persisted in site_settings as JSON so staff can edit Q&A from the web. */
     const FAQ_DEFAULTS = [
@@ -2926,7 +2886,7 @@
       licenseActivate, licenseHeartbeat, creatorDashboard, creatorLicenses, setLicenseStatus, revokeDevice,
       publicProfile, content, createPortfolio, updatePortfolio, deletePortfolio,
       createCreator, updateCreator, deleteCreator,
-      createTicket, addTicketMessage, getTicket, listMyTickets, chatWithSeller,
+      createTicket, addTicketMessage, getTicket, listMyTickets,
       adminListTickets, adminCloseTicket, adminDeleteTicket, getFaqs, saveFaqs, getLegalDoc, saveLegalDoc, processAdminPauseExpiry,
       listAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement,
       processProofDeadlines,

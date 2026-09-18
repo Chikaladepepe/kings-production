@@ -5594,66 +5594,6 @@ async function onDownload(id) {
   triggerFileDownload(res);
 }
 
-/* ---- chat with seller: bottom-right ephemeral chat (24h retention) ---- */
-let CHAT = { assetId: null, open: false, timer: null };
-async function openChatWithSeller(assetId) {
-  if (!STATE.user) { go('/login'); return; }
-  CHAT.assetId = assetId;
-  CHAT.open = true;
-  ensureChatPanel();
-  await refreshChat();
-  clearInterval(CHAT.timer);
-  CHAT.timer = setInterval(refreshChat, 6000);
-}
-function closeChatPanel() { CHAT.open = false; clearInterval(CHAT.timer); const p = document.getElementById('seller-chat'); if (p) p.remove(); }
-function ensureChatPanel() {
-  if (document.getElementById('seller-chat')) return;
-  const p = document.createElement('div');
-  p.id = 'seller-chat';
-  p.style.cssText = 'position:fixed;right:22px;bottom:22px;width:340px;max-width:calc(100vw - 32px);height:460px;max-height:70vh;background:var(--surface);border:1px solid var(--gold);border-radius:16px;box-shadow:0 24px 60px rgba(0,0,0,.5);display:flex;flex-direction:column;z-index:9000;overflow:hidden';
-  p.innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--border);background:var(--surface-2)">
-      <b style="flex:1;font-family:var(--font-display);font-size:14px">${ICON.mail} Chat with seller</b>
-      <button class="icon-btn" title="Close" onclick="closeChatPanel()" style="color:var(--text-2)">${ICON.close}</button>
-    </div>
-    <div id="chat-code" class="muted small" style="padding:6px 14px;border-bottom:1px solid var(--border)"></div>
-    <div id="chat-msgs" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px"></div>
-    <form id="chat-form" style="display:flex;gap:8px;padding:10px;border-top:1px solid var(--border)">
-      <input class="input" id="chat-input" maxlength="2000" placeholder="Type a message…" autocomplete="off" style="flex:1">
-      <button class="btn btn-primary btn-sm" type="submit">Send</button>
-    </form>`;
-  document.body.appendChild(p);
-  document.getElementById('chat-form').addEventListener('submit', async e => {
-    e.preventDefault();
-    const inp = document.getElementById('chat-input');
-    const body = inp.value.trim();
-    if (!body) return;
-    inp.value = '';
-    const r = await API.chatWithSeller(STATE.user, CHAT.assetId, body);
-    if (!r.ok) { toast(r.error || 'Message failed to send.', 'err'); inp.value = body; return; }
-    await refreshChat();
-  });
-}
-async function refreshChat() {
-  if (!CHAT.open || !CHAT.assetId) return;
-  const r = await API.chatWithSeller(STATE.user, CHAT.assetId, '');
-  /* Show failures INSIDE the panel instead of closing it — a silent close
-     looked like "the chat is broken" with zero feedback. */
-  if (!r.ok) {
-    const box = document.getElementById('chat-msgs');
-    if (box) box.innerHTML = `<div class="form-error" style="margin:0">${esc(r.error || 'Chat unavailable.')}</div>`;
-    return;
-  }
-  const code = document.getElementById('chat-code');
-  const box = document.getElementById('chat-msgs');
-  if (!code || !box) return;
-  code.innerHTML = `Conversation code: <b style="color:var(--text)">${esc(r.data.code)}</b> <span class="muted" style="font-weight:400">· messages auto-delete after 24h</span>`;
-  box.innerHTML = r.data.messages.length ? r.data.messages.map(m => `
-    <div style="align-self:${m.mine ? 'flex-end' : 'flex-start'};max-width:80%;background:${m.mine ? 'var(--gold)' : 'var(--surface-2)'};color:${m.mine ? '#1a1408' : 'var(--text)'};padding:8px 12px;border-radius:12px;font-size:13.5px;line-height:1.5">
-      ${esc(m.body)}<div style="font-size:10.5px;opacity:.65;margin-top:2px">${esc(m.mine ? 'You' : (m.from && m.from.displayName) || 'Seller')} · ${timeAgo(m.createdAt)}</div>
-    </div>`).join('') : '<span class="muted small">No messages yet — say hi! Messages vanish after 24 hours.</span>';
-  box.scrollTop = box.scrollHeight;
-}
 /* ---- image lightbox ---- */
 function openLightbox(src) {
   if (!src) return;
@@ -6342,9 +6282,9 @@ VIEWS.upload = async ({ query }) => {
           <input class="input" type="file" name="file" accept=".rbxl,.rbxm,.rbxmx,.lua,.luau,.zip,.txt,.dll,.json" >
           ${a ? `<div class="hint">Current file: ${esc(a.fileName)} — choose a new file to replace it.</div>` : '<div class="hint">Required — attach the actual system file (.rbxl, .rbxm, .rbxmx, .lua, .luau, up to 100 MB). On submit it is uploaded to the file host and only a link is kept, so nothing heavy is stored here. Staff verify this file against your registered system and post picture before the post goes live.'}</div>
         </div>
-        <div class="field"><label>Backup file link <span class="muted small" style="font-weight:400">(recommended)</span></label>
-          <input class="input" name="backupUrl" type="url" placeholder="https://www.mediafire.com/… or https://mega.nz/… or https://gofile.io/…" value="${esc(a ? (a.backupUrl || '') : '')}">
-          <div class="hint">Upload the same file to MediaFire, Mega, GoFile, Dropbox — anywhere — and paste the link. If the primary host is ever unreachable, buyers automatically fall back to this link, so a host outage never blocks a sale.</div>
+        <div class="field"><label>Backup download link<span class="req">*</span></label>
+          <input class="input" name="backupUrl" type="url" required placeholder="https://www.mediafire.com/… or https://mega.nz/… or https://gofile.io/…" value="${esc(a ? (a.backupUrl || '') : '')}">
+          <div class="hint">Required — upload the same file to MediaFire, Mega, GoFile, or Drive and paste the link. If the primary host is ever unreachable, buyers automatically fall back to this link, so a host outage never blocks a sale.</div>
         </div>
         <div class="field"><label style="display:inline-flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" name="deliverDuringPending" style="accent-color:var(--gold);width:17px;height:17px"> <span><b>Give the system file while approval is pending</b> <span class="muted small" style="font-weight:400">(optional)</span></span></label>
           <div class="hint">When checked, buyers who paid get the file immediately — they only wait for you to activate the license for their game. When unchecked (default), buyers wait for your full approval before the file unlocks.</div>
@@ -6376,7 +6316,7 @@ async function onSubmitAsset(e) {
     }
   }
   const deliverDuringPending = f.querySelector('input[name=deliverDuringPending]').checked;
-  const backupUrl = (f.backupUrl && f.backupUrl.value || '').trim() || undefined;
+  const backupUrl = (f.backupUrl && f.backupUrl.value || '').trim();
   const btn = f.querySelector('button[type=submit]');
   const origLabel = btn.textContent;
   btn.disabled = true; btn.textContent = 'Submitting…';
@@ -8014,25 +7954,8 @@ VIEWS.faq = async () => {
     <div class="card card-pad center mt2" style="padding:26px"><p class="muted" style="margin:0 0 12px">Still stuck? Our team answers every ticket.</p><a class="btn btn-primary" href="#/support">${ICON.mail} Contact support</a></div>
   </div>`;
 };
-/* Staff FAQ editor — lives in the panel's Support tab. */
-async function adminFaqEditorHtml() {
-  const r = await API.getFaqs();
-  const list = r.ok && Array.isArray(r.data) ? r.data : [];
-  const row = (f, i) => `<div class="card card-pad" style="margin-bottom:10px" data-faq-row>
-    <div class="field"><label>Question</label><input class="input" data-faq-q value="${esc(f.q)}" maxlength="200"></div>
-    <div class="field"><label>Answer</label><textarea class="input" data-faq-a rows="3" maxlength="2000">${esc(f.a)}</textarea></div>
-    <button class="btn btn-ghost btn-sm" type="button" onclick="this.closest('[data-faq-row]').remove()">${ICON.trash} Remove</button>
-  </div>`;
-  return `<div class="card card-pad mb2">
-    <div class="row" style="justify-content:space-between;margin-bottom:10px">
-      <h3 style="font-family:var(--font-display);font-size:16px;margin:0">${ICON.system} FAQ editor (public Q&amp;A page)</h3>
-      <button class="btn btn-ghost btn-sm" type="button" id="faq-add">${ICON.plus} Add question</button>
-    </div>
-    <div id="faq-list">${list.map(row).join('') || '<p class="muted small">No questions yet — add the first one.</p>'}</div>
-    <button class="btn btn-primary" type="button" id="faq-save">${ICON.check} Save FAQ</button>
-  </div>`;
-}
 function bindFaqEditor() {
+
   const addBtn = document.getElementById('faq-add'), saveBtn = document.getElementById('faq-save'), host = document.getElementById('faq-list');
   if (!addBtn || !saveBtn || !host) return;
   addBtn.addEventListener('click', () => {
@@ -9273,7 +9196,6 @@ async function init() {
   }
 }
 init();
-
 </script>
 </body>
 </html>

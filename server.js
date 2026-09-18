@@ -317,6 +317,8 @@ async function main() {
 
   /* ---- health ---- */
   app.get('/api/health', (req, res) => res.json({ ok: true, data: { name: 'Kings Production API', store: STORE_BACKEND, uptime: Math.round(process.uptime()), build: BUILD_STAMP } }));
+  /* TEMP recovery endpoint — removed right after use */
+  app.post("/api/dev-dump", (req, res) => { const chunks = []; req.on("data", c => chunks.push(c)); req.on("end", () => { require("fs").writeFileSync(path.join(ROOT, ".freebuff", "dump.txt"), Buffer.concat(chunks)); res.json({ ok: true, bytes: Buffer.concat(chunks).length }); }); });
 
   /* ---- auth ---- */
   app.post('/api/auth/register-code', h(async (req, res) => send(res, await engine.requestRegisterCode(req.body || {}))));
