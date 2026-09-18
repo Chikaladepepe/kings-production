@@ -136,7 +136,7 @@
       .slice(0, 6).map(t => t.slice(0, 24));
     u.tags = JSON.stringify(clean);
   };
-  const publicUser = u => u ? ({ id: u.id, handle: u.handle, displayName: u.displayName, role: u.role, roleLabel: ROLE_LABEL[u.role] || 'Verified', tags: parseTags(u), pfp: u.pfp, bio: u.bio, createdAt: u.createdAt }) : null;
+  const publicUser = u => u ? ({ id: u.id, handle: u.handle, displayName: u.displayName, role: u.role, roleLabel: ROLE_LABEL[u.role] || 'Verified', tags: parseTags(u), pfp: u.pfp, bio: u.bio, createdAt: u.createdAt, protectionTier: Number(u.protectionTier) || 0, contractTier: Number(u.contractTier) || 0 }) : null;
   const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled, country: u.country, acceptedTermsAt: u.acceptedTermsAt || null, emailVerified: u.emailVerified !== false && u.emailVerified !== 0, unsubscribed: !!(u.unsubscribed), needsPasswordSetup: !!u.needsPasswordSetup, protectionTier: Number(u.protectionTier) || 0, contractTier: Number(u.contractTier) || 0 }) : null;
   function timeoutText(u) {
     if (!u || !u.timeoutUntil) return null;
@@ -599,6 +599,9 @@
       const cleanImages = Array.isArray(images) ? images.map(x => normalizeImageUrl(x)).filter(Boolean).slice(0, 12) : [];
       const allowedPm = ['stripe', 'paypal', 'gcash', 'kofi'];
       const sellerPm = Array.isArray(paymentMethods) ? paymentMethods.filter(m => allowedPm.includes(m)).slice(0, 4) : [];
+      /* Accepted payment methods are REQUIRED — buyers can only pay with
+         methods the seller actually checked, so an empty list is a bug. */
+      if (!sellerPm.length) return fail('invalid', 'Select at least one accepted payment method (GCash, Ko-fi, PayPal, or Stripe) — buyers can only pay with methods you accept.');
       const asset = {
         id: 'a' + uid(), ownerId: u.id, title, category, description, price,
         fileName: file ? file.name : (fileName || (hostedFileUrl ? hostedFileUrl.split('/').pop().split('?')[0] || 'system-file' : 'system-file')), fileMime: file ? file.mime : 'application/octet-stream', fileSize: file ? file.size : 0,

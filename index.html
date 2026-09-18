@@ -1573,7 +1573,7 @@ const API = {};
       .slice(0, 6).map(t => t.slice(0, 24));
     u.tags = JSON.stringify(clean);
   };
-  const publicUser = u => u ? ({ id: u.id, handle: u.handle, displayName: u.displayName, role: u.role, roleLabel: ROLE_LABEL[u.role] || 'Verified', tags: parseTags(u), pfp: u.pfp, bio: u.bio, createdAt: u.createdAt }) : null;
+  const publicUser = u => u ? ({ id: u.id, handle: u.handle, displayName: u.displayName, role: u.role, roleLabel: ROLE_LABEL[u.role] || 'Verified', tags: parseTags(u), pfp: u.pfp, bio: u.bio, createdAt: u.createdAt, protectionTier: Number(u.protectionTier) || 0, contractTier: Number(u.contractTier) || 0 }) : null;
   const selfUser = u => u ? ({ ...publicUser(u), email: u.email, banned: u.banned, timeoutUntil: u.timeoutUntil, totpEnabled: u.totpEnabled, country: u.country, acceptedTermsAt: u.acceptedTermsAt || null, emailVerified: u.emailVerified !== false && u.emailVerified !== 0, unsubscribed: !!(u.unsubscribed), needsPasswordSetup: !!u.needsPasswordSetup, protectionTier: Number(u.protectionTier) || 0, contractTier: Number(u.contractTier) || 0 }) : null;
   function timeoutText(u) {
     if (!u || !u.timeoutUntil) return null;
@@ -2036,6 +2036,9 @@ const API = {};
       const cleanImages = Array.isArray(images) ? images.map(x => normalizeImageUrl(x)).filter(Boolean).slice(0, 12) : [];
       const allowedPm = ['stripe', 'paypal', 'gcash', 'kofi'];
       const sellerPm = Array.isArray(paymentMethods) ? paymentMethods.filter(m => allowedPm.includes(m)).slice(0, 4) : [];
+      /* Accepted payment methods are REQUIRED — buyers can only pay with
+         methods the seller actually checked, so an empty list is a bug. */
+      if (!sellerPm.length) return fail('invalid', 'Select at least one accepted payment method (GCash, Ko-fi, PayPal, or Stripe) — buyers can only pay with methods you accept.');
       const asset = {
         id: 'a' + uid(), ownerId: u.id, title, category, description, price,
         fileName: file ? file.name : (fileName || (hostedFileUrl ? hostedFileUrl.split('/').pop().split('?')[0] || 'system-file' : 'system-file')), fileMime: file ? file.mime : 'application/octet-stream', fileSize: file ? file.size : 0,
@@ -4936,13 +4939,21 @@ function creatorAvatarHtml(cr, px = 78) {
   const fallback = avatarHtml({ displayName: cr && cr.name }, px);
   return `<span data-cr-avatar data-fallback="${esc(fallback)}" style="display:block">${img || fallback}</span>`;
 }
-function badgeHtml(role, tags) {
+function badgeHtml(role, tags, tiers) {
+  const pt = tiers ? Math.max(0, Number(tiers.protectionTier) || 0) : 0;
+  const ct = tiers ? Math.max(0, Number(tiers.contractTier) || 0) : 0;
   let main = '';
   if (role === 'owner') main = `<span class="badge owner" title="Founder — can do everything"><span class="crown">${ICON.crown}</span>Founder</span>`;
   else if (role === 'cofounder') main = `<span class="badge cofounder" title="Co-Founder — can do everything">Co-Founder</span>`;
   else if (role === 'admin') main = `<span class="badge admin" title="Administrator"><span class="crown">${ICON.crown}</span>Admin</span>`;
   else if (role === 'vip') main = `<span class="badge vip" title="VIP — complimentary access to the studio's own systems">VIP</span>`;
-  else if (role === 'licensed') main = `<span class="badge vip" title="Licensed seller">Licensed</span>`;
+  else if (role === 'licensed') {
+    /* Tiered seller labels: Plan1-3 (Subscription) / License1-3 (Contract). */
+    const tierName = ct >= 1 ? 'License' + ct : pt >= 1 ? 'Plan' + pt : null;
+    main = tierName
+      ? `<span class="badge vip" title="Licensed seller — ${tierName === 'Plan' + pt ? 'Subscription ' + pt : 'Contract ' + ct}">${tierName}</span>`
+      : `<span class="badge vip" title="Licensed seller">Licensed</span>`;
+  }
   else if (role === 'test') main = `<span class="badge admin" title="Test — QA access, free test purchases">Test</span>`;
   else main = `<span class="badge member" title="Verified">Verified</span>`;
   const normTag = t => String(t || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -4970,7 +4981,7 @@ function assetCardHtml(a, rank) {
     <div class="asset-thumb">${rank !== undefined ? `<span class="asset-rank">#${rank + 1}</span>` : ''}<span class="asset-cat">${catBadge(a.category)}</span>${thumbHtml(a, 40)}</div>
     <div class="asset-body">
       <h3 class="asset-title">${esc(a.title)}</h3>
-      <div class="asset-owner">${avatarHtml(a.owner, 22)}<a href="#/profile/${esc(a.owner.handle)}" onclick="event.stopPropagation()">${esc(a.owner.displayName)}</a>${badgeHtml(a.owner.role, a.owner.tags)}</div>
+      <div class="asset-owner">${avatarHtml(a.owner, 22)}<a href="#/profile/${esc(a.owner.handle)}" onclick="event.stopPropagation()">${esc(a.owner.displayName)}</a>${badgeHtml(a.owner.role, a.owner.tags, a.owner)}</div>
       ${a.ratingCount ? `<div class="asset-rating">${starsHtml(a.rating)}<span class="muted small">${a.rating} · ${a.ratingCount}</span></div>` : ''}
       <div class="asset-foot">
         <span class="price">${fmtMoney(a.price)}</span>
@@ -5537,6 +5548,7 @@ async function openCheckout(assetId, plan) {
   const isVipTry = plan === 'vip_try';
   const isSub = plan && plan.startsWith('sub:');
   /* For a post, honor the seller's accepted payment methods (empty = all). */
+  const PM_LABELS = { gcash_manual: 'GCash · manual (QR)', kofi_manual: 'Ko-fi · manual', paypal_manual: 'PayPal · manual', paypal: 'PayPal', stripe: 'Stripe', stripe_manual: 'Stripe · manual' };
   let sellerMethods = null;
   if (isAsset) {
     const ar = await API.getAsset(assetId, STATE.user && STATE.user.id);
@@ -5546,6 +5558,7 @@ async function openCheckout(assetId, plan) {
       STATE._checkoutSellerDetails = ar.data.sellerPaymentDetails || null;
     } else {
       STATE._checkoutSellerDetails = null;
+      if (ar.ok && ar.data && isAsset) { toast('This post has no accepted payment methods set — the seller must edit it. Purchase unavailable.', 'err'); return; }
     }
   }
   if (isVipTry) {
@@ -5559,7 +5572,7 @@ async function openCheckout(assetId, plan) {
   let methods = data.methods || [];
   if (sellerMethods) {
     methods = methods.filter(m => sellerMethods.includes(m.id));
-    if (!methods.length) methods = [{ id: 'gcash_manual', label: 'GCash · manual (QR)', enabled: true, manual: true }];
+    if (!methods.length) methods = sellerMethods.filter(k => PM_LABELS[k]).map(k => ({ id: k, label: PM_LABELS[k], enabled: true, manual: true }));
   }
   const pmIcon = id => id.startsWith('stripe') ? 'S' : id.startsWith('paypal') ? 'P' : id.startsWith('gcash') ? 'G' : 'K';
   const cards = methods.map(m => `<button class="pm-card" type="button" data-method="${m.id}">
@@ -5789,7 +5802,7 @@ VIEWS.asset = async ({ params }) => {
     const showUser = canRate;
     return `<div class="comment">${showUser ? avatarHtml(c.user, 38) : `<span class="avatar" style="display:flex;align-items:center;justify-content:center">${ICON.user}</span>`}
       <div class="comment-body">
-        <div class="comment-head">${showUser ? `<a class="comment-name" href="#/profile/${esc(c.user.handle)}">${esc(c.user.displayName)}</a>${badgeHtml(c.user.role, c.user.tags)}` : `<span class="comment-name">Verified buyer</span>`}${c.rating ? starsHtml(c.rating) : ''}<span class="comment-time">${timeAgo(c.createdAt)}</span>${showUser && me && c.user && c.user.id !== me.id ? `<button class="icon-btn" title="Report comment" onclick="onReport('comment','${c.id}')">${ICON.flag}</button>` : ''}</div>
+        <div class="comment-head">${showUser ? `<a class="comment-name" href="#/profile/${esc(c.user.handle)}">${esc(c.user.displayName)}</a>${badgeHtml(c.user.role, c.user.tags, c.user)}` : `<span class="comment-name">Verified buyer</span>`}${c.rating ? starsHtml(c.rating) : ''}<span class="comment-time">${timeAgo(c.createdAt)}</span>${showUser && me && c.user && c.user.id !== me.id ? `<button class="icon-btn" title="Report comment" onclick="onReport('comment','${c.id}')">${ICON.flag}</button>` : ''}</div>
         <div class="comment-text">${esc(c.body)}</div>
       </div></div>`;
   }).join('') : '';
@@ -5823,7 +5836,7 @@ VIEWS.asset = async ({ params }) => {
     ? reviewData.items.map(r => `
       <div class="review">${avatarHtml(r.user, 36)}
         <div class="review-body" style="flex:1;min-width:0">
-          <div class="comment-head"><a class="comment-name" href="#/profile/${esc(r.user.handle)}">${esc(r.user.displayName)}</a>${badgeHtml(r.user.role, r.user.tags)}${starsHtml(r.rating)}<span class="comment-time">${timeAgo(r.createdAt)}</span>${me && r.user && r.user.id === me.id ? `<button class="icon-btn danger" title="Delete review" onclick="onDeleteReview('${r.id}')">${ICON.trash}</button>` : ''}</div>
+          <div class="comment-head"><a class="comment-name" href="#/profile/${esc(r.user.handle)}">${esc(r.user.displayName)}</a>${badgeHtml(r.user.role, r.user.tags, r.user)}${starsHtml(r.rating)}<span class="comment-time">${timeAgo(r.createdAt)}</span>${me && r.user && r.user.id === me.id ? `<button class="icon-btn danger" title="Delete review" onclick="onDeleteReview('${r.id}')">${ICON.trash}</button>` : ''}</div>
           ${r.body ? `<div class="review-text">${esc(r.body)}</div>` : ''}
         </div></div>`).join('')
     : emptyHtml('No reviews yet', 'Verified buyers can be the first to rate this system.');
@@ -5849,7 +5862,7 @@ VIEWS.asset = async ({ params }) => {
     <div class="row" style="gap:10px;flex-wrap:wrap">${a.images.map(u => `<img src="${esc(proxiedImageUrl(u))}" alt="" loading="lazy" style="width:170px;aspect-ratio:16/9;object-fit:cover;border-radius:10px;border:1px solid var(--border);cursor:zoom-in" onclick="openLightbox('${esc(proxiedImageUrl(u))}')" onerror="this.onerror=null;this.src='${esc(u)}'">`).join('')}</div>` : ''}
     <div class="poster-row">
       ${avatarHtml(a.owner, 44)}
-      <div style="flex:1"><div class="row" style="gap:8px"><a href="#/profile/${esc(a.owner.handle)}" class="bold">${esc(a.owner.displayName)}</a>${badgeHtml(a.owner.role, a.owner.tags)}</div><div class="muted small">Creator · joined ${fmtDate(a.owner.createdAt)}</div></div>
+      <div style="flex:1"><div class="row" style="gap:8px"><a href="#/profile/${esc(a.owner.handle)}" class="bold">${esc(a.owner.displayName)}</a>${badgeHtml(a.owner.role, a.owner.tags, a.owner)}</div><div class="muted small">Creator · joined ${fmtDate(a.owner.createdAt)}</div></div>
       ${me && !a.isOwner ? `<button class="btn btn-ghost btn-sm" onclick="onReport('asset','${a.id}')">${ICON.flag} Report</button>` : ''}
     </div>
     <div class="reviews" style="margin-top:44px">
@@ -5979,7 +5992,7 @@ VIEWS.profile = async ({ params }) => {
     <div class="profile-hero">
       ${avatarHtml(user, 104)}
       <div style="flex:1;min-width:240px">
-        <div class="profile-name">${esc(user.displayName)} ${badgeHtml(user.role, user.tags)}</div>
+        <div class="profile-name">${esc(user.displayName)} ${badgeHtml(user.role, user.tags, user)}</div>
         <div class="profile-handle">@${esc(user.handle)} · joined ${fmtDateFull(user.createdAt)}</div>
         <div class="profile-meta">
           <div><b>${assetCount}</b><span>Systems posted</span></div>
@@ -6284,7 +6297,7 @@ VIEWS.settings = async () => {
     <div class="card card-pad">
       <h3 style="font-family:var(--font-display);font-size:17px;margin-bottom:6px">Account</h3>
       <div class="row" style="justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)"><span class="muted">Email</span><span>${esc(u.email)}</span></div>
-      <div class="row" style="justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)"><span class="muted">Role</span><span>${badgeHtml(u.role, u.tags)}</span></div>
+      <div class="row" style="justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)"><span class="muted">Role</span><span>${badgeHtml(u.role, u.tags, u)}</span></div>
       <div class="row" style="justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)"><span class="muted">Member since</span><span>${fmtDateFull(u.createdAt)}</span></div>
       <div class="row" style="justify-content:space-between;padding:9px 0"><span class="muted">Status</span><span>${u.banned ? '<span class="status-pill status-rejected">Banned</span>' : isTimedOut(u) ? `<span class="status-pill status-pending">Timed out (${esc(timeoutText(u))})</span>` : '<span class="status-pill status-approved">Active</span>'}</span></div>
     </div>
@@ -6447,6 +6460,7 @@ async function onSubmitAsset(e) {
   if (!file && !f.assetId.value) { toast('A system file is required.', 'err'); return; }
   const images = [...f.querySelectorAll('#up-imgs input')].map(i => i.value.trim()).filter(Boolean);
   const paymentMethods = [...f.querySelectorAll('input[name=pm]:checked')].map(c => c.value);
+  if (!paymentMethods.length) { toast('Select at least one accepted payment method — buyers can only pay with methods you accept.', 'err'); return; }
   const sellerPaymentDetails = collectSellerPmDetails();
   /* Manual methods must carry at least one contact point (QR image or account) —
      otherwise the buyer has no way to pay you. */
@@ -6564,11 +6578,16 @@ VIEWS['my-assets'] = async () => {
   return `<div class="page page-narrow">
     <div class="section-head"><div><span class="section-eyebrow">Creator</span><h2>My Assets</h2><p>Everything you have posted — ${list.filter(a => a.status === 'approved').length} live, ${list.filter(a => a.status === 'pending').length} pending approval.</p></div>${canPost(STATE.user) ? '<a class="btn btn-primary btn-sm" href="#/upload">' + ICON.plus + ' New asset</a>' : ''}</div>
     ${list.length ? `<div class="card" style="padding:6px 0">${list.map(a => `
-      <div class="row" style="padding:14px 20px;border-bottom:1px solid var(--border);gap:14px">
-        <div style="width:46px;height:46px;border-radius:9px;border:1px solid var(--border);overflow:hidden;position:relative;flex-shrink:0">${thumbHtml(a, 22)}</div>
-        <div style="flex:1;min-width:0"><div class="bold" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.title)}</div><div class="muted small">${catBadge(a.category)} ${ICON.cart}${a.sales} sold · posted ${fmtDate(a.createdAt)}</div></div>
-        <div>${statusBadge(a.status, a.rejectReason)}</div>
-        <span class="muted small">Need this post removed? Open a <a href=\"#/support\">Support ticket</a> and staff will handle it.</span>
+      <div style="padding:14px 20px;border-bottom:1px solid var(--border)">
+        <div class="row" style="gap:14px;flex-wrap:wrap">
+          <div style="width:46px;height:46px;border-radius:9px;border:1px solid var(--border);overflow:hidden;position:relative;flex-shrink:0">${thumbHtml(a, 22)}</div>
+          <div style="flex:1;min-width:0">
+            <div class="bold" style="white-space:normal;word-break:break-word;font-size:15px">${esc(a.title)}</div>
+            <div class="row" style="gap:8px;margin-top:4px;flex-wrap:wrap">${catBadge(a.category)} ${statusBadge(a.status, a.rejectReason)}</div>
+            <div class="muted small" style="margin-top:4px">${a.status === 'approved' ? `${ICON.cart} ${a.sales} sold · ` : ''}Submitted on ${fmtDate(a.createdAt)}</div>
+          </div>
+        </div>
+        <div class="muted small" style="margin-top:8px">Need this post removed? Open a <a href=\"#/support\">Support ticket</a> and staff will handle it.</div>
       </div>`).join('')}</div>`
     : emptyHtml('No assets yet', canPost(STATE.user) ? 'Upload your first asset — Founder / Co-Founder posts go live instantly; other sellers are reviewed before going live.' : 'Members cannot post assets. Upgrade to a Licensed seller to sell on the marketplace.')}
   </div>`;
@@ -8431,7 +8450,7 @@ async function adminTabHtml(tab) {
         <h3 style="font-family:var(--font-display);font-size:15px;margin-bottom:10px">Owner</h3>
         <div class="row" style="gap:12px;align-items:center;flex-wrap:wrap">
           ${avatarHtml(o, 44)}
-          <div style="flex:1;min-width:180px"><a class="bold" href="#/profile/${esc(o.handle || '')}">${esc(o.displayName || '(deleted)')}</a> ${o.role ? badgeHtml(o.role) : ''}<div class="muted small">@${esc(o.handle || '')} · Subscription ${Number(o.protectionTier) || 0} · Contract ${Number(o.contractTier) || 0}${o.restrictedUntil && o.restrictedUntil > now() ? ' · <b style=\"color:var(--gold)\">RESTRICTED</b>' : ''}</div></div>
+          <div style="flex:1;min-width:180px"><a class="bold" href="#/profile/${esc(o.handle || '')}">${esc(o.displayName || '(deleted)')}</a> ${o.role ? badgeHtml(o.role, null, o) : ''}<div class="muted small">@${esc(o.handle || '')} · Subscription ${Number(o.protectionTier) || 0} · Contract ${Number(o.contractTier) || 0}${o.restrictedUntil && o.restrictedUntil > now() ? ' · <b style=\"color:var(--gold)\">RESTRICTED</b>' : ''}</div></div>
           <button class="btn btn-ghost btn-sm" onclick="STATE.adminSub='${o.id}';STATE.adminSys=null;router()">${ICON.eye} Open subscriber view</button>
         </div>
       </div>
@@ -8453,7 +8472,7 @@ async function adminTabHtml(tab) {
         <div class="row" style="gap:14px;align-items:center;flex-wrap:wrap">
           ${avatarHtml(p, 56)}
           <div style="flex:1;min-width:200px">
-            <a class="bold" style="font-family:var(--font-display);font-size:17px" href="#/profile/${esc(p.handle)}">${esc(p.displayName)}</a> ${badgeHtml(p.role)}
+            <a class="bold" style="font-family:var(--font-display);font-size:17px" href="#/profile/${esc(p.handle)}">${esc(p.displayName)}</a> ${badgeHtml(p.role, null, p)}
             <div class="muted small">@${esc(p.handle)} · ${esc(p.email)} · joined ${fmtDate(p.createdAt)}${p.country ? ' · ' + esc(p.country) : ''}</div>
             ${p.bio ? `<div class="muted small" style="margin-top:6px">${esc(p.bio)}</div>` : ''}
           </div>
@@ -8488,7 +8507,7 @@ async function adminTabHtml(tab) {
     const users = usrR.ok ? usrR.data : [];
     const subRow = u => `<tr>
       <td><div class="user-row">${avatarHtml(u, 32)}<div><a class="bold" href="#/profile/${esc(u.handle)}">${esc(u.displayName)}</a><div class="muted small">@${esc(u.handle)}</div></div></div></td>
-      <td>${badgeHtml(u.role)}</td>
+      <td>${badgeHtml(u.role, null, u)}</td>
       <td><span class="badge ${u.protectionTier > 0 ? 'vip' : 'plain'}">Subscription ${u.protectionTier || 0}</span> <span class="badge ${u.contractTier > 0 ? 'vip' : 'plain'}">Contract ${u.contractTier || 0}</span></td>
       <td>${u.systems != null ? u.systems : ''}</td>
       <td><button class="btn btn-ghost btn-sm" onclick="STATE.adminSub='${u.id}';STATE.adminSys=null;router()">${ICON.eye} View</button></td>
@@ -8526,7 +8545,7 @@ async function adminTabHtml(tab) {
     const list = r.ok ? r.data : [];
     const ticketRow = t => `<tr>
       <td><b>${esc(t.subject)}</b><div class="muted small">${esc(t.category || 'General')}</div></td>
-      <td><a href="#/profile/${esc(t.user.handle)}">${esc(t.user.displayName)}</a> ${badgeHtml(t.user.role, t.user.tags)}</td>
+      <td><a href="#/profile/${esc(t.user.handle)}">${esc(t.user.displayName)}</a> ${badgeHtml(t.user.role, t.user.tags, t.user)}</td>
       <td><span class="badge ${t.status === 'open' ? 'warn' : 'plain'}">${esc(t.status)}</span></td>
       <td class="muted">${timeAgo(t.lastActivityAt)}</td>
       <td>${fmtDate(t.createdAt)}</td>

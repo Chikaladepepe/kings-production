@@ -71,7 +71,7 @@ function check(name, cond, extra) {
   const p1 = await engine.createAsset(founder, {
     title: 'Kings Music System', category: 'system', description: 'The studio flagship music system for Roblox games.', price: 500,
     imageUrl: 'https://i.imgur.com/test-cover.png', backupUrl: 'https://www.mediafire.com/file/test/system.zip',
-    fileName: 'sys.rbxl', fileSize: 1234, fileMime: 'application/octet-stream',
+    fileName: 'sys.rbxl', fileSize: 1234, fileMime: 'application/octet-stream', paymentMethods: ['gcash'],
   });
   check('founder post ok', p1.ok === true, JSON.stringify(p1).slice(0, 160));
   const assetId = p1.ok ? p1.data.id : null;
@@ -82,7 +82,7 @@ function check(name, cond, extra) {
   const p2 = await engine.createAsset(oldSeller, {
     title: 'Other Seller System', category: 'system', description: 'A community seller system posting for the shop.', price: 100,
     imageUrl: 'https://i.imgur.com/other-cover.png', backupUrl: 'https://www.mediafire.com/file/other/system.zip',
-    fileName: 'other.rbxl', fileSize: 10, fileMime: 'application/octet-stream',
+    fileName: 'other.rbxl', fileSize: 10, fileMime: 'application/octet-stream', paymentMethods: ['gcash'],
   });
   check('licensed seller can post', p2.ok === true, JSON.stringify(p2).slice(0, 160));
 

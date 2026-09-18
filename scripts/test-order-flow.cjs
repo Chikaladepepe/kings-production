@@ -36,7 +36,7 @@ function check(name, cond, extra) {
   const buyer = await reg('buyer1', 'b1@x.test');
   const nosey = await reg('nosey1', 'n1@x.test');
 
-  const p = await engine.createAsset(founder, { title: 'Test System', category: 'system', description: 'A full description well over ten characters.', price: 100, imageUrl: 'https://i.imgur.com/x.png', backupUrl: 'https://www.mediafire.com/file/x/system.zip', fileName: 's.rbxl', fileSize: 10, fileMime: 'application/x' });
+  const p = await engine.createAsset(founder, { title: 'Test System', category: 'system', description: 'A full description well over ten characters.', price: 100, imageUrl: 'https://i.imgur.com/x.png', backupUrl: 'https://www.mediafire.com/file/x/system.zip', fileName: 's.rbxl', fileSize: 10, fileMime: 'application/x', paymentMethods: ['gcash'] });
   check('founder post ok', p.ok, JSON.stringify(p).slice(0, 140));
 
   /* non-buyer cannot comment or review */
@@ -58,7 +58,7 @@ function check(name, cond, extra) {
   check('verified buyer can review', r2.ok, JSON.stringify(r2));
 
   /* manual order + proof deadline on a SECOND asset (one purchase per asset) */
-  const p2 = await engine.createAsset(founder, { title: 'Test System Two', category: 'system', description: 'Another full description well over ten characters.', price: 120, imageUrl: 'https://i.imgur.com/y.png', backupUrl: 'https://www.mediafire.com/file/y/system.zip', fileName: 's2.rbxl', fileSize: 10, fileMime: 'application/x' });
+  const p2 = await engine.createAsset(founder, { title: 'Test System Two', category: 'system', description: 'Another full description well over ten characters.', price: 120, imageUrl: 'https://i.imgur.com/y.png', backupUrl: 'https://www.mediafire.com/file/y/system.zip', fileName: 's2.rbxl', fileSize: 10, fileMime: 'application/x', paymentMethods: ['gcash'] });
   check('second post ok', p2.ok, JSON.stringify(p2).slice(0, 140));
   const manual = await engine.createOrder(buyer, p2.data.id, 'gcash_manual', { gameName: 'BG', placeId: '42', gameOwner: 'B', notes: '' });
   check('manual order created', manual.ok, JSON.stringify(manual).slice(0, 140));
