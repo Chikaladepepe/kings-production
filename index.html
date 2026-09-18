@@ -1414,6 +1414,7 @@ const effRank = u => isOwnerAccount(u) ? roleRank('owner') : roleRank(u && u.rol
 const isStaff = u => effRank(u) >= roleRank('admin');
 const isTimedOut = u => !!(u && u.timeoutUntil && u.timeoutUntil > now());
 const isBanned = u => !!(u && u.banned);
+const isRestricted = u => isBanned(u) || isTimedOut(u) || !!(u && u.restrictedUntil && u.restrictedUntil > now());
 const canPost = u => effRank(u) >= roleRank('licensed') && !isBanned(u) && !isTimedOut(u);
 /* Nav helpers — defined once at top level. (They used to be declared inside
    headerHtml/drawerHtml only, so renderShell and the my-assets view crashed
