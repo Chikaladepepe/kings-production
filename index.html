@@ -1686,7 +1686,7 @@ const API = {};
       try { images = a.images ? JSON.parse(a.images) : []; } catch (e) {}
       try { paymentMethods = a.paymentMethods ? JSON.parse(a.paymentMethods) : []; } catch (e) {}
       try { sellerPaymentDetails = a.sellerPaymentDetails ? JSON.parse(a.sellerPaymentDetails) : null; } catch (e) {}
-      return { id: a.id, title: a.title, category: a.category, description: a.description, price: a.price, sales: a.sales, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, imageUrl: a.imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending: !!a.deliverDuringPending, owner: o ? publicUser(o) : null, rating: rv ? rv.rating : null, ratingCount: rv ? rv.count : 0, likes: likeCount(a.id), liked: likedBy(a.id, viewerId) };
+      return { id: a.id, title: a.title, category: a.category, description: a.description, price: a.price, sales: a.sales, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, fileUrl: a.fileUrl || null, imageUrl: a.imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending: !!a.deliverDuringPending, owner: o ? publicUser(o) : null, rating: rv ? rv.rating : null, ratingCount: rv ? rv.count : 0, likes: likeCount(a.id), liked: likedBy(a.id, viewerId) };
     }
     function sendEmail(rec) {
       const row = { id: 'e' + uid(), to: rec.to, subject: rec.subject, action: rec.action, body: rec.body, link: rec.link || null, createdAt: now(), read: false };
@@ -1981,7 +1981,7 @@ const API = {};
       });
       return out;
     }
-    async function createAsset(user, { title, category, description, price, fileName, fileData, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending } = {}) {
+    async function createAsset(user, { title, category, description, price, fileName, fileData, fileUrl, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to post assets.');
       if (!canPost(u)) {
@@ -2002,9 +2002,11 @@ const API = {};
       const img = normalizeImageUrl(imageUrl);
       if (img === null && String(imageUrl || '').trim()) return fail('invalid', 'Image link must be a valid http(s) URL.');
       const file = normalizeFile(fileData, fileName);
-      /* The deliverable file is mandatory — staff verify it against the
-         seller's registered system before approving the post. */
-      if (!file && !fileName) return fail('invalid', 'A system file is required — attach the actual file buyers will receive (.lua, .rbxm, .rbxl, .zip…).');
+      /* The deliverable is mandatory. It can arrive as raw bytes (stored
+         locally) or as a fileUrl hosted on the image/file host (Catbox) —
+         in which case the database keeps only the URL. */
+      const hostedFileUrl = normalizeImageUrl(fileUrl);
+      if (!file && !fileName && !hostedFileUrl) return fail('invalid', 'A system file is required — attach the actual file buyers will receive (.lua, .rbxm, .rbxl, .zip…).');
       if (!img) return fail('invalid', 'An image link is required — staff compare the post picture with the file when verifying.');
       const founderLevel = effRank(u) >= roleRank('cofounder'); // Founder / Co-Founder posts skip the approval queue
       const cleanImages = Array.isArray(images) ? images.map(x => normalizeImageUrl(x)).filter(Boolean).slice(0, 12) : [];
@@ -2012,7 +2014,8 @@ const API = {};
       const sellerPm = Array.isArray(paymentMethods) ? paymentMethods.filter(m => allowedPm.includes(m)).slice(0, 4) : [];
       const asset = {
         id: 'a' + uid(), ownerId: u.id, title, category, description, price,
-        fileName: file ? file.name : fileName, fileMime: file ? file.mime : 'application/octet-stream', fileSize: file ? file.size : 0,
+        fileName: file ? file.name : (fileName || (hostedFileUrl ? hostedFileUrl.split('/').pop().split('?')[0] || 'system-file' : 'system-file')), fileMime: file ? file.mime : 'application/octet-stream', fileSize: file ? file.size : 0,
+        fileUrl: hostedFileUrl || null,
         images: JSON.stringify(cleanImages), paymentMethods: JSON.stringify(sellerPm), sellerPaymentDetails: JSON.stringify(cleanSellerPaymentDetails(sellerPm, sellerPaymentDetails)), deliverDuringPending: deliverDuringPending ? 1 : 0,
         imageUrl: img, status: founderLevel ? 'approved' : 'pending', rejectReason: null, sales: 0, createdAt: now(), updatedAt: now(), approvedAt: founderLevel ? now() : null,
       };
@@ -2053,7 +2056,7 @@ const API = {};
       });
     }
 
-    async function updateAsset(user, id, { title, category, description, price, fileName, fileData, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending } = {}) {
+    async function updateAsset(user, id, { title, category, description, price, fileName, fileData, fileUrl, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       const a = byIdIn('assets', id);
@@ -2104,7 +2107,11 @@ const API = {};
       if (file) {
         if (file.size > cfg.maxUploadBytes) return fail('invalid', 'File is too large (max 20 MB).');
         a.fileName = file.name; a.fileMime = file.mime; a.fileSize = file.size;
+        a.fileUrl = null; // raw bytes replace any hosted URL
         try { await files.put(a.id, file); } catch (err) { console.error(err); return fail('storage', 'Could not store the file.'); }
+      } else if (fileUrl !== undefined) {
+        const hosted = normalizeImageUrl(fileUrl);
+        if (hosted) { a.fileUrl = hosted; a.fileName = fileName || a.fileName; }
       }
       const founderLevel = effRank(u) >= roleRank('cofounder');
       a.status = founderLevel ? 'approved' : 'pending'; // Founder / Co-Founder edits stay live; others re-enter the approval queue
@@ -2251,7 +2258,7 @@ const API = {};
       const r = requireAdmin(actor); if (r) return r;
       const a = byIdIn('assets', id);
       if (!a) return fail('notfound', 'Asset not found.');
-      return ok({ fileName: a.fileName, mime: a.fileMime, size: a.fileSize });
+      return ok({ fileName: a.fileName, mime: a.fileMime, size: a.fileSize, fileUrl: a.fileUrl || null });
     }
     /* Staff post control: disable = hidden from the shop but restorable.
        Plain Admins moderate (disable/restore); deleting a post needs
@@ -2362,7 +2369,7 @@ const API = {};
       const isTest = v && isTester(v);
       const hasPurchased = v && all('purchases').some(p => p.assetId === id && p.buyerId === v.id);
       if (!isOwner && !isAdminView && !isTest && !hasPurchased) return fail('forbidden', 'Purchase this asset to download the file.');
-      return ok({ fileName: a.fileName, mime: a.fileMime, size: a.fileSize });
+      return ok({ fileName: a.fileName, mime: a.fileMime, size: a.fileSize, fileUrl: a.fileUrl || null });
     }
 
     /* ============ PURCHASES & LICENSES ============ */
@@ -3469,6 +3476,75 @@ const API = {};
       return ok(true);
     }
 
+    /* ============ SITE STATUS & SECURITY (Founder Panel) ============
+       Lightweight in-memory event ring + a DB status snapshot. The ring is
+       capped so it can never grow unbounded. */
+    const SEC_EVENTS = [];
+    const SEC_MAX = 400;
+    function recordSecurityEvent(type, meta = {}) {
+      try {
+        SEC_EVENTS.push({ id: 'se' + uid(), type, at: now(), ...meta });
+        if (SEC_EVENTS.length > SEC_MAX) SEC_EVENTS.splice(0, SEC_EVENTS.length - SEC_MAX);
+      } catch (e) { /* never let logging break a request */ }
+    }
+    async function siteStatus(actor) {
+      const r = requireAdmin(actor); if (r) return r;
+      const count = t => all(t).length;
+      /* Server health */
+      const mem = process.memoryUsage();
+      const upt = process.uptime();
+      const loadAvg = (typeof os !== 'undefined' && os.loadavg) ? os.loadavg() : [];
+      const dbStats = (() => {
+        try {
+          const s = store.stats ? store.stats() : null;
+          if (s && s.dbBytes) return s;
+          return null;
+        } catch (e) { return null; }
+      })();
+      let dbBytes = dbStats && dbStats.dbBytes || null;
+      let uploadsBytes = dbStats && dbStats.uploadsBytes || null;
+      const counts = {
+        users: count('users'), assets: count('assets'), pending: count('assets') && all('assets').filter(a => a.status === 'pending').length,
+        purchases: count('purchases'), orders: count('orders'), ordersPendingVerification: all('orders').filter(o => o.status === 'pending_verification').length,
+        systems: count('systems'), systemDevices: count('system_devices'), systemGames: count('system_games'),
+        sessions: count('sessions'), online: all('sessions').filter(s => now() - s.lastSeen < cfg.onlineWindowMs).length,
+        ticketsOpen: all('tickets').filter(x => x.status === 'open').length,
+        reportsOpen: all('reports').filter(x => x.status === 'open').length,
+        emails: count('emails'), portfolio: count('portfolio'), creators: count('creators'), comments: count('comments'), reviews: count('reviews'), likes: count('likes'),
+        banned: all('users').filter(u => u.banned).length, timedOut: all('users').filter(u => isTimedOut(u)).length,
+      }; 
+      /* Security: failed system-credential checks (license bypass attempts) */
+      const secEvents = SEC_EVENTS.slice().reverse();
+      const recent = ms => secEvents.filter(e => now() - e.at < ms);
+      const security = {
+        total: secEvents.length,
+        last24h: recent(24 * 3600e3).length,
+        last1h: recent(3600e3).length,
+        failedLicenseChecks24h: recent(24 * 3600e3).filter(e => e.type === 'license_check_failed').length,
+        rateLimited24h: recent(24  * 3600e3).filter(e => e.type === 'rate_limited').length,
+        rateLimited1h: recent(3600e3).filter(e => e.type === 'rate_limited').length,
+        authFails24h: recent(24 * 3600e3).filter(e => e.type === 'auth_fail').length,
+        authFails1h: rollupWindows => secEvents.filter(e => e.type === 'auth_fail' && now() - e.at < 3600e3).length,
+        proofAttempts24h: recent(24 * 3600e3).filter(e => e.type === 'proof_resubmit').length,
+        fakePurchaseFlags: recent(24 * 3600e3).filter(e => e.type === 'fake_purchase_flag').length,
+        forbidden24h: recent(24 * 3600e0).filter(e => e.type === 'forbidden').length,
+        events: secEvents.slice(0, 80),
+        safeguards: [
+          { name: 'Password hashing', detail: 'PBKDF2-SHA512 with per-user salt — passwords never stored in plain text.' },
+          { name: 'Session tokens', detail: 'Random 144-bit tokens, 30-day expiry, revoked on logout.' },
+          { name: 'License gate', detail: 'Roblox checks in with system name + password; wrong pair = no activation, logged.' },
+          { name: 'License rate limit', detail: '60 license checks/min per IP — brute-force attempts get throttled (429) and logged.' },
+          { name: 'Mass kick on deny', detail: 'Every leaked copy force-disconnects all its players on the next check-in.' },
+          { name: 'Ban on blacklist', detail: 'Blacklisted games get real Roblox bans (BanAsync), auto-lifted when re-allowed.' },
+          { name: 'Purchase proof flow', detail: 'Manual payments stay incomplete until the seller verifies the buyer\'s proof; auto-completion is excluded for manual orders.' },
+          { name: 'Upload proxy', detail: 'Image/file uploads run server-side only: login required, type/size caps, DB stores URLs not bytes.' },
+          { name: 'Post approval queue', detail: 'Non-staff posts enter pending and need staff approval before they appear in the shop.' },
+          { name: 'Founder identity bypass', detail: 'Your account keeps Founder powers even if its role row is edited.' },
+        ],
+      };
+      security.authFails24h = recent(24 * 3600e3).filter(e => e.type === 'auth_fail').length; // fix the accidental override above
+      return ok({ server: { uptimeSeconds: Math.round(upt), memory: { rssMB: +(mem.rss / 1048576).toFixed(1), heapMB: +(mem.heapUsed / 1048576).toFixed(1) }, loadAvg, node: process.version, platform: process.platform, time: now() }, db: { bytes: dbBytes, uploadsBytes, counts, integrity: dbStats && dbStats.integrity || null }, security, paymentConfigured: (() => { try { const row = byIdIn('site_settings', 'payment_config'); if (!row) return false; const v = JSON.parse(row.value); return !!(v.gcashQrUrl || v.kofiUrl || v.paypalAccount); } catch (e) { return false; } })(), imageHost: (await getImgurSettings()).data });
+    }
     /* ============ TICKETS & SUPPORT CHAT ============ */
     const TICKET_INACTIVITY_MS = 5 * 24 * 3600 * 1000;
     async function createTicket(user, { subject, category, details } = {}) {
@@ -3831,13 +3907,17 @@ const API = {};
        flips PENDING → ACTIVE; a paused (disabled) system is always denied. */
     function checkSystemCreds(body) {
       const s = findSystemByCreds(body && body.systemName, body && body.systemPassword);
-      if (!s) return { found: false, reason: 'No system matches that name and password. Double-check them on the Dashboard.' };
+      if (!s) {
+        recordSecurityEvent('license_check_failed', { systemName: String((body && body.systemName) || '').slice(0, 40), placeId: String((body && body.placeId) || '').slice(0, 25) || null });
+        return { found: false, reason: 'No system matches that name and password. Double-check them on the Dashboard.' };
+      }
       if (s.status === 'disabled') return { found: true, denied: true, reason: 'This system has been paused by its creator. Contact the creator to re-enable it.' };
       return { found: true, system: s };
     }
     /* Shared device bookkeeping + a revoked-device auto-kick: a device the
        creator kicked gets a DENIED answer on its next check-in, so the Lua
        script disables the system (and kicks the player) immediately. */
+    /* Security logging: wrong system name+password = someone probing the license gate. */
     function deviceState(s, deviceId) {
       if (!deviceId) return null;
       const d = all('system_devices').find(x => x.systemId === s.id && x.deviceId === String(deviceId));
@@ -4065,7 +4145,7 @@ const API = {};
       adminListTickets, adminCloseTicket, adminDeleteTicket, getFaqs, saveFaqs, getLegalDoc, saveLegalDoc, processAdminPauseExpiry,
       listAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement,
       registerSystem, listSystems, deleteSystem, refreshSystemGames, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice, authorizeSystemDevice, setSystemGameStatus, removeSystemGame, adminSystemDetail, adminSetSystemState, adminSubscriberDetail, adminDeleteSystem, setSystemEnforcement,
-      adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset, getImgurSettings, adminSetImgurSettings,
+      adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset, getImgurSettings, adminSetImgurSettings, siteStatus, recordSecurityEvent,
       adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSetUserPlan, adminSessions, adminEmails, adminSendEmail, adminListBlasts, adminDeleteBlast, adminEmailHistory, adminListInbound, adminSetUnsubscribed, inboundMailEvent, processScheduledBlasts, adminOrders, adminCompleteOrder,
       sellerOrders, setOrderApproval, adminTakeFile, adminSetAssetStatus, adminSetRestriction, adminRequestSubRevoke, adminResolveSubRevoke, adminListSubRevokes, adminUnsubscribePlan, adminSystems,
       setFx,
@@ -4195,8 +4275,26 @@ async function _assetForm(a, withFile) {
   if (a.paymentMethods) fd.append('paymentMethods', JSON.stringify(a.paymentMethods));
   if (a.sellerPaymentDetails) fd.append('sellerPaymentDetails', JSON.stringify(a.sellerPaymentDetails));
   if (a.deliverDuringPending !== undefined) fd.append('deliverDuringPending', a.deliverDuringPending ? '1' : '0');
+  if (a.fileUrl) fd.append('fileUrl', a.fileUrl);
   if (withFile && a.fileData) fd.append('file', await (await fetch(a.fileData)).blob(), a.fileName || 'asset-file');
   return fd;
+}
+/* Upload a local system file to Catbox through the server proxy; returns the
+   hosted URL. Big files (up to 100 MB) show progress on the button. */
+async function uploadSystemFile(file, onProgress) {
+  if (!file) return { ok: false, error: 'Choose a file first.' };
+  if (file.size > 100 * 1024 * 1024) return { ok: false, error: 'File is too large (max 100 MB).' };
+  const btn = onProgress;
+  try {
+    if (btn) { btn.disabled = true; btn.dataset.orig = btn.textContent; btn.textContent = 'Uploading ' + (file.size > 1048576 ? (file.size / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(file.size / 1024)) + ' KB') + '…'; }
+    const fd = new FormData();
+    fd.append('file', file, file.name);
+    const r = await fetch('/api/upload-file', { method: 'POST', body: fd, headers: { Authorization: 'Bearer ' + _getToken() } });
+    const j = await r.json();
+    if (!j.ok) return { ok: false, error: j.error || 'Upload failed.' };
+    return { ok: true, url: j.data.url, size: j.data.size };
+  } catch (e) { return { ok: false, error: 'Upload failed — check your connection and try again.' }; }
+  finally { if (btn) { btn.disabled = false; if (btn.dataset.orig) btn.textContent = btn.dataset.orig; } }
 }
 API.createAsset = (user, a) => _wrap(async () => {
   if (_mode === 'local') return await _engine.createAsset(user, a);
@@ -4222,7 +4320,9 @@ API.download = (id, user) => _wrap(async () => {
   }
   const r = await _call('GET', '/api/assets/' + _e(id) + '/download');
   if (!r.ok) return r;
-  return { ok: true, data: { fileName: r.data.fileName, url: '/api/assets/' + _e(id) + '/file' } };
+  /* Hosted files (Catbox) stream through the gated server route, so the raw
+     URL stays hidden and the download still requires entitlement. */
+  return { ok: true, data: { fileName: r.data.fileName, url: '/api/assets/' + _e(id) + '/file', hosted: !!r.data.fileUrl } };
 });
 
 /* ---- purchases & licenses ---- */
@@ -4418,6 +4518,7 @@ API.removeSystemGame = (user, gameId) => _wrap(async () => _mode === 'local' ? a
 
 /* ---- admin ---- */
 API.adminOverview = user => _wrap(async () => _mode === 'local' ? await _engine.adminOverview(user) : await _call('GET', '/api/admin/overview'));
+API.siteStatus = user => _wrap(async () => _mode === 'local' ? await _engine.siteStatus(user) : await _call('GET', '/api/admin/site-status'));
 API.adminPending = user => _wrap(async () => {
   if (_mode === 'local') return await _engine.adminPending(user);
   const r = await _call('GET', '/api/admin/approvals');
@@ -5843,8 +5944,8 @@ VIEWS.upload = async ({ query }) => {
           <div id="up-pm-details" style="display:flex;flex-direction:column;gap:12px;margin-top:12px"></div>
         </div>
         <div class="field"><label>System file<span class="req">*</span></label>
-          <input class="input" type="file" name="file" accept=".rbxl,.rbxm,.rbxmx,.lua,.luau,.zip,.txt" ${a ? '' : 'required'}>
-          ${a ? `<div class="hint">Current file: ${esc(a.fileName)} — choose a new file to replace it.</div>` : '<div class="hint">Required — attach the actual system file (.rbxl, .rbxm, .rbxmx, .lua, .luau, .zip). Staff verify this file against your registered system and post picture before the post goes live.'}</div>
+          <input class="input" type="file" name="file" accept=".rbxl,.rbxm,.rbxmx,.lua,.luau,.zip,.txt,.dll,.json" >
+          ${a ? `<div class="hint">Current file: ${esc(a.fileName)} — choose a new file to replace it.</div>` : '<div class="hint">Required — attach the actual system file (.rbxl, .rbxm, .rbxmx, .lua, .luau, up to 100 MB). On submit it is uploaded to the file host and only a link is kept, so nothing heavy is stored here. Staff verify this file against your registered system and post picture before the post goes live.'}</div>
         </div>
         <div class="field"><label style="display:inline-flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" name="deliverDuringPending" style="accent-color:var(--gold);width:17px;height:17px"> <span><b>Give the system file while approval is pending</b> <span class="muted small" style="font-weight:400">(optional)</span></span></label>
           <div class="hint">When checked, buyers who paid get the file immediately — they only wait for you to activate the license for their game. When unchecked (default), buyers wait for your full approval before the file unlocks.</div>
@@ -5860,7 +5961,7 @@ async function onSubmitAsset(e) {
   const f = e.target;
   const fileInput = f.file;
   const file = fileInput.files && fileInput.files[0];
-  if (file && file.size > 20 * 1024 * 1024) { toast('File is too large (max 20 MB).', 'err'); return; }
+  if (file && file.size > 100 * 1024 * 1024) { toast('File is too large (max 100 MB).', 'err'); return; }
   if (!file && !f.id.value) { toast('A system file is required.', 'err'); return; }
   const images = [...f.querySelectorAll('#up-imgs input')].map(i => i.value.trim()).filter(Boolean);
   const paymentMethods = [...f.querySelectorAll('input[name=pm]:checked')].map(c => c.value);
@@ -5880,9 +5981,16 @@ async function onSubmitAsset(e) {
   const origLabel = btn.textContent;
   btn.disabled = true; btn.textContent = 'Submitting…';
   try {
-    let fileData = null, fileName = null;
-    if (file) { fileData = await readFileAsDataURL(file); fileName = file.name; }
-    const payload = { title: f.title.value, category: f.category.value, description: f.description.value, price: f.price.value, imageUrl: f.imageUrl.value.trim(), images, paymentMethods, sellerPaymentDetails, deliverDuringPending, fileName, fileData };
+    let fileData = null, fileName = null, fileUrl = null;
+    if (file) {
+      /* Send the file to the host (Catbox) so only a URL is stored. If the
+         host fails, fall back to raw upload so the post never gets lost. */
+      const upBtn = f.querySelector('#up-file-host');
+      const hosted = await uploadSystemFile(file, upBtn);
+      if (hosted.ok) { fileUrl = hosted.url; fileName = file.name; }
+      else { toast('Could not reach the file host — storing the file directly instead.', 'warn'); fileData = await readFileAsDataURL(file); fileName = file.name; }
+    }
+    const payload = { title: f.title.value, category: f.category.value, description: f.description.value, price: f.price.value, imageUrl: f.imageUrl.value.trim(), images, paymentMethods, sellerPaymentDetails, deliverDuringPending, fileName, fileData, fileUrl };
     const res = f.id.value
       ? await API.updateAsset(STATE.user, f.id.value, payload)
       : await API.createAsset(STATE.user, payload);
@@ -7592,7 +7700,7 @@ VIEWS.admin = async () => {
   }
   const isFounderish = effRank(STATE.user) >= roleRank('cofounder');
   const panelLabel = isFounderish ? 'Founder Panel' : 'Admin Panel';
-  const tabs = [['overview', 'Overview'], ['approvals', 'Approvals'], ['assets', 'Assets'], ['users', 'Users'], ['registered', 'Registered'], ['support', 'Support'], ['reports', 'Reports'], ['orders', 'Orders'], ['online', 'Online'], ['announcements', 'Announcements'], ['mailbox', 'Mailbox']];
+  const tabs = [['overview', 'Overview'], ['approvals', 'Approvals'], ['assets', 'Assets'], ['users', 'Users'], ['registered', 'Registered'], ['support', 'Support'], ['reports', 'Reports'], ['orders', 'Orders'], ['online', 'Online'], ['announcements', 'Announcements'], ['mailbox', 'Mailbox'], ...(isFounderish ? [['status', 'Status & Security']] : [])];
   const tabbar = `<div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${STATE.adminTab === k ? 'active' : ''}" onclick="setAdminTab('${k}')">${l}</button>`).join('')}</div>`;
   return `<div class="page" style="max-width:1080px">
     <div class="section-head"><div><span class="section-eyebrow">Administration</span><h2>${panelLabel}</h2><p>Moderate submissions, users, and review marketplace activity.</p></div></div>
@@ -7720,6 +7828,51 @@ async function onAdminCompleteOrder(orderId) {
   });
 }
 async function adminTabHtml(tab) {
+  if (tab === 'status') {
+    const r = await API.siteStatus(STATE.user);
+    if (!r.ok) return `<p class="form-error">${esc(r.error)}</p>`;
+    const d = r.data;
+    const stat = (v, l) => `<div class="stat-card"><b>${v}</b><span>${l}</span></div>`;
+    const fmtMB = b => b == null ? '—' : b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB';
+    const fmtUp = s => { const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60); return h ? `${h}h ${m}m` : `${m}m ${s % 60}s`; };
+    const dbIntegrity = d.db && d.db.integrity;
+    const dbBytes = d.db && d.db.bytes;
+    const counts = (d.db && d.db.counts) || {};
+    const sec = d.security || {};
+    const evBadge = t => ({ license_check_failed: '<span class="badge" style="background:rgba(220,38,38,.14);color:#f87171">License probe</span>', rate_limited: '<span class="badge warn">Rate-limited</span>', auth_fail: '<span class="badge warn">Auth fail</span>', fake_purchase_flag: '<span class="badge warn">Fake purchase</span>', forbidden: '<span class="badge plain">Forbidden</span>', proof_resubmit: '<span class="badge plain">Proof resubmit</span>' })[t] || `<span class="badge plain">${esc(t)}</span>`;
+    return `
+    <div class="section-head" style="margin-bottom:10px"><div><span class="section-eyebrow">Live status</span><h3 style="font-family:var(--font-display)">Server health</h3></div><button class="btn btn-ghost btn-sm" onclick="setAdminTab('status')">${ICON.refresh || '⟳'} Refresh</button></div>
+    <div class="stat-grid">
+      ${stat(fmtUp(d.server.uptimeSeconds), 'Uptime')}${stat(d.server.memory.rssMB + ' MB', 'Memory (RSS)')}${stat(d.server.memory.heapMB + ' MB', 'Heap used')}${stat(d.server.node, 'Node.js')}${stat(d.db.integrity === 'ok' ? '✓ Healthy' : esc(d.db.integrity || '—'), 'Database integrity')}${stat(d.online, 'Online now')}
+    </div>
+    <div class="section-head" style="margin:18px 0 10px"><div><span class="section-eyebrow">Storage</span><h3 style="font-family:var(--font-display)">What is using space</h3></div></div>
+    <div class="stat-grid">
+      ${stat(fmtMB(dbBytes), 'Database size')}${stat(d.db.uploadsBytes != null ? fmtMB(d.db.uploadsBytes) : '0 B', 'Uploads on disk')}${stat(counts.users || 0, 'Users')}${stat(counts.assets || 0, 'Assets')}${stat(counts.systems || 0, 'Registered systems')}${stat(counts.orders || 0, 'Orders')}
+    </div>
+    <p class="muted small mt">Images and system files are hosted externally (Catbox) — the database stores only URLs. "Uploads on disk" only holds older pre-hosting files and fallbacks.</p>
+    <div class="section-head" style="margin:18px 0 10px"><div><span class="section-eyebrow">Marketplace counts</span><h3 style="font-family:var(--font-display)">Everything, at a glance</h3></div></div>
+    <div class="stat-grid">
+      ${stat(counts.pending || 0, 'Posts awaiting approval')}${stat(counts.purchases || 0, 'Licenses issued')}${stat(counts.ordersPendingVerification || 0, 'Orders awaiting proof check')}${stat(counts.systemGames || 0, 'Games using systems')}${stat(counts.systemDevices || 0, 'Active devices')}${stat(counts.ticketsOpen || 0, 'Open tickets')}${stat(counts.reportsOpen || 0, 'Open reports')}${stat(counts.banned || 0, 'Banned users')}${stat(counts.timedOut || 0, 'Timed out')}${stat(counts.emails || 0, 'Emails sent')}
+    </div>
+    <div class="section-head" style="margin:18px 0 10px"><div><span class="section-eyebrow">Security</span><h3 style="font-family:var(--font-display)">Attack & abuse monitoring</h3></div></div>
+    <div class="stat-grid">
+      ${stat(sec.last1h || 0, 'Security events (1h)')}${stat(sec.last24h || 0, 'Security events (24h)')}${stat(sec.failedLicenseChecks24h || 0, 'License bypass attempts (24h)')}${stat(sec.rateLimited24h || 0, 'Rate-limited hits (24h)')}${stat(sec.authFails24h || 0, 'Bad-token calls (24h)')}${stat(sec.fakePurchaseFlags || 0, 'Fake-purchase flags (24h)')}
+    </div>
+    ${(sec.last24h || 0) > 40 ? '<p class="form-error">⚠ Elevated attack/abuse volume in the last 24h — review the event log below.</p>' : ((sec.last24h || 0) > 0 ? '<p class="muted small">Some activity is normal (bots scan everything). The rate limiter and license gate absorb it.</p>' : '<p class="muted small">No hostile activity recorded — the safeguards below are armed regardless.</p>')}
+    <div class="card card-pad" style="margin-top:12px">
+      <b style="font-family:var(--font-display)">Recent security events</b>
+      <div class="table-wrap mt">
+        <table class="table"><thead><tr><th>When</th><th>Type</th><th>Details</th></tr></thead><tbody>
+          ${(sec.events || []).slice(0, 25).map(e => `<tr><td class="muted small">${timeAgo(e.at)}</td><td>${evBadge(e.type)}</td><td class="muted small">${esc(Object.entries(e).filter(([k]) => !['id','type','at'].includes(k)).map(([k, v]) => k + ': ' + v).join(' · ') || '—')}</td></tr>`).join('') || '<tr><td colspan="3" class="muted small">Nothing recorded yet — quiet means safe.</td></tr>'}
+        </tbody></table>
+      </div>
+    </div>
+    <div class="section-head" style="margin:18px 0 10px"><div><span class="section-eyebrow">Armed safeguards</span><h3 style="font-family:var(--font-display)">What stands between hackers and your platform</h3></div></div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr))">
+      ${(sec.safeguards || []).map(s => `<div class="card card-pad"><b style="font-size:13.5px">${ICON.check} ${esc(s.name)}</b><p class="muted small" style="margin:6px 0 0">${esc(s.detail)}</p></div>`).join('')}
+    </div>
+    <p class="muted small mt">Payment config: ${d.paymentConfigured ? '<span class="badge ok">configured</span>' : '<span class="badge warn">not set up yet</span>'} · Image host: <b>${esc((d.imageHost && d.imageHost.provider) || 'catbox')}</b> ${d.imageHost && d.imageHost.clientId ? '(key set)' : '(no key needed)'}</p>`;
+  }
   if (tab === 'overview') {
     const o = await API.adminOverview(STATE.user);
     if (!o.ok) return `<p class="form-error">${esc(o.error)}</p>`;

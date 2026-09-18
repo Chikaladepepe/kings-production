@@ -27,7 +27,7 @@ const fs = require('node:fs');
 const SCHEMA = {
   users: ['id', 'handle', 'email', 'displayName', 'passHash', 'bio', 'pfp', 'role', 'banned', 'banReason', 'timeoutUntil', 'restrictedUntil', 'restrictReason', 'totpSecret', 'totpEnabled', 'country', 'tags', 'googleId', 'acceptedTermsAt', 'emailVerified', 'unsubscribed', 'needsPasswordSetup', 'protectionTier', 'contractTier', 'createdAt', 'updatedAt'],
   sessions: ['id', 'userId', 'label', 'createdAt', 'lastSeen', 'expiresAt'],
-  assets: ['id', 'ownerId', 'title', 'category', 'description', 'price', 'fileName', 'fileMime', 'fileSize', 'imageUrl', 'images', 'paymentMethods', 'sellerPaymentDetails', 'deliverDuringPending', 'status', 'rejectReason', 'sales', 'createdAt', 'updatedAt', 'approvedAt'],
+  assets: ['id', 'ownerId', 'title', 'category', 'description', 'price', 'fileName', 'fileMime', 'fileSize', 'fileUrl', 'imageUrl', 'images', 'paymentMethods', 'sellerPaymentDetails', 'deliverDuringPending', 'status', 'rejectReason', 'sales', 'createdAt', 'updatedAt', 'approvedAt'],
   purchases: ['id', 'assetId', 'buyerId', 'price', 'licenseKey', 'gameId', 'gameName', 'status', 'activatedAt', 'deviceId', 'deviceName', 'lastSeen', 'createdAt'],
   comments: ['id', 'assetId', 'userId', 'body', 'rating', 'createdAt'],
   likes: ['id', 'assetId', 'userId', 'createdAt'],
@@ -223,6 +223,39 @@ function createSqliteStore(file) {
       db.prepare(`DELETE FROM "${table}" WHERE id = ?`).run(id);
     },
     flush() { /* every put is already committed */ },
+    /* Health/integrity snapshot for the Founder Panel status tab. */
+    stats({ uploadsDir } = {}) {
+      let dbBytes = null, walBytes = null, tables = 0, rows = 0, integrity = null;
+      try {
+        const vr = db.prepare('PRAGMA integrity_check').get();
+        integrity = vr && (vr.integrity_check || vr['integrity_check(1)']) || 'ok';
+      } catch (e) { integrity = 'unavailable'; }
+      try {
+        const t = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all();
+        tables = t.length;
+        t.forEach(x => { try { const c = db.prepare(`SELECT COUNT(*) AS n FROM "${x.name}"`).get(); rows += c.n; } catch (e) {} });
+      } catch (e) {}
+      try {
+        const ps = db.prepare('PRAGMA page_count').get();
+        const pz = db.prepare('PRAGMA page_size').get();
+        if (ps && pz) dbBytes = ps.page_count * pz.page_size;
+        const wal = db.prepare('PRAGMA wal_checkpoint(PASSIVE)').get();
+      } catch (e) {}
+      try { const w = fs.statSync(file + '-wal'); walBytes = w.size; } catch (e) {}
+      let uploadsBytes = null, uploadsCount = null;
+      if (uploadsDir) {
+        try { uploadsCount = fs.readdirSync(uploadsDir).length; } catch (e) {}
+        try {
+          uploadsBytes = 0;
+          const walk = d => fs.readdirSync(d, { withFileTypes: true }).forEach(e => {
+            const p = path.join(d, e.name);
+            if (e.isDirectory()) walk(p); else uploadsBytes += fs.statSync(p).size;
+          });
+          walk(uploadsDir);
+        } catch (e) { if (uploadsBytes === 0) uploadsBytes = null; }
+      }
+      return { dbBytes, walBytes, tables, rows, integrity, uploadsBytes, uploadsCount };
+    },
     close() { db.close(); },
   };
 }
@@ -262,6 +295,7 @@ const MIGRATIONS = [
   "ALTER TABLE assets ADD COLUMN paymentMethods TEXT",
   "ALTER TABLE assets ADD COLUMN sellerPaymentDetails TEXT",
   "ALTER TABLE assets ADD COLUMN deliverDuringPending INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE assets ADD COLUMN fileUrl TEXT",
   "ALTER TABLE systems ADD COLUMN kickOnDeny INTEGER NOT NULL DEFAULT 1",
   "ALTER TABLE systems ADD COLUMN banOnBlacklist INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE creators ADD COLUMN docs TEXT",

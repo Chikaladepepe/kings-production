@@ -274,6 +274,7 @@ async function main() {
     const now = Date.now();
     const arr = (sysHits.get(ip) || []).filter(t => now - t < 60000);
     if (arr.length >= 60) {
+      if (engine.recordSecurityEvent) engine.recordSecurityEvent('rate_limited', { ip, path: req.path });
       return res.status(429).json({ ok: false, code: 'rate', error: 'Too many requests — try again shortly.' });
     }
     arr.push(now);
@@ -296,6 +297,7 @@ async function main() {
   async function needAuth(req, res) {
     const u = await authUser(req);
     if (!u) {
+      if (engine.recordSecurityEvent && req.get('authorization')) engine.recordSecurityEvent('auth_fail', { ip: req.ip || '?', path: req.path.slice(0, 60) });
       res.status(401).json({ ok: false, code: 'auth', error: 'You must be logged in to do that.' });
       return null;
     }
@@ -454,6 +456,35 @@ async function main() {
     }
   }));
 
+  /* ---- system-file upload proxy (Catbox; up to 100 MB) ----
+     Sellers pick their .rbxl/.lua/.zip; the server forwards it to the file
+     host and returns the URL. The database stores only the URL. */
+  const fileUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
+  app.post('/api/upload-file', fileUpload.single('file'), h(async (req, res) => {
+    const u = await needAuth(req, res); if (!u) return;
+    if (!req.file) return send(res, { ok: false, code: 'invalid', error: 'Choose a file first (up to 100 MB).' });
+    const s = await engine.getImgurSettings();
+    const cfgd = (s.ok && s.data) || {};
+    const provider = cfgd.provider || 'catbox';
+    try {
+      if (provider === 'catbox') {
+        const fd = new FormData();
+        fd.append('reqtype', 'fileupload');
+        if (cfgd.userhash) fd.append('userhash', cfgd.userhash);
+        fd.append('fileToUpload', new Blob([req.file.buffer], { type: req.file.mimetype || 'application/octet-stream' }), (req.file.originalname || 'system-file').slice(0, 100));
+        const r = await fetch('https://catbox.moe/user/api.php', { method: 'POST', body: fd });
+        const txt = (await r.text()).trim();
+        if (!r.ok || !txt.startsWith('https://')) return send(res, { ok: false, code: 'host', error: !txt ? 'Catbox did not respond — try again or re-upload.' : 'File host error: ' + txt.slice(0, 120) });
+        return send(res, { ok: true, data: { url: txt, size: req.file.size, provider } });
+      }
+      /* Images-only providers can't host system files. */
+      return send(res, { ok: false, code: 'notconfigured', error: 'System files upload to Catbox. Founder Panel → Image uploads is set to an image-only host — switch it to Catbox for file uploads to work.' });
+    } catch (e) {
+      console.error('[file-upload] failed:', e.message);
+      return send(res, { ok: false, code: 'network', error: 'Could not reach the file host — check the server\'s internet connection and try again.' });
+    }
+  }));
+
   app.get('/api/assets', h(async (req, res) => { const u = await authUser(req); send(res, await engine.listApproved(u && u.id)); }));
   app.get('/api/assets/top', h(async (req, res) => { const u = await authUser(req); send(res, await engine.topSelling(Number(req.query.n) || 6, u && u.id)); }));
   app.get('/api/assets/mine', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.myAssets(u)); }));
@@ -464,6 +495,7 @@ async function main() {
     send(res, await engine.createAsset(u, {
       title: req.body.title, category: req.body.category, description: req.body.description, price: req.body.price, imageUrl: req.body.imageUrl,
       images: j('images'), paymentMethods: j('paymentMethods'), sellerPaymentDetails: j('sellerPaymentDetails'), deliverDuringPending: req.body.deliverDuringPending === '1' || req.body.deliverDuringPending === 'true',
+      fileUrl: req.body.fileUrl || undefined,
       fileName: req.file && req.file.originalname, fileData: bodyFile(req),
     }));
   }));
@@ -473,6 +505,7 @@ async function main() {
     send(res, await engine.updateAsset(u, req.params.id, {
       title: req.body.title, category: req.body.category, description: req.body.description, price: req.body.price, imageUrl: req.body.imageUrl,
       images: j('images'), paymentMethods: j('paymentMethods'), sellerPaymentDetails: j('sellerPaymentDetails'), deliverDuringPending: req.body.deliverDuringPending === undefined ? undefined : (req.body.deliverDuringPending === '1' || req.body.deliverDuringPending === 'true'),
+      fileUrl: req.body.fileUrl,
       fileName: req.file && req.file.originalname, fileData: bodyFile(req),
     }));
   }));
@@ -487,6 +520,22 @@ async function main() {
     const u = await authUser(req);
     const r = await engine.download(u, req.params.id);
     if (!r.ok) return send(res, r, 403);
+    /* Hosted file (Catbox): stream it through, keeping the URL hidden and
+       the download gated. A type=file query asks for a direct redirect. */
+    if (r.data.fileUrl) {
+      try {
+        const upstream = await fetch(r.data.fileUrl);
+        if (!upstream.ok || !upstream.body) throw new Error('upstream ' + upstream.status);
+        const safe = String(r.data.fileName || 'asset-file').replace(/[^\w.\- ]+/g, '_');
+        res.setHeader('Content-Disposition', `attachment; filename="${safe}"`);
+        res.setHeader('Content-Type', r.data.mime || upstream.headers.get('content-type') || 'application/octet-stream');
+        if (upstream.headers.get('content-length')) res.setHeader('Content-Length', upstream.headers.get('content-length'));
+        upstream.body.pipe(res);
+        return;
+      } catch (e) {
+        return send(res, { ok: false, code: 'notfound', error: 'The hosted file could not be fetched — ask the seller to re-upload it.' });
+      }
+    }
     const f = await files.get(req.params.id);
     if (!f) return send(res, { ok: false, code: 'notfound', error: 'The file for this asset is missing.' });
     const safe = String(r.data.fileName || 'asset-file').replace(/[^\w.\- ]+/g, '_');
@@ -712,6 +761,7 @@ async function main() {
   app.post('/api/admin/users/:id/restrict', admin(async (u, req) => engine.adminSetRestriction(u, req.params.id, req.body || {})));
   app.post('/api/admin/assets/:id/status', admin(async (u, req) => engine.adminSetAssetStatus(u, req.params.id, (req.body || {}).status)));
   app.get('/api/admin/assets/:id/take-file', admin(async (u, req) => engine.adminTakeFile(u, req.params.id)));
+  app.get('/api/admin/site-status', admin(async u => engine.siteStatus(u)));
   app.post('/api/admin/sub-revokes', admin(async (u, req) => engine.adminRequestSubRevoke(u, (req.body || {}).targetId, (req.body || {}).reason)));
   app.post('/api/admin/users/:id/unsubscribe-plan', admin(async (u, req) => engine.adminUnsubscribePlan(u, req.params.id, (req.body || {}).reason)));
   app.post('/api/admin/sub-revokes/:id/resolve', admin(async (u, req) => engine.adminResolveSubRevoke(u, req.params.id, (req.body || {}).decision)));

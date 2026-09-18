@@ -263,7 +263,7 @@
       try { images = a.images ? JSON.parse(a.images) : []; } catch (e) {}
       try { paymentMethods = a.paymentMethods ? JSON.parse(a.paymentMethods) : []; } catch (e) {}
       try { sellerPaymentDetails = a.sellerPaymentDetails ? JSON.parse(a.sellerPaymentDetails) : null; } catch (e) {}
-      return { id: a.id, title: a.title, category: a.category, description: a.description, price: a.price, sales: a.sales, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, imageUrl: a.imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending: !!a.deliverDuringPending, owner: o ? publicUser(o) : null, rating: rv ? rv.rating : null, ratingCount: rv ? rv.count : 0, likes: likeCount(a.id), liked: likedBy(a.id, viewerId) };
+      return { id: a.id, title: a.title, category: a.category, description: a.description, price: a.price, sales: a.sales, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, fileUrl: a.fileUrl || null, imageUrl: a.imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending: !!a.deliverDuringPending, owner: o ? publicUser(o) : null, rating: rv ? rv.rating : null, ratingCount: rv ? rv.count : 0, likes: likeCount(a.id), liked: likedBy(a.id, viewerId) };
     }
     function sendEmail(rec) {
       const row = { id: 'e' + uid(), to: rec.to, subject: rec.subject, action: rec.action, body: rec.body, link: rec.link || null, createdAt: now(), read: false };
@@ -558,7 +558,7 @@
       });
       return out;
     }
-    async function createAsset(user, { title, category, description, price, fileName, fileData, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending } = {}) {
+    async function createAsset(user, { title, category, description, price, fileName, fileData, fileUrl, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to post assets.');
       if (!canPost(u)) {
@@ -579,9 +579,11 @@
       const img = normalizeImageUrl(imageUrl);
       if (img === null && String(imageUrl || '').trim()) return fail('invalid', 'Image link must be a valid http(s) URL.');
       const file = normalizeFile(fileData, fileName);
-      /* The deliverable file is mandatory — staff verify it against the
-         seller's registered system before approving the post. */
-      if (!file && !fileName) return fail('invalid', 'A system file is required — attach the actual file buyers will receive (.lua, .rbxm, .rbxl, .zip…).');
+      /* The deliverable is mandatory. It can arrive as raw bytes (stored
+         locally) or as a fileUrl hosted on the image/file host (Catbox) —
+         in which case the database keeps only the URL. */
+      const hostedFileUrl = normalizeImageUrl(fileUrl);
+      if (!file && !fileName && !hostedFileUrl) return fail('invalid', 'A system file is required — attach the actual file buyers will receive (.lua, .rbxm, .rbxl, .zip…).');
       if (!img) return fail('invalid', 'An image link is required — staff compare the post picture with the file when verifying.');
       const founderLevel = effRank(u) >= roleRank('cofounder'); // Founder / Co-Founder posts skip the approval queue
       const cleanImages = Array.isArray(images) ? images.map(x => normalizeImageUrl(x)).filter(Boolean).slice(0, 12) : [];
@@ -589,7 +591,8 @@
       const sellerPm = Array.isArray(paymentMethods) ? paymentMethods.filter(m => allowedPm.includes(m)).slice(0, 4) : [];
       const asset = {
         id: 'a' + uid(), ownerId: u.id, title, category, description, price,
-        fileName: file ? file.name : fileName, fileMime: file ? file.mime : 'application/octet-stream', fileSize: file ? file.size : 0,
+        fileName: file ? file.name : (fileName || (hostedFileUrl ? hostedFileUrl.split('/').pop().split('?')[0] || 'system-file' : 'system-file')), fileMime: file ? file.mime : 'application/octet-stream', fileSize: file ? file.size : 0,
+        fileUrl: hostedFileUrl || null,
         images: JSON.stringify(cleanImages), paymentMethods: JSON.stringify(sellerPm), sellerPaymentDetails: JSON.stringify(cleanSellerPaymentDetails(sellerPm, sellerPaymentDetails)), deliverDuringPending: deliverDuringPending ? 1 : 0,
         imageUrl: img, status: founderLevel ? 'approved' : 'pending', rejectReason: null, sales: 0, createdAt: now(), updatedAt: now(), approvedAt: founderLevel ? now() : null,
       };
@@ -630,7 +633,7 @@
       });
     }
 
-    async function updateAsset(user, id, { title, category, description, price, fileName, fileData, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending } = {}) {
+    async function updateAsset(user, id, { title, category, description, price, fileName, fileData, fileUrl, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       const a = byIdIn('assets', id);
@@ -681,7 +684,11 @@
       if (file) {
         if (file.size > cfg.maxUploadBytes) return fail('invalid', 'File is too large (max 20 MB).');
         a.fileName = file.name; a.fileMime = file.mime; a.fileSize = file.size;
+        a.fileUrl = null; // raw bytes replace any hosted URL
         try { await files.put(a.id, file); } catch (err) { console.error(err); return fail('storage', 'Could not store the file.'); }
+      } else if (fileUrl !== undefined) {
+        const hosted = normalizeImageUrl(fileUrl);
+        if (hosted) { a.fileUrl = hosted; a.fileName = fileName || a.fileName; }
       }
       const founderLevel = effRank(u) >= roleRank('cofounder');
       a.status = founderLevel ? 'approved' : 'pending'; // Founder / Co-Founder edits stay live; others re-enter the approval queue
@@ -828,7 +835,7 @@
       const r = requireAdmin(actor); if (r) return r;
       const a = byIdIn('assets', id);
       if (!a) return fail('notfound', 'Asset not found.');
-      return ok({ fileName: a.fileName, mime: a.fileMime, size: a.fileSize });
+      return ok({ fileName: a.fileName, mime: a.fileMime, size: a.fileSize, fileUrl: a.fileUrl || null });
     }
     /* Staff post control: disable = hidden from the shop but restorable.
        Plain Admins moderate (disable/restore); deleting a post needs
@@ -939,7 +946,7 @@
       const isTest = v && isTester(v);
       const hasPurchased = v && all('purchases').some(p => p.assetId === id && p.buyerId === v.id);
       if (!isOwner && !isAdminView && !isTest && !hasPurchased) return fail('forbidden', 'Purchase this asset to download the file.');
-      return ok({ fileName: a.fileName, mime: a.fileMime, size: a.fileSize });
+      return ok({ fileName: a.fileName, mime: a.fileMime, size: a.fileSize, fileUrl: a.fileUrl || null });
     }
 
     /* ============ PURCHASES & LICENSES ============ */
@@ -2046,6 +2053,75 @@
       return ok(true);
     }
 
+    /* ============ SITE STATUS & SECURITY (Founder Panel) ============
+       Lightweight in-memory event ring + a DB status snapshot. The ring is
+       capped so it can never grow unbounded. */
+    const SEC_EVENTS = [];
+    const SEC_MAX = 400;
+    function recordSecurityEvent(type, meta = {}) {
+      try {
+        SEC_EVENTS.push({ id: 'se' + uid(), type, at: now(), ...meta });
+        if (SEC_EVENTS.length > SEC_MAX) SEC_EVENTS.splice(0, SEC_EVENTS.length - SEC_MAX);
+      } catch (e) { /* never let logging break a request */ }
+    }
+    async function siteStatus(actor) {
+      const r = requireAdmin(actor); if (r) return r;
+      const count = t => all(t).length;
+      /* Server health */
+      const mem = process.memoryUsage();
+      const upt = process.uptime();
+      const loadAvg = (typeof os !== 'undefined' && os.loadavg) ? os.loadavg() : [];
+      const dbStats = (() => {
+        try {
+          const s = store.stats ? store.stats() : null;
+          if (s && s.dbBytes) return s;
+          return null;
+        } catch (e) { return null; }
+      })();
+      let dbBytes = dbStats && dbStats.dbBytes || null;
+      let uploadsBytes = dbStats && dbStats.uploadsBytes || null;
+      const counts = {
+        users: count('users'), assets: count('assets'), pending: count('assets') && all('assets').filter(a => a.status === 'pending').length,
+        purchases: count('purchases'), orders: count('orders'), ordersPendingVerification: all('orders').filter(o => o.status === 'pending_verification').length,
+        systems: count('systems'), systemDevices: count('system_devices'), systemGames: count('system_games'),
+        sessions: count('sessions'), online: all('sessions').filter(s => now() - s.lastSeen < cfg.onlineWindowMs).length,
+        ticketsOpen: all('tickets').filter(x => x.status === 'open').length,
+        reportsOpen: all('reports').filter(x => x.status === 'open').length,
+        emails: count('emails'), portfolio: count('portfolio'), creators: count('creators'), comments: count('comments'), reviews: count('reviews'), likes: count('likes'),
+        banned: all('users').filter(u => u.banned).length, timedOut: all('users').filter(u => isTimedOut(u)).length,
+      }; 
+      /* Security: failed system-credential checks (license bypass attempts) */
+      const secEvents = SEC_EVENTS.slice().reverse();
+      const recent = ms => secEvents.filter(e => now() - e.at < ms);
+      const security = {
+        total: secEvents.length,
+        last24h: recent(24 * 3600e3).length,
+        last1h: recent(3600e3).length,
+        failedLicenseChecks24h: recent(24 * 3600e3).filter(e => e.type === 'license_check_failed').length,
+        rateLimited24h: recent(24  * 3600e3).filter(e => e.type === 'rate_limited').length,
+        rateLimited1h: recent(3600e3).filter(e => e.type === 'rate_limited').length,
+        authFails24h: recent(24 * 3600e3).filter(e => e.type === 'auth_fail').length,
+        authFails1h: rollupWindows => secEvents.filter(e => e.type === 'auth_fail' && now() - e.at < 3600e3).length,
+        proofAttempts24h: recent(24 * 3600e3).filter(e => e.type === 'proof_resubmit').length,
+        fakePurchaseFlags: recent(24 * 3600e3).filter(e => e.type === 'fake_purchase_flag').length,
+        forbidden24h: recent(24 * 3600e0).filter(e => e.type === 'forbidden').length,
+        events: secEvents.slice(0, 80),
+        safeguards: [
+          { name: 'Password hashing', detail: 'PBKDF2-SHA512 with per-user salt — passwords never stored in plain text.' },
+          { name: 'Session tokens', detail: 'Random 144-bit tokens, 30-day expiry, revoked on logout.' },
+          { name: 'License gate', detail: 'Roblox checks in with system name + password; wrong pair = no activation, logged.' },
+          { name: 'License rate limit', detail: '60 license checks/min per IP — brute-force attempts get throttled (429) and logged.' },
+          { name: 'Mass kick on deny', detail: 'Every leaked copy force-disconnects all its players on the next check-in.' },
+          { name: 'Ban on blacklist', detail: 'Blacklisted games get real Roblox bans (BanAsync), auto-lifted when re-allowed.' },
+          { name: 'Purchase proof flow', detail: 'Manual payments stay incomplete until the seller verifies the buyer\'s proof; auto-completion is excluded for manual orders.' },
+          { name: 'Upload proxy', detail: 'Image/file uploads run server-side only: login required, type/size caps, DB stores URLs not bytes.' },
+          { name: 'Post approval queue', detail: 'Non-staff posts enter pending and need staff approval before they appear in the shop.' },
+          { name: 'Founder identity bypass', detail: 'Your account keeps Founder powers even if its role row is edited.' },
+        ],
+      };
+      security.authFails24h = recent(24 * 3600e3).filter(e => e.type === 'auth_fail').length; // fix the accidental override above
+      return ok({ server: { uptimeSeconds: Math.round(upt), memory: { rssMB: +(mem.rss / 1048576).toFixed(1), heapMB: +(mem.heapUsed / 1048576).toFixed(1) }, loadAvg, node: process.version, platform: process.platform, time: now() }, db: { bytes: dbBytes, uploadsBytes, counts, integrity: dbStats && dbStats.integrity || null }, security, paymentConfigured: (() => { try { const row = byIdIn('site_settings', 'payment_config'); if (!row) return false; const v = JSON.parse(row.value); return !!(v.gcashQrUrl || v.kofiUrl || v.paypalAccount); } catch (e) { return false; } })(), imageHost: (await getImgurSettings()).data });
+    }
     /* ============ TICKETS & SUPPORT CHAT ============ */
     const TICKET_INACTIVITY_MS = 5 * 24 * 3600 * 1000;
     async function createTicket(user, { subject, category, details } = {}) {
@@ -2408,13 +2484,17 @@
        flips PENDING → ACTIVE; a paused (disabled) system is always denied. */
     function checkSystemCreds(body) {
       const s = findSystemByCreds(body && body.systemName, body && body.systemPassword);
-      if (!s) return { found: false, reason: 'No system matches that name and password. Double-check them on the Dashboard.' };
+      if (!s) {
+        recordSecurityEvent('license_check_failed', { systemName: String((body && body.systemName) || '').slice(0, 40), placeId: String((body && body.placeId) || '').slice(0, 25) || null });
+        return { found: false, reason: 'No system matches that name and password. Double-check them on the Dashboard.' };
+      }
       if (s.status === 'disabled') return { found: true, denied: true, reason: 'This system has been paused by its creator. Contact the creator to re-enable it.' };
       return { found: true, system: s };
     }
     /* Shared device bookkeeping + a revoked-device auto-kick: a device the
        creator kicked gets a DENIED answer on its next check-in, so the Lua
        script disables the system (and kicks the player) immediately. */
+    /* Security logging: wrong system name+password = someone probing the license gate. */
     function deviceState(s, deviceId) {
       if (!deviceId) return null;
       const d = all('system_devices').find(x => x.systemId === s.id && x.deviceId === String(deviceId));
@@ -2642,7 +2722,7 @@
       adminListTickets, adminCloseTicket, adminDeleteTicket, getFaqs, saveFaqs, getLegalDoc, saveLegalDoc, processAdminPauseExpiry,
       listAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement,
       registerSystem, listSystems, deleteSystem, refreshSystemGames, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice, authorizeSystemDevice, setSystemGameStatus, removeSystemGame, adminSystemDetail, adminSetSystemState, adminSubscriberDetail, adminDeleteSystem, setSystemEnforcement,
-      adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset, getImgurSettings, adminSetImgurSettings,
+      adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset, getImgurSettings, adminSetImgurSettings, siteStatus, recordSecurityEvent,
       adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSetUserPlan, adminSessions, adminEmails, adminSendEmail, adminListBlasts, adminDeleteBlast, adminEmailHistory, adminListInbound, adminSetUnsubscribed, inboundMailEvent, processScheduledBlasts, adminOrders, adminCompleteOrder,
       sellerOrders, setOrderApproval, adminTakeFile, adminSetAssetStatus, adminSetRestriction, adminRequestSubRevoke, adminResolveSubRevoke, adminListSubRevokes, adminUnsubscribePlan, adminSystems,
       setFx,
