@@ -6479,6 +6479,7 @@ VIEWS.orders = async () => {
     const a = o.asset || null;
     const title = o.sub ? (o.sub.category === 'protection' ? 'Subscription ' : 'Contract ') + o.sub.tier : o.vip ? 'Licensed seller plan' : (a ? a.title : '(deleted asset)');
     const completed = o.status === 'completed';
+    const isTry = o.method === 'vip_try' || !!o.vipTrial;
     const proof = o.proof && typeof o.proof === 'object' ? o.proof : null;
     const statusBadge = completed ? '<span class="badge ok">COMPLETED</span>'
       : o.status === 'cancelled' ? '<span class="badge plain">Cancelled</span>'
@@ -6495,7 +6496,7 @@ VIEWS.orders = async () => {
       <div style="padding:4px 20px 16px"><button class="btn btn-ghost btn-sm" onclick="openManualPayment('${o.id}', '${esc(o.method)}', null, '${esc(o.assetId || '')}')">${proof ? 'Update proof' : 'Submit payment proof'}</button></div>` : '';
     return `<div class="card" style="margin-bottom:12px;overflow:hidden">
       <div class="row" style="padding:14px 20px;gap:12px;border-bottom:1px solid var(--border);flex-wrap:wrap">
-        <div style="flex:1;min-width:200px"><b style="font-family:var(--font-display)">${esc(title)}</b><div class="muted small">Ordered ${fmtDate(o.createdAt)} · <span class="price" style="font-size:13px">${o.amount} ${esc(o.currency)}</span></div></div>
+        <div style="flex:1;min-width:200px"><b style="font-family:var(--font-display)">${esc(title)}</b><div class="muted small">${isTry ? `Requested ${fmtDate(o.createdAt)} · <b style="color:var(--vip)">VIP</b>` : `Ordered ${fmtDate(o.createdAt)} · <span class="price" style="font-size:13px">${o.amount} ${esc(o.currency)}</span>`}</div></div>
         ${statusBadge}
         ${completed ? '<span class="badge soft-ok">Delivered</span>' : ''}
       ${o.status === 'rejected' ? `<div style="padding:4px 20px 16px"><button class="btn btn-danger btn-sm" onclick="onDeleteRejectedOrder('${o.id}')">${ICON.trash} Delete rejected order</button></div>` : ''}
@@ -6665,25 +6666,26 @@ VIEWS.dashboard = async ({ query = {} } = {}) => {
   const orderRow = o => {
     const completed = o.status === 'completed';
     const approval = o.approval || (completed ? 'approved' : 'pending');
+    const isTry = o.method === 'vip_try' || !!o.vipTrial;
     const gd = o.gameDetails || {};
     const proof = o.proof && typeof o.proof === 'object' ? o.proof : null;
     return `<div class="card" style="margin-bottom:14px;overflow:hidden">
       <div class="row" style="padding:14px 20px;gap:12px;border-bottom:1px solid var(--border);flex-wrap:wrap">
         <div style="flex:1;min-width:200px">
           <b style="font-family:var(--font-display)">${esc(o.assetTitle)}</b>
-          <div class="muted small">${o.buyer ? esc('@' + o.buyer.handle) : 'unknown buyer'} · ${fmtDate(o.createdAt)} · <span class="price" style="font-size:13px">${o.amount} ${esc(o.currency)}</span>${o.method ? ' · ' + esc(o.method.replace(/_/g, ' ')) : ''}</div>
+          <div class="muted small">${o.buyer ? esc('@' + o.buyer.handle) : 'unknown buyer'} · ${isTry ? `Requested ${fmtDate(o.createdAt)} · <b style="color:var(--vip)">VIP try</b>` : `${fmtDate(o.createdAt)} · <span class="price" style="font-size:13px">${o.amount} ${esc(o.currency)}</span>${o.method ? ' · ' + esc(o.method.replace(/_/g, ' ')) : ''}`}</div>
         </div>
         ${completed ? '<span class="badge ok">COMPLETED</span>' : o.status === 'pending_verification' ? '<span class="badge warn">Proof submitted</span>' : o.status === 'awaiting_proof' ? '<span class="badge plain">Awaiting payment proof</span>' : '<span class="badge warn">PENDING</span>'}
         ${approval === 'approved' ? '<span class="badge soft-ok">Details approved</span>' : approval === 'rejected' ? '<span class="badge soft-red">Details rejected</span>' : '<span class="badge plain">Details not reviewed</span>'}
       </div>
       <div style="padding:12px 20px 16px">
-        <div class="muted small" style="margin-bottom:6px"><b style="color:var(--text)">Buyer's game details</b> — verify the game ID / name matches the game actually using the system before approving:</div>
+        <div class="muted small" style="margin-bottom:6px"><b style="color:var(--text)">${isTry ? "VIP game's details" : "Buyer's game details"}</b> — verify the game ID / name matches the game actually using the system before approving:</div>
         <div class="row" style="gap:18px;flex-wrap:wrap;margin-bottom:10px">
           <span class="muted small">Game name: <b style="color:var(--text)">${gd.gameName ? esc(gd.gameName) : '—'}</b></span>
           <span class="muted small">Place ID: <b style="color:var(--text)">${gd.placeId ? esc(gd.placeId) : '—'}</b></span>
           <span class="muted small">Owner: <b style="color:var(--text)">${gd.gameOwner ? esc(gd.gameOwner) : '—'}</b></span>
         </div>
-        ${gd.notes ? `<div class="muted small" style="margin-bottom:10px">Buyer notes: ${esc(gd.notes)}</div>` : ''}
+        ${gd.notes ? `<div class="muted small" style="margin-bottom:10px">${isTry ? 'VIP notes' : 'Buyer notes'}: ${esc(String(gd.notes).replace(/\s*\[VIP try\]\s*$/i, ''))}</div>` : ''}
         ${proof ? `<div class="card card-pad" style="padding:12px 14px;margin-bottom:10px;background:var(--surface-2)"><b style="font-size:13px">Payment proof</b>
           <div class="muted small" style="margin-top:4px">Reference: <b style="color:var(--text)">${esc(proof.reference)}</b>${proof.note ? ` · ${esc(proof.note)}` : ''}</div>
           ${proof.proofUrl ? `<img src="${esc(proxiedImageUrl(proof.proofUrl))}" alt="Payment proof" loading="lazy" style="margin-top:10px;max-width:320px;width:100%;max-height:280px;object-fit:contain;border-radius:10px;border:1px solid var(--border);background:#fff;cursor:zoom-in" onclick="openLightbox('${esc(proxiedImageUrl(proof.proofUrl))}')" onerror="this.remove()">` : ''}
