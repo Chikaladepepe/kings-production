@@ -25,6 +25,9 @@ const { createR2Files } = require('./server/r2-files.js');
 const { createMailer } = require('./server/mail.js');
 
 const ROOT = __dirname;
+/* Bumped when server behavior changes — visible in /api/health so a stale
+   production deploy is instantly recognizable. */
+const BUILD_STAMP = '2026-09-19.2';
 const PORT = Number(process.env.PORT) || 3000; // treats PORT=0 as unset so a stray empty env value can't bind a random port
 const PUBLIC_URL = String(process.env.PUBLIC_URL || `http://localhost:${PORT}`).replace(/\/+$/, '');
 const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
@@ -313,7 +316,7 @@ async function main() {
   }
 
   /* ---- health ---- */
-  app.get('/api/health', (req, res) => res.json({ ok: true, data: { name: 'Kings Production API', store: STORE_BACKEND, uptime: Math.round(process.uptime()) } }));
+  app.get('/api/health', (req, res) => res.json({ ok: true, data: { name: 'Kings Production API', store: STORE_BACKEND, uptime: Math.round(process.uptime()), build: BUILD_STAMP } }));
 
   /* ---- auth ---- */
   app.post('/api/auth/register-code', h(async (req, res) => send(res, await engine.requestRegisterCode(req.body || {}))));
@@ -498,6 +501,7 @@ async function main() {
       title: req.body.title, category: req.body.category, description: req.body.description, price: req.body.price, imageUrl: req.body.imageUrl,
       images: j('images'), paymentMethods: j('paymentMethods'), sellerPaymentDetails: j('sellerPaymentDetails'), deliverDuringPending: req.body.deliverDuringPending === '1' || req.body.deliverDuringPending === 'true',
       fileUrl: req.body.fileUrl || undefined,
+      backupUrl: req.body.backupUrl || undefined,
       fileName: req.file && req.file.originalname, fileData: bodyFile(req),
     }));
   }));
@@ -508,6 +512,7 @@ async function main() {
       title: req.body.title, category: req.body.category, description: req.body.description, price: req.body.price, imageUrl: req.body.imageUrl,
       images: j('images'), paymentMethods: j('paymentMethods'), sellerPaymentDetails: j('sellerPaymentDetails'), deliverDuringPending: req.body.deliverDuringPending === undefined ? undefined : (req.body.deliverDuringPending === '1' || req.body.deliverDuringPending === 'true'),
       fileUrl: req.body.fileUrl,
+      backupUrl: req.body.backupUrl,
       fileName: req.file && req.file.originalname, fileData: bodyFile(req),
     }));
   }));
@@ -549,7 +554,7 @@ async function main() {
           res.send(f.data);
           return;
         }
-        return send(res, { ok: false, code: 'notfound', error: 'The hosted file could not be fetched — ask the seller to re-upload it.' });
+        return send(res, { ok: false, code: 'notfound', backupUrl: r.data.backupUrl || null, error: 'The hosted file could not be fetched — try the seller\'s backup link, or ask them to re-upload.' });
       }
     }
     const f = await files.get(req.params.id);

@@ -27,7 +27,7 @@ const fs = require('node:fs');
 const SCHEMA = {
   users: ['id', 'handle', 'email', 'displayName', 'passHash', 'bio', 'pfp', 'role', 'banned', 'banReason', 'timeoutUntil', 'restrictedUntil', 'restrictReason', 'totpSecret', 'totpEnabled', 'country', 'tags', 'googleId', 'acceptedTermsAt', 'emailVerified', 'unsubscribed', 'needsPasswordSetup', 'protectionTier', 'contractTier', 'createdAt', 'updatedAt'],
   sessions: ['id', 'userId', 'label', 'createdAt', 'lastSeen', 'expiresAt'],
-  assets: ['id', 'ownerId', 'title', 'category', 'description', 'price', 'fileName', 'fileMime', 'fileSize', 'fileUrl', 'imageUrl', 'images', 'paymentMethods', 'sellerPaymentDetails', 'deliverDuringPending', 'status', 'rejectReason', 'sales', 'createdAt', 'updatedAt', 'approvedAt'],
+  assets: ['id', 'ownerId', 'title', 'category', 'description', 'price', 'fileName', 'fileMime', 'fileSize', 'fileUrl', 'backupUrl', 'imageUrl', 'images', 'paymentMethods', 'sellerPaymentDetails', 'deliverDuringPending', 'status', 'rejectReason', 'sales', 'createdAt', 'updatedAt', 'approvedAt'],
   purchases: ['id', 'assetId', 'buyerId', 'price', 'licenseKey', 'gameId', 'gameName', 'status', 'activatedAt', 'deviceId', 'deviceName', 'lastSeen', 'createdAt'],
   comments: ['id', 'assetId', 'userId', 'body', 'rating', 'createdAt'],
   likes: ['id', 'assetId', 'userId', 'createdAt'],
@@ -317,6 +317,7 @@ const MIGRATIONS = [
   "ALTER TABLE ticket_messages ADD COLUMN actorName TEXT",
   "CREATE TABLE IF NOT EXISTS site_settings (id TEXT PRIMARY KEY, value TEXT NOT NULL, updatedAt INTEGER)",
   "CREATE TABLE IF NOT EXISTS chats (id TEXT PRIMARY KEY, assetId TEXT NOT NULL, buyerId TEXT, sellerId TEXT NOT NULL, userId TEXT NOT NULL, body TEXT NOT NULL, createdAt INTEGER NOT NULL)",
+  "ALTER TABLE assets ADD COLUMN backupUrl TEXT",
   "CREATE INDEX IF NOT EXISTS idx_chats_asset ON chats (assetId)",
 ];
 function ticketCleanup(db) {

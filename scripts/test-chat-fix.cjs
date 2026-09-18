@@ -43,9 +43,13 @@ function check(name, cond, extra) {
   /* test harness isn't the production founder email — approve the post manually */
   if (post.data.status !== 'approved') { const ap = await engine.adminSetAssetStatus(F, assetId, 'approved'); if (!ap.ok) throw new Error('approve failed: ' + JSON.stringify(ap)); }
 
-  /* buyer cannot chat before purchase */
-  const pre = await engine.chatWithSeller(B, assetId, 'hi');
-  check('non-buyer blocked from chat', !pre.ok, pre.error);
+  /* pre-sale Q&A: any logged-in user can open the chat now */
+  const pre = await engine.chatWithSeller(B, assetId, 'hi, is this compatible with my game?');
+  check('non-buyer CAN chat (pre-sale)', pre.ok && pre.data.messages.length === 1, JSON.stringify(pre).slice(0, 160));
+  const guest = await engine.chatWithSeller(null, assetId, 'hi');
+  check('guest still blocked', !guest.ok && guest.code === 'auth');
+  const sellerSeesPre = await engine.chatWithSeller(S, assetId, '');
+  check('seller sees pre-sale question', sellerSeesPre.ok && sellerSeesPre.data.messages.some(m => m.body.includes('compatible')));
 
   /* staff who is NOT the seller is blocked — covered by engine check above via buyer path */
 
@@ -53,29 +57,29 @@ function check(name, cond, extra) {
   const buy = await engine.purchase(B, assetId);
   check('purchase created', buy.ok, JSON.stringify(buy).slice(0, 150));
 
-  /* buyer opens chat */
+  /* buyer message saved (after purchase) — thread already has the pre-sale msg */
   const m1 = await engine.chatWithSeller(B, assetId, 'hey, paid via GCash ref 1234');
-  check('buyer message saved', m1.ok && m1.data.messages.length === 1, JSON.stringify(m1).slice(0, 150));
+  check('buyer message saved', m1.ok && m1.data.messages.length === 2 && m1.data.messages.some(m => m.body.includes('GCash')), JSON.stringify(m1).slice(0, 150));
   const code = m1.data.code;
 
-  /* seller reads — sees the message, same code */
+  /* seller reads — sees both, same code */
   const s1 = await engine.chatWithSeller(S, assetId, '');
-  check('seller sees buyer message', s1.ok && s1.data.messages.length === 1 && s1.data.messages[0].body.includes('GCash'), JSON.stringify(s1).slice(0, 200));
+  check('seller sees buyer message', s1.ok && s1.data.messages.length === 2 && s1.data.messages.some(m => m.body.includes('GCash')), JSON.stringify(s1).slice(0, 200));
   check('same conversation code both sides', s1.data.code === code);
 
   /* seller replies — buyer must see it */
   const s2 = await engine.chatWithSeller(S, assetId, 'got it, verifying now');
-  check('seller reply saved', s2.ok && s2.data.messages.length === 2);
+  check('seller reply saved', s2.ok && s2.data.messages.length === 3);
   const b2 = await engine.chatWithSeller(B, assetId, '');
-  check('buyer sees seller reply', b2.ok && b2.data.messages.length === 2 && b2.data.messages.some(m => m.body.includes('verifying')), JSON.stringify(b2).slice(0, 250));
-  check('mine flags correct', b2.data.messages.filter(m => m.mine).length === 1);
+  check('buyer sees seller reply', b2.ok && b2.data.messages.length === 3 && b2.data.messages.some(m => m.body.includes('verifying')), JSON.stringify(b2).slice(0, 250));
+  check('mine flags correct', b2.data.messages.filter(m => m.mine).length === 2);
 
   /* cross-asset: buyer has NOT purchased asset 2 — chat must be refused (proves no bleed) */
   const other = await engine.createAsset(S, { title: 'Second System X', category: 'plugin', description: 'Another system description long enough to pass.', price: 4.5, imageUrl: 'https://i.imgur.com/def.jpg', fileName: 'p2.lua', fileMime: 'text/plain', fileSize: 90, fileData: 'data:text/plain;base64,LS0gcGx1Z2lu' });
   check('second asset posted', other.ok);
   const ap2 = await engine.adminSetAssetStatus(F, other.data.id, 'approved');
   const cross = await engine.chatWithSeller(B, other.data.id, '');
-  check('cross-asset isolation (no bleed)', !cross.ok && cross.code === 'forbidden', JSON.stringify(cross).slice(0, 160));
+  check('cross-asset isolation (no bleed)', cross.ok && cross.data.messages.length === 0, JSON.stringify(cross).slice(0, 160));
 
   /* TTL pruning: rewrite the store's chat row timestamps to be older than 24h */
   const cutoff = Date.now() - 25 * 3600 * 1000;

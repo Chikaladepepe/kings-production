@@ -1993,7 +1993,7 @@ const API = {};
       });
       return out;
     }
-    async function createAsset(user, { title, category, description, price, fileName, fileData, fileUrl, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending } = {}) {
+    async function createAsset(user, { title, category, description, price, fileName, fileData, fileUrl, backupUrl, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to post assets.');
       if (!canPost(u)) {
@@ -2020,6 +2020,10 @@ const API = {};
       const hostedFileUrl = normalizeImageUrl(fileUrl);
       if (!file && !fileName && !hostedFileUrl) return fail('invalid', 'A system file is required — attach the actual file buyers will receive (.lua, .rbxm, .rbxl, .zip…).');
       if (!img) return fail('invalid', 'An image link is required — staff compare the post picture with the file when verifying.');
+      /* Optional mirror link (MediaFire / Mega / GoFile…) — buyers fall back to
+         it automatically if the primary host refuses the download. */
+      let backup = normalizeImageUrl(backupUrl);
+      if (backup === null && String(backupUrl || '').trim()) return fail('invalid', 'Backup link must be a valid http(s) URL.');
       const founderLevel = effRank(u) >= roleRank('cofounder'); // Founder / Co-Founder posts skip the approval queue
       const cleanImages = Array.isArray(images) ? images.map(x => normalizeImageUrl(x)).filter(Boolean).slice(0, 12) : [];
       const allowedPm = ['stripe', 'paypal', 'gcash', 'kofi'];
@@ -2028,6 +2032,7 @@ const API = {};
         id: 'a' + uid(), ownerId: u.id, title, category, description, price,
         fileName: file ? file.name : (fileName || (hostedFileUrl ? hostedFileUrl.split('/').pop().split('?')[0] || 'system-file' : 'system-file')), fileMime: file ? file.mime : 'application/octet-stream', fileSize: file ? file.size : 0,
         fileUrl: hostedFileUrl || null,
+        backupUrl: backup || null,
         images: JSON.stringify(cleanImages), paymentMethods: JSON.stringify(sellerPm), sellerPaymentDetails: JSON.stringify(cleanSellerPaymentDetails(sellerPm, sellerPaymentDetails)), deliverDuringPending: deliverDuringPending ? 1 : 0,
         imageUrl: img, status: founderLevel ? 'approved' : 'pending', rejectReason: null, sales: 0, createdAt: now(), updatedAt: now(), approvedAt: founderLevel ? now() : null,
       };
@@ -2064,13 +2069,15 @@ const API = {};
         isOwner,
         hasPurchased: !!purchase,
         canDownload: !!(isOwner || isAdminView || purchase),
+        /* Mirror link is private — only entitled viewers ever see it. */
+        backupUrl: (isOwner || isAdminView || purchase) ? (a.backupUrl || null) : null,
         purchase,
         sellerResponse: sellerResponseStats(a.ownerId),
         canRate: isVerifiedBuyer(viewer, id),
       });
     }
 
-    async function updateAsset(user, id, { title, category, description, price, fileName, fileData, fileUrl, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending } = {}) {
+    async function updateAsset(user, id, { title, category, description, price, fileName, fileData, fileUrl, backupUrl, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       const a = byIdIn('assets', id);
@@ -2117,6 +2124,11 @@ const API = {};
         a.sellerPaymentDetails = JSON.stringify(cleanSellerPaymentDetails(pms, Object.assign({}, prev, sellerPaymentDetails)));
       }
       if (deliverDuringPending !== undefined) a.deliverDuringPending = !!deliverDuringPending ? 1 : 0;
+      if (backupUrl !== undefined) {
+        const bu = normalizeImageUrl(backupUrl);
+        if (bu === null && String(backupUrl || '').trim()) return fail('invalid', 'Backup link must be a valid http(s) URL.');
+        a.backupUrl = bu;
+      }
       const file = normalizeFile(fileData, fileName);
       if (file) {
         if (file.size > cfg.maxUploadBytes) return fail('invalid', 'File is too large (max 20 MB).');
@@ -2272,7 +2284,7 @@ const API = {};
       const r = requireAdmin(actor); if (r) return r;
       const a = byIdIn('assets', id);
       if (!a) return fail('notfound', 'Asset not found.');
-      return ok({ fileName: a.fileName, mime: a.fileMime, size: a.fileSize, fileUrl: a.fileUrl || null });
+      return ok({ fileName: a.fileName, mime: a.fileMime, size: a.fileSize, fileUrl: a.fileUrl || null, backupUrl: a.backupUrl || null });
     }
     /* Staff post control: disable = hidden from the shop but restorable.
        Plain Admins moderate (disable/restore); deleting a post needs
@@ -2383,7 +2395,7 @@ const API = {};
       const isTest = v && isTester(v);
       const hasPurchased = v && all('purchases').some(p => p.assetId === id && p.buyerId === v.id);
       if (!isOwner && !isAdminView && !isTest && !hasPurchased) return fail('forbidden', 'Purchase this asset to download the file.');
-      return ok({ fileName: a.fileName, mime: a.fileMime, size: a.fileSize, fileUrl: a.fileUrl || null });
+      return ok({ fileName: a.fileName, mime: a.fileMime, size: a.fileSize, fileUrl: a.fileUrl || null, backupUrl: a.backupUrl || null });
     }
 
     /* ============ PURCHASES & LICENSES ============ */
@@ -3775,8 +3787,8 @@ const API = {};
       const a = byIdIn('assets', assetId);
       if (!a) return fail('notfound', 'Asset not found.');
       const isSeller = a.ownerId === u.id;
-      const isBuyer = a.ownerId !== u.id;
-      if (isBuyer && !isVerifiedBuyer(u, assetId)) return fail('forbidden', 'Chat unlocks once your purchase is approved — this keeps sellers reachable only to their real customers.');
+      /* Open to every logged-in user: pre-sale questions are the point of
+         "Contact seller". Messages still auto-delete after 24h. */
       if (isStaff(u) && !isSeller) return fail('forbidden', 'Staff use their own channels — this chat is between the buyer and the seller.');
       body = String(body || '').trim().slice(0, 2000);
       if (body) {
@@ -4482,6 +4494,7 @@ async function _assetForm(a, withFile) {
   if (a.paymentMethods) fd.append('paymentMethods', JSON.stringify(a.paymentMethods));
   if (a.sellerPaymentDetails) fd.append('sellerPaymentDetails', JSON.stringify(a.sellerPaymentDetails));
   if (a.deliverDuringPending !== undefined) fd.append('deliverDuringPending', a.deliverDuringPending ? '1' : '0');
+  if (a.backupUrl !== undefined) fd.append('backupUrl', a.backupUrl || '');
   if (a.fileUrl) fd.append('fileUrl', a.fileUrl);
   if (withFile && a.fileData) fd.append('file', await (await fetch(a.fileData)).blob(), a.fileName || 'asset-file');
   return fd;
@@ -5535,6 +5548,19 @@ async function openManualPayment(orderId, method, sellerDetails, assetId) {
     afterOpen: ovm => { attachImageUploadWidgets(ovm); },
   });
 }
+/* Offered when the primary file host fails — the seller's mirror link. */
+function showBackupLink(url) {
+  const lb = document.createElement('div');
+  lb.className = 'backup-modal';
+  lb.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9600;display:flex;align-items:center;justify-content:center;padding:24px';
+  lb.innerHTML = `<div style="background:var(--surface);border:1px solid var(--gold);border-radius:16px;max-width:520px;width:100%;padding:24px;box-shadow:0 30px 80px rgba(0,0,0,.6)">
+    <h3 style="font-family:var(--font-display);margin:0 0 8px">Primary host unreachable</h3>
+    <p class="muted small" style="margin:0 0 14px">The seller provided a backup link for this file. Open it to grab your download — then let the seller know in the chat if it worked.</p>
+    <div class="row" style="gap:10px;flex-wrap:wrap"><a class="btn btn-primary" href="${esc(url)}" target="_blank" rel="noopener noreferrer" onclick="this.closest('.backup-modal').remove()">Open backup link</a><button class="btn btn-ghost" type="button" onclick="navigator.clipboard&&navigator.clipboard.writeText('${esc(url)}').then(()=>toast('Backup link copied.'))">Copy link</button><button class="btn btn-ghost" type="button" onclick="this.closest('.backup-modal').remove()">Close</button></div>
+  </div>`;
+  lb.addEventListener('click', e => { if (e.target === lb) lb.remove(); });
+  document.body.appendChild(lb);
+}
 async function triggerFileDownload(res) {
   if (!res.ok) { toast(res.error, 'err'); return; }
   if (res.data.url) {
@@ -5542,8 +5568,9 @@ async function triggerFileDownload(res) {
       /* The gated file route authenticates via Bearer token (localStorage). */
       const r = await fetch(res.data.url, { headers: { Authorization: 'Bearer ' + _getToken() } });
       if (!r.ok) {
-        let msg = 'download failed ' + r.status;
-        try { const j = await r.json(); if (j && j.error) msg = j.error; } catch (e) {}
+        let msg = 'download failed ' + r.status, backup = null;
+        try { const j = await r.json(); if (j && j.error) msg = j.error; if (j && j.backupUrl) backup = j.backupUrl; } catch (e) {}
+        if (backup) { showBackupLink(backup); return; }
         throw new Error(msg);
       }
       const blob = await r.blob();
@@ -5551,7 +5578,10 @@ async function triggerFileDownload(res) {
       const a = document.createElement('a'); a.href = url; a.download = res.data.fileName || 'asset-file';
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 4000);
-    } catch (err) { toast(err && err.message && !/failed/.test(err.message) ? err.message : 'Could not download the file — try again, or ask the seller to re-upload.', 'err'); return; }
+    } catch (err) {
+      if (res.data.backupUrl) { showBackupLink(res.data.backupUrl); return; }
+      toast(err && err.message && !/failed/.test(err.message) ? err.message : 'Could not download the file — try again, or ask the seller to re-upload.', 'err'); return;
+    }
   } else {
     const a = document.createElement('a');
     a.href = res.data.dataURL; a.download = res.data.fileName || 'asset-file';
@@ -5599,14 +5629,21 @@ function ensureChatPanel() {
     const body = inp.value.trim();
     if (!body) return;
     inp.value = '';
-    await API.chatWithSeller(STATE.user, CHAT.assetId, body);
+    const r = await API.chatWithSeller(STATE.user, CHAT.assetId, body);
+    if (!r.ok) { toast(r.error || 'Message failed to send.', 'err'); inp.value = body; return; }
     await refreshChat();
   });
 }
 async function refreshChat() {
   if (!CHAT.open || !CHAT.assetId) return;
   const r = await API.chatWithSeller(STATE.user, CHAT.assetId, '');
-  if (!r.ok) { toast(r.error, 'err'); closeChatPanel(); return; }
+  /* Show failures INSIDE the panel instead of closing it — a silent close
+     looked like "the chat is broken" with zero feedback. */
+  if (!r.ok) {
+    const box = document.getElementById('chat-msgs');
+    if (box) box.innerHTML = `<div class="form-error" style="margin:0">${esc(r.error || 'Chat unavailable.')}</div>`;
+    return;
+  }
   const code = document.getElementById('chat-code');
   const box = document.getElementById('chat-msgs');
   if (!code || !box) return;
@@ -5743,9 +5780,23 @@ VIEWS.asset = async ({ params }) => {
       ${composerHtml}
       ${commentHtml || (canRate ? emptyHtml('No comments yet', 'Be the first to comment on this asset.') : '')}
     </div>
+    <div id="rec-systems" style="margin-top:44px"></div>
   </div>`;
 };
-VIEWS_BIND.asset = () => { };
+VIEWS_BIND.asset = () => {
+  /* Recommended systems at the very bottom — top sellers, minus this one. */
+  const host = document.getElementById('rec-systems');
+  if (!host) return;
+  const m = (location.hash.match(/#\/asset\/([^/?#]+)/) || [])[1];
+  API.topSelling(8, STATE.user && STATE.user.id).then(r => {
+    if (!r.ok || !host.isConnected) return;
+    const list = (r.data || []).filter(a => a.id !== m).slice(0, 4);
+    host.innerHTML = list.length
+      ? `<div class="section-head"><div><span class="section-eyebrow">You may also like</span><h2>Recommended systems</h2><p>Top-selling systems from the shop.</p></div><a class="btn btn-ghost btn-sm" href="#/shop">Browse all →</a></div>
+         <div class="grid grid-assets">${list.map(a => assetCardHtml(a)).join('')}</div>`
+      : '';
+  }).catch(() => {});
+};
 
 async function onComment(e) {
   e.preventDefault();
@@ -6291,6 +6342,10 @@ VIEWS.upload = async ({ query }) => {
           <input class="input" type="file" name="file" accept=".rbxl,.rbxm,.rbxmx,.lua,.luau,.zip,.txt,.dll,.json" >
           ${a ? `<div class="hint">Current file: ${esc(a.fileName)} — choose a new file to replace it.</div>` : '<div class="hint">Required — attach the actual system file (.rbxl, .rbxm, .rbxmx, .lua, .luau, up to 100 MB). On submit it is uploaded to the file host and only a link is kept, so nothing heavy is stored here. Staff verify this file against your registered system and post picture before the post goes live.'}</div>
         </div>
+        <div class="field"><label>Backup file link <span class="muted small" style="font-weight:400">(recommended)</span></label>
+          <input class="input" name="backupUrl" type="url" placeholder="https://www.mediafire.com/… or https://mega.nz/… or https://gofile.io/…" value="${esc(a ? (a.backupUrl || '') : '')}">
+          <div class="hint">Upload the same file to MediaFire, Mega, GoFile, Dropbox — anywhere — and paste the link. If the primary host is ever unreachable, buyers automatically fall back to this link, so a host outage never blocks a sale.</div>
+        </div>
         <div class="field"><label style="display:inline-flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" name="deliverDuringPending" style="accent-color:var(--gold);width:17px;height:17px"> <span><b>Give the system file while approval is pending</b> <span class="muted small" style="font-weight:400">(optional)</span></span></label>
           <div class="hint">When checked, buyers who paid get the file immediately — they only wait for you to activate the license for their game. When unchecked (default), buyers wait for your full approval before the file unlocks.</div>
         </div>
@@ -6321,6 +6376,7 @@ async function onSubmitAsset(e) {
     }
   }
   const deliverDuringPending = f.querySelector('input[name=deliverDuringPending]').checked;
+  const backupUrl = (f.backupUrl && f.backupUrl.value || '').trim() || undefined;
   const btn = f.querySelector('button[type=submit]');
   const origLabel = btn.textContent;
   btn.disabled = true; btn.textContent = 'Submitting…';
@@ -6334,7 +6390,7 @@ async function onSubmitAsset(e) {
       if (hosted.ok) { fileUrl = hosted.url; fileName = file.name; }
       else { toast('Could not reach the file host — storing the file directly instead.', 'warn'); fileData = await readFileAsDataURL(file); fileName = file.name; }
     }
-    const payload = { title: f.title.value, category: f.category.value, description: f.description.value, price: f.price.value, imageUrl: f.imageUrl.value.trim(), images, paymentMethods, sellerPaymentDetails, deliverDuringPending, fileName, fileData, fileUrl };
+    const payload = { title: f.title.value, category: f.category.value, description: f.description.value, price: f.price.value, imageUrl: f.imageUrl.value.trim(), images, paymentMethods, sellerPaymentDetails, deliverDuringPending, backupUrl, fileName, fileData, fileUrl };
     const res = f.id.value
       ? await API.updateAsset(STATE.user, f.id.value, payload)
       : await API.createAsset(STATE.user, payload);

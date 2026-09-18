@@ -560,7 +560,7 @@
       });
       return out;
     }
-    async function createAsset(user, { title, category, description, price, fileName, fileData, fileUrl, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending } = {}) {
+    async function createAsset(user, { title, category, description, price, fileName, fileData, fileUrl, backupUrl, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to post assets.');
       if (!canPost(u)) {
@@ -587,6 +587,10 @@
       const hostedFileUrl = normalizeImageUrl(fileUrl);
       if (!file && !fileName && !hostedFileUrl) return fail('invalid', 'A system file is required — attach the actual file buyers will receive (.lua, .rbxm, .rbxl, .zip…).');
       if (!img) return fail('invalid', 'An image link is required — staff compare the post picture with the file when verifying.');
+      /* Optional mirror link (MediaFire / Mega / GoFile…) — buyers fall back to
+         it automatically if the primary host refuses the download. */
+      let backup = normalizeImageUrl(backupUrl);
+      if (backup === null && String(backupUrl || '').trim()) return fail('invalid', 'Backup link must be a valid http(s) URL.');
       const founderLevel = effRank(u) >= roleRank('cofounder'); // Founder / Co-Founder posts skip the approval queue
       const cleanImages = Array.isArray(images) ? images.map(x => normalizeImageUrl(x)).filter(Boolean).slice(0, 12) : [];
       const allowedPm = ['stripe', 'paypal', 'gcash', 'kofi'];
@@ -595,6 +599,7 @@
         id: 'a' + uid(), ownerId: u.id, title, category, description, price,
         fileName: file ? file.name : (fileName || (hostedFileUrl ? hostedFileUrl.split('/').pop().split('?')[0] || 'system-file' : 'system-file')), fileMime: file ? file.mime : 'application/octet-stream', fileSize: file ? file.size : 0,
         fileUrl: hostedFileUrl || null,
+        backupUrl: backup || null,
         images: JSON.stringify(cleanImages), paymentMethods: JSON.stringify(sellerPm), sellerPaymentDetails: JSON.stringify(cleanSellerPaymentDetails(sellerPm, sellerPaymentDetails)), deliverDuringPending: deliverDuringPending ? 1 : 0,
         imageUrl: img, status: founderLevel ? 'approved' : 'pending', rejectReason: null, sales: 0, createdAt: now(), updatedAt: now(), approvedAt: founderLevel ? now() : null,
       };
@@ -631,13 +636,15 @@
         isOwner,
         hasPurchased: !!purchase,
         canDownload: !!(isOwner || isAdminView || purchase),
+        /* Mirror link is private — only entitled viewers ever see it. */
+        backupUrl: (isOwner || isAdminView || purchase) ? (a.backupUrl || null) : null,
         purchase,
         sellerResponse: sellerResponseStats(a.ownerId),
         canRate: isVerifiedBuyer(viewer, id),
       });
     }
 
-    async function updateAsset(user, id, { title, category, description, price, fileName, fileData, fileUrl, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending } = {}) {
+    async function updateAsset(user, id, { title, category, description, price, fileName, fileData, fileUrl, backupUrl, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       const a = byIdIn('assets', id);
@@ -684,6 +691,11 @@
         a.sellerPaymentDetails = JSON.stringify(cleanSellerPaymentDetails(pms, Object.assign({}, prev, sellerPaymentDetails)));
       }
       if (deliverDuringPending !== undefined) a.deliverDuringPending = !!deliverDuringPending ? 1 : 0;
+      if (backupUrl !== undefined) {
+        const bu = normalizeImageUrl(backupUrl);
+        if (bu === null && String(backupUrl || '').trim()) return fail('invalid', 'Backup link must be a valid http(s) URL.');
+        a.backupUrl = bu;
+      }
       const file = normalizeFile(fileData, fileName);
       if (file) {
         if (file.size > cfg.maxUploadBytes) return fail('invalid', 'File is too large (max 20 MB).');
@@ -839,7 +851,7 @@
       const r = requireAdmin(actor); if (r) return r;
       const a = byIdIn('assets', id);
       if (!a) return fail('notfound', 'Asset not found.');
-      return ok({ fileName: a.fileName, mime: a.fileMime, size: a.fileSize, fileUrl: a.fileUrl || null });
+      return ok({ fileName: a.fileName, mime: a.fileMime, size: a.fileSize, fileUrl: a.fileUrl || null, backupUrl: a.backupUrl || null });
     }
     /* Staff post control: disable = hidden from the shop but restorable.
        Plain Admins moderate (disable/restore); deleting a post needs
@@ -950,7 +962,7 @@
       const isTest = v && isTester(v);
       const hasPurchased = v && all('purchases').some(p => p.assetId === id && p.buyerId === v.id);
       if (!isOwner && !isAdminView && !isTest && !hasPurchased) return fail('forbidden', 'Purchase this asset to download the file.');
-      return ok({ fileName: a.fileName, mime: a.fileMime, size: a.fileSize, fileUrl: a.fileUrl || null });
+      return ok({ fileName: a.fileName, mime: a.fileMime, size: a.fileSize, fileUrl: a.fileUrl || null, backupUrl: a.backupUrl || null });
     }
 
     /* ============ PURCHASES & LICENSES ============ */
@@ -2342,8 +2354,8 @@
       const a = byIdIn('assets', assetId);
       if (!a) return fail('notfound', 'Asset not found.');
       const isSeller = a.ownerId === u.id;
-      const isBuyer = a.ownerId !== u.id;
-      if (isBuyer && !isVerifiedBuyer(u, assetId)) return fail('forbidden', 'Chat unlocks once your purchase is approved — this keeps sellers reachable only to their real customers.');
+      /* Open to every logged-in user: pre-sale questions are the point of
+         "Contact seller". Messages still auto-delete after 24h. */
       if (isStaff(u) && !isSeller) return fail('forbidden', 'Staff use their own channels — this chat is between the buyer and the seller.');
       body = String(body || '').trim().slice(0, 2000);
       if (body) {
