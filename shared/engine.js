@@ -1414,7 +1414,7 @@
             ? 'Your Licensed upgrade is complete! Your account can now post assets to the marketplace. Manage your systems and licenses from the Licensed Dashboard — thank you for supporting Kings Production!'
             : subM
             ? 'Your ' + (subM[0] === 'protection' ? 'Subscription' : 'Contract') + ' ' + subM[1] + ' plan is now active. Head to the Licensed Dashboard to register systems, track revenue, and control the games using your licenses.'
-            : 'Thank you for your purchase of "' + (assetT ? assetT.title : 'this asset') + '". Your license key is: ' + out.licenseKey + '\n\nAssign it to a Roblox game from the Subscription page to activate it. Purchasing any asset also upgraded your account to Licensed — you can now post your own assets.',
+            : 'Thank you for your purchase of "' + (assetT ? assetT.title : 'this asset') + '". Your license key is: ' + out.licenseKey + '\n\nAssign it to a Roblox game from the Subscription page to activate it. Want to sell your own systems? A Contract plan on the Subscription page unlocks posting.',
           link: '#/subscription',
         });
       } catch (e) { console.error('receipt email failed', e); }
@@ -2390,7 +2390,7 @@
         'You may not post assets you do not own or have the right to sell, and you may not copy or redistribute content from this site without permission.',
         '## Purchases, license keys, and payments',
         'When you purchase an asset, you receive a unique license key (a "KP-" key) recorded to your account. The key grants you a non-exclusive, personal license to use that asset in your projects, subject to any terms stated on the asset page. Keys are issued upon successful payment and cannot be transferred or resold.',
-        'Purchasing any asset automatically upgrades your account to Licensed, which lets you post and sell your own assets on the marketplace. This upgrade is granted the moment your payment is confirmed.',
+        'Buying an asset issues a license key for that asset only — it does not change your account role or unlock posting. To sell your own assets, purchase a Contract plan on the Subscription page.',
         'Payments are processed through third-party providers: Stripe (cards), PayPal, and GCash (via PayMongo). The provider handles your payment details — we never see or store your card or payment information. Until a gateway is connected, checkout runs in test mode and completes without moving money.',
         '## Intellectual property',
         'Creators retain ownership of the assets they post; by posting, they grant Kings Production a license to host, display, and sell those assets on this site. The site itself — its design, branding, the crown logo, and the studio\'s own content — is the property of Kings Production. You may not copy, scrape, mirror, or reuse the site, its design, or its content.',
