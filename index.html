@@ -299,7 +299,7 @@ main{flex:1;width:100%}
 .center{text-align:center}
 .hidden{display:none!important}
 .loading{display:flex;align-items:center;justify-content:center;gap:10px;padding:60px 0;color:var(--text-3)}
-.spinner{width:18px;height:18px;border-radius:50%;border:2px solid var(--border-strong);border-top-color:var(--text-2);animation:spin .8s linear infinite}
+.spinner{width:18px;height:18px;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 260deg,var(--gold) 260deg 360deg);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 calc(100% - 2.4px));mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 calc(100% - 2.4px));animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .kbd{background:var(--surface-2);border:1px solid var(--border-strong);border-radius:5px;padding:1px 6px;font-size:12px;color:var(--text-2);font-family:ui-monospace,monospace}
 
@@ -1238,6 +1238,8 @@ const ICON = {
   crown: '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M4 16.5V10l4.2 3.6L12 6.5l3.8 7.1L20 10v6.5a1.6 1.6 0 0 1-1.6 1.6H5.6A1.6 1.6 0 0 1 4 16.5Z"/><rect x="5.2" y="19" width="13.6" height="1.8" rx="0.9"/></svg>',
   book: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>',
   search: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>',
+  up: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V5m0 0-4.2 4.2M12 5l4.2 4.2"/><path d="M4 17v2.4A1.6 1.6 0 0 0 5.6 21h12.8a1.6 1.6 0 0 0 1.6-1.6V17"/></svg>',
+  image: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m5 19 5.2-5.2a1.4 1.4 0 0 1 2 0L21 19"/></svg>',
   cart: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2.5 3.5h2.6l2.4 11h11l2.6-8.5H6"/></svg>',
   download: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11m0 0 4.2-4.2M12 14 7.8 9.8"/><path d="M4 17v2.4A1.6 1.6 0 0 0 5.6 21h12.8a1.6 1.6 0 0 0 1.6-1.6V17"/></svg>',
   edit: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3.5a2.4 2.4 0 0 1 3.4 3.4L8 19.3 3.5 20.5 4.7 16 17 3.5Z"/></svg>',
@@ -1680,10 +1682,11 @@ const API = {};
     function summarize(a, viewerId) {
       const o = dbUser(a.ownerId);
       const rv = assetRating(a);
-      let images = [], paymentMethods = [];
+      let images = [], paymentMethods = [], sellerPaymentDetails = null;
       try { images = a.images ? JSON.parse(a.images) : []; } catch (e) {}
       try { paymentMethods = a.paymentMethods ? JSON.parse(a.paymentMethods) : []; } catch (e) {}
-      return { id: a.id, title: a.title, category: a.category, price: a.price, sales: a.sales, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, imageUrl: a.imageUrl, images, paymentMethods, deliverDuringPending: !!a.deliverDuringPending, owner: o ? publicUser(o) : null, rating: rv ? rv.rating : null, ratingCount: rv ? rv.count : 0, likes: likeCount(a.id), liked: likedBy(a.id, viewerId) };
+      try { sellerPaymentDetails = a.sellerPaymentDetails ? JSON.parse(a.sellerPaymentDetails) : null; } catch (e) {}
+      return { id: a.id, title: a.title, category: a.category, description: a.description, price: a.price, sales: a.sales, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, imageUrl: a.imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending: !!a.deliverDuringPending, owner: o ? publicUser(o) : null, rating: rv ? rv.rating : null, ratingCount: rv ? rv.count : 0, likes: likeCount(a.id), liked: likedBy(a.id, viewerId) };
     }
     function sendEmail(rec) {
       const row = { id: 'e' + uid(), to: rec.to, subject: rec.subject, action: rec.action, body: rec.body, link: rec.link || null, createdAt: now(), read: false };
@@ -1962,7 +1965,23 @@ const API = {};
       if (v.length > 2000) return null;
       return v;
     }
-    async function createAsset(user, { title, category, description, price, fileName, fileData, imageUrl, images, paymentMethods, deliverDuringPending } = {}) {
+    /* Seller payment details keyed by accepted method — the buyer sees these
+       at checkout for manual methods (QR image, account name/number, notes). */
+    function cleanSellerPaymentDetails(pms, details) {
+      const out = {};
+      const src = details && typeof details === 'object' ? details : {};
+      (Array.isArray(pms) ? pms : []).forEach(m => {
+        const d = src[m]; if (!d || typeof d !== 'object') return;
+        const entry = {};
+        if (d.qrUrl !== undefined) entry.qrUrl = String(d.qrUrl || '').trim().slice(0, 300) || null;
+        if (d.accountName !== undefined) entry.accountName = String(d.accountName || '').trim().slice(0, 80) || null;
+        if (d.accountNumber !== undefined) entry.accountNumber = String(d.accountNumber || '').trim().slice(0, 80) || null;
+        if (d.instructions !== undefined) entry.instructions = String(d.instructions || '').trim().slice(0, 600) || null;
+        if (Object.values(entry).some(v => v)) out[m] = entry;
+      });
+      return out;
+    }
+    async function createAsset(user, { title, category, description, price, fileName, fileData, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to post assets.');
       if (!canPost(u)) {
@@ -1994,7 +2013,7 @@ const API = {};
       const asset = {
         id: 'a' + uid(), ownerId: u.id, title, category, description, price,
         fileName: file ? file.name : fileName, fileMime: file ? file.mime : 'application/octet-stream', fileSize: file ? file.size : 0,
-        images: JSON.stringify(cleanImages), paymentMethods: JSON.stringify(sellerPm), deliverDuringPending: deliverDuringPending ? 1 : 0,
+        images: JSON.stringify(cleanImages), paymentMethods: JSON.stringify(sellerPm), sellerPaymentDetails: JSON.stringify(cleanSellerPaymentDetails(sellerPm, sellerPaymentDetails)), deliverDuringPending: deliverDuringPending ? 1 : 0,
         imageUrl: img, status: founderLevel ? 'approved' : 'pending', rejectReason: null, sales: 0, createdAt: now(), updatedAt: now(), approvedAt: founderLevel ? now() : null,
       };
       if (file) {
@@ -2034,7 +2053,7 @@ const API = {};
       });
     }
 
-    async function updateAsset(user, id, { title, category, description, price, fileName, fileData, imageUrl, images, paymentMethods, deliverDuringPending } = {}) {
+    async function updateAsset(user, id, { title, category, description, price, fileName, fileData, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       const a = byIdIn('assets', id);
@@ -2073,6 +2092,12 @@ const API = {};
       if (paymentMethods !== undefined) {
         const allowedPm = ['stripe', 'paypal', 'gcash', 'kofi'];
         a.paymentMethods = JSON.stringify(Array.isArray(paymentMethods) ? paymentMethods.filter(m => allowedPm.includes(m)).slice(0, 4) : []);
+      }
+      if (sellerPaymentDetails !== undefined) {
+        const pms = Array.isArray(paymentMethods) ? paymentMethods.filter(m => ['stripe', 'paypal', 'gcash', 'kofi'].includes(m)).slice(0, 4) : (() => { try { return JSON.parse(a.paymentMethods || '[]'); } catch (e) { return []; } })();
+        let prev = {};
+        try { prev = JSON.parse(a.sellerPaymentDetails || '{}') || {}; } catch (e) {}
+        a.sellerPaymentDetails = JSON.stringify(cleanSellerPaymentDetails(pms, Object.assign({}, prev, sellerPaymentDetails)));
       }
       if (deliverDuringPending !== undefined) a.deliverDuringPending = !!deliverDuringPending ? 1 : 0;
       const file = normalizeFile(fileData, fileName);
@@ -2452,6 +2477,33 @@ const API = {};
       store.put('site_settings', { id: 'payment_config', value: JSON.stringify(clean), updatedAt: now() });
       flush();
       return ok(clean);
+    }
+    /* ---- image hosting (optional) ----
+       Default provider is Catbox.moe — a free permanent image host with an
+       anonymous API, so it works with NO key and NO account. Imgur and ImgBB
+       remain selectable for those who prefer them. The site stores image URLs
+       only; picking a local file uploads through the server proxy. */
+    function getImgurSettings() {
+      const row = byIdIn('site_settings', 'imgur_settings');
+      const empty = { provider: 'catbox', clientId: '' };
+      if (!row) return ok(empty);
+      try { return ok({ ...empty, ...JSON.parse(row.value) }); } catch (e) { return ok(empty); } 
+    }
+    async function adminSetImgurSettings(actor, cfg = {}) {
+      const r = requireCofounder(actor, 'edit image upload settings'); if (r) return r;
+      const cur = (await getImgurSettings()).data || {};
+      const prov = ['catbox', 'imgur', 'imgbb'].includes(cfg.provider) ? cfg.provider : (cur.provider || 'catbox');
+      const clean = {
+        provider: prov,
+        clientId: String(cfg.clientId !== undefined ? cfg.clientId : cur.clientId || '').trim().slice(0, 80),
+        userhash: String(cfg.userhash !== undefined ? cfg.userhash : cur.userhash || '').trim().slice(0, 80),
+      };
+      if (prov === 'catbox') clean.clientId = '';
+      if (prov === 'imgbb' && !clean.clientId) return fail('invalid', 'ImgBB needs an API key — get one free at api.imgbb.com.');
+      if (prov === 'imgur' && !clean.clientId && !cur.clientId) return fail('invalid', 'Imgur needs a Client-ID (api.imgur.com). Or just use Catbox — it needs nothing.');
+      store.put('site_settings', { id: 'imgur_settings', value: JSON.stringify(clean), updatedAt: now() });
+      flush();
+      return ok({ provider: clean.provider, clientId: clean.clientId ? 'configured' : '', userhash: clean.userhash ? 'configured' : '' });
     }
     /* The Licensed plan is sold directly for 500 PHP (base) — converting
        to the buyer's local currency the same way asset prices convert. */
@@ -3736,6 +3788,44 @@ const API = {};
       flush();
       return ok(true);
     }
+    /* Re-resolve every game row's real name + creator from Roblox's public API.
+       Heals rows recorded before the Lua sent rich metadata ("Game", "Group 123"). */
+    async function refreshSystemGames(actor, systemId) {
+      const u = resolveUser(actor);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const s = byIdIn('systems', systemId);
+      if (!s) return fail('notfound', 'System not found.');
+      const owner = byIdIn('users', s.userId);
+      const rank = u ? effRank(u) : 0;
+      if (s.userId !== u.id && rank < roleRank('admin')) return fail('forbidden', 'This is not your system.');
+      if (typeof fetch !== 'function') return fail('invalid', 'Game info refresh is only available on the server.');
+      const games = all('system_games').filter(g => g.systemId === s.id);
+      let healed = 0;
+      await Promise.all(games.map(async g => {
+        try {
+          const ctl = new AbortController();
+          const timer = setTimeout(() => ctl.abort(), 6000);
+          const ur = await fetch('https://apis.roblox.com/universes/v1/places/' + g.placeId + '/universe', { signal: ctl.signal });
+          const uj = await ur.json();
+          if (!uj || !uj.universeId) return;
+          const gr = await fetch('https://games.roblox.com/v1/games?universeIds=' + uj.universeId, { signal: ctl.signal });
+          const gj = await gr.json();
+          clearTimeout(timer);
+          const info = gj && gj.data && gj.data[0];
+          if (!info) return;
+          let changed = false;
+          if (info.name && info.name !== 'Game' && g.gameName !== info.name) { g.gameName = String(info.name).slice(0, 80); changed = true; }
+          if (info.creator && info.creator.name && g.gameOwner !== info.creator.name) {
+            g.gameOwner = String(info.creator.name).slice(0, 80);
+            g.gameOwnerType = String(info.creator.type === 1 ? 'User' : info.creator.type === 2 ? 'Group' : (info.creator.type || '')).replace('Enum.CreatorType.', '');
+            changed = true;
+          }
+          if (changed) { store.put('system_games', g); healed++; }
+        } catch (e) { /* network/parse failure — keep the old labels */ }
+      }));
+      if (healed) flush();
+      return ok({ healed, system: systemForOwner(s) });
+    }
     /* The heart of the anti-leak flow: the game checks in with the name +
        password; a match means the system is licensed. First successful contact
        flips PENDING → ACTIVE; a paused (disabled) system is always denied. */
@@ -3974,8 +4064,8 @@ const API = {};
       createTicket, addTicketMessage, getTicket, listMyTickets,
       adminListTickets, adminCloseTicket, adminDeleteTicket, getFaqs, saveFaqs, getLegalDoc, saveLegalDoc, processAdminPauseExpiry,
       listAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement,
-      registerSystem, listSystems, deleteSystem, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice, authorizeSystemDevice, setSystemGameStatus, removeSystemGame, adminSystemDetail, adminSetSystemState, adminSubscriberDetail, adminDeleteSystem, setSystemEnforcement,
-      adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
+      registerSystem, listSystems, deleteSystem, refreshSystemGames, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice, authorizeSystemDevice, setSystemGameStatus, removeSystemGame, adminSystemDetail, adminSetSystemState, adminSubscriberDetail, adminDeleteSystem, setSystemEnforcement,
+      adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset, getImgurSettings, adminSetImgurSettings,
       adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSetUserPlan, adminSessions, adminEmails, adminSendEmail, adminListBlasts, adminDeleteBlast, adminEmailHistory, adminListInbound, adminSetUnsubscribed, inboundMailEvent, processScheduledBlasts, adminOrders, adminCompleteOrder,
       sellerOrders, setOrderApproval, adminTakeFile, adminSetAssetStatus, adminSetRestriction, adminRequestSubRevoke, adminResolveSubRevoke, adminListSubRevokes, adminUnsubscribePlan, adminSystems,
       setFx,
@@ -4101,6 +4191,10 @@ async function _assetForm(a, withFile) {
   const fd = new FormData();
   fd.append('title', a.title || ''); fd.append('category', a.category || ''); fd.append('description', a.description || ''); fd.append('price', a.price);
   if (a.imageUrl) fd.append('imageUrl', a.imageUrl);
+  if (a.images) fd.append('images', JSON.stringify(a.images));
+  if (a.paymentMethods) fd.append('paymentMethods', JSON.stringify(a.paymentMethods));
+  if (a.sellerPaymentDetails) fd.append('sellerPaymentDetails', JSON.stringify(a.sellerPaymentDetails));
+  if (a.deliverDuringPending !== undefined) fd.append('deliverDuringPending', a.deliverDuringPending ? '1' : '0');
   if (withFile && a.fileData) fd.append('file', await (await fetch(a.fileData)).blob(), a.fileName || 'asset-file');
   return fd;
 }
@@ -4146,6 +4240,68 @@ API.paymentMethods = () => _wrap(async () => _mode === 'local'
   : await _call('GET', '/api/payment/methods'));
 API.getPaymentConfig = () => _wrap(async () => _mode === 'local' ? await _engine.getPaymentConfig() : await _call('GET', '/api/admin/payment-config'));
 API.setPaymentConfig = (user, cfg) => _wrap(async () => _mode === 'local' ? await _engine.adminSetPaymentConfig(user, cfg) : await _call('POST', '/api/admin/payment-config', cfg));
+API.getImgurSettings = () => _wrap(async () => _mode === 'local' ? await _engine.getImgurSettings() : await _call('GET', '/api/admin/imgur-settings'));
+API.setImgurSettings = (user, cfg) => _wrap(async () => _mode === 'local' ? await _engine.adminSetImgurSettings(user, cfg) : await _call('POST', '/api/admin/imgur-settings', cfg));
+/* Upload a local image to Imgur through the server proxy; returns the hosted URL. */
+async function uploadImageFile(file, onProgress) {
+  if (!file) return { ok: false, error: 'Choose an image file first.' };
+  if (!/^image\/(png|jpe?g|gif|webp)$/.test(file.type)) return { ok: false, error: 'Only png, jpg, gif and webp images are supported.' };
+  if (file.size > 10 * 1024 * 1024) return { ok: false, error: 'Image is too large (max 10 MB).' };
+  const fd = new FormData();
+  fd.append('image', file, file.name);
+  try {
+    const r = await fetch('/api/upload-image', { method: 'POST', body: fd, headers: { Authorization: 'Bearer ' + _getToken() } });
+    const j = await r.json();
+    if (!j.ok) return { ok: false, error: j.error || 'Upload failed.' };
+    return { ok: true, url: j.data.url, deletehash: j.data.deletehash };
+  } catch (e) { return { ok: false, error: 'Upload failed — check your connection and try again.' }; }
+}
+/* One reusable widget: an Upload button + progress hint wired to a text input.
+   mode: 'replace' fills the input with the URL; 'appendRow' adds an extra-photo row. */
+function imageUploadButton(inputEl, opts = {}) {
+  const wrap = document.createElement('span');
+  wrap.style.cssText = 'display:inline-flex;align-items:center;gap:8px';
+  const btn = document.createElement('button');
+  btn.type = 'button'; btn.className = 'btn btn-ghost btn-sm';
+  btn.innerHTML = (ICON.up || ICON.plus) + ' Upload';
+  const status = document.createElement('span');
+  status.className = 'muted small'; status.style.cssText = 'max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file'; fileInput.accept = 'image/png,image/jpeg,image/gif,image/webp'; fileInput.style.display = 'none';
+  btn.onclick = () => fileInput.click();
+  fileInput.onchange = async () => {
+    const f = fileInput.files && fileInput.files[0];
+    if (!f) return;
+    status.textContent = 'Uploading ' + f.name + '…';
+    btn.disabled = true;
+    const r = await uploadImageFile(f);
+    btn.disabled = false;
+    if (!r.ok) { status.textContent = r.error; toast(r.error, 'err'); return; }
+    status.textContent = 'Uploaded ✓ ' + r.url;
+    if (opts.appendRow) opts.appendRow(r.url); else if (inputEl) inputEl.value = r.url;
+    toast('Image uploaded — URL filled in.');
+  };
+  wrap.appendChild(btn); wrap.appendChild(status); wrap.appendChild(fileInput);
+  return wrap;
+}
+/* Attach an Upload widget next to every image-URL input currently in the DOM. */
+function attachImageUploadWidgets(root = document) {
+  const targets = [
+    { sel: 'input[name=imageUrl]', label: 'cover photo' },
+    { sel: '#pc-gqr', label: 'GCash QR' },
+  ];
+  targets.forEach(({ sel }) => {
+    root.querySelectorAll(sel).forEach(inp => {
+      if (inp.closest('.kp-upwrap')) return;
+      const wrap = document.createElement('span');
+      wrap.className = 'kp-upwrap';
+      wrap.style.cssText = 'display:flex;gap:8px;align-items:center';
+      inp.parentNode.insertBefore(wrap, inp);
+      wrap.appendChild(inp);
+      wrap.appendChild(imageUploadButton(inp));
+    });
+  });
+}
 API.submitPaymentProof = (user, orderId, proof) => _wrap(async () => _mode === 'local' ? await _engine.submitPaymentProof(user, orderId, proof) : await _call('POST', '/api/orders/' + orderId + '/proof', proof));
 API.adminReviewOrder = (user, orderId, decision, note) => _wrap(async () => _mode === 'local' ? await _engine.adminReviewManualOrder(user, orderId, decision, note) : await _call('POST', '/api/admin/orders/' + orderId + '/review', { decision, note }));
 API.checkout = (user, assetId, method, plan, gameDetails) => _wrap(async () => _mode === 'local'
@@ -4240,6 +4396,7 @@ API.setSystemEnforcement = (user, id, flags) => _wrap(async () => _mode === 'loc
 API.revokeSystemDevice = (user, deviceId) => _wrap(async () => _mode === 'local' ? await _engine.revokeSystemDevice(user, deviceId) : await _call('POST', '/api/systems/devices/' + _e(deviceId) + '/revoke'));
 API.authorizeSystemDevice = (user, deviceId) => _wrap(async () => _mode === 'local' ? await _engine.authorizeSystemDevice(user, deviceId) : await _call('POST', '/api/systems/devices/' + _e(deviceId) + '/authorize'));
 API.setSystemGameStatus = (user, gameId, status) => _wrap(async () => _mode === 'local' ? await _engine.setSystemGameStatus(user, gameId, status) : await _call('POST', '/api/systems/games/' + _e(gameId) + '/status', { status }));
+API.refreshSystemGames = (user, systemId) => _wrap(async () => _mode === 'local' ? await _engine.refreshSystemGames(user, systemId) : await _call('POST', '/api/systems/' + _e(systemId) + '/refresh-games', {}));
 API.removeSystemGame = (user, gameId) => _wrap(async () => _mode === 'local' ? await _engine.removeSystemGame(user, gameId) : await _call('DELETE', '/api/systems/games/' + _e(gameId)));
 
 /* ---- admin ---- */
@@ -4373,7 +4530,7 @@ function toast(msg, type = 'ok') {
 }
 
 /* ---- modal ---- */
-function modal({ title, body, confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger = false, onConfirm, validate, confirmOnly = false, wide = false }) {
+function modal({ title, body, confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger = false, onConfirm, validate, confirmOnly = false, wide = false, afterOpen }) {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `<div class="modal ${wide ? 'modal-wide' : ''}" role="dialog" aria-modal="true">
@@ -4396,7 +4553,7 @@ function modal({ title, body, confirmLabel = 'Confirm', cancelLabel = 'Cancel', 
   document.addEventListener('keydown', onKey, true);
   function close() { document.removeEventListener('keydown', onKey, true); overlay.remove(); }
   document.body.appendChild(overlay);
-  setTimeout(() => { const f = overlay.querySelector('input,textarea,select'); f && f.focus(); }, 30);
+  setTimeout(() => { const f = overlay.querySelector('input,textarea,select'); f && f.focus(); if (afterOpen) afterOpen(overlay); }, 30);
   return overlay;
 }
 function promptModal({ title, label, placeholder, confirmLabel = 'Confirm', danger = false, onConfirm, type = 'text', required, body = '', extraFields = [] }) {
@@ -4843,6 +5000,7 @@ function onBuySubscription(category, tier) {
 }
 async function openCheckout(assetId, plan) {
   const isAsset = !!assetId && !plan;
+  STATE._checkoutSellerDetails = null;
   const isVip = plan === 'vip';
   const isSub = plan && plan.startsWith('sub:');
   /* For a post, honor the seller's accepted payment methods (empty = all). */
@@ -4852,6 +5010,9 @@ async function openCheckout(assetId, plan) {
     if (ar.ok && ar.data && Array.isArray(ar.data.paymentMethods) && ar.data.paymentMethods.length) {
       const map = { gcash: 'gcash_manual', kofi: 'kofi_manual', paypal: 'paypal', stripe: 'stripe' };
       sellerMethods = ar.data.paymentMethods.map(m => map[m] || m);
+      STATE._checkoutSellerDetails = ar.data.sellerPaymentDetails || null;
+    } else {
+      STATE._checkoutSellerDetails = null;
     }
   }
   const subCategory = isSub ? plan.split(':')[1] : null;
@@ -4915,7 +5076,7 @@ async function openCheckout(assetId, plan) {
     if (!res.ok) { toast(res.error, 'err'); if (res.code === 'timeout' || res.code === 'owned' || res.code === 'banned' || res.code === 'pending') await router(); return; }
     ov.remove();
     if (res.data && res.data.redirect) { location.href = res.data.redirect; return; }
-    if (res.data && res.data.orderId && entry.manual) { await openManualPayment(res.data.orderId, entry.id); return; }
+    if (res.data && res.data.orderId && entry.manual) { await openManualPayment(res.data.orderId, entry.id, STATE._checkoutSellerDetails || null, assetId); return; }
     if (res.data && (res.data.licenseKey || res.data.vipUpgrade)) {
       toast(res.data.vipUpgrade ? 'You are now Licensed — you can post assets. 👑' : 'Subscription issued! It is on your Subscription page.');
       burstAt(innerWidth / 2, innerHeight / 2, 30);
@@ -4928,24 +5089,52 @@ async function openCheckout(assetId, plan) {
   }));
 }
 /* Manual payment: show the buyer the account details / QR, take their proof, route to staff verification. */
-async function openManualPayment(orderId, method) {
+async function openManualPayment(orderId, method, sellerDetails, assetId) {
   const cfg = await API.getPaymentConfig();
   const c = cfg.ok && cfg.data ? cfg.data : {};
+  /* Seller's own payment details (set at posting) take priority over the staff config. */
+  let seller = sellerDetails || null;
+  if (!seller && assetId && !String(assetId).startsWith('vip') && !String(assetId).startsWith('sub:')) {
+    try { const ar = await API.getAsset(assetId); if (ar.ok && ar.data && ar.data.sellerPaymentDetails) seller = ar.data.sellerPaymentDetails; } catch (e) {}
+  }
+  const sd = seller || {};
+  const sellerBlock = m => {
+    const d = sd[m]; if (!d) return null;
+    const parts = [];
+    if (d.qrUrl) parts.push(`<div class="center"><img src="${esc(proxiedImageUrl(d.qrUrl))}" alt="Payment QR" style="width:210px;height:210px;object-fit:contain;border-radius:12px;border:1px solid var(--border);background:#fff;padding:8px"></div>`);
+    if (d.accountName || d.accountNumber) parts.push(`<div class="card card-pad" style="padding:12px 14px"><b style="font-size:13px">Account details</b>${d.accountName ? `<p class="muted small" style="margin:4px 0 0">Name: <b style="color:var(--text)">${esc(d.accountName)}</b></p>` : ''}${d.accountNumber ? `<p class="muted small" style="margin:4px 0 0">Number: <b style="color:var(--text)">${esc(d.accountNumber)}</b></p>` : ''}</div>`);
+    if (d.instructions) parts.push(`<p class="muted small" style="margin:0">${esc(d.instructions)}</p>`);
+    return parts.length ? `<div style="border:1px solid var(--gold);border-radius:12px;padding:12px;display:grid;gap:10px;background:var(--surface-2)"><b style="font-size:13px">The seller's payment details</b>${parts.join('')}</div>` : null;
+  };
   const isGcash = method.startsWith('gcash'), isKofi = method.startsWith('kofi'), isPaypal = method.startsWith('paypal'), isStripe = method.startsWith('stripe');
   const amountLine = c && fmtMoney;
   const blocks = [];
   if (isGcash) {
-    if (c.gcashQrUrl) blocks.push(`<div class="center"><img src="${esc(proxiedImageUrl(c.gcashQrUrl))}" alt="GCash QR" style="width:210px;height:210px;object-fit:contain;border-radius:12px;border:1px solid var(--border);background:#fff;padding:8px"></div>`);
-    if (c.gcashDetails) blocks.push(`<div class="card card-pad" style="padding:12px 14px"><b style="font-size:13px">GCash details</b><p class="muted small" style="margin:4px 0 0;white-space:pre-wrap">${esc(c.gcashDetails)}</p></div>`);
-    blocks.push(`<p class="muted small" style="margin:0">${esc(c.gcashInstructions || 'Open GCash, scan the QR (or send to the number above), then enter the reference number from your receipt below.')}</p>`);
+    const sb = sellerBlock('gcash');
+    if (sb) { blocks.push(sb); }
+    else {
+      if (c.gcashQrUrl) blocks.push(`<div class="center"><img src="${esc(proxiedImageUrl(c.gcashQrUrl))}" alt="GCash QR" style="width:210px;height:210px;object-fit:contain;border-radius:12px;border:1px solid var(--border);background:#fff;padding:8px"></div>`);
+      if (c.gcashDetails) blocks.push(`<div class="card card-pad" style="padding:12px 14px"><b style="font-size:13px">GCash details</b><p class="muted small" style="margin:4px 0 0;white-space:pre-wrap">${esc(c.gcashDetails)}</p></div>`);
+      blocks.push(`<p class="muted small" style="margin:0">${esc(c.gcashInstructions || 'Open GCash, scan the QR (or send to the number above), then enter the reference number from your receipt below.')}</p>`);
+    }
   } else if (isKofi) {
-    if (c.kofiUrl) blocks.push(`<a class="btn btn-primary" href="${esc(c.kofiUrl)}" target="_blank" rel="noopener">${ICON.link} Open our Ko-fi page</a>`);
-    blocks.push(`<p class="muted small" style="margin:0">${esc(c.kofiInstructions || 'Send the payment on Ko-fi, then paste the Ko-fi transaction/receipt URL or reference below.')}</p>`);
+    const sb = sellerBlock('kofi');
+    if (sb) { blocks.push(sb); }
+    else {
+      if (c.kofiUrl) blocks.push(`<a class="btn btn-primary" href="${esc(c.kofiUrl)}" target="_blank" rel="noopener">${ICON.link} Open our Ko-fi page</a>`);
+      blocks.push(`<p class="muted small" style="margin:0">${esc(c.kofiInstructions || 'Send the payment on Ko-fi, then paste the Ko-fi transaction/receipt URL or reference below.')}</p>`);
+    }
   } else if (isPaypal) {
-    if (c.paypalAccount) blocks.push(`<div class="card card-pad" style="padding:12px 14px"><b style="font-size:13px">PayPal account</b><p class="muted small" style="margin:4px 0 0">${esc(c.paypalAccount)}</p></div>`);
-    blocks.push(`<p class="muted small" style="margin:0">${esc(c.paypalInstructions || 'Send the payment as “Friends & Family” or note the order ID, then paste the PayPal transaction ID below.')}</p>`);
+    const sb = sellerBlock('paypal');
+    if (sb) { blocks.push(sb); }
+    else {
+      if (c.paypalAccount) blocks.push(`<div class="card card-pad" style="padding:12px 14px"><b style="font-size:13px">PayPal account</b><p class="muted small" style="margin:4px 0 0">${esc(c.paypalAccount)}</p></div>`);
+      blocks.push(`<p class="muted small" style="margin:0">${esc(c.paypalInstructions || 'Send the payment as “Friends & Family” or note the order ID, then paste the PayPal transaction ID below.')}</p>`);
+    }
   } else if (isStripe) {
-    blocks.push(`<p class="muted small" style="margin:0">${esc(c.stripeInstructions || 'Manual card payment — follow the staff instructions, then paste the payment receipt reference below.')}</p>`);
+    const sb = sellerBlock('stripe');
+    if (sb) { blocks.push(sb); }
+    else blocks.push(`<p class="muted small" style="margin:0">${esc(c.stripeInstructions || 'Manual card payment — follow the staff instructions, then paste the payment receipt reference below.')}</p>`);
   }
   const ov = modal({
     title: 'Complete your payment',
@@ -5197,7 +5386,6 @@ VIEWS.profile = async ({ params }) => {
         <div class="profile-handle">@${esc(user.handle)} · joined ${fmtDateFull(user.createdAt)}</div>
         <div class="profile-meta">
           <div><b>${assetCount}</b><span>Systems posted</span></div>
-          <div><b>Joined ${fmtDateFull(user.createdAt).split(',')[0]}</b><span>Member since</span></div>
         </div>
         ${user.bio ? `<p class="profile-bio">${esc(user.bio)}</p>` : ''}
         ${me && me.id !== user.id ? `<div class="mt"><button class="btn btn-ghost btn-sm" onclick="onReport('user','${user.id}')">${ICON.flag} Report user</button></div>` : ''}
@@ -5634,6 +5822,7 @@ VIEWS.upload = async ({ query }) => {
             ${[['gcash', 'GCash (QR / manual)'], ['kofi', 'Ko-fi (manual)'], ['paypal', 'PayPal'], ['stripe', 'Stripe']].map(([v, l]) => `<label class="chip" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;padding:7px 12px"><input type="checkbox" name="pm" value="${v}" style="accent-color:var(--gold)"> ${l}</label>`).join('')}
           </div>
           <div class="hint">Manual methods (GCash QR, Ko-fi) go to <b>you</b> — the seller verifies the buyer's payment proof and activates their license. Automatic ones (PayPal, Stripe) need API keys to work.</div>
+          <div id="up-pm-details" style="display:flex;flex-direction:column;gap:12px;margin-top:12px"></div>
         </div>
         <div class="field"><label>System file<span class="req">*</span></label>
           <input class="input" type="file" name="file" accept=".rbxl,.rbxm,.rbxmx,.lua,.luau,.zip,.txt" ${a ? '' : 'required'}>
@@ -5657,6 +5846,17 @@ async function onSubmitAsset(e) {
   if (!file && !f.id.value) { toast('A system file is required.', 'err'); return; }
   const images = [...f.querySelectorAll('#up-imgs input')].map(i => i.value.trim()).filter(Boolean);
   const paymentMethods = [...f.querySelectorAll('input[name=pm]:checked')].map(c => c.value);
+  const sellerPaymentDetails = collectSellerPmDetails();
+  /* Manual methods must carry at least one contact point (QR image or account) —
+     otherwise the buyer has no way to pay you. */
+  for (const m of paymentMethods) {
+    if (m !== 'gcash' && m !== 'kofi') continue;
+    const d = sellerPaymentDetails[m] || {};
+    if (!d.qrUrl && !d.accountName && !d.accountNumber) {
+      toast(m === 'gcash' ? 'Add your GCash QR image or account details — buyers need a way to pay you.' : 'Add your Ko-fi QR or page details — buyers need a way to pay you.', 'err');
+      return;
+    }
+  }
   const deliverDuringPending = f.querySelector('input[name=deliverDuringPending]').checked;
   const btn = f.querySelector('button[type=submit]');
   const origLabel = btn.textContent;
@@ -5664,7 +5864,7 @@ async function onSubmitAsset(e) {
   try {
     let fileData = null, fileName = null;
     if (file) { fileData = await readFileAsDataURL(file); fileName = file.name; }
-    const payload = { title: f.title.value, category: f.category.value, description: f.description.value, price: f.price.value, imageUrl: f.imageUrl.value.trim(), images, paymentMethods, deliverDuringPending, fileName, fileData };
+    const payload = { title: f.title.value, category: f.category.value, description: f.description.value, price: f.price.value, imageUrl: f.imageUrl.value.trim(), images, paymentMethods, sellerPaymentDetails, deliverDuringPending, fileName, fileData };
     const res = f.id.value
       ? await API.updateAsset(STATE.user, f.id.value, payload)
       : await API.createAsset(STATE.user, payload);
@@ -5687,21 +5887,54 @@ function addUploadImageRow(url = '') {
   row.style.cssText = 'display:flex;gap:8px;align-items:center';
   row.innerHTML = `<input class="input" type="url" placeholder="https://i.imgur.com/…" value="${url}" style="flex:1"><button class="btn btn-ghost btn-sm" type="button" title="Remove">${ICON.close}</button>`;
   row.querySelector('button').onclick = () => row.remove();
+  row.appendChild(imageUploadButton(row.querySelector('input')));
   host.appendChild(row);
 }
 function initUploadExtras(asset) {
   (asset && asset.images ? asset.images : []).forEach(u => addUploadImageRow(u));
   const addBtn = document.getElementById('up-add-img');
   if (addBtn) addBtn.onclick = () => addUploadImageRow();
-  if (asset && Array.isArray(asset.paymentMethods)) {
-    document.querySelectorAll('input[name=pm]').forEach(c => { c.checked = asset.paymentMethods.includes(c.value); });
-  }
+  const savedPm = asset && Array.isArray(asset.paymentMethods) ? asset.paymentMethods : [];
+  document.querySelectorAll('input[name=pm]').forEach(c => { c.checked = savedPm.includes(c.value); });
+  const savedDetails = (asset && asset.sellerPaymentDetails && typeof asset.sellerPaymentDetails === 'object') ? asset.sellerPaymentDetails : {};
+  renderSellerPmDetails();
+  document.querySelectorAll('input[name=pm]').forEach(c => c.addEventListener('change', renderSellerPmDetails));
   if (asset) {
     const ddp = document.querySelector('input[name=deliverDuringPending]');
     if (ddp) ddp.checked = !!asset.deliverDuringPending;
   }
 }
-VIEWS_BIND.upload = () => { initUploadExtras(STATE._uploadAsset || null); };
+/* Per-method payment details the buyer sees at checkout (QR image, account, notes). */
+const PM_FIELDS = {
+  gcash: [['qrUrl', 'GCash QR image URL', 'https://i.imgur.com/your-qr.png'], ['accountName', 'Account name', 'e.g. Juan Dela Cruz'], ['accountNumber', 'GCash mobile number', 'e.g. 09XX XXX XXXX'], ['instructions', 'Instructions for the buyer', 'What the buyer should do after sending…']],
+  kofi: [['qrUrl', 'Ko-fi QR image URL (optional)', 'https://i.imgur.com/your-qr.png'], ['accountName', 'Ko-fi page name / link', 'e.g. ko-fi.com/yourpage'], ['instructions', 'Instructions for the buyer', 'What the buyer should do after sending…']],
+  paypal: [['accountName', 'PayPal account (email)', 'you@example.com'], ['accountNumber', 'PayPal name (optional)', 'e.g. Juan Dela Cruz'], ['instructions', 'Instructions for the buyer', 'What the buyer should do after sending…']],
+  stripe: [['accountName', 'Stripe account label', 'e.g. Kings Production'], ['instructions', 'Instructions for the buyer', 'What the buyer should do after sending…']],
+};
+function renderSellerPmDetails() {
+  const host = document.getElementById('up-pm-details');
+  if (!host) return;
+  const chosen = [...document.querySelectorAll('input[name=pm]:checked')].map(c => c.value);
+  const saved = (STATE._uploadAsset && STATE._uploadAsset.sellerPaymentDetails && typeof STATE._uploadAsset.sellerPaymentDetails === 'object') ? STATE._uploadAsset.sellerPaymentDetails : {};
+  host.innerHTML = chosen.map(m => {
+    const labels = { gcash: 'GCash', kofi: 'Ko-fi', paypal: 'PayPal', stripe: 'Stripe' };
+    const d = saved[m] || {};
+    const fields = (PM_FIELDS[m] || []).map(([k, label, ph]) => `<div class="field" style="margin:0"><label>${label}</label><input class="input" data-pm-field="${m}:${k}" value="${esc(d[k] || '')}" placeholder="${ph}"></div>`).join('');
+    return `<div style="border:1px solid var(--border);border-radius:12px;padding:14px;background:var(--surface-2)">
+      <b style="font-size:13px">${labels[m] || m} — what buyers see at checkout</b>
+      <div style="display:grid;gap:10px;margin-top:10px">${fields}</div>
+    </div>`;
+  }).join('');
+}
+function collectSellerPmDetails() {
+  const out = {};
+  document.querySelectorAll('#up-pm-details [data-pm-field]').forEach(inp => {
+    const [m, k] = inp.getAttribute('data-pm-field').split(':');
+    (out[m] = out[m] || {})[k] = inp.value.trim();
+  });
+  return out;
+}
+VIEWS_BIND.upload = () => { initUploadExtras(STATE._uploadAsset || null); attachImageUploadWidgets(); };
 
 /* ---- my assets ---- */
 VIEWS['my-assets'] = async () => {
@@ -5744,7 +5977,7 @@ VIEWS.orders = async () => {
         ${o.status === 'pending_verification' ? 'Your proof is with the <b>seller</b> for verification — they check the reference against their GCash / Ko-fi history. You\'ll get an email once it\'s confirmed.' : ''}
         ${proof && proof.reference ? `Reference submitted: <b style="color:var(--text)">${esc(proof.reference)}</b>${proof.proofUrl ? ` · <a href="${esc(proof.proofUrl)}" target="_blank" rel="noopener">proof link</a>` : ''}` : ''}
       </div>
-      <div style="padding:4px 20px 16px"><button class="btn btn-ghost btn-sm" onclick="openManualPayment('${o.id}', '${esc(o.method)}')">${proof ? 'Update proof' : 'Submit payment proof'}</button></div>` : '';
+      <div style="padding:4px 20px 16px"><button class="btn btn-ghost btn-sm" onclick="openManualPayment('${o.id}', '${esc(o.method)}', null, '${esc(o.assetId || '')}')">${proof ? 'Update proof' : 'Submit payment proof'}</button></div>` : '';
     return `<div class="card" style="margin-bottom:12px;overflow:hidden">
       <div class="row" style="padding:14px 20px;gap:12px;border-bottom:1px solid var(--border);flex-wrap:wrap">
         <div style="flex:1;min-width:200px"><b style="font-family:var(--font-display)">${esc(title)}</b><div class="muted small">Ordered ${fmtDate(o.createdAt)} · <span class="price" style="font-size:13px">${o.amount} ${esc(o.currency)}</span></div></div>
@@ -6029,9 +6262,13 @@ function sysCardHtml(s) {
 }
 function sysGameRow(g, s) {
   const banNote = s && s.banOnBlacklist ? ' — players get a Roblox ban (Ban on blacklist is on)' : '';
-  const ownerLabel = g.gameOwner ? esc(g.gameOwner) : '<span class="off">unknown</span>';
+  const rawOwner = g.gameOwner || '';
+  const ownerLooksRaw = !rawOwner || /^(User|Group)\s+\d+$/.test(rawOwner) || /^Enum\./.test(rawOwner);
+  const ownerLabel = ownerLooksRaw ? '<span class="off">Resolving — click “Refresh game info”</span>' : esc(rawOwner);
+  const nameKnown = g.gameName && g.gameName !== 'Game';
+  const nameLabel = nameKnown ? esc(g.gameName) : '<span class="off">Resolving…</span>';
   return `<div class="row" style="padding:12px 20px;border-bottom:1px solid var(--border);gap:12px;flex-wrap:wrap">
-    <span class="lic-device" style="flex:1;min-width:220px">${ICON.system} <b style="color:var(--text)">${g.gameName ? esc(g.gameName) : 'Unknown game'}</b> ${sysGameBadge(g.status)}<br>
+    <span class="lic-device" style="flex:1;min-width:220px">${ICON.system} <b style="color:var(--text)">${nameLabel}</b> ${sysGameBadge(g.status)}<br>
       <span class="muted small">Game creator: <b style="color:var(--text)">${ownerLabel}</b> · Place ID: <b style="color:var(--text)">${esc(g.placeId)}</b> · Last seen ${timeAgo(g.lastSeenAt)}</span>
     </span>
     ${g.status === 'active' ? `<button class="btn btn-ghost btn-sm" onclick="onSetSystemGameStatus('${g.id}','revoked')" title="Blocks this game on its next check-in">${ICON.ban} Revoke</button>
@@ -6052,6 +6289,7 @@ function sysGamesHtml(s) {
     <div class="row" style="padding:12px 20px;border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap">
       <span class="crown" style="color:var(--gold)">${ICON.system}</span><b style="font-family:var(--font-display)">${esc(s.name)}</b>
       <span class="muted small" style="margin-left:auto">${games.length} game${games.length === 1 ? '' : 's'} using this system</span>
+      ${games.length ? `<button class="btn btn-ghost btn-sm" onclick="onRefreshSystemGames('${s.id}')" title="Re-fetch the real game names and creators from Roblox">${ICON.refresh} Refresh game info</button>` : ''}
     </div>
     <div class="row" style="padding:9px 20px 0;gap:8px;flex-wrap:wrap">
       <button class="chip ${chosen === 'active' ? 'active' : ''}" onclick="onSysGameFilter('${s.id}','active')" style="cursor:pointer">${ICON.check} Active licensed (${allowed.length})</button>
@@ -6068,6 +6306,12 @@ async function onSysGameFilter(systemId, filter) {
   await router({ noVeil: true });
   const el = document.getElementById('sysgames-' + systemId);
   if (el) el.scrollIntoView({ block: 'center' });
+}
+async function onRefreshSystemGames(systemId) {
+  toast('Fetching real game names from Roblox…');
+  const r = await API.refreshSystemGames(STATE.user, systemId);
+  if (r.ok) { toast(r.data.healed ? 'Game info updated for ' + r.data.healed + ' game(s).' : 'Already up to date — names come automatically on the next check-in.'); await router(); }
+  else toast(r.error, 'err');
 }
 async function onSetSystemGameStatus(gameId, status) {
   const label = status === 'active' ? 'allowed' : status === 'revoked' ? 'revoked — it is denied on its next check-in' : 'blacklisted — it is denied instantly and stays banned';
@@ -6823,7 +7067,7 @@ VIEWS.creators = async () => {
     <div class="grid creators-grid">${list.map(cr => {
       const canDeleteCr = effRank(STATE.user) >= roleRank('cofounder');
       const adminRow = isAdmin ? `<div class="row" style="gap:8px;margin-top:12px"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openCreatorEditor('${cr.id}')">${ICON.edit} Edit</button>${canDeleteCr ? `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();onDeleteCreator('${cr.id}')">${ICON.trash}</button>` : ''}</div>` : '';
-      const profileLink = cr.handle ? `onclick="go('/profile/${_e(cr.handle)}')" role="link" tabindex="0" style="cursor:pointer"` : '';
+      const profileLink = `onclick="openCreatorViewer('${cr.id}')" role="link" tabindex="0" style="cursor:pointer"`;
       const hasDocs = !!(cr.docs && String(cr.docs).trim());
       return `<div class="card card-hover creator-card" ${profileLink}>
         <span>${creatorAvatarHtml(cr, 78)}</span>
@@ -6831,7 +7075,7 @@ VIEWS.creators = async () => {
         <div class="role">${esc(cr.role)}</div>
         <div class="pf-note">${esc(cr.bio || '')}</div>
         ${hasDocs ? `<p class="muted small" style="margin-top:8px"><a href="javascript:void(0)" onclick="event.stopPropagation();openCreatorDocs('${cr.id}')">${ICON.book} View documentation</a></p>` : ''}
-        ${cr.handle ? `<p class="muted small" style="margin-top:8px">@${esc(cr.handle)} ${ICON.chevron} View profile</p>` : ''}
+        <p class="muted small" style="margin-top:8px">${ICON.chevron} View profile</p>
         ${cr.links && cr.links.length ? `<div class="project-links" aria-label="Creator links" style="margin-top:10px;justify-content:center">${cr.links.map(l => linkIconHtml(l)).join('')}</div>` : ''}
         ${adminRow}
       </div>`;
@@ -6856,6 +7100,45 @@ function openCreatorDocs(id) {
     onConfirm: staff ? (async v => {
       const r = await API.updateCreator(STATE.user, id, { docs: v.docs });
       r.ok ? (toast('Documentation saved.'), await router()) : toast(r.error, 'err');
+    }) : (() => {}),
+  });
+}
+/* Creator profile viewer — opens for any creator card, account or not. Founders can edit inline. */
+function openCreatorViewer(id) {
+  const cr = STATE._crItems[id];
+  if (!cr) return;
+  const staff = effRank(STATE.user) >= roleRank('cofounder');
+  let linksHtml = '';
+  try { const ls = typeof cr.links === 'string' ? JSON.parse(cr.links || '[]') : (cr.links || []); linksHtml = ls.length ? `<div class="project-links" style="margin-top:10px">${ls.map(l => linkIconHtml(l)).join('')}</div>` : ''; } catch (e) {}
+  const view = () => `
+    <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px">
+      ${creatorAvatarHtml(cr, 96)}
+      <div><h3 style="margin:0">${esc(cr.name)}</h3><div class="role">${esc(cr.role || '')}</div></div>
+      <p style="margin:6px 0 0;line-height:1.7;font-size:14px;white-space:pre-wrap">${esc(cr.bio || 'This creator has not written a bio yet.')}</p>
+      ${linksHtml}
+    </div>`,
+    edit = () => `
+    <div style="display:grid;gap:12px">
+      <div class="field" style="margin:0"><label>Name</label><input class="input" id="cv-name" maxlength="60" value="${esc(cr.name)}"></div>
+      <div class="field" style="margin:0"><label>Role / title</label><input class="input" id="cv-role" maxlength="60" value="${esc(cr.role || '')}" placeholder="e.g. Lead Developer"></div>
+      <div class="field" style="margin:0"><label>Bio</label><textarea class="textarea" id="cv-bio" maxlength="300" placeholder="A short description…">${esc(cr.bio || '')}</textarea></div>
+      <div class="field" style="margin:0"><label>Image URL</label><input class="input" id="cv-img" type="url" value="${esc(cr.imageUrl || '')}" placeholder="https://i.imgur.com/…"></div>
+      <div class="field" style="margin:0"><label>Account handle <span class="muted small" style="font-weight:400">(optional — links to a site account)</span></label><input class="input" id="cv-handle" maxlength="30" value="${esc(cr.handle || '')}"></div>
+      <div class="field" style="margin:0"><label>Documentation</label><textarea class="textarea" id="cv-docs" rows="5" maxlength="12000" placeholder="Documentaries, guides, showcase notes…">${esc(cr.docs || '')}</textarea></div>
+    </div>`;
+  const ov = modal({
+    title: cr.name,
+    wide: true,
+    confirmLabel: staff ? 'Save changes' : 'Close',
+    cancelLabel: staff ? 'Cancel' : null,
+    body: staff ? edit() : view(),
+    validate: staff ? (o => ({ name: o.querySelector('#cv-name').value.trim(), role: o.querySelector('#cv-role').value.trim(), bio: o.querySelector('#cv-bio').value.trim(), imageUrl: o.querySelector('#cv-img').value.trim(), handle: o.querySelector('#cv-handle').value.trim(), docs: o.querySelector('#cv-docs').value.trim() })) : undefined,
+    onConfirm: staff ? (async v => {
+      if (!v.name) { toast('Name is required.', 'err'); return false; }
+      const r = await API.updateCreator(STATE.user, id, v);
+      if (!r.ok) { toast(r.error, 'err'); return false; }
+      toast('Creator updated.');
+      return true;
     }) : (() => {}),
   });
 }
@@ -7319,6 +7602,47 @@ async function onAdminReviewProof(orderId) {
   const ov = document.querySelector('.modal-overlay:last-child');
   if (ov) { const c = ov.querySelector('[data-act=cancel]'); if (c) { c.textContent = 'Reject'; c.onclick = async () => { const note = ov.querySelector('#rp-note').value.trim(); const r = await API.adminReviewOrder(STATE.user, orderId, 'reject', note); ov.remove(); r.ok ? (toast('Proof rejected — the buyer can submit a new one.'), await router()) : toast(r.error, 'err'); }; } }
 }
+/* Founder settings for the Imgur image-upload proxy (optional Client-ID). */
+async function openImageUploadSettings() {
+  const cfg = await API.getImgurSettings();
+  const c = cfg.ok && cfg.data ? cfg.data : {};
+  const cur = c.provider || 'catbox';
+  modal({
+    title: 'Image uploads',
+    wide: true,
+    confirmLabel: 'Save settings',
+    body: `<p class="muted small" style="margin:0 0 12px">Sellers get an <b>Upload</b> button on every image field — the server forwards the file to the image host and stores only the URL. Your database never holds image bytes.</p>
+      <div class="field"><label>Image host</label>
+        <select class="select" id="iu-prov">
+          <option value="catbox" ${cur === 'catbox' ? 'selected' : ''}>Catbox.moe — free, permanent, no account needed (recommended)</option>
+          <option value="imgbb" ${cur === 'imgbb' ? 'selected' : ''}>ImgBB — needs a free API key</option>
+          <option value="imgur" ${cur === 'imgur' ? 'selected' : ''}>Imgur — needs a free Client-ID</option>
+        </select>
+        <div class="hint">Catbox works instantly with nothing to configure. Imgur's app-registration page often redirects to their homepage — that's why Catbox is the default.</div>
+      </div>
+      <div class="field" id="iu-key-wrap" style="display:${cur === 'catbox' ? 'none' : 'block'}"><label id="iu-key-label">${cur === 'imgbb' ? 'ImgBB API key' : 'Imgur Client-ID'}</label><input class="input" id="iu-cid" type="text" value="${esc(c.clientId ? 'configured' : '')}" placeholder="paste the key" autocomplete="off">
+      <div class="hint">${c.clientId ? 'A key is currently configured — paste a new one to replace it, or leave as-is to keep it.' : 'Not configured yet.'}</div></div>
+      <div class="field" id="iu-hash-wrap" style="display:${cur === 'catbox' && c.userhash ? 'block' : 'none'}"><label>Catbox userhash (optional)</label><input class="input" id="iu-hash" type="text" value="${esc(c.userhash ? 'configured' : '')}" placeholder="only if you want uploads tied to a Catbox account" autocomplete="off"><div class="hint">Leave empty — anonymous uploads work fine.</div></div>`,
+    validate: ov => ({ provider: ov.querySelector('#iu-prov').value, clientIdRaw: ov.querySelector('#iu-cid') ? ov.querySelector('#iu-cid').value.trim() : '', userhashRaw: ov.querySelector('#iu-hash') ? ov.querySelector('#iu-hash').value.trim() : '' }),
+    onConfirm: async v => {
+      const payload = { provider: v.provider };
+      if (v.clientIdRaw && v.clientIdRaw !== 'configured') payload.clientId = v.clientIdRaw;
+      if (v.userhashRaw && v.userhashRaw !== 'configured') payload.userhash = v.userhashRaw;
+      const r = await API.setImgurSettings(STATE.user, payload);
+      r.ok ? (toast('Image host saved: ' + v.provider + '.'), await router()) : toast(r.error, 'err');
+    },
+  });
+  const ov = document.querySelector('.modal-overlay:last-child');
+  if (ov) {
+    const prov = ov.querySelector('#iu-prov');
+    if (prov) prov.onchange = () => {
+      const p = prov.value;
+      ov.querySelector('#iu-key-wrap').style.display = p === 'catbox' ? 'none' : 'block';
+      ov.querySelector('#iu-key-label').textContent = p === 'imgbb' ? 'ImgBB API key' : 'Imgur Client-ID';
+      const hw = ov.querySelector('#iu-hash-wrap'); if (hw) hw.style.display = p === 'catbox' ? 'block' : 'none';
+    };
+  }
+}
 /* Co-Founder/Founder settings for manual payments: QR, account details, instructions. */
 async function openPaymentSettings() {
   const cfg = await API.getPaymentConfig();
@@ -7342,6 +7666,7 @@ async function openPaymentSettings() {
       paypalAccount: ov.querySelector('#pc-pacc').value.trim(), paypalInstructions: ov.querySelector('#pc-pins').value.trim(),
       stripeInstructions: ov.querySelector('#pc-sins').value.trim(),
     }),
+    afterOpen: ov => { attachImageUploadWidgets(ov); },
     onConfirm: async v => {
       const r = await API.setPaymentConfig(STATE.user, v);
       r.ok ? (toast('Payment settings saved.'), await router()) : toast(r.error, 'err');
@@ -7378,7 +7703,7 @@ async function adminTabHtml(tab) {
     const parseProof = o => { try { return o.proof ? (typeof o.proof === 'string' ? JSON.parse(o.proof) : o.proof) : null; } catch (e) { return null; } };
     return `<div class="row" style="justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px">
       <p class="muted small" style="margin:0">Manual payments (GCash QR, Ko-fi, PayPal, Stripe manual) arrive here for verification once the buyer submits proof.</p>
-      ${effRank(STATE.user) >= roleRank('cofounder') ? `<button class="btn btn-ghost btn-sm" onclick="openPaymentSettings()">${ICON.edit} Payment settings</button>` : ''}
+      ${effRank(STATE.user) >= roleRank('cofounder') ? `<button class="btn btn-ghost btn-sm" onclick="openPaymentSettings()">${ICON.edit} Payment settings</button> <button class="btn btn-ghost btn-sm" onclick="openImageUploadSettings()">${ICON.image || ICON.plus} Image uploads</button>` : ''}
     </div>
     <div class="table-wrap"><table class="table">
       <thead><tr><th>Asset</th><th>Buyer</th><th>Method</th><th>Amount</th><th>Status</th><th>Date</th><th></th></tr></thead>

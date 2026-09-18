@@ -396,21 +396,83 @@ async function main() {
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD } });
   const bodyFile = req => (req.file ? { name: req.file.originalname, data: req.file.buffer, mime: req.file.mimetype, size: req.file.size } : null);
 
+  /* ---- image upload proxy (Catbox default · Imgur · ImgBB) ----
+     Sellers pick a local file; the server forwards it to the configured host
+     and returns the hosted URL. The database keeps only the URL — no image
+     bytes are ever stored. Catbox needs no key or account at all. */
+  const imgUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+  app.post('/api/upload-image', imgUpload.single('image'), h(async (req, res) => {
+    const u = await needAuth(req, res); if (!u) return;
+    if (!req.file) return send(res, { ok: false, code: 'invalid', error: 'Choose an image file first (png, jpg, gif, webp — up to 10 MB).' });
+    const MIME_OK = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+    if (!MIME_OK.includes(req.file.mimetype)) return send(res, { ok: false, code: 'invalid', error: 'Only png, jpg, gif and webp images are supported.' });
+    const s = await engine.getImgurSettings();
+    const cfgd = (s.ok && s.data) || {};
+    const provider = cfgd.provider || 'catbox';
+    try {
+      let link = null, extra = {};
+      if (provider === 'catbox') {
+        const fd = new FormData();
+        fd.append('reqtype', 'fileupload');
+        if (cfgd.userhash) fd.append('userhash', cfgd.userhash);
+        fd.append('fileToUpload', new Blob([req.file.buffer], { type: req.file.mimetype }), 'upload.png');
+        const r = await fetch('https://catbox.moe/user/api.php', { method: 'POST', body: fd });
+        const txt = (await r.text()).trim();
+        if (!r.ok || !txt.startsWith('https://')) return send(res, { ok: false, code: 'host', error: !txt ? 'Catbox did not respond — try again or switch provider in Founder Panel → Image uploads.' : 'Catbox error: ' + txt.slice(0, 120) });
+        link = txt;
+      } else if (provider === 'imgbb') {
+        const key = cfgd.clientId;
+        if (!key) return send(res, { ok: false, code: 'notconfigured', error: 'ImgBB needs an API key — set it in Founder Panel → Image uploads.' });
+        const fd = new FormData();
+        fd.append('key', key);
+        fd.append('image', req.file.buffer.toString('base64'));
+        const r = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: fd });
+        const j = await r.json();
+        if (!r.ok || !j || !j.success || !j.data || !j.data.url) return send(res, { ok: false, code: 'host', error: 'ImgBB error: ' + ((j && j.error && j.error.message) || 'upload rejected') });
+        link = j.data.url; extra = { width: j.data.width, height: j.data.height, size: j.data.size };
+      } else { /* imgur */
+        const clientId = cfgd.clientId;
+        if (!clientId) return send(res, { ok: false, code: 'notconfigured', error: 'Imgur needs a Client-ID — set it in Founder Panel → Image uploads.' });
+        const form = new URLSearchParams();
+        form.append('image', req.file.buffer.toString('base64'));
+        const r = await fetch('https://api.imgur.com/3/image', {
+          method: 'POST',
+          headers: { Authorization: 'Client-ID ' + clientId, 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: form.toString(),
+        });
+        const j = await r.json();
+        if (!r.ok || !j || !j.success || !j.data || !j.data.link) {
+          const msg = j && j.data && j.data.error ? (typeof j.data.error === 'string' ? j.data.error : 'Imgur rejected the upload') : 'Imgur rejected the upload';
+          return send(res, { ok: false, code: 'host', error: 'Imgur error: ' + msg });
+        }
+        link = j.data.link; extra = { width: j.data.width, height: j.data.height, size: j.data.size, deletehash: j.data.deletehash || null };
+      }
+      return send(res, { ok: true, data: { url: link, provider, ...extra } });
+    } catch (e) {
+      console.error('[image-upload] ' + provider + ' failed:', e.message);
+      return send(res, { ok: false, code: 'network', error: 'Could not reach the image host — check the server\'s internet connection and try again.' });
+    }
+  }));
+
   app.get('/api/assets', h(async (req, res) => { const u = await authUser(req); send(res, await engine.listApproved(u && u.id)); }));
   app.get('/api/assets/top', h(async (req, res) => { const u = await authUser(req); send(res, await engine.topSelling(Number(req.query.n) || 6, u && u.id)); }));
   app.get('/api/assets/mine', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.myAssets(u)); }));
   app.get('/api/assets/:id', h(async (req, res) => { const u = await authUser(req); send(res, await engine.getAsset(req.params.id, u && u.id)); }));
   app.post('/api/assets', upload.single('file'), h(async (req, res) => {
     const u = await needAuth(req, res); if (!u) return;
+    const j = k => { try { return JSON.parse(req.body[k] || ''); } catch (e) { return undefined; } };
     send(res, await engine.createAsset(u, {
       title: req.body.title, category: req.body.category, description: req.body.description, price: req.body.price, imageUrl: req.body.imageUrl,
+      images: j('images'), paymentMethods: j('paymentMethods'), sellerPaymentDetails: j('sellerPaymentDetails'), deliverDuringPending: req.body.deliverDuringPending === '1' || req.body.deliverDuringPending === 'true',
       fileName: req.file && req.file.originalname, fileData: bodyFile(req),
     }));
   }));
   app.patch('/api/assets/:id', upload.single('file'), h(async (req, res) => {
     const u = await needAuth(req, res); if (!u) return;
+    const j = k => { try { return JSON.parse(req.body[k] || ''); } catch (e) { return undefined; } };
     send(res, await engine.updateAsset(u, req.params.id, {
       title: req.body.title, category: req.body.category, description: req.body.description, price: req.body.price, imageUrl: req.body.imageUrl,
+      images: j('images'), paymentMethods: j('paymentMethods'), sellerPaymentDetails: j('sellerPaymentDetails'), deliverDuringPending: req.body.deliverDuringPending === undefined ? undefined : (req.body.deliverDuringPending === '1' || req.body.deliverDuringPending === 'true'),
       fileName: req.file && req.file.originalname, fileData: bodyFile(req),
     }));
   }));
@@ -589,6 +651,8 @@ async function main() {
   app.post('/api/admin/orders/:id/review', admin(async (u, req) => engine.adminReviewManualOrder(u, req.params.id, (req.body || {}).decision, (req.body || {}).note)));
   app.get('/api/admin/payment-config', admin(async u => engine.getPaymentConfig()));
   app.post('/api/admin/payment-config', admin(async (u, req) => engine.adminSetPaymentConfig(u, req.body || {})));
+  app.get('/api/admin/imgur-settings', admin(async u => engine.getImgurSettings()));
+  app.post('/api/admin/imgur-settings', admin(async (u, req) => engine.adminSetImgurSettings(u, req.body || {})));
   app.get('/api/admin/overview', admin(async u => engine.adminOverview(u)));
   app.get('/api/admin/approvals', admin(async u => {
     const p = await engine.adminPending(u);
@@ -678,6 +742,7 @@ async function main() {
   /* Authenticated endpoints for the Dashboard UI. */
   app.post('/api/systems/register', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.registerSystem(u, req.body || {})); }));
   app.get('/api/systems/mine', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.listSystems(u)); }));
+  app.post('/api/systems/:id/refresh-games', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.refreshSystemGames(u, req.params.id)); }));
   app.delete('/api/systems/:id', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.deleteSystem(u, req.params.id)); }));
   app.post('/api/systems/:id/status', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.setSystemStatus(u, req.params.id, (req.body || {}).status)); }));
   app.post('/api/systems/devices/:id/revoke', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.revokeSystemDevice(u, req.params.id)); }));

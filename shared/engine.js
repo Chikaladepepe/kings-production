@@ -259,10 +259,11 @@
     function summarize(a, viewerId) {
       const o = dbUser(a.ownerId);
       const rv = assetRating(a);
-      let images = [], paymentMethods = [];
+      let images = [], paymentMethods = [], sellerPaymentDetails = null;
       try { images = a.images ? JSON.parse(a.images) : []; } catch (e) {}
       try { paymentMethods = a.paymentMethods ? JSON.parse(a.paymentMethods) : []; } catch (e) {}
-      return { id: a.id, title: a.title, category: a.category, price: a.price, sales: a.sales, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, imageUrl: a.imageUrl, images, paymentMethods, deliverDuringPending: !!a.deliverDuringPending, owner: o ? publicUser(o) : null, rating: rv ? rv.rating : null, ratingCount: rv ? rv.count : 0, likes: likeCount(a.id), liked: likedBy(a.id, viewerId) };
+      try { sellerPaymentDetails = a.sellerPaymentDetails ? JSON.parse(a.sellerPaymentDetails) : null; } catch (e) {}
+      return { id: a.id, title: a.title, category: a.category, description: a.description, price: a.price, sales: a.sales, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, imageUrl: a.imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending: !!a.deliverDuringPending, owner: o ? publicUser(o) : null, rating: rv ? rv.rating : null, ratingCount: rv ? rv.count : 0, likes: likeCount(a.id), liked: likedBy(a.id, viewerId) };
     }
     function sendEmail(rec) {
       const row = { id: 'e' + uid(), to: rec.to, subject: rec.subject, action: rec.action, body: rec.body, link: rec.link || null, createdAt: now(), read: false };
@@ -541,7 +542,23 @@
       if (v.length > 2000) return null;
       return v;
     }
-    async function createAsset(user, { title, category, description, price, fileName, fileData, imageUrl, images, paymentMethods, deliverDuringPending } = {}) {
+    /* Seller payment details keyed by accepted method — the buyer sees these
+       at checkout for manual methods (QR image, account name/number, notes). */
+    function cleanSellerPaymentDetails(pms, details) {
+      const out = {};
+      const src = details && typeof details === 'object' ? details : {};
+      (Array.isArray(pms) ? pms : []).forEach(m => {
+        const d = src[m]; if (!d || typeof d !== 'object') return;
+        const entry = {};
+        if (d.qrUrl !== undefined) entry.qrUrl = String(d.qrUrl || '').trim().slice(0, 300) || null;
+        if (d.accountName !== undefined) entry.accountName = String(d.accountName || '').trim().slice(0, 80) || null;
+        if (d.accountNumber !== undefined) entry.accountNumber = String(d.accountNumber || '').trim().slice(0, 80) || null;
+        if (d.instructions !== undefined) entry.instructions = String(d.instructions || '').trim().slice(0, 600) || null;
+        if (Object.values(entry).some(v => v)) out[m] = entry;
+      });
+      return out;
+    }
+    async function createAsset(user, { title, category, description, price, fileName, fileData, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to post assets.');
       if (!canPost(u)) {
@@ -573,7 +590,7 @@
       const asset = {
         id: 'a' + uid(), ownerId: u.id, title, category, description, price,
         fileName: file ? file.name : fileName, fileMime: file ? file.mime : 'application/octet-stream', fileSize: file ? file.size : 0,
-        images: JSON.stringify(cleanImages), paymentMethods: JSON.stringify(sellerPm), deliverDuringPending: deliverDuringPending ? 1 : 0,
+        images: JSON.stringify(cleanImages), paymentMethods: JSON.stringify(sellerPm), sellerPaymentDetails: JSON.stringify(cleanSellerPaymentDetails(sellerPm, sellerPaymentDetails)), deliverDuringPending: deliverDuringPending ? 1 : 0,
         imageUrl: img, status: founderLevel ? 'approved' : 'pending', rejectReason: null, sales: 0, createdAt: now(), updatedAt: now(), approvedAt: founderLevel ? now() : null,
       };
       if (file) {
@@ -613,7 +630,7 @@
       });
     }
 
-    async function updateAsset(user, id, { title, category, description, price, fileName, fileData, imageUrl, images, paymentMethods, deliverDuringPending } = {}) {
+    async function updateAsset(user, id, { title, category, description, price, fileName, fileData, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       const a = byIdIn('assets', id);
@@ -652,6 +669,12 @@
       if (paymentMethods !== undefined) {
         const allowedPm = ['stripe', 'paypal', 'gcash', 'kofi'];
         a.paymentMethods = JSON.stringify(Array.isArray(paymentMethods) ? paymentMethods.filter(m => allowedPm.includes(m)).slice(0, 4) : []);
+      }
+      if (sellerPaymentDetails !== undefined) {
+        const pms = Array.isArray(paymentMethods) ? paymentMethods.filter(m => ['stripe', 'paypal', 'gcash', 'kofi'].includes(m)).slice(0, 4) : (() => { try { return JSON.parse(a.paymentMethods || '[]'); } catch (e) { return []; } })();
+        let prev = {};
+        try { prev = JSON.parse(a.sellerPaymentDetails || '{}') || {}; } catch (e) {}
+        a.sellerPaymentDetails = JSON.stringify(cleanSellerPaymentDetails(pms, Object.assign({}, prev, sellerPaymentDetails)));
       }
       if (deliverDuringPending !== undefined) a.deliverDuringPending = !!deliverDuringPending ? 1 : 0;
       const file = normalizeFile(fileData, fileName);
@@ -1031,6 +1054,33 @@
       store.put('site_settings', { id: 'payment_config', value: JSON.stringify(clean), updatedAt: now() });
       flush();
       return ok(clean);
+    }
+    /* ---- image hosting (optional) ----
+       Default provider is Catbox.moe — a free permanent image host with an
+       anonymous API, so it works with NO key and NO account. Imgur and ImgBB
+       remain selectable for those who prefer them. The site stores image URLs
+       only; picking a local file uploads through the server proxy. */
+    function getImgurSettings() {
+      const row = byIdIn('site_settings', 'imgur_settings');
+      const empty = { provider: 'catbox', clientId: '' };
+      if (!row) return ok(empty);
+      try { return ok({ ...empty, ...JSON.parse(row.value) }); } catch (e) { return ok(empty); } 
+    }
+    async function adminSetImgurSettings(actor, cfg = {}) {
+      const r = requireCofounder(actor, 'edit image upload settings'); if (r) return r;
+      const cur = (await getImgurSettings()).data || {};
+      const prov = ['catbox', 'imgur', 'imgbb'].includes(cfg.provider) ? cfg.provider : (cur.provider || 'catbox');
+      const clean = {
+        provider: prov,
+        clientId: String(cfg.clientId !== undefined ? cfg.clientId : cur.clientId || '').trim().slice(0, 80),
+        userhash: String(cfg.userhash !== undefined ? cfg.userhash : cur.userhash || '').trim().slice(0, 80),
+      };
+      if (prov === 'catbox') clean.clientId = '';
+      if (prov === 'imgbb' && !clean.clientId) return fail('invalid', 'ImgBB needs an API key — get one free at api.imgbb.com.');
+      if (prov === 'imgur' && !clean.clientId && !cur.clientId) return fail('invalid', 'Imgur needs a Client-ID (api.imgur.com). Or just use Catbox — it needs nothing.');
+      store.put('site_settings', { id: 'imgur_settings', value: JSON.stringify(clean), updatedAt: now() });
+      flush();
+      return ok({ provider: clean.provider, clientId: clean.clientId ? 'configured' : '', userhash: clean.userhash ? 'configured' : '' });
     }
     /* The Licensed plan is sold directly for 500 PHP (base) — converting
        to the buyer's local currency the same way asset prices convert. */
@@ -2315,6 +2365,44 @@
       flush();
       return ok(true);
     }
+    /* Re-resolve every game row's real name + creator from Roblox's public API.
+       Heals rows recorded before the Lua sent rich metadata ("Game", "Group 123"). */
+    async function refreshSystemGames(actor, systemId) {
+      const u = resolveUser(actor);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const s = byIdIn('systems', systemId);
+      if (!s) return fail('notfound', 'System not found.');
+      const owner = byIdIn('users', s.userId);
+      const rank = u ? effRank(u) : 0;
+      if (s.userId !== u.id && rank < roleRank('admin')) return fail('forbidden', 'This is not your system.');
+      if (typeof fetch !== 'function') return fail('invalid', 'Game info refresh is only available on the server.');
+      const games = all('system_games').filter(g => g.systemId === s.id);
+      let healed = 0;
+      await Promise.all(games.map(async g => {
+        try {
+          const ctl = new AbortController();
+          const timer = setTimeout(() => ctl.abort(), 6000);
+          const ur = await fetch('https://apis.roblox.com/universes/v1/places/' + g.placeId + '/universe', { signal: ctl.signal });
+          const uj = await ur.json();
+          if (!uj || !uj.universeId) return;
+          const gr = await fetch('https://games.roblox.com/v1/games?universeIds=' + uj.universeId, { signal: ctl.signal });
+          const gj = await gr.json();
+          clearTimeout(timer);
+          const info = gj && gj.data && gj.data[0];
+          if (!info) return;
+          let changed = false;
+          if (info.name && info.name !== 'Game' && g.gameName !== info.name) { g.gameName = String(info.name).slice(0, 80); changed = true; }
+          if (info.creator && info.creator.name && g.gameOwner !== info.creator.name) {
+            g.gameOwner = String(info.creator.name).slice(0, 80);
+            g.gameOwnerType = String(info.creator.type === 1 ? 'User' : info.creator.type === 2 ? 'Group' : (info.creator.type || '')).replace('Enum.CreatorType.', '');
+            changed = true;
+          }
+          if (changed) { store.put('system_games', g); healed++; }
+        } catch (e) { /* network/parse failure — keep the old labels */ }
+      }));
+      if (healed) flush();
+      return ok({ healed, system: systemForOwner(s) });
+    }
     /* The heart of the anti-leak flow: the game checks in with the name +
        password; a match means the system is licensed. First successful contact
        flips PENDING → ACTIVE; a paused (disabled) system is always denied. */
@@ -2553,8 +2641,8 @@
       createTicket, addTicketMessage, getTicket, listMyTickets,
       adminListTickets, adminCloseTicket, adminDeleteTicket, getFaqs, saveFaqs, getLegalDoc, saveLegalDoc, processAdminPauseExpiry,
       listAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement,
-      registerSystem, listSystems, deleteSystem, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice, authorizeSystemDevice, setSystemGameStatus, removeSystemGame, adminSystemDetail, adminSetSystemState, adminSubscriberDetail, adminDeleteSystem, setSystemEnforcement,
-      adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset,
+      registerSystem, listSystems, deleteSystem, refreshSystemGames, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice, authorizeSystemDevice, setSystemGameStatus, removeSystemGame, adminSystemDetail, adminSetSystemState, adminSubscriberDetail, adminDeleteSystem, setSystemEnforcement,
+      adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset, getImgurSettings, adminSetImgurSettings,
       adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSetUserPlan, adminSessions, adminEmails, adminSendEmail, adminListBlasts, adminDeleteBlast, adminEmailHistory, adminListInbound, adminSetUnsubscribed, inboundMailEvent, processScheduledBlasts, adminOrders, adminCompleteOrder,
       sellerOrders, setOrderApproval, adminTakeFile, adminSetAssetStatus, adminSetRestriction, adminRequestSubRevoke, adminResolveSubRevoke, adminListSubRevokes, adminUnsubscribePlan, adminSystems,
       setFx,
