@@ -1420,8 +1420,10 @@ const canPost = u => effRank(u) >= roleRank('licensed') && !isBanned(u) && !isTi
    headerHtml/drawerHtml only, so renderShell and the my-assets view crashed
    with "isMemberLevel is not defined" and bounced users home.) */
 const isMemberLevel = u => effRank(u) < roleRank('admin');
+/* VIP stacks as a tag — a Licensed user can hold both roles at once. */
+const isVipUser = u => !!(u && (u.role === 'vip' || (Array.isArray(u.tags) ? u.tags : []).some(t => String(t).trim().toLowerCase() === 'vip')));
 const showDashboard = u => !!(u && canPost(u) && (effRank(u) >= roleRank('cofounder') || !isStaff(u) || Number(u.contractTier) > 0));
-const dashVisible = u => !!(u && (u.role === 'vip' || showDashboard(u)));
+const dashVisible = u => !!(u && (isVipUser(u) || showDashboard(u)));
 function timeoutText(u) {
   if (!u || !u.timeoutUntil) return null;
   const ms = u.timeoutUntil - now();
@@ -1559,6 +1561,10 @@ const API = {};
     try { const t = JSON.parse(u && u.tags || '[]'); return Array.isArray(t) ? t.filter(x => typeof x === 'string' && x.trim()) : []; }
     catch (e) { return []; }
   };
+  /* Complimentary VIP is a TAG, so it stacks with any role (member, licensed,
+     even staff): a user can be Licensed AND VIP at once. `role` stays the
+     earning/moderation tier; the tag grants VIP powers. */
+  const isVipUser = u => !!(u && (u.role === 'vip' || parseTags(u).some(t => String(t).trim().toLowerCase() === 'vip')));
   const normTag = t => String(t || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   const saveTags = (u, tags) => {
     const seen = new Set();
@@ -2671,12 +2677,19 @@ const API = {};
       if (t.id === actor.id) return fail('self', 'You cannot change your own VIP status.');
       on = !!on;
       if (on) {
-        if (t.role === 'vip') return fail('owned', 'That user is already VIP.');
-        if (t.role !== 'member') return fail('invalid', 'VIP can only replace the Verified role — this user is ' + (ROLE_LABEL[t.role] || t.role) + '.');
-        t.role = 'vip';
+        if (isVipUser(t)) return fail('owned', 'That user is already VIP.');
+        if (effRank(t) < roleRank('licensed')) {
+          /* Verified (or test) — VIP replaces the role. */
+          t.role = 'vip';
+        } else {
+          /* Licensed and above — VIP stacks as a tag, role stays intact. */
+          const tg = parseTags(t);
+          if (!tg.some(x => String(x).trim().toLowerCase() === 'vip')) { tg.push('vip'); t.tags = JSON.stringify(tg); }
+        }
       } else {
-        if (t.role !== 'vip') return fail('owned', 'That user is not VIP.');
-        t.role = 'member';
+        if (t.role === 'vip') t.role = 'member';
+        const tg = parseTags(t).filter(x => String(x).trim().toLowerCase() !== 'vip');
+        t.tags = JSON.stringify(tg);
       }
       t.vipGrantedBy = actor.id;
       t.vipGrantedAt = now();
@@ -2692,7 +2705,7 @@ const API = {};
     async function createVipTrialOrder(user, assetId, method, gameDetails) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
-      if (u.role !== 'vip') return fail('forbidden', 'Try is a VIP perk — it unlocks the studio\'s own systems.');
+      if (!isVipUser(u)) return fail('forbidden', 'Try is a VIP perk — it unlocks the studio\'s own systems.');
       if (isTimedOut(u)) return fail('timeout', 'You are currently timed out and cannot make purchases.');
       if (isBanned(u)) return fail('banned', 'Your account is banned.');
       const a = byIdIn('assets', assetId);
@@ -2702,8 +2715,24 @@ const API = {};
       const owner = dbUser(a.ownerId);
       if (!isStaff(owner)) return fail('forbidden', 'Try only works on systems posted by Kings Production.');
       if (all('purchases').some(p => p.assetId === a.id && p.buyerId === u.id)) return fail('owned', 'You already own this asset.');
-      if (all('orders').some(o => o.buyerId === u.id && o.assetId === a.id && (o.status === 'created' || o.status === 'paid')))
-        return fail('pending', 'You already have a pending order for this asset.');
+      /* An existing pending request is FOLLOWED UP, not blocked: the new
+         details replace the old ones and the request moves back to the top
+         of the queue. Rejected requests are freed automatically. */
+      const pendingTry = all('orders').find(o => o.buyerId === u.id && o.assetId === a.id && (o.status === 'created' || o.status === 'paid'));
+      if (pendingTry) {
+        const gd0 = gameDetails && typeof gameDetails === 'object' ? gameDetails : {};
+        pendingTry.gameDetails = JSON.stringify({
+          gameName: String(gd0.gameName || '').trim().slice(0, 80) || null,
+          placeId: String(gd0.placeId || '').trim().slice(0, 20) || null,
+          gameOwner: String(gd0.gameOwner || '').trim().slice(0, 80) || null,
+          notes: (String(gd0.notes || '').trim() + ' [VIP try]').slice(0, 400) || null,
+        });
+        pendingTry.followedUpAt = now();
+        pendingTry.updatedAt = now();
+        store.put('orders', pendingTry);
+        flush();
+        return ok({ orderId: pendingTry.id, amount: 0, currency: pendingTry.currency, vipTrial: true, followUp: true });
+      }
       const gd = gameDetails && typeof gameDetails === 'object' ? gameDetails : {};
       const details = {
         gameName: String(gd.gameName || '').trim().slice(0, 80) || null,
@@ -2811,7 +2840,18 @@ const API = {};
       let out;
       if (isVipOrder(order)) {
         let vipUpgrade = false;
-        if (effRank(buyer) < roleRank('licensed')) { buyer.role = 'licensed'; buyer.updatedAt = now(); store.put('users', buyer); vipUpgrade = true; }
+        if (effRank(buyer) < roleRank('licensed')) {
+          /* Upgrade to Licensed, but PRESERVE complimentary VIP: it moves to a
+             tag so the user holds both roles — VIP powers (Try, dashboard)
+             stack with Licensed posting. */
+          const wasVip = isVipUser(buyer);
+          buyer.role = 'licensed';
+          if (wasVip) {
+            const tg = parseTags(buyer);
+            if (!tg.some(x => String(x).trim().toLowerCase() === 'vip')) { tg.push('vip'); buyer.tags = JSON.stringify(tg); }
+          }
+          buyer.updatedAt = now(); store.put('users', buyer); vipUpgrade = true;
+        }
         out = { licenseKey: null, vipUpgrade };
       } else if (isSubOrder(order)) {
         /* Plan purchase — raise the buyer's tier (never lower it) + VIP role. */
@@ -3998,7 +4038,7 @@ const API = {};
       if (pT >= 1 && cT >= 1) return { max: Math.max(PROT_LIMITS[pT - 1].max, PROT_LIMITS[cT - 1].max), perDay: Math.min(PROT_LIMITS[pT - 1].perDay, PROT_LIMITS[cT - 1].perDay) || 0, label: pT >= cT ? 'Subscription ' + pT : 'Contract ' + cT };
       if (pT >= 1) return { ...PROT_LIMITS[pT - 1], label: 'Subscription ' + pT };
       if (cT >= 1) return { ...PROT_LIMITS[cT - 1], label: 'Contract ' + cT };
-      if (u.role === 'vip') return { ...VIP_LIMITS, label: 'VIP' };
+      if (isVipUser(u)) return { ...VIP_LIMITS, label: 'VIP' };
       return null;
     }
     function findSystemByCreds(name, password) {
@@ -4029,7 +4069,9 @@ const API = {};
       /* Duplicate names are allowed on purpose — the name + password PAIR is
          the identity (e.g. "Music System" + "PassWorD"). */
       const mine = () => all('systems').filter(s => s.userId === u.id);
-      if (!isStaff(u) && !isTester(u)) {
+      /* Founder / Co-Founder: no limits at all. Admins and sellers follow
+         their plan; VIPs get the complimentary Subscription-1 caps. */
+      if (effRank(u) < roleRank('cofounder') && !isTester(u)) {
         const plan = systemPlanLimits(u);
         if (!plan) return fail('vipOnly', 'Buy a Subscription plan (Subscription page) to register systems.');
         const list = mine();
@@ -4323,9 +4365,9 @@ const API = {};
 
     seedContent();
     ensureOwnerAccount();
-    /* Role migration: the old 'vip' value (Licensed sellers) becomes 'licensed',
-       freeing 'vip' for the new complimentary VIP tier. */
-    try { all('users').filter(u => u.role === 'vip').forEach(u => { u.role = 'licensed'; store.put('users', u); }); flush(); } catch (e) { /* best effort */ }
+    /* NOTE: no automatic role migration here. Earlier builds silently
+       converted every 'vip' role to 'licensed' on boot — wiping granted VIPs
+       after every restart. Roles are set explicitly by staff now. */
     /* Email verification is now optional — mark every existing account
        verified once so nobody is locked out of anything. */
     try { all('users').filter(u => !u.emailVerified).forEach(u => { u.emailVerified = 1; store.put('users', u); }); flush(); } catch (e) { /* best effort */ }
@@ -4921,7 +4963,7 @@ const SOCIAL = { discord: 'https://discord.gg/syQfqmaA28', youtube: 'https://you
 
 /* ---- shell ---- */
 function headerHtml(user) {
-  const navItems = [...(user && dashVisible(user) ? [['dashboard', user.role === 'vip' ? (Number(user.protectionTier) > 0 || Number(user.contractTier) > 0 ? 'Licensed Vip Dashboard' : 'Vip Dashboard') : 'Licensed Dashboard', ICON.chart]] : []), ['portfolio', 'Portfolio', ICON.crown], ['shop', 'Shop', ICON.cart], ['subscription', 'Subscription', ICON.key], ['creators', 'Creators', ICON.user], ['faq', 'FAQ', ICON.book], ['support', 'Support', ICON.mail]];
+  const navItems = [...(user && dashVisible(user) ? [['dashboard', isVipUser(user) ? (Number(user.protectionTier) > 0 || Number(user.contractTier) > 0 ? 'Licensed VIP Dashboard' : 'Vip Dashboard') : 'Licensed Dashboard', ICON.chart]] : []), ['portfolio', 'Portfolio', ICON.crown], ['shop', 'Shop', ICON.cart], ['subscription', 'Subscription', ICON.key], ['creators', 'Creators', ICON.user], ['faq', 'FAQ', ICON.book], ['support', 'Support', ICON.mail]];
   const nav = navItems.map(([p, l]) => `<a href="#/${p}" data-nav="${p}">${l}</a>`).join('');
   const right = user
     ? `<div class="dropdown">
@@ -4931,7 +4973,7 @@ function headerHtml(user) {
           <a href="#/profile/${esc(user.handle)}">${ICON.user} My Profile</a>
           ${isMemberLevel(user) && canPost(user) ? `<a href="#/my-assets">${ICON.edit} My Assets</a><a href="#/upload">${ICON.plus} Upload Asset</a>` : ''}
           ${!isStaff(user) ? `<a href="#/orders">${ICON.cart} Orders</a>` : ''}
-          ${isMemberLevel(user) ? (user.role === 'vip' ? `<a href="#/dashboard">${ICON.chart} ${Number(user.protectionTier) > 0 || Number(user.contractTier) > 0 ? 'Licensed Vip Dashboard' : 'Vip Dashboard'}</a>` : showDashboard(user) ? `<a href="#/dashboard">${ICON.chart} Licensed Dashboard</a>` : `<a href="#/subscription">${ICON.lock} Get Licensed</a>`) : ''}
+          ${isMemberLevel(user) ? (isVipUser(user) ? `<a href="#/dashboard">${ICON.chart} ${Number(user.protectionTier) > 0 || Number(user.contractTier) > 0 ? 'Licensed VIP Dashboard' : 'Vip Dashboard'}</a>` : showDashboard(user) ? `<a href="#/dashboard">${ICON.chart} Licensed Dashboard</a>` : `<a href="#/subscription">${ICON.lock} Get Licensed</a>`) : ''}
           ${isStaff(user) ? `<a href="#/admin">${ICON.shield} ${effRank(user) >= roleRank('cofounder') ? 'Founder Panel' : 'Admin Panel'}</a>` : ''}
           <a href="#/settings">${ICON.clock} Settings</a>
           <div class="sep"></div>
@@ -4950,13 +4992,13 @@ function drawerHtml() {
      the header the containing block for position:fixed descendants, which would
      clip the drawer to the header's height on phones. */
   const user = STATE.user;
-  const navItems = [...(user && dashVisible(user) ? [['dashboard', user.role === 'vip' ? (Number(user.protectionTier) > 0 || Number(user.contractTier) > 0 ? 'Licensed Vip Dashboard' : 'Vip Dashboard') : 'Licensed Dashboard', ICON.chart]] : []), ['portfolio', 'Portfolio', ICON.crown], ['shop', 'Shop', ICON.cart], ['subscription', 'Subscription', ICON.key], ['creators', 'Creators', ICON.user], ['faq', 'FAQ', ICON.book], ['support', 'Support', ICON.mail]];
+  const navItems = [...(user && dashVisible(user) ? [['dashboard', isVipUser(user) ? (Number(user.protectionTier) > 0 || Number(user.contractTier) > 0 ? 'Licensed VIP Dashboard' : 'Vip Dashboard') : 'Licensed Dashboard', ICON.chart]] : []), ['portfolio', 'Portfolio', ICON.crown], ['shop', 'Shop', ICON.cart], ['subscription', 'Subscription', ICON.key], ['creators', 'Creators', ICON.user], ['faq', 'FAQ', ICON.book], ['support', 'Support', ICON.mail]];
   const drawerNav = navItems.map(([p, l, ic]) => `<a class="m-nav-item" href="#/${p}" data-nav="${p}">${ic}<span>${l}</span></a>`).join('');
   const drawerAccount = user
     ? `       <a class="m-nav-item" href="#/profile/${esc(user.handle)}">${ICON.user}<span>My Profile</span></a>
        ${isMemberLevel(user) && canPost(user) ? `<a class="m-nav-item" href="#/my-assets">${ICON.edit}<span>My Assets</span></a><a class="m-nav-item" href="#/upload">${ICON.plus}<span>Upload Asset</span></a>` : ''}
        ${!isStaff(user) ? `<a class="m-nav-item" href="#/orders">${ICON.cart}<span>Orders</span></a>` : ''}
-       ${isMemberLevel(user) ? (user.role === 'vip' ? `<a class="m-nav-item" href="#/dashboard">${ICON.chart}<span>${Number(user.protectionTier) > 0 || Number(user.contractTier) > 0 ? 'Licensed Vip Dashboard' : 'Vip Dashboard'}</span></a>` : showDashboard(user) ? `<a class="m-nav-item" href="#/dashboard">${ICON.chart}<span>Licensed Dashboard</span></a>` : `<a class="m-nav-item" href="#/subscription">${ICON.lock}<span>Get Licensed</span></a>`) : ''}
+       ${isMemberLevel(user) ? (isVipUser(user) ? `<a class="m-nav-item" href="#/dashboard">${ICON.chart}<span>${Number(user.protectionTier) > 0 || Number(user.contractTier) > 0 ? 'Licensed VIP Dashboard' : 'Vip Dashboard'}</span></a>` : showDashboard(user) ? `<a class="m-nav-item" href="#/dashboard">${ICON.chart}<span>Licensed Dashboard</span></a>` : `<a class="m-nav-item" href="#/subscription">${ICON.lock}<span>Get Licensed</span></a>`) : ''}
        ${isStaff(user) ? `<a class="m-nav-item" href="#/admin">${ICON.shield}<span>${effRank(user) >= roleRank('cofounder') ? 'Founder Panel' : 'Admin Panel'}</span></a>` : ''}
        <a class="m-nav-item" href="#/settings">${ICON.clock}<span>Settings</span></a>
        <button class="m-nav-item" id="m-logout-btn">${ICON.logout}<span>Log out</span></button>`
@@ -5370,7 +5412,7 @@ function onVipTry(id) {
     },
     onConfirm: async v => {
       const r = await API.checkout(STATE.user, id, 'vip_try', 'vip_try', v);
-      if (r.ok) { toast('Request submitted — Kings Production will review and activate your license.', 'ok'); go('/orders'); }
+      if (r.ok) { toast(r.data && r.data.followUp ? 'Request followed up — your updated details are now at the top of the queue.' : 'Request submitted — Kings Production will review and activate your license.', 'ok'); go('/orders'); }
       else toast(r.error, 'err');
     },
   });
@@ -5631,7 +5673,7 @@ VIEWS.asset = async ({ params }) => {
     buyHtml = `<a class="btn btn-primary btn-lg" href="#/login">Log in to purchase</a>`;
   } else if (a.status === 'approved') {
     const isOurSystem = a.owner && isStaff(a.owner);
-    const iAmVip = me && me.role === 'vip' && !isStaff(me);
+    const iAmVip = me && isVipUser(me) && !isStaff(me);
     buyHtml = `<button class="btn btn-primary btn-lg" onclick="onBuy('${a.id}')">${ICON.cart} Purchase · ${fmtMoney(a.price)}</button>
       ${iAmVip && isOurSystem ? `<button class="btn btn-ghost btn-lg" style="margin-left:10px;border-color:rgba(212,175,55,.4)" onclick="onVipTry('${a.id}')" title="VIP perk — try Kings Production's own system free (studio approval still required)">${ICON.crown} Try</button>` : ''}
       ${me && !canPost(me) ? `<p class="muted small" style="margin-top:10px">Buying this system gives you a license key for your game. Want to sell your own? A <a href=\"#/subscription\" style="color:var(--vip)">Contract plan</a> unlocks posting.</p>` : ''}`;
@@ -6490,21 +6532,25 @@ VIEWS.dashboard = async ({ query = {} } = {}) => {
     /* Only a real restriction (ban / timeout / restrictedUntil) shows the
        Restricted screen. VIPs and other non-member sellers flow through to
        the dashboard below — being unable to post is not a restriction. */
-    if (STATE.user.role !== 'vip' && !isRestricted(STATE.user)) {
+    if (!isVipUser(STATE.user) && !isRestricted(STATE.user)) {
       return `<div class="page page-narrow"><div class="card card-pad center" style="padding:56px 30px"><span class="crown" style="font-size:34px">${ICON.crown}</span><h2 style="font-family:var(--font-display);font-size:24px;margin:14px 0 8px">The Licensed Dashboard is for licensed sellers</h2><p class="muted" style="max-width:440px;margin:0 auto">Buy a <b style="color:var(--vip)">Subscription or Contract</b> plan on the Subscription page — it unlocks system protection, revenue tracking, and the ability to sell on the marketplace.</p></div><div class="center mt2"><a class="btn btn-primary" href="#/subscription">${ICON.key} View plans</a></div></div>`;
     }
     if (isRestricted(STATE.user)) {
       return `<div class="page">${emptyHtml('Restricted', 'Your account is currently restricted.')}</div>`;
     }
   }
-  const isVipRole = STATE.user.role === 'vip';
-  /* A VIP who buys a plan stacks it: the dashboard grows to the full Licensed
-     set and the title becomes "Licensed Vip Dashboard". */
+  const isVip = isVipUser(STATE.user);
   const protTier = Number(STATE.user.protectionTier) || 0;
   const contractTier = Number(STATE.user.contractTier) || 0;
   const hasPlan = protTier > 0 || contractTier > 0;
-  const dashTitle = isVipRole ? (hasPlan ? 'Licensed Vip Dashboard' : 'Vip Dashboard') : 'Licensed Dashboard';
-  const tab = ['systems', 'registered'].includes(query.tab) ? query.tab : 'systems';
+  /* Two roles stack: VIP + a plan = "Licensed VIP Dashboard". Sellers and
+     founders get the full tab set; a plain VIP gets only the system tabs
+     (Revenue/Orders/Support unlock with a plan). */
+  const isFounderish = effRank(STATE.user) >= roleRank('cofounder');
+  const fullDash = hasPlan || canPost(STATE.user) || isFounderish;
+  const dashTitle = isVip ? (hasPlan ? 'Licensed VIP Dashboard' : 'Vip Dashboard') : 'Licensed Dashboard';
+  const dashTabs = fullDash ? ['systems', 'revenue', 'registered', 'orders', 'support'] : ['systems', 'registered'];
+  const tab = dashTabs.includes(query.tab) ? query.tab : 'systems';
   const tabLink = t => `#/dashboard?tab=${t}`;
   const tabBtn = (t, label, ic) => `<a class="chip ${tab === t ? 'active' : ''}" href="${tabLink(t)}">${ic} ${label}</a>`;
   const d = await API.dashboard(STATE.user);
@@ -6532,17 +6578,20 @@ VIEWS.dashboard = async ({ query = {} } = {}) => {
     { max: 50, perDay: 0 },
   ];
   const plan = protectionTier ? PROT_PLAN[protectionTier] : null;
-  const vipBanner = isVipRole ? `<div class="card card-pad" style="margin-bottom:18px;border-color:rgba(212,175,55,.35);background:linear-gradient(135deg,rgba(212,175,55,.08),transparent)"><b style="font-family:var(--font-display)">${ICON.crown} VIP tier</b><p class="muted small" style="margin:6px 0 0">You have complimentary VIP access to Kings Production's own systems — hit <b style="color:var(--vip)">Try</b> on any of our posts in the Shop (no payment needed; the studio still approves your game and activates the license). You can also protect up to <b style="color:var(--vip)">3 of your own systems</b> like a Subscription-1 member — the Founder can raise your limits any time from the panel.</p></div>` : '';
-  const planLine = plan
-    ? `Plan: <b style="color:var(--vip)">Subscription ${protectionTier}</b> · Registered systems: <b>${systems.length} / ${plan.max}</b> · ${plan.perDay ? `Registrations: <b>${plan.perDay}/day</b>` : 'Registrations: <b>unlimited</b>'} · Deleting is always instant`
-    : isVipRole
+  const vipBanner = isVip ? `<div class="card card-pad" style="margin-bottom:18px;border-color:rgba(212,175,55,.35);background:linear-gradient(135deg,rgba(212,175,55,.08),transparent)"><b style="font-family:var(--font-display)">${ICON.crown} VIP tier</b><p class="muted small" style="margin:6px 0 0">You have complimentary VIP access to Kings Production's own systems — hit <b style="color:var(--vip)">Try</b> on any of our posts in the Shop (no payment needed; the studio still approves your game and activates the license). You can also protect up to <b style="color:var(--vip)">3 of your own systems</b> like a Subscription-1 member — the Founder can raise your limits any time from the panel.</p></div>` : '';
+  const planLine = isFounderish
+    ? `Plan: <b style="color:var(--gold)">Founder</b> · Registered systems: <b>${systems.length}</b> · Registrations: <b>unlimited</b> · Deleting is always instant`
+    : plan
+    ? `Plan: <b style="color:var(--vip)">Subscription ${protectionTier}</b>${contractTier ? ` · Contract ${contractTier}` : ''} · Registered systems: <b>${systems.length} / ${plan.max}</b> · ${plan.perDay ? `Registrations: <b>${plan.perDay}/day</b>` : 'Registrations: <b>unlimited</b>'} · Deleting is always instant`
+    : contractTier
+    ? `Plan: <b style="color:var(--vip)">Contract ${contractTier}</b> · Registered systems: <b>${systems.length} / ${PROT_PLAN[contractTier].max}</b> · ${PROT_PLAN[contractTier].perDay ? `Registrations: <b>${PROT_PLAN[contractTier].perDay}/day</b>` : 'Registrations: <b>unlimited</b>'} · Deleting is always instant`
+    : isVip
     ? `Plan: <b style="color:var(--vip)">VIP</b> · Registered systems: <b>${systems.length} / 3</b> · Registrations: <b>1/day</b> · Deleting is always instant`
     : `No Subscription plan yet — you can still register <b>3</b> systems as a licensed seller, but a plan raises your limits.`;
   const tabHead = `<div class="section-head" style="margin-bottom:8px"><div><span class="section-eyebrow">Creator</span><h2>${dashTitle}</h2><p>Your personal systems, protected — register them, license your games, and control every copy that runs.</p></div></div>
     <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:22px">
-      ${tabBtn('systems', 'Register System', ICON.system)}
-      ${tabBtn('registered', 'Registered Systems (' + systems.length + ')', ICON.key)}
-    </div>`;
+      ${dashTabs.map(t => tabBtn(t, t === 'systems' ? 'Register System' : t === 'revenue' ? 'Revenue' : t === 'registered' ? 'Registered Systems (' + systems.length + ')' : t === 'orders' ? 'Orders' + (pendingOrders ? ' (' + pendingOrders + ')' : '') : 'Support', t === 'systems' ? ICON.system : t === 'revenue' ? ICON.chart : t === 'registered' ? ICON.key : t === 'orders' ? ICON.cart : ICON.mail)).join('')}
+    </div>${!fullDash && isVip ? `<div class="card card-pad" style="margin-bottom:18px;border-color:rgba(212,175,55,.35)"><b>${ICON.crown} Want more?</b><p class="muted small" style="margin:6px 0 0">A Subscription or Contract plan unlocks <b>Revenue</b>, <b>Orders</b>, and <b>Support</b> tabs — and stacks with your VIP perks. <a href=\"#/subscription\" style=\"color:var(--vip)\">View plans</a></p></div>` : ''}`;
   /* ---- TAB 1: Register System ---- */
   const systemsTab = `${vipBanner}
     <div class="card card-pad" style="margin-bottom:18px">
@@ -6679,7 +6728,7 @@ VIEWS.dashboard = async ({ query = {} } = {}) => {
     </div>`).join('') : `<div class="card card-pad muted small">No tickets yet — submitted tickets appear here.</div>`}`;
   return `<div class="page" style="max-width:1080px">
     ${tabHead}
-    ${tab === 'systems' ? systemsTab : licensesTab}
+    ${tab === 'systems' ? systemsTab : tab === 'revenue' ? revenueTab : tab === 'registered' ? licensesTab : tab === 'orders' ? ordersTab : tab === 'support' ? supportTab : licensesTab}
   </div>`;
 };
 function licenseRowHtml(p) {

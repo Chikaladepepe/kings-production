@@ -124,6 +124,10 @@
     try { const t = JSON.parse(u && u.tags || '[]'); return Array.isArray(t) ? t.filter(x => typeof x === 'string' && x.trim()) : []; }
     catch (e) { return []; }
   };
+  /* Complimentary VIP is a TAG, so it stacks with any role (member, licensed,
+     even staff): a user can be Licensed AND VIP at once. `role` stays the
+     earning/moderation tier; the tag grants VIP powers. */
+  const isVipUser = u => !!(u && (u.role === 'vip' || parseTags(u).some(t => String(t).trim().toLowerCase() === 'vip')));
   const normTag = t => String(t || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   const saveTags = (u, tags) => {
     const seen = new Set();
@@ -1236,12 +1240,19 @@
       if (t.id === actor.id) return fail('self', 'You cannot change your own VIP status.');
       on = !!on;
       if (on) {
-        if (t.role === 'vip') return fail('owned', 'That user is already VIP.');
-        if (t.role !== 'member') return fail('invalid', 'VIP can only replace the Verified role — this user is ' + (ROLE_LABEL[t.role] || t.role) + '.');
-        t.role = 'vip';
+        if (isVipUser(t)) return fail('owned', 'That user is already VIP.');
+        if (effRank(t) < roleRank('licensed')) {
+          /* Verified (or test) — VIP replaces the role. */
+          t.role = 'vip';
+        } else {
+          /* Licensed and above — VIP stacks as a tag, role stays intact. */
+          const tg = parseTags(t);
+          if (!tg.some(x => String(x).trim().toLowerCase() === 'vip')) { tg.push('vip'); t.tags = JSON.stringify(tg); }
+        }
       } else {
-        if (t.role !== 'vip') return fail('owned', 'That user is not VIP.');
-        t.role = 'member';
+        if (t.role === 'vip') t.role = 'member';
+        const tg = parseTags(t).filter(x => String(x).trim().toLowerCase() !== 'vip');
+        t.tags = JSON.stringify(tg);
       }
       t.vipGrantedBy = actor.id;
       t.vipGrantedAt = now();
@@ -1257,7 +1268,7 @@
     async function createVipTrialOrder(user, assetId, method, gameDetails) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
-      if (u.role !== 'vip') return fail('forbidden', 'Try is a VIP perk — it unlocks the studio\'s own systems.');
+      if (!isVipUser(u)) return fail('forbidden', 'Try is a VIP perk — it unlocks the studio\'s own systems.');
       if (isTimedOut(u)) return fail('timeout', 'You are currently timed out and cannot make purchases.');
       if (isBanned(u)) return fail('banned', 'Your account is banned.');
       const a = byIdIn('assets', assetId);
@@ -1267,8 +1278,24 @@
       const owner = dbUser(a.ownerId);
       if (!isStaff(owner)) return fail('forbidden', 'Try only works on systems posted by Kings Production.');
       if (all('purchases').some(p => p.assetId === a.id && p.buyerId === u.id)) return fail('owned', 'You already own this asset.');
-      if (all('orders').some(o => o.buyerId === u.id && o.assetId === a.id && (o.status === 'created' || o.status === 'paid')))
-        return fail('pending', 'You already have a pending order for this asset.');
+      /* An existing pending request is FOLLOWED UP, not blocked: the new
+         details replace the old ones and the request moves back to the top
+         of the queue. Rejected requests are freed automatically. */
+      const pendingTry = all('orders').find(o => o.buyerId === u.id && o.assetId === a.id && (o.status === 'created' || o.status === 'paid'));
+      if (pendingTry) {
+        const gd0 = gameDetails && typeof gameDetails === 'object' ? gameDetails : {};
+        pendingTry.gameDetails = JSON.stringify({
+          gameName: String(gd0.gameName || '').trim().slice(0, 80) || null,
+          placeId: String(gd0.placeId || '').trim().slice(0, 20) || null,
+          gameOwner: String(gd0.gameOwner || '').trim().slice(0, 80) || null,
+          notes: (String(gd0.notes || '').trim() + ' [VIP try]').slice(0, 400) || null,
+        });
+        pendingTry.followedUpAt = now();
+        pendingTry.updatedAt = now();
+        store.put('orders', pendingTry);
+        flush();
+        return ok({ orderId: pendingTry.id, amount: 0, currency: pendingTry.currency, vipTrial: true, followUp: true });
+      }
       const gd = gameDetails && typeof gameDetails === 'object' ? gameDetails : {};
       const details = {
         gameName: String(gd.gameName || '').trim().slice(0, 80) || null,
@@ -1376,7 +1403,18 @@
       let out;
       if (isVipOrder(order)) {
         let vipUpgrade = false;
-        if (effRank(buyer) < roleRank('licensed')) { buyer.role = 'licensed'; buyer.updatedAt = now(); store.put('users', buyer); vipUpgrade = true; }
+        if (effRank(buyer) < roleRank('licensed')) {
+          /* Upgrade to Licensed, but PRESERVE complimentary VIP: it moves to a
+             tag so the user holds both roles — VIP powers (Try, dashboard)
+             stack with Licensed posting. */
+          const wasVip = isVipUser(buyer);
+          buyer.role = 'licensed';
+          if (wasVip) {
+            const tg = parseTags(buyer);
+            if (!tg.some(x => String(x).trim().toLowerCase() === 'vip')) { tg.push('vip'); buyer.tags = JSON.stringify(tg); }
+          }
+          buyer.updatedAt = now(); store.put('users', buyer); vipUpgrade = true;
+        }
         out = { licenseKey: null, vipUpgrade };
       } else if (isSubOrder(order)) {
         /* Plan purchase — raise the buyer's tier (never lower it) + VIP role. */
@@ -2563,7 +2601,7 @@
       if (pT >= 1 && cT >= 1) return { max: Math.max(PROT_LIMITS[pT - 1].max, PROT_LIMITS[cT - 1].max), perDay: Math.min(PROT_LIMITS[pT - 1].perDay, PROT_LIMITS[cT - 1].perDay) || 0, label: pT >= cT ? 'Subscription ' + pT : 'Contract ' + cT };
       if (pT >= 1) return { ...PROT_LIMITS[pT - 1], label: 'Subscription ' + pT };
       if (cT >= 1) return { ...PROT_LIMITS[cT - 1], label: 'Contract ' + cT };
-      if (u.role === 'vip') return { ...VIP_LIMITS, label: 'VIP' };
+      if (isVipUser(u)) return { ...VIP_LIMITS, label: 'VIP' };
       return null;
     }
     function findSystemByCreds(name, password) {
@@ -2594,7 +2632,9 @@
       /* Duplicate names are allowed on purpose — the name + password PAIR is
          the identity (e.g. "Music System" + "PassWorD"). */
       const mine = () => all('systems').filter(s => s.userId === u.id);
-      if (!isStaff(u) && !isTester(u)) {
+      /* Founder / Co-Founder: no limits at all. Admins and sellers follow
+         their plan; VIPs get the complimentary Subscription-1 caps. */
+      if (effRank(u) < roleRank('cofounder') && !isTester(u)) {
         const plan = systemPlanLimits(u);
         if (!plan) return fail('vipOnly', 'Buy a Subscription plan (Subscription page) to register systems.');
         const list = mine();
@@ -2888,9 +2928,9 @@
 
     seedContent();
     ensureOwnerAccount();
-    /* Role migration: the old 'vip' value (Licensed sellers) becomes 'licensed',
-       freeing 'vip' for the new complimentary VIP tier. */
-    try { all('users').filter(u => u.role === 'vip').forEach(u => { u.role = 'licensed'; store.put('users', u); }); flush(); } catch (e) { /* best effort */ }
+    /* NOTE: no automatic role migration here. Earlier builds silently
+       converted every 'vip' role to 'licensed' on boot — wiping granted VIPs
+       after every restart. Roles are set explicitly by staff now. */
     /* Email verification is now optional — mark every existing account
        verified once so nobody is locked out of anything. */
     try { all('users').filter(u => !u.emailVerified).forEach(u => { u.emailVerified = 1; store.put('users', u); }); flush(); } catch (e) { /* best effort */ }
