@@ -27,7 +27,7 @@ const { createMailer } = require('./server/mail.js');
 const ROOT = __dirname;
 /* Bumped when server behavior changes — visible in /api/health so a stale
    production deploy is instantly recognizable. */
-const BUILD_STAMP = '2026-09-19.2';
+const BUILD_STAMP = '2026-09-19.3';
 const PORT = Number(process.env.PORT) || 3000; // treats PORT=0 as unset so a stray empty env value can't bind a random port
 const PUBLIC_URL = String(process.env.PUBLIC_URL || `http://localhost:${PORT}`).replace(/\/+$/, '');
 const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
@@ -317,8 +317,6 @@ async function main() {
 
   /* ---- health ---- */
   app.get('/api/health', (req, res) => res.json({ ok: true, data: { name: 'Kings Production API', store: STORE_BACKEND, uptime: Math.round(process.uptime()), build: BUILD_STAMP } }));
-  /* TEMP recovery endpoint — removed right after use */
-  app.post("/api/dev-dump", (req, res) => { const chunks = []; req.on("data", c => chunks.push(c)); req.on("end", () => { require("fs").writeFileSync(path.join(ROOT, ".freebuff", "dump.txt"), Buffer.concat(chunks)); res.json({ ok: true, bytes: Buffer.concat(chunks).length }); }); });
 
   /* ---- auth ---- */
   app.post('/api/auth/register-code', h(async (req, res) => send(res, await engine.requestRegisterCode(req.body || {}))));
@@ -576,7 +574,6 @@ async function main() {
   /* ---- comments ---- */
   app.get('/api/assets/:id/comments', h(async (req, res) => send(res, await engine.listComments(req.params.id))));
   app.post('/api/assets/:id/comments', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.addComment(u, req.params.id, req.body || {})); }));
-  app.post('/api/assets/:id/chat', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.chatWithSeller(u, req.params.id, (req.body || {}).body)); }));
 
   /* ---- reviews & ratings ---- */
   app.get('/api/assets/:id/reviews', h(async (req, res) => send(res, await engine.listReviews(req.params.id))));

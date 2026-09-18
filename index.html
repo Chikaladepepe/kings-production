@@ -2020,10 +2020,10 @@ const API = {};
       const hostedFileUrl = normalizeImageUrl(fileUrl);
       if (!file && !fileName && !hostedFileUrl) return fail('invalid', 'A system file is required — attach the actual file buyers will receive (.lua, .rbxm, .rbxl, .zip…).');
       if (!img) return fail('invalid', 'An image link is required — staff compare the post picture with the file when verifying.');
-      /* Optional mirror link (MediaFire / Mega / GoFile…) — buyers fall back to
+      /* Required mirror link (MediaFire / Mega / GoFile…) — buyers fall back to
          it automatically if the primary host refuses the download. */
-      let backup = normalizeImageUrl(backupUrl);
-      if (backup === null && String(backupUrl || '').trim()) return fail('invalid', 'Backup link must be a valid http(s) URL.');
+      const backup = normalizeImageUrl(backupUrl);
+      if (!backup) return fail('invalid', 'A backup download link is required — upload the same file to MediaFire, Mega, GoFile, or Drive and paste the link.');
       const founderLevel = effRank(u) >= roleRank('cofounder'); // Founder / Co-Founder posts skip the approval queue
       const cleanImages = Array.isArray(images) ? images.map(x => normalizeImageUrl(x)).filter(Boolean).slice(0, 12) : [];
       const allowedPm = ['stripe', 'paypal', 'gcash', 'kofi'];
@@ -2126,7 +2126,7 @@ const API = {};
       if (deliverDuringPending !== undefined) a.deliverDuringPending = !!deliverDuringPending ? 1 : 0;
       if (backupUrl !== undefined) {
         const bu = normalizeImageUrl(backupUrl);
-        if (bu === null && String(backupUrl || '').trim()) return fail('invalid', 'Backup link must be a valid http(s) URL.');
+        if (!bu) return fail('invalid', 'A backup download link is required — upload the same file to MediaFire, Mega, GoFile, or Drive and paste the link.');
         a.backupUrl = bu;
       }
       const file = normalizeFile(fileData, fileName);
@@ -2169,9 +2169,10 @@ const API = {};
       if (!a) return fail('notfound', 'Asset not found.');
       const own = a.ownerId === u.id;
       const staff = isStaff(u);
-      /* Staff cannot delete creators' posts — they can only disable them. */
-      if (!own && staff) return fail('forbidden', 'Staff cannot delete other users\' posts. Disable the asset instead (Admin → Assets).');
-      if (!own) return fail('forbidden', 'Only the creator of this asset can delete it.');
+      const founderish = effRank(u) >= roleRank('cofounder');
+      /* Co-Founder / Founder can hard-delete any post from the Founder Panel;
+         plain Admins can only disable. Owners can always delete their own. */
+      if (!own && !founderish) return fail('forbidden', staff ? 'Staff cannot delete other users\' posts. Disable the asset instead (Admin → Assets).' : 'Only the creator of this asset can delete it.');
       cascadeDelete(id);
       flush();
       return ok(true);
@@ -3775,47 +3776,6 @@ const API = {};
        A lightweight buyer↔seller conversation attached to an asset. Messages
        are EPHEMERAL: any message older than 24h is pruned on read, only the
        stable chat code ("ticket number") survives, so nothing is kept forever. */
-    const CHAT_TTL_MS = 24 * 36e5;
-    const chatCodeFor = assetId => 'KP-CHT-' + String(assetId || 'x').replace(/[^a-z0-9]/gi, '').slice(-8).toUpperCase();
-    function pruneChat(assetId, buyerId) {
-      const cutoff = now() - CHAT_TTL_MS;
-      /* buyerId null = seller broadcast rows — they belong to every buyer's view of this asset */
-      all('chats').filter(m => m.assetId === assetId && (m.buyerId === buyerId || m.buyerId === null) && m.createdAt < cutoff).forEach(m => store.del('chats', m.id));
-    }
-    async function chatWithSeller(user, assetId, body) {
-      const u = resolveUser(user); if (!u) return fail('auth', 'You must be logged in to do that.');
-      const a = byIdIn('assets', assetId);
-      if (!a) return fail('notfound', 'Asset not found.');
-      const isSeller = a.ownerId === u.id;
-      /* Open to every logged-in user: pre-sale questions are the point of
-         "Contact seller". Messages still auto-delete after 24h. */
-      if (isStaff(u) && !isSeller) return fail('forbidden', 'Staff use their own channels — this chat is between the buyer and the seller.');
-      body = String(body || '').trim().slice(0, 2000);
-      if (body) {
-        /* Seller replying: attach to the most recently active buyer thread on
-           this asset so the buyer actually receives it. If no buyer has written
-           yet, the reply becomes a broadcast row visible to every buyer. */
-        let threadBuyerId = isSeller ? null : u.id;
-        if (isSeller) {
-          const last = all('chats').filter(m => m.assetId === assetId && m.buyerId)
-            .sort((x, y) => y.createdAt - x.createdAt)[0];
-          threadBuyerId = last ? last.buyerId : null;
-        }
-        store.put('chats', { id: 'ch' + uid(), assetId, buyerId: threadBuyerId, sellerId: a.ownerId, userId: u.id, body, createdAt: now() });
-        flush();
-      }
-      const buyerId = isSeller ? null : u.id;
-      pruneChat(assetId, buyerId);
-      /* The seller sees one merged thread across buyers; each buyer sees their
-         own thread plus the seller's broadcast replies. The conversation code
-         is derived from the asset so both sides see the SAME "ticket number". */
-      const who = isSeller ? null : u.id;
-      const raw = all('chats').filter(m => m.assetId === assetId && (isSeller ? true : (m.buyerId === who || m.buyerId === null)))
-        .sort((x, y) => x.createdAt - y.createdAt);
-      const code = chatCodeFor(assetId);
-      const msgs = raw.map(m => ({ id: m.id, body: m.body, createdAt: m.createdAt, mine: m.userId === u.id, from: publicUser(byIdIn('users', m.userId)) }));
-      return ok({ code, messages: msgs, ttlHours: 24 });
-    }
     /* ---- FAQ (editable from the Founder/Admin Panel) ----
        Persisted in site_settings as JSON so staff can edit Q&A from the web. */
     const FAQ_DEFAULTS = [
@@ -4359,7 +4319,7 @@ const API = {};
       licenseActivate, licenseHeartbeat, creatorDashboard, creatorLicenses, setLicenseStatus, revokeDevice,
       publicProfile, content, createPortfolio, updatePortfolio, deletePortfolio,
       createCreator, updateCreator, deleteCreator,
-      createTicket, addTicketMessage, getTicket, listMyTickets, chatWithSeller,
+      createTicket, addTicketMessage, getTicket, listMyTickets,
       adminListTickets, adminCloseTicket, adminDeleteTicket, getFaqs, saveFaqs, getLegalDoc, saveLegalDoc, processAdminPauseExpiry,
       listAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement,
       processProofDeadlines,
@@ -4666,7 +4626,6 @@ API.assignSubscription = (user, purchaseId, a) => _wrap(async () => _mode === 'l
 API.adminListTickets = user => _wrap(async () => _mode === 'local' ? await _engine.adminListTickets(user) : await _call('GET', '/api/admin/tickets'));
 API.adminCloseTicket = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.adminCloseTicket(user, id) : await _call('POST', '/api/admin/tickets/' + _e(id) + '/close'));
 API.getFaqs = () => _wrap(async () => _mode === 'local' ? await _engine.getFaqs() : await _call('GET', '/api/faqs'));
-API.chatWithSeller = (user, assetId, body) => _wrap(async () => _mode === 'local' ? await _engine.chatWithSeller(user, assetId, body || '') : await _call('POST', '/api/assets/' + _e(assetId) + '/chat', { body: body || '' }));
 API.saveFaqs = (user, faqs) => _wrap(async () => _mode === 'local' ? await _engine.saveFaqs(user, faqs) : await _call('POST', '/api/admin/faqs', { faqs }));
 API.getLegalDoc = key => _wrap(async () => _mode === 'local' ? await _engine.getLegalDoc(key) : await _call('GET', '/api/legal/' + key));
 API.saveLegalDoc = (user, key, body) => _wrap(async () => _mode === 'local' ? await _engine.saveLegalDoc(user, key, body) : await _call('POST', '/api/admin/legal/' + key, { body }));
@@ -5630,7 +5589,6 @@ VIEWS.asset = async ({ params }) => {
     const iAmVip = me && me.role === 'vip' && !isStaff(me);
     buyHtml = `<button class="btn btn-primary btn-lg" onclick="onBuy('${a.id}')">${ICON.cart} Purchase · ${fmtMoney(a.price)}</button>
       ${iAmVip && isOurSystem ? `<button class="btn btn-ghost btn-lg" style="margin-left:10px;border-color:rgba(212,175,55,.4)" onclick="onVipTry('${a.id}')" title="VIP perk — try Kings Production's own system free (studio approval still required)">${ICON.crown} Try</button>` : ''}
-      <button class="btn btn-ghost btn-lg" style="margin-left:10px" title="Chat with the seller right here — no ticket needed" onclick="openChatWithSeller('${a.id}')">${ICON.mail} Contact seller</button>
       ${me && !canPost(me) ? `<p class="muted small" style="margin-top:10px">Every purchase upgrades you to <b style="color:var(--vip)">Licensed</b> — you can post your own assets right after.</p>` : ''}`;
   }
 
@@ -5700,7 +5658,6 @@ VIEWS.asset = async ({ params }) => {
     <div class="poster-row">
       ${avatarHtml(a.owner, 44)}
       <div style="flex:1"><div class="row" style="gap:8px"><a href="#/profile/${esc(a.owner.handle)}" class="bold">${esc(a.owner.displayName)}</a>${badgeHtml(a.owner.role, a.owner.tags)}</div><div class="muted small">Creator · joined ${fmtDate(a.owner.createdAt)}</div></div>
-      ${me && !a.isOwner && canRate ? `<button class="btn btn-ghost btn-sm" onclick="openChatWithSeller('${a.id}')">${ICON.mail} Chat with seller</button>` : ''}
       ${me && !a.isOwner ? `<button class="btn btn-ghost btn-sm" onclick="onReport('asset','${a.id}')">${ICON.flag} Report</button>` : ''}
     </div>
     <div class="reviews" style="margin-top:44px">
@@ -6256,7 +6213,7 @@ VIEWS.upload = async ({ query }) => {
     <div class="section-head"><div><span class="section-eyebrow">${a ? 'Edit' : 'Sell'}</span><h2>${a ? 'Edit asset' : 'Upload a new asset'}</h2><p>${a ? 'Changes stay live instantly for Founder / Co-Founder posts; other sellers return to the approval queue.' : cooldown ? 'Your next post unlocks when the cooldown ends.' : (STATE.user && effRank(STATE.user) >= roleRank('cofounder')) ? 'Your posts go live instantly — no approval wait.' : 'Licensed sellers can post one new asset every 24 hours. Submissions are reviewed by an admin before going live.'}</p></div></div>
     <div class="card card-pad">
       <form onsubmit="onSubmitAsset(event)">
-        <input type="hidden" name="id" value="${a ? a.id : ''}">
+        <input type="hidden" name="assetId" value="${a ? a.id : ''}">
         <div class="field"><label>Title<span class="req">*</span></label><input class="input" name="title" maxlength="60" placeholder="e.g. Onyx Admin Commands" value="${esc(a ? a.title : '')}" required></div>
         <div class="row" style="align-items:flex-start">
           <div class="field" style="flex:1;min-width:200px"><label>Category<span class="req">*</span></label><select class="select" name="category" required>${CATEGORIES.map(c => `<option value="${c}" ${a && a.category === c ? 'selected' : ''}>${CAT_LABEL[c]}</option>`).join('')}</select><div class="hint">Roblox categories only.</div></div>
@@ -6301,7 +6258,7 @@ async function onSubmitAsset(e) {
   const fileInput = f.file;
   const file = fileInput.files && fileInput.files[0];
   if (file && file.size > 100 * 1024 * 1024) { toast('File is too large (max 100 MB).', 'err'); return; }
-  if (!file && !f.id.value) { toast('A system file is required.', 'err'); return; }
+  if (!file && !f.assetId.value) { toast('A system file is required.', 'err'); return; }
   const images = [...f.querySelectorAll('#up-imgs input')].map(i => i.value.trim()).filter(Boolean);
   const paymentMethods = [...f.querySelectorAll('input[name=pm]:checked')].map(c => c.value);
   const sellerPaymentDetails = collectSellerPmDetails();
@@ -6331,11 +6288,11 @@ async function onSubmitAsset(e) {
       else { toast('Could not reach the file host — storing the file directly instead.', 'warn'); fileData = await readFileAsDataURL(file); fileName = file.name; }
     }
     const payload = { title: f.title.value, category: f.category.value, description: f.description.value, price: f.price.value, imageUrl: f.imageUrl.value.trim(), images, paymentMethods, sellerPaymentDetails, deliverDuringPending, backupUrl, fileName, fileData, fileUrl };
-    const res = f.id.value
-      ? await API.updateAsset(STATE.user, f.id.value, payload)
+    const res = f.assetId.value
+      ? await API.updateAsset(STATE.user, f.assetId.value, payload)
       : await API.createAsset(STATE.user, payload);
     if (!res.ok) { toast(res.error, 'err'); return; }
-    toast(f.id.value ? 'Changes saved.' : (res.data && res.data.status === 'approved') ? 'Posted! It is live in the shop.' : 'Asset submitted for admin approval.');
+    toast(f.assetId.value ? 'Changes saved.' : (res.data && res.data.status === 'approved') ? 'Posted! It is live in the shop.' : 'Asset submitted for admin approval.');
     go('/my-assets');
   } catch (err) {
     console.error(err);
@@ -7897,47 +7854,6 @@ function legalSection(title, ...paras) {
     + paras.map(p => `<p style="margin:8px 0">${p}</p>`).join('');
 }
 
-/* ---- FAQ (Q&A) — public page, editable right here by staff ---- */
-function faqEditorRowHtml(f = {}) {
-  return `<div class="card card-pad" style="margin-bottom:10px" data-faq-row>
-    <div class="field"><label>Question</label><input class="input" data-faq-q value="${esc(f.q || '')}" maxlength="200" placeholder="e.g. How do licenses work?"></div>
-    <div class="field"><label>Answer</label><textarea class="input" data-faq-a rows="3" maxlength="2000" placeholder="The answer shown publicly.">${esc(f.a || '')}</textarea></div>
-    <button class="btn btn-ghost btn-sm" type="button" onclick="this.closest('[data-faq-row]').remove()">${ICON.trash} Remove</button>
-  </div>`;
-}
-/* Staff FAQ editor — opens as a clean modal from the FAQ page (or the panel). */
-function openFaqEditor() {
-  if (!isStaff(STATE.user)) { toast('Only staff can edit the FAQ.', 'err'); return; }
-  modal({
-    title: 'Edit FAQ',
-    wide: true,
-    confirmLabel: 'Save & publish',
-    body: `<div id="faq-modal-list" style="max-height:60vh;overflow:auto;padding-right:4px"></div>
-      <button class="btn btn-ghost btn-sm" type="button" id="faq-modal-add" style="margin-top:10px">${ICON.plus} Add question</button>`,
-    validate: ov => ({
-      faqs: [...ov.querySelectorAll('[data-faq-row]')]
-        .map(rowEl => ({ q: rowEl.querySelector('[data-faq-q]').value, a: rowEl.querySelector('[data-faq-a]').value }))
-        .filter(f => f.q.trim() && f.a.trim()),
-    }),
-    onConfirm: async v => {
-      const r = await API.saveFaqs(STATE.user, v.faqs);
-      if (r.ok) { toast('FAQ saved — published to the page.'); await router(); } else toast(r.error, 'err');
-    },
-  });
-  const host = document.querySelector('.modal-overlay:last-child #faq-modal-list');
-  const ov = host ? host.closest('.modal-overlay') : null;
-  if (!host || !ov) return;
-  API.getFaqs().then(r => {
-    const list = r.ok && Array.isArray(r.data) ? r.data : [];
-    host.innerHTML = list.length ? list.map(faqEditorRowHtml).join('') : '<p class="muted small">No questions yet — add the first one.</p>';
-  });
-  ov.querySelector('#faq-modal-add').onclick = () => {
-    host.insertAdjacentHTML('beforeend', faqEditorRowHtml());
-    const rows = host.querySelectorAll('[data-faq-row]');
-    const q = rows.length && rows[rows.length - 1].querySelector('[data-faq-q]');
-    q && q.focus();
-  };
-}
 VIEWS.faq = async () => {
   const r = await API.getFaqs();
   const list = r.ok && Array.isArray(r.data) ? r.data : [];
@@ -7947,32 +7863,12 @@ VIEWS.faq = async () => {
       <summary style="font-family:var(--font-display);font-size:15.5px;font-weight:600;list-style:none;display:flex;justify-content:space-between;gap:10px"><span>${esc(f.q)}</span><span class="muted">＋</span></summary>
       <p class="muted" style="margin:10px 0 0;line-height:1.65;white-space:pre-wrap">${esc(f.a)}</p>
     </details>`;
-  const staffBtn = staff ? `<button class="btn btn-ghost btn-sm" onclick="openFaqEditor()">${ICON.edit} Edit FAQ</button>` : '';
   return `<div class="page page-narrow">
     <div class="section-head"><div><span class="section-eyebrow">Help center</span><h2>FAQ &amp; Q&amp;A</h2><p>Quick answers about licensing, plans, payments, and safety on Kings Production.</p></div>${staffBtn}</div>
     ${list.length ? list.map(item).join('') : emptyHtml('No FAQ yet', staff ? 'Use the Edit FAQ button to add your first question.' : 'Staff can publish questions & answers here soon.')}
     <div class="card card-pad center mt2" style="padding:26px"><p class="muted" style="margin:0 0 12px">Still stuck? Our team answers every ticket.</p><a class="btn btn-primary" href="#/support">${ICON.mail} Contact support</a></div>
   </div>`;
 };
-function bindFaqEditor() {
-
-  const addBtn = document.getElementById('faq-add'), saveBtn = document.getElementById('faq-save'), host = document.getElementById('faq-list');
-  if (!addBtn || !saveBtn || !host) return;
-  addBtn.addEventListener('click', () => {
-    const wrap = document.createElement('div');
-    wrap.innerHTML = `<div class="card card-pad" style="margin-bottom:10px" data-faq-row>
-      <div class="field"><label>Question</label><input class="input" data-faq-q placeholder="e.g. How do licenses work?" maxlength="200"></div>
-      <div class="field"><label>Answer</label><textarea class="input" data-faq-a rows="3" placeholder="The answer shown on the FAQ page." maxlength="2000"></textarea></div>
-      <button class="btn btn-ghost btn-sm" type="button" onclick="this.closest('[data-faq-row]').remove()">${ICON.trash} Remove</button>
-    </div>`;
-    host.appendChild(wrap.firstElementChild);
-  });
-  saveBtn.addEventListener('click', async () => {
-    const faqs = [...host.querySelectorAll('[data-faq-row]')].map(rowEl => ({ q: rowEl.querySelector('[data-faq-q]').value, a: rowEl.querySelector('[data-faq-a]').value })).filter(f => f.q.trim() && f.a.trim());
-    const r = await API.saveFaqs(STATE.user, faqs);
-    r.ok ? toast('FAQ saved — the public page is updated.') : toast(r.error, 'err');
-  });
-}
 /* Legal documents are editable text (Co-Founder/Founder) stored on the server.
    Lines starting with "## " render as section headings. */
 function legalBodyHtml(body) {
@@ -8046,7 +7942,6 @@ VIEWS_BIND.admin = async () => {
   const html = await adminTabHtml(STATE.adminTab);
   body.innerHTML = html;
   if (STATE.adminTab === 'mailbox') setTimeout(syncScheduleField, 0);
-  if (STATE.adminTab === 'support') bindFaqEditor();
 };
 async function setAdminTab(tab) { STATE.adminTab = tab; STATE.adminSys = null; STATE.adminSub = null; await router({ noVeil: true }); }
 async function onAdminDeleteTicket(id) {
@@ -8054,6 +7949,12 @@ async function onAdminDeleteTicket(id) {
   modal({ title: 'Delete this ticket?', danger: true, confirmLabel: 'Delete',
     body: '<p>Removes the ticket and all its messages permanently.</p>',
     onConfirm: async () => { const r = await API.adminDeleteTicket(STATE.user, id); r.ok ? (toast('Ticket deleted.'), await router()) : toast(r.error, 'err'); } });
+}
+/* Founder / Co-Founder: permanently delete any post (bypasses owner-only rule). */
+async function onAdminDeleteAsset(id) {
+  modal({ title: 'Delete this post permanently?', danger: true, confirmLabel: 'Delete forever',
+    body: '<p>Removes the post, its file, reviews, likes, and purchase records. This cannot be undone.</p>',
+    onConfirm: async () => { const r = await API.deleteAsset(STATE.user, id); r.ok ? (toast('Post deleted permanently.'), await router()) : toast(r.error, 'err'); } });
 }
 /* Staff review of a manual payment's proof — approve completes the order. */
 async function onAdminReviewProof(orderId) {
@@ -8420,7 +8321,7 @@ async function adminTabHtml(tab) {
         <td><div class="row" style="gap:10px"><span style="width:34px;height:26px;border-radius:6px;overflow:hidden;position:relative;flex-shrink:0;border:1px solid var(--border)">${thumbHtml(a, 14)}</span><a href="#/asset/${a.id}" class="bold">${esc(a.title)}</a></div></td>
         <td><a href="#/profile/${esc(a.owner.handle)}">${esc(a.owner.displayName)}</a></td>
         <td>${CAT_LABEL[a.category]}</td><td>${fmtMoney(a.price)}</td><td>${a.sales}</td><td>${statusBadge(a.status, a.rejectReason)}</td>
-        <td><div class="row-actions"><button class="btn btn-ghost btn-sm" title="Get a copy of the file" onclick="onAdminDownload('${a.id}')">${ICON.download}</button>${a.status === 'approved' ? `<button class="btn btn-danger btn-sm" title="Temporarily hide this post from the shop" onclick="onAdminDisableAsset('${a.id}')">${ICON.ban} Disable</button>` : a.status === 'disabled' ? `<button class="btn btn-ghost btn-sm" title="Restore the post to the shop" onclick="onAdminRestoreAsset('${a.id}')">${ICON.check} Restore</button>` : ''}</div></td>
+        <td><div class="row-actions"><button class="btn btn-ghost btn-sm" title="Get a copy of the file" onclick="onAdminDownload('${a.id}')">${ICON.download}</button>${isFounderish ? `<button class="btn btn-danger btn-sm" title="Permanently delete this post" onclick="onAdminDeleteAsset('${a.id}')">${ICON.trash} Delete</button>` : ''}${a.status === 'approved' ? `<button class="btn btn-danger btn-sm" title="Temporarily hide this post from the shop" onclick="onAdminDisableAsset('${a.id}')">${ICON.ban} Disable</button>` : a.status === 'disabled' ? `<button class="btn btn-ghost btn-sm" title="Restore the post to the shop" onclick="onAdminRestoreAsset('${a.id}')">${ICON.check} Restore</button>` : ''}</div></td>
       </tr>`).join('') || `<tr><td colspan="7"><div class="empty">No assets.</div></td></tr>`}</tbody></table></div>`;
   }
   if (tab === 'users') {

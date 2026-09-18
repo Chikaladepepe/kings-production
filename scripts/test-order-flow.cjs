@@ -36,7 +36,7 @@ function check(name, cond, extra) {
   const buyer = await reg('buyer1', 'b1@x.test');
   const nosey = await reg('nosey1', 'n1@x.test');
 
-  const p = await engine.createAsset(founder, { title: 'Test System', category: 'system', description: 'A full description well over ten characters.', price: 100, imageUrl: 'https://i.imgur.com/x.png', fileName: 's.rbxl', fileSize: 10, fileMime: 'application/x' });
+  const p = await engine.createAsset(founder, { title: 'Test System', category: 'system', description: 'A full description well over ten characters.', price: 100, imageUrl: 'https://i.imgur.com/x.png', backupUrl: 'https://www.mediafire.com/file/x/system.zip', fileName: 's.rbxl', fileSize: 10, fileMime: 'application/x' });
   check('founder post ok', p.ok, JSON.stringify(p).slice(0, 140));
 
   /* non-buyer cannot comment or review */
@@ -58,7 +58,7 @@ function check(name, cond, extra) {
   check('verified buyer can review', r2.ok, JSON.stringify(r2));
 
   /* manual order + proof deadline on a SECOND asset (one purchase per asset) */
-  const p2 = await engine.createAsset(founder, { title: 'Test System Two', category: 'system', description: 'Another full description well over ten characters.', price: 120, imageUrl: 'https://i.imgur.com/y.png', fileName: 's2.rbxl', fileSize: 10, fileMime: 'application/x' });
+  const p2 = await engine.createAsset(founder, { title: 'Test System Two', category: 'system', description: 'Another full description well over ten characters.', price: 120, imageUrl: 'https://i.imgur.com/y.png', backupUrl: 'https://www.mediafire.com/file/y/system.zip', fileName: 's2.rbxl', fileSize: 10, fileMime: 'application/x' });
   check('second post ok', p2.ok, JSON.stringify(p2).slice(0, 140));
   const manual = await engine.createOrder(buyer, p2.data.id, 'gcash_manual', { gameName: 'BG', placeId: '42', gameOwner: 'B', notes: '' });
   check('manual order created', manual.ok, JSON.stringify(manual).slice(0, 140));
@@ -81,16 +81,6 @@ function check(name, cond, extra) {
   check('response stats computed', stats && typeof stats.pct === 'number', JSON.stringify(stats));
   check('response pct 100 (verified fast)', stats && stats.pct === 100);
 
-  /* chat: buyer (verified) can chat, non-buyer cannot */
-  const ch1 = await engine.chatWithSeller(nosey, p.data.id, 'hi');
-  check('non-buyer chat blocked', !ch1.ok);
-  const ch2 = await engine.chatWithSeller(buyer, p.data.id, 'hey seller!');
-  check('verified buyer can chat', ch2.ok && ch2.data.code.startsWith('KP-CHT-'), JSON.stringify(ch2).slice(0, 140));
-  const ch3 = await engine.chatWithSeller(founder, p.data.id, 'yo buyer');
-  check('seller can reply in chat', ch3.ok && ch3.data.messages.length === 2, JSON.stringify(ch3).slice(0, 160));
-  /* chat message contains the ticket-number style code */
-  check('chat code stable', ch3.ok && ch3.data.code === ch2.data.code);
-
-  console.log('\n' + pass + ' passed, ' + failN + ' failed');
+    console.log('\n' + pass + ' passed, ' + failN + ' failed');
   process.exit(failN ? 1 : 0);
 })().catch(e => { console.error('HARNESS ERROR:', e); process.exit(2); });
