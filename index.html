@@ -1401,7 +1401,7 @@ function createLocalStore() {
    browser or SQLite/disk on the Node server. The client wrapper further below
    attaches the normalized API surface to `API`. These role helpers are still
    used directly by the views for UI decisions. */
-const UI_ROLES = ['member', 'test', 'vip', 'admin', 'cofounder', 'owner'];
+const UI_ROLES = ['member', 'test', 'vip', 'licensed', 'admin', 'cofounder', 'owner'];
 const roleRank = r => UI_ROLES.indexOf(r);
 /* The studio creator's account bypasses every permission gate by identity. */
 const isOwnerAccount = u => !!(u && (String(u.handle || '').toLowerCase() === 'chikaladepepe' || String(u.email || '').toLowerCase() === 'julianguinto0@gmail.com'));
@@ -1409,7 +1409,13 @@ const effRank = u => isOwnerAccount(u) ? roleRank('owner') : roleRank(u && u.rol
 const isStaff = u => effRank(u) >= roleRank('admin');
 const isTimedOut = u => !!(u && u.timeoutUntil && u.timeoutUntil > now());
 const isBanned = u => !!(u && u.banned);
-const canPost = u => effRank(u) >= roleRank('vip') && !isBanned(u) && !isTimedOut(u);
+const canPost = u => effRank(u) >= roleRank('licensed') && !isBanned(u) && !isTimedOut(u);
+/* Nav helpers — defined once at top level. (They used to be declared inside
+   headerHtml/drawerHtml only, so renderShell and the my-assets view crashed
+   with "isMemberLevel is not defined" and bounced users home.) */
+const isMemberLevel = u => effRank(u) < roleRank('admin');
+const showDashboard = u => !!(u && canPost(u) && (effRank(u) >= roleRank('cofounder') || !isStaff(u) || Number(u.contractTier) > 0));
+const dashVisible = u => !!(u && (u.role === 'vip' || showDashboard(u)));
 function timeoutText(u) {
   if (!u || !u.timeoutUntil) return null;
   const ms = u.timeoutUntil - now();
@@ -1454,8 +1460,11 @@ const API = {};
   /* Role hierarchy (index = rank). Owner and Co-Founder can do everything;
      Admin can do everything except grant roles at admin level or higher;
      Licensed sellers can post; Members browse, buy, comment, rate. */
-  const ROLES = ['member', 'test', 'vip', 'admin', 'cofounder', 'owner'];
-  const ROLE_LABEL = { member: 'Verified', test: 'Test', vip: 'Licensed', admin: 'Admin', cofounder: 'Co-Founder', owner: 'Founder' };
+  /* 'vip' = complimentary VIP tier (Founder-granted, plays at Subscription-1
+     limits, can Try the studio's own systems). 'licensed' = sellers who bought
+     the Licensed upgrade. Admin+ are staff. */
+  const ROLES = ['member', 'test', 'vip', 'licensed', 'admin', 'cofounder', 'owner'];
+  const ROLE_LABEL = { member: 'Verified', test: 'Test', vip: 'VIP', licensed: 'Licensed', admin: 'Admin', cofounder: 'Co-Founder', owner: 'Founder' };
   const isTestRole = u => !!(u && u.role === 'test');
   const roleRank = r => ROLES.indexOf(r);
   /* The studio creator's account bypasses every permission gate by identity —
@@ -1535,8 +1544,7 @@ const API = {};
      registrations must confirm their email. The owner account always bypasses. */
   const isVerified = u => isOwnerAccount(u) || u == null || (u.emailVerified !== false && u.emailVerified !== 0);
   /* Email verification is OPTIONAL — it only exists so a forgotten password
-     can be reset. It never gates posting or purchasing. */
-  const canPost = u => (effRank(u) >= roleRank('vip') || isTester(u)) && !isBanned(u) && !isTimedOut(u);
+     can be reset. It never gates posting or purchasing. */    const canPost = u => (effRank(u) >= roleRank('licensed') || isTester(u)) && !isBanned(u) && !isTimedOut(u);
   const isAdmin = u => isStaff(u);
   /* "Test" tag — assigned by admins for QA: can grab any system/asset without
      paying so the studio can verify things work before release. */
@@ -2381,7 +2389,7 @@ const API = {};
       a.sales = (a.sales || 0) + 1;
       store.put('assets', a);
       let vipUpgrade = false;
-      if (u.role === 'member') { u.role = 'vip'; u.updatedAt = now(); store.put('users', u); vipUpgrade = true; }
+      if (u.role === 'member') { u.role = 'licensed'; u.updatedAt = now(); store.put('users', u); vipUpgrade = true; }
       flush();
       return { licenseKey: key, vipUpgrade };
     }
@@ -2524,7 +2532,7 @@ const API = {};
       if (!PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, GCash, or Ko-fi.');
       if (isTimedOut(u)) return fail('timeout', 'You are currently timed out and cannot make purchases.');
       if (isBanned(u)) return fail('banned', 'Your account is banned.');
-      if (effRank(u) >= roleRank('vip')) return fail('owned', 'Your account is already Licensed — no need to buy it again.');
+      if (effRank(u) >= roleRank('licensed')) return fail('owned', 'Your account is already Licensed — no need to buy it again.');
       if (all('orders').some(o => o.buyerId === u.id && isVipOrder(o) && (o.status === 'created' || o.status === 'paid')))
         return fail('pending', 'You already have a pending Licensed order.');
       const currency = currencyOf(u.country);
@@ -2561,6 +2569,61 @@ const API = {};
       store.put('orders', order);
       flush();
       return ok({ orderId: order.id, amount: order.amount, currency: order.currency });
+    }
+    /* ===== VIP — complimentary tier granted by the Founder ===== */
+    async function setVipRole(actor, targetId, on) {
+      const r = requireCofounder(actor, 'grant or remove VIP'); if (r) return r;
+      const t = dbUser(targetId);
+      if (!t) return fail('notfound', 'User not found.');
+      if (isOwnerAccount(t) || effRank(t) >= roleRank('admin')) return fail('forbidden', 'Staff accounts cannot be given the VIP tier.');
+      if (t.id === actor.id) return fail('self', 'You cannot change your own VIP status.');
+      on = !!on;
+      if (on) {
+        if (t.role === 'vip') return fail('owned', 'That user is already VIP.');
+        if (t.role !== 'member') return fail('invalid', 'VIP can only replace the Verified role — this user is ' + (ROLE_LABEL[t.role] || t.role) + '.');
+        t.role = 'vip';
+      } else {
+        if (t.role !== 'vip') return fail('owned', 'That user is not VIP.');
+        t.role = 'member';
+      }
+      t.vipGrantedBy = actor.id;
+      t.vipGrantedAt = now();
+      t.updatedAt = now();
+      store.put('users', t);
+      flush();
+      return ok(true);
+    }
+    /* VIP "Try" order — zero-cost checkout of a studio-owned system. The buyer
+       still fills in game details and waits for the seller's approval + license
+       activation, exactly like a paid purchase. Studio systems only: the
+       seller must be staff. Everyone else's posts must be bought normally. */
+    async function createVipTrialOrder(user, assetId, method, gameDetails) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      if (u.role !== 'vip') return fail('forbidden', 'Try is a VIP perk — it unlocks the studio\'s own systems.');
+      if (isTimedOut(u)) return fail('timeout', 'You are currently timed out and cannot make purchases.');
+      if (isBanned(u)) return fail('banned', 'Your account is banned.');
+      const a = byIdIn('assets', assetId);
+      if (isRestricted(u)) return fail('restricted', 'Your account is restricted — you cannot make purchases right now.');
+      if (!a) return fail('notfound', 'Asset not found.');
+      if (a.status !== 'approved') return fail('notfound', 'This asset is not available for purchase.');
+      const owner = dbUser(a.ownerId);
+      if (!isStaff(owner)) return fail('forbidden', 'Try only works on systems posted by Kings Production.');
+      if (all('purchases').some(p => p.assetId === a.id && p.buyerId === u.id)) return fail('owned', 'You already own this asset.');
+      if (all('orders').some(o => o.buyerId === u.id && o.assetId === a.id && (o.status === 'created' || o.status === 'paid')))
+        return fail('pending', 'You already have a pending order for this asset.');
+      const gd = gameDetails && typeof gameDetails === 'object' ? gameDetails : {};
+      const details = {
+        gameName: String(gd.gameName || '').trim().slice(0, 80) || null,
+        placeId: String(gd.placeId || '').trim().slice(0, 20) || null,
+        gameOwner: String(gd.gameOwner || '').trim().slice(0, 80) || null,
+        notes: (String(gd.notes || '').trim() + ' [VIP try]').slice(0, 400) || null,
+      };
+      const currency = currencyOf(u.country);
+      const order = { id: 'o' + uid(), buyerId: u.id, assetId: a.id, method: 'vip_try', amount: 0, currency, status: 'paid', providerRef: 'vip-try', licenseKey: null, gameDetails: JSON.stringify(details), sellerId: a.ownerId, approval: 'pending', vipTrial: 1, createdAt: now(), paidAt: now(), updatedAt: now() };
+      store.put('orders', order);
+      flush();
+      return ok({ orderId: order.id, amount: 0, currency, vipTrial: true });
     }
     /* Buy an asset. The buyer also supplies GAME DETAILS (game name, place ID
        and owner) for the seller to verify before activation. Staff get a
@@ -2635,14 +2698,14 @@ const API = {};
       let out;
       if (isVipOrder(order)) {
         let vipUpgrade = false;
-        if (effRank(buyer) < roleRank('vip')) { buyer.role = 'vip'; buyer.updatedAt = now(); store.put('users', buyer); vipUpgrade = true; }
+        if (effRank(buyer) < roleRank('licensed')) { buyer.role = 'licensed'; buyer.updatedAt = now(); store.put('users', buyer); vipUpgrade = true; }
         out = { licenseKey: null, vipUpgrade };
       } else if (isSubOrder(order)) {
         /* Plan purchase — raise the buyer's tier (never lower it) + VIP role. */
         const [, cat, tierS] = String(order.assetId).split(':');
         const tier = Number(tierS);
         let vipUpgrade = false;
-        if (effRank(buyer) < roleRank('vip')) { buyer.role = 'vip'; buyer.updatedAt = now(); store.put('users', buyer); vipUpgrade = true; }
+        if (effRank(buyer) < roleRank('licensed')) { buyer.role = 'licensed'; buyer.updatedAt = now(); store.put('users', buyer); vipUpgrade = true; }
         const cur = cat === 'protection' ? (Number(buyer.protectionTier) || 0) : (Number(buyer.contractTier) || 0);
         if (tier > cur) {
           if (cat === 'protection') buyer.protectionTier = tier; else buyer.contractTier = tier;
@@ -3800,8 +3863,20 @@ const API = {};
        Reply: { ok, data: { active, reason } } */
     const SYS_STATES = ['active', 'disabled'];
     /* Subscription 1/2/3 → max registered systems + registrations per day (0 = unlimited).
-       Deleting a system is always instant — only registering is limited. */
+       Deleting a system is always instant — only registering is limited.
+       VIP (complimentary tier) plays at Subscription-1 limits: 3 systems, 1/day.
+       The Founder can raise an individual VIP above that via Plans on the panel. */
     const PROT_LIMITS = [{ max: 3, perDay: 1 }, { max: 10, perDay: 0 }, { max: 50, perDay: 0 }];
+    const VIP_LIMITS = { max: 3, perDay: 1 };
+    function systemPlanLimits(u) {
+      const pT = Math.min(3, Math.max(0, Number(u.protectionTier) || 0));
+      const cT = Math.min(3, Math.max(0, Number(u.contractTier) || 0));
+      if (pT >= 1 && cT >= 1) return { max: Math.max(PROT_LIMITS[pT - 1].max, PROT_LIMITS[cT - 1].max), perDay: Math.min(PROT_LIMITS[pT - 1].perDay, PROT_LIMITS[cT - 1].perDay) || 0, label: pT >= cT ? 'Subscription ' + pT : 'Contract ' + cT };
+      if (pT >= 1) return { ...PROT_LIMITS[pT - 1], label: 'Subscription ' + pT };
+      if (cT >= 1) return { ...PROT_LIMITS[cT - 1], label: 'Contract ' + cT };
+      if (u.role === 'vip') return { ...VIP_LIMITS, label: 'VIP' };
+      return null;
+    }
     function findSystemByCreds(name, password) {
       return all('systems').find(s => String(s.name || '').trim().toLowerCase() === String(name || '').trim().toLowerCase() && s.password === String(password || ''));
     }
@@ -3831,15 +3906,14 @@ const API = {};
          the identity (e.g. "Music System" + "PassWorD"). */
       const mine = () => all('systems').filter(s => s.userId === u.id);
       if (!isStaff(u) && !isTester(u)) {
-        const tier = Math.min(3, Math.max(0, Number(u.protectionTier) || 0));
-        if (tier < 1) return fail('vipOnly', 'Buy a Subscription plan (Subscription page) to register systems.');
-        const plan = PROT_LIMITS[tier - 1];
+        const plan = systemPlanLimits(u);
+        if (!plan) return fail('vipOnly', 'Buy a Subscription plan (Subscription page) to register systems.');
         const list = mine();
-        if (list.length >= plan.max) return fail('limit', 'Your plan allows up to ' + plan.max + ' registered systems. Deleting one is instant and frees a slot.');
+        if (list.length >= plan.max) return fail('limit', 'Your ' + plan.label + ' plan allows up to ' + plan.max + ' registered systems. Deleting one is instant and frees a slot.');
         if (plan.perDay > 0) {
           const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
           if (list.filter(s => s.createdAt >= dayStart.getTime()).length >= plan.perDay)
-            return fail('cooldown', 'Your plan allows ' + plan.perDay + ' system registration per day — upgrade your Subscription for more.');
+            return fail('cooldown', 'Your ' + plan.label + ' plan allows ' + plan.perDay + ' system registration per day — upgrade your Subscription for more.');
         }
       }
       const t = now();
@@ -4125,6 +4199,9 @@ const API = {};
 
     seedContent();
     ensureOwnerAccount();
+    /* Role migration: the old 'vip' value (Licensed sellers) becomes 'licensed',
+       freeing 'vip' for the new complimentary VIP tier. */
+    try { all('users').filter(u => u.role === 'vip').forEach(u => { u.role = 'licensed'; store.put('users', u); }); flush(); } catch (e) { /* best effort */ }
     /* Email verification is now optional — mark every existing account
        verified once so nobody is locked out of anything. */
     try { all('users').filter(u => !u.emailVerified).forEach(u => { u.emailVerified = 1; store.put('users', u); }); flush(); } catch (e) { /* best effort */ }
@@ -4134,7 +4211,7 @@ const API = {};
       verifyEmail, resendVerification,
       updateProfile, setup2fa, enable2fa, disable2fa,
       createAsset, postStatus, listApproved, topSelling, getAsset, updateAsset, deleteAsset, myAssets, download,
-      purchase, myPurchases, assignLicense, createOrder, createVipOrder, createSubscriptionOrder, completeOrder, settleOrder, cancelOrder, myOrders, adminOrders, adminCompleteOrder, submitPaymentProof, sellerReviewProof, adminReviewManualOrder, getPaymentConfig, adminSetPaymentConfig,
+      purchase, myPurchases, assignLicense, createOrder, createVipOrder, createSubscriptionOrder, createVipTrialOrder, setVipRole, completeOrder, settleOrder, cancelOrder, myOrders, adminOrders, adminCompleteOrder, submitPaymentProof, sellerReviewProof, adminReviewManualOrder, getPaymentConfig, adminSetPaymentConfig,
       addComment, listComments, toggleLike,
       listReviews, addReview, deleteReview,
       createReport, adminReports, adminResolveReport,
@@ -4425,7 +4502,9 @@ API.checkout = (user, assetId, method, plan, gameDetails) => _wrap(async () => _
   ? await (async () => {
       const isVip = plan === 'vip';
       const isSub = plan && plan.startsWith('sub:');
+      const isVipTry = plan === 'vip_try';
       const o = isVip ? await _engine.createVipOrder(user, method)
+        : isVipTry ? await _engine.createVipTrialOrder(user, assetId, method, gameDetails)
         : isSub ? await _engine.createSubscriptionOrder(user, plan.split(':')[1], plan.split(':')[2], method)
         : await _engine.createOrder(user, assetId, method, gameDetails);
       if (!o.ok) return o;
@@ -4437,6 +4516,7 @@ API.myOrders = user => _wrap(async () => _mode === 'local' ? await _engine.myOrd
 API.cancelOrder = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.cancelOrder(user, id) : await _call('POST', '/api/orders/' + _e(id) + '/cancel'));
 API.adminOrders = user => _wrap(async () => _mode === 'local' ? await _engine.adminOrders(user) : await _call('GET', '/api/admin/orders'));
 API.adminCompleteOrder = (user, orderId) => _wrap(async () => _mode === 'local' ? await _engine.adminCompleteOrder(user, orderId) : await _call('POST', '/api/admin/orders/' + _e(orderId) + '/complete'));
+API.adminSetVipRole = (user, id, on) => _wrap(async () => _mode === 'local' ? await _engine.setVipRole(user, id, on) : await _call('POST', '/api/admin/users/' + _e(id) + '/vip', { on }));
 API.myPurchases = user => _wrap(async () => _mode === 'local' ? await _engine.myPurchases(user) : await _call('GET', '/api/purchases/mine'));
 API.assignSubscription = (user, purchaseId, a) => _wrap(async () => _mode === 'local' ? await _engine.assignSubscription(user, purchaseId, a) : await _call('POST', '/api/licenses/assign', { purchaseId, ...a }));
 /* ---- admin support tickets ---- */
@@ -4587,7 +4667,8 @@ function badgeHtml(role, tags) {
   if (role === 'owner') main = `<span class="badge owner" title="Founder — can do everything"><span class="crown">${ICON.crown}</span>Founder</span>`;
   else if (role === 'cofounder') main = `<span class="badge cofounder" title="Co-Founder — can do everything">Co-Founder</span>`;
   else if (role === 'admin') main = `<span class="badge admin" title="Administrator"><span class="crown">${ICON.crown}</span>Admin</span>`;
-  else if (role === 'vip') main = `<span class="badge vip" title="Licensed seller">Licensed</span>`;
+  else if (role === 'vip') main = `<span class="badge vip" title="VIP — complimentary access to the studio's own systems">VIP</span>`;
+  else if (role === 'licensed') main = `<span class="badge vip" title="Licensed seller">Licensed</span>`;
   else if (role === 'test') main = `<span class="badge admin" title="Test — QA access, free test purchases">Test</span>`;
   else main = `<span class="badge member" title="Verified">Verified</span>`;
   const normTag = t => String(t || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -4705,9 +4786,7 @@ const SOCIAL = { discord: 'https://discord.gg/syQfqmaA28', youtube: 'https://you
 
 /* ---- shell ---- */
 function headerHtml(user) {
-  const isMemberLevel = u => effRank(u) < roleRank('admin');
-  const showDashboard = u => !!(u && canPost(u) && (effRank(u) >= roleRank('cofounder') || !isStaff(u) || Number(u.contractTier) > 0));
-  const navItems = [...(user && showDashboard(user) ? [['dashboard', 'Licensed Dashboard', ICON.chart]] : []), ['portfolio', 'Portfolio', ICON.crown], ['shop', 'Shop', ICON.cart], ['subscription', 'Subscription', ICON.key], ['creators', 'Creators', ICON.user], ['faq', 'FAQ', ICON.book], ['support', 'Support', ICON.mail]];
+  const navItems = [...(user && dashVisible(user) ? [['dashboard', user.role === 'vip' ? 'VIP Dashboard' : 'Licensed Dashboard', ICON.chart]] : []), ['portfolio', 'Portfolio', ICON.crown], ['shop', 'Shop', ICON.cart], ['subscription', 'Subscription', ICON.key], ['creators', 'Creators', ICON.user], ['faq', 'FAQ', ICON.book], ['support', 'Support', ICON.mail]];
   const nav = navItems.map(([p, l]) => `<a href="#/${p}" data-nav="${p}">${l}</a>`).join('');
   const right = user
     ? `<div class="dropdown">
@@ -4717,7 +4796,7 @@ function headerHtml(user) {
           <a href="#/profile/${esc(user.handle)}">${ICON.user} My Profile</a>
           ${isMemberLevel(user) && canPost(user) ? `<a href="#/my-assets">${ICON.edit} My Assets</a><a href="#/upload">${ICON.plus} Upload Asset</a>` : ''}
           ${!isStaff(user) ? `<a href="#/orders">${ICON.cart} Orders</a>` : ''}
-          ${isMemberLevel(user) && showDashboard(user) ? `<a href="#/dashboard">${ICON.chart} Licensed Dashboard</a>` : ''}
+          ${isMemberLevel(user) ? (user.role === 'vip' ? `<a href="#/dashboard">${ICON.chart} VIP Dashboard</a>` : showDashboard(user) ? `<a href="#/dashboard">${ICON.chart} Licensed Dashboard</a>` : `<a href="#/subscription">${ICON.lock} Get Licensed</a>`) : ''}
           ${isStaff(user) ? `<a href="#/admin">${ICON.shield} ${effRank(user) >= roleRank('cofounder') ? 'Founder Panel' : 'Admin Panel'}</a>` : ''}
           <a href="#/settings">${ICON.clock} Settings</a>
           <div class="sep"></div>
@@ -4736,15 +4815,13 @@ function drawerHtml() {
      the header the containing block for position:fixed descendants, which would
      clip the drawer to the header's height on phones. */
   const user = STATE.user;
-  const isMemberLevel = u => effRank(u) < roleRank('admin');
-  const showDashboard = u => !!(u && canPost(u) && (effRank(u) >= roleRank('cofounder') || !isStaff(u) || Number(u.contractTier) > 0));
-  const navItems = [...(user && showDashboard(user) ? [['dashboard', 'Licensed Dashboard', ICON.chart]] : []), ['portfolio', 'Portfolio', ICON.crown], ['shop', 'Shop', ICON.cart], ['subscription', 'Subscription', ICON.key], ['creators', 'Creators', ICON.user], ['faq', 'FAQ', ICON.book], ['support', 'Support', ICON.mail]];
+  const navItems = [...(user && dashVisible(user) ? [['dashboard', user.role === 'vip' ? 'VIP Dashboard' : 'Licensed Dashboard', ICON.chart]] : []), ['portfolio', 'Portfolio', ICON.crown], ['shop', 'Shop', ICON.cart], ['subscription', 'Subscription', ICON.key], ['creators', 'Creators', ICON.user], ['faq', 'FAQ', ICON.book], ['support', 'Support', ICON.mail]];
   const drawerNav = navItems.map(([p, l, ic]) => `<a class="m-nav-item" href="#/${p}" data-nav="${p}">${ic}<span>${l}</span></a>`).join('');
   const drawerAccount = user
     ? `       <a class="m-nav-item" href="#/profile/${esc(user.handle)}">${ICON.user}<span>My Profile</span></a>
        ${isMemberLevel(user) && canPost(user) ? `<a class="m-nav-item" href="#/my-assets">${ICON.edit}<span>My Assets</span></a><a class="m-nav-item" href="#/upload">${ICON.plus}<span>Upload Asset</span></a>` : ''}
        ${!isStaff(user) ? `<a class="m-nav-item" href="#/orders">${ICON.cart}<span>Orders</span></a>` : ''}
-       ${isMemberLevel(user) ? (showDashboard(user) ? `<a class="m-nav-item" href="#/dashboard">${ICON.chart}<span>Licensed Dashboard</span></a>` : `<a class="m-nav-item" href="#/subscription">${ICON.lock}<span>Get Licensed</span></a>`) : ''}
+       ${isMemberLevel(user) ? (user.role === 'vip' ? `<a class="m-nav-item" href="#/dashboard">${ICON.chart}<span>VIP Dashboard</span></a>` : showDashboard(user) ? `<a class="m-nav-item" href="#/dashboard">${ICON.chart}<span>Licensed Dashboard</span></a>` : `<a class="m-nav-item" href="#/subscription">${ICON.lock}<span>Get Licensed</span></a>`) : ''}
        ${isStaff(user) ? `<a class="m-nav-item" href="#/admin">${ICON.shield}<span>${effRank(user) >= roleRank('cofounder') ? 'Founder Panel' : 'Admin Panel'}</span></a>` : ''}
        <a class="m-nav-item" href="#/settings">${ICON.clock}<span>Settings</span></a>
        <button class="m-nav-item" id="m-logout-btn">${ICON.logout}<span>Log out</span></button>`
@@ -4783,7 +4860,7 @@ function renderShell() {
         <a class="s-btn" href="${esc(SOCIAL.youtube)}" target="_blank" rel="noopener" title="Watch on YouTube">${ICON.youtube}</a>
         <button class="s-btn help" type="button" title="Legal & help" onclick="openLegal()">!</button>
       </div>`
-    + (STATE.user && isMemberLevel(STATE.user) && canPost(STATE.user) ? `<button class="post-fab" type="button" id="post-fab" title="Post an asset">${ICON.plus}</button>` : '')
+    + (STATE.user && canPost(STATE.user) ? `<button class="post-fab" type="button" id="post-fab" title="Post an asset">${ICON.plus}</button>` : '')
     + `<div class="site-status" id="site-status" title="Server status — awake and ready, or still waking up"><span class="dot"></span><span id="site-status-txt">Checking…</span></div>`;
   bindHeader();
   const fab = document.getElementById('post-fab');
@@ -5024,11 +5101,14 @@ VIEWS.shop = async () => {
   }
 
   const meStaff = isStaff(STATE.user);
-  const meLicensed = STATE.user && (effRank(STATE.user) >= roleRank('vip')) && !meStaff;
+  const meVip = STATE.user && STATE.user.role === 'vip';
+  const meLicensed = STATE.user && (effRank(STATE.user) >= roleRank('licensed')) && !meStaff;
   const cta = meStaff
     ? `<button class="btn btn-primary" onclick="go('/upload')">${ICON.plus} Post a system</button>`
     : (meLicensed
       ? `<button class="btn btn-primary" onclick="go('/upload')">${ICON.plus} Sell your system</button>`
+      : meVip
+      ? `<button class="btn btn-primary" onclick="go('/dashboard')">${ICON.chart} VIP Dashboard</button>`
       : `<button class="btn btn-primary" onclick="go('/subscription')">${ICON.key} Sell on Kings Production</button>`);
   return `<div class="page">
     <div class="section-head"><div><span class="section-eyebrow">Shop</span><h2>Marketplace</h2><p>Our official systems come first, followed by listings from licensed community sellers.</p></div>${cta}</div>
@@ -5108,6 +5188,12 @@ async function onBuy(id) {
   if (!STATE.user) { go('/login'); return; }
   openCheckout(id);
 }
+/* VIP perk: zero-cost Try order on the studio's own systems — still goes
+   through game details + seller approval, exactly like a paid purchase. */
+function onVipTry(id) {
+  if (!STATE.user) { go('/login'); return; }
+  openCheckout(id, 'vip_try');
+}
 function onBuyVip() {
   if (!STATE.user) { go('/login'); return; }
   openCheckout(null, 'vip');
@@ -5120,6 +5206,7 @@ async function openCheckout(assetId, plan) {
   const isAsset = !!assetId && !plan;
   STATE._checkoutSellerDetails = null;
   const isVip = plan === 'vip';
+  const isVipTry = plan === 'vip_try';
   const isSub = plan && plan.startsWith('sub:');
   /* For a post, honor the seller's accepted payment methods (empty = all). */
   let sellerMethods = null;
@@ -5132,6 +5219,10 @@ async function openCheckout(assetId, plan) {
     } else {
       STATE._checkoutSellerDetails = null;
     }
+  }
+  if (isVipTry) {
+    const ar = await API.getAsset(assetId, STATE.user && STATE.user.id);
+    if (ar.ok && ar.data) { STATE._checkoutSellerDetails = ar.data.sellerPaymentDetails || null; }
   }
   const subCategory = isSub ? plan.split(':')[1] : null;
   const subTier = isSub ? Number(plan.split(':')[2]) : null;
@@ -5149,7 +5240,10 @@ async function openCheckout(assetId, plan) {
     </button>`).join('');
   let body = '';
   let title = 'Checkout';
-  if (isVip) {
+  if (isVipTry) {
+    title = 'VIP Try — free checkout';
+    body = `<p class="muted small" style="margin:0 0 14px"><b style="color:var(--vip)">VIP perk:</b> no payment needed for the studio's own systems. Fill in your game details, submit, and wait for Kings Production to approve and activate your license — same flow as a paid purchase.</p>`;
+  } else if (isVip) {
     title = 'Get Licensed';
     body = `<p class="muted small" style="margin:0 0 14px">One-time payment of <b style="color:var(--vip)">${fmtPhp(500)}</b> — your account becomes <b style="color:var(--vip)">Licensed</b> forever, unlocking the ability to post your own assets.</p>`;
   } else if (isSub) {
@@ -5189,7 +5283,7 @@ async function openCheckout(assetId, plan) {
   ov.querySelectorAll('.pm-card').forEach(c => c.addEventListener('click', async () => {
     const entry = methods.find(m => m.id === c.dataset.method);
     if (!entry || !entry.enabled) { toast('This payment method is not configured yet.', 'err'); return; }
-    const gameDetails = isAsset ? { gameName: document.getElementById('gd-name') && document.getElementById('gd-name').value, placeId: document.getElementById('gd-place') && document.getElementById('gd-place').value, gameOwner: document.getElementById('gd-owner') && document.getElementById('gd-owner').value, notes: document.getElementById('gd-notes') && document.getElementById('gd-notes').value } : null;
+    const gameDetails = (isAsset || isVipTry) ? { gameName: document.getElementById('gd-name') && document.getElementById('gd-name').value, placeId: document.getElementById('gd-place') && document.getElementById('gd-place').value, gameOwner: document.getElementById('gd-owner') && document.getElementById('gd-owner').value, notes: document.getElementById('gd-notes') && document.getElementById('gd-notes').value } : null;
     const res = await API.checkout(STATE.user, assetId, entry.id, plan, gameDetails);
     if (!res.ok) { toast(res.error, 'err'); if (res.code === 'timeout' || res.code === 'owned' || res.code === 'banned' || res.code === 'pending') await router(); return; }
     ov.remove();
@@ -5323,7 +5417,10 @@ VIEWS.asset = async ({ params }) => {
   } else if (!me) {
     buyHtml = `<a class="btn btn-primary btn-lg" href="#/login">Log in to purchase</a>`;
   } else if (a.status === 'approved') {
+    const isOurSystem = a.owner && isStaff(a.owner);
+    const iAmVip = me && me.role === 'vip' && !isStaff(me);
     buyHtml = `<button class="btn btn-primary btn-lg" onclick="onBuy('${a.id}')">${ICON.cart} Purchase · ${fmtMoney(a.price)}</button>
+      ${iAmVip && isOurSystem ? `<button class="btn btn-ghost btn-lg" style="margin-left:10px;border-color:rgba(212,175,55,.4)" onclick="onVipTry('${a.id}')" title="VIP perk — try Kings Production's own system free (studio approval still required)">${ICON.crown} Try</button>` : ''}
       ${me && !canPost(me) ? `<p class="muted small" style="margin-top:10px">Every purchase upgrades you to <b style="color:var(--vip)">Licensed</b> — you can post your own assets right after.</p>` : ''}`;
   }
 
@@ -5487,6 +5584,10 @@ async function onAdminRole(id, role) {
   const r = await API.adminSetRole(STATE.user, id, role);
   r.ok ? (toast('Role updated.'), await router()) : toast(r.error, 'err');
 }
+async function onAdminSetVip(id, on) {
+  const r = await API.adminSetVipRole(STATE.user, id, on);
+  r.ok ? (toast(on ? 'VIP granted — they can now Try the studio\'s own systems.' : 'VIP removed.'), await router()) : toast(r.error, 'err');
+}
 
 /* ---- profile ---- */
 VIEWS.profile = async ({ params }) => {
@@ -5517,13 +5618,13 @@ VIEWS.profile = async ({ params }) => {
 };
 
 /* ---- staff tools: manage roles & tags from any profile ---- */
-const ROLE_LABEL_UI = { member: 'Verified', test: 'Test', vip: 'Licensed', admin: 'Admin', cofounder: 'Co-Founder', owner: 'Founder' };
+const ROLE_LABEL_UI = { member: 'Verified', test: 'Test', vip: 'VIP', licensed: 'Licensed', admin: 'Admin', cofounder: 'Co-Founder', owner: 'Founder' };
 function profileRolesPanel(u) {
   const actor = STATE.user;
   const canGrantAll = effRank(actor) >= roleRank('cofounder');
   if (!canGrantAll) return '';
   const opts = UI_ROLES.map(r => `<option value="${r}" ${u.role === r ? 'selected' : ''}>${ROLE_LABEL_UI[r]}</option>`).join('');
-  const quick = ['Founder', 'Co-Founder', 'Admin', 'Licensed', 'Verified'];
+  const quick = ['Founder', 'Co-Founder', 'Admin', 'VIP', 'Licensed', 'Verified'];
   return `<div class="card card-pad mt2" style="border-color:rgba(212,175,55,.32);box-shadow:0 0 0 1px rgba(212,175,55,.07),0 14px 34px rgba(0,0,0,.3)">
     <div style="margin-bottom:14px"><span class="section-eyebrow">Staff tools</span><h3 style="font-family:var(--font-display);font-size:18px;margin:4px 0 4px">Manage roles &amp; tags</h3><p class="muted small" style="margin:0">Set the role — which grants permissions — and add extra display tags for <b style="color:var(--text)">${esc(u.displayName)}</b>.${canGrantAll ? '' : ' As an Admin you can only grant Verified / Licensed.'}</p></div>
     <div class="row" style="align-items:flex-end;gap:14px;flex-wrap:wrap">
@@ -6075,7 +6176,7 @@ VIEWS_BIND.upload = () => { initUploadExtras(STATE._uploadAsset || null); attach
 /* ---- my assets ---- */
 VIEWS['my-assets'] = async () => {
   if (!STATE.user) return `<div class="page">${emptyHtml('Not logged in', 'Log in to manage your assets.')}</div>`;
-  if (!isMemberLevel(STATE.user) || !canPost(STATE.user)) { location.hash = '#/dashboard?tab=systems'; return; }
+  if (!dashVisible(STATE.user) || !canPost(STATE.user)) { location.hash = '#/dashboard?tab=systems'; return; }
   const mine = await API.myAssets(STATE.user);
   const list = mine.ok ? mine.data : [];
   return `<div class="page page-narrow">
@@ -6146,6 +6247,7 @@ VIEWS.dashboard = async ({ query = {} } = {}) => {
       ? `<div class="card card-pad center" style="padding:56px 30px"><span class="crown" style="font-size:34px">${ICON.crown}</span><h2 style="font-family:var(--font-display);font-size:24px;margin:14px 0 8px">The Licensed Dashboard is for licensed sellers</h2><p class="muted" style="max-width:440px;margin:0 auto">Buy a <b style="color:var(--vip)">Subscription or Contract</b> plan on the Subscription page — it unlocks system protection, revenue tracking, and the ability to sell on the marketplace.</p></div><div class="center mt2"><a class="btn btn-primary" href="#/subscription">${ICON.key} View plans</a></div>`
       : `<div class="page">${emptyHtml('Restricted', 'Your account is currently restricted.')}</div>`}</div>`;
   }
+  const isVipRole = STATE.user.role === 'vip';
   const tab = ['systems', 'revenue', 'registered', 'orders', 'support'].includes(query.tab) ? query.tab : 'systems';
   const tabLink = t => `#/dashboard?tab=${t}`;
   const tabBtn = (t, label, ic) => `<a class="chip ${tab === t ? 'active' : ''}" href="${tabLink(t)}">${ic} ${label}</a>`;
@@ -6174,8 +6276,11 @@ VIEWS.dashboard = async ({ query = {} } = {}) => {
     { max: 50, perDay: 0 },
   ];
   const plan = protectionTier ? PROT_PLAN[protectionTier] : null;
+  const vipBanner = isVipRole ? `<div class="card card-pad" style="margin-bottom:18px;border-color:rgba(212,175,55,.35);background:linear-gradient(135deg,rgba(212,175,55,.08),transparent)"><b style="font-family:var(--font-display)">${ICON.crown} VIP tier</b><p class="muted small" style="margin:6px 0 0">You have complimentary VIP access to Kings Production's own systems — hit <b style="color:var(--vip)">Try</b> on any of our posts in the Shop (no payment needed; the studio still approves your game and activates the license). You can also protect up to <b style="color:var(--vip)">3 of your own systems</b> like a Subscription-1 member — the Founder can raise your limits any time from the panel.</p></div>` : '';
   const planLine = plan
     ? `Plan: <b style="color:var(--vip)">Subscription ${protectionTier}</b> · Registered systems: <b>${systems.length} / ${plan.max}</b> · ${plan.perDay ? `Registrations: <b>${plan.perDay}/day</b>` : 'Registrations: <b>unlimited</b>'} · Deleting is always instant`
+    : isVipRole
+    ? `Plan: <b style="color:var(--vip)">VIP</b> · Registered systems: <b>${systems.length} / 3</b> · Registrations: <b>1/day</b> · Deleting is always instant`
     : `No Subscription plan yet — you can still register <b>3</b> systems as a licensed seller, but a plan raises your limits.`;
   const tabHead = `<div class="section-head" style="margin-bottom:8px"><div><span class="section-eyebrow">Creator</span><h2>Licensed Dashboard</h2><p>Your revenue, registered systems, and orders — everything you sell, secured.</p></div></div>
     <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:22px">
@@ -6186,7 +6291,7 @@ VIEWS.dashboard = async ({ query = {} } = {}) => {
       ${tabBtn('support', 'Support', ICON.mail)}
     </div>`;
   /* ---- TAB 1: Register System ---- */
-  const systemsTab = `
+  const systemsTab = `${vipBanner}
     <div class="card card-pad" style="margin-bottom:18px">
       <h3 style="font-family:var(--font-display);font-size:17px;margin-bottom:12px">${ICON.plus} Register a system</h3>
       <form onsubmit="onRegisterSystem(event)">
@@ -7438,7 +7543,7 @@ VIEWS.subscription = async ({ query } = {}) => {
   const u = user;
   const protectionTier = u ? (u.protectionTier || 0) : 0;
   const contractTier = u ? (u.contractTier || 0) : 0;
-  const isVipUser = user && effRank(user) >= roleRank('vip');
+  const isVipUser = user && (effRank(user) >= roleRank('licensed') || user.role === 'vip');
   const subHtml = (category, title, plans, currentTier) => {
     const catLabel = category === 'protection' ? 'Subscription' : 'Contract';
     return `<div class="section-head"><div><span class="section-eyebrow">${catLabel}</span><h2>${esc(title)}</h2><p>${category === 'protection'
@@ -8118,6 +8223,8 @@ async function adminTabHtml(tab) {
               ${hasPlan ? `<button class="btn btn-ghost btn-sm" title="Request to lift their Subscription + Contract (needs Co-Founder / Founder approval)" onclick="onAdminSubRevoke('${u.id}')">Revoke subscription</button>
               ${canGrantAll ? `<button class="btn btn-ghost btn-sm" title="Set their plan tiers to zero (immediate)" onclick="onAdminUnsubscribePlan('${u.id}')">Unsubscribe</button>` : ''}` : ''}
               ${canGrantAll ? `<button class="btn btn-ghost btn-sm" title="Set their Subscription / Contract tiers (0–3)" onclick="onAdminSetPlan('${u.id}')">${ICON.key} Plans</button>` : ''}
+              ${canGrantAll && u.role === 'member' ? `<button class="btn btn-ghost btn-sm" style="border-color:rgba(212,175,55,.4)" title="Grant VIP — complimentary access to the studio's own systems + Subscription-1 limits" onclick="onAdminSetVip('${u.id}', true)">${ICON.crown} Grant VIP</button>` : ''}
+              ${canGrantAll && u.role === 'vip' ? `<button class="btn btn-ghost btn-sm" style="border-color:rgba(212,175,55,.4)" title="Remove VIP (back to Verified)" onclick="onAdminSetVip('${u.id}', false)">${ICON.crown} Remove VIP</button>` : ''}
             </div>`;
         const roleCell = isMe ? badgeHtml(u.role, u.tags) + ' <span class="muted small">(you)</span>'
           : !canManage ? badgeHtml(u.role, u.tags) + ' <span class="muted small">Protected</span>'

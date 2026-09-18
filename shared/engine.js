@@ -31,8 +31,11 @@
   /* Role hierarchy (index = rank). Owner and Co-Founder can do everything;
      Admin can do everything except grant roles at admin level or higher;
      Licensed sellers can post; Members browse, buy, comment, rate. */
-  const ROLES = ['member', 'test', 'vip', 'admin', 'cofounder', 'owner'];
-  const ROLE_LABEL = { member: 'Verified', test: 'Test', vip: 'Licensed', admin: 'Admin', cofounder: 'Co-Founder', owner: 'Founder' };
+  /* 'vip' = complimentary VIP tier (Founder-granted, plays at Subscription-1
+     limits, can Try the studio's own systems). 'licensed' = sellers who bought
+     the Licensed upgrade. Admin+ are staff. */
+  const ROLES = ['member', 'test', 'vip', 'licensed', 'admin', 'cofounder', 'owner'];
+  const ROLE_LABEL = { member: 'Verified', test: 'Test', vip: 'VIP', licensed: 'Licensed', admin: 'Admin', cofounder: 'Co-Founder', owner: 'Founder' };
   const isTestRole = u => !!(u && u.role === 'test');
   const roleRank = r => ROLES.indexOf(r);
   /* The studio creator's account bypasses every permission gate by identity —
@@ -112,8 +115,7 @@
      registrations must confirm their email. The owner account always bypasses. */
   const isVerified = u => isOwnerAccount(u) || u == null || (u.emailVerified !== false && u.emailVerified !== 0);
   /* Email verification is OPTIONAL — it only exists so a forgotten password
-     can be reset. It never gates posting or purchasing. */
-  const canPost = u => (effRank(u) >= roleRank('vip') || isTester(u)) && !isBanned(u) && !isTimedOut(u);
+     can be reset. It never gates posting or purchasing. */    const canPost = u => (effRank(u) >= roleRank('licensed') || isTester(u)) && !isBanned(u) && !isTimedOut(u);
   const isAdmin = u => isStaff(u);
   /* "Test" tag — assigned by admins for QA: can grab any system/asset without
      paying so the studio can verify things work before release. */
@@ -958,7 +960,7 @@
       a.sales = (a.sales || 0) + 1;
       store.put('assets', a);
       let vipUpgrade = false;
-      if (u.role === 'member') { u.role = 'vip'; u.updatedAt = now(); store.put('users', u); vipUpgrade = true; }
+      if (u.role === 'member') { u.role = 'licensed'; u.updatedAt = now(); store.put('users', u); vipUpgrade = true; }
       flush();
       return { licenseKey: key, vipUpgrade };
     }
@@ -1101,7 +1103,7 @@
       if (!PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, GCash, or Ko-fi.');
       if (isTimedOut(u)) return fail('timeout', 'You are currently timed out and cannot make purchases.');
       if (isBanned(u)) return fail('banned', 'Your account is banned.');
-      if (effRank(u) >= roleRank('vip')) return fail('owned', 'Your account is already Licensed — no need to buy it again.');
+      if (effRank(u) >= roleRank('licensed')) return fail('owned', 'Your account is already Licensed — no need to buy it again.');
       if (all('orders').some(o => o.buyerId === u.id && isVipOrder(o) && (o.status === 'created' || o.status === 'paid')))
         return fail('pending', 'You already have a pending Licensed order.');
       const currency = currencyOf(u.country);
@@ -1138,6 +1140,61 @@
       store.put('orders', order);
       flush();
       return ok({ orderId: order.id, amount: order.amount, currency: order.currency });
+    }
+    /* ===== VIP — complimentary tier granted by the Founder ===== */
+    async function setVipRole(actor, targetId, on) {
+      const r = requireCofounder(actor, 'grant or remove VIP'); if (r) return r;
+      const t = dbUser(targetId);
+      if (!t) return fail('notfound', 'User not found.');
+      if (isOwnerAccount(t) || effRank(t) >= roleRank('admin')) return fail('forbidden', 'Staff accounts cannot be given the VIP tier.');
+      if (t.id === actor.id) return fail('self', 'You cannot change your own VIP status.');
+      on = !!on;
+      if (on) {
+        if (t.role === 'vip') return fail('owned', 'That user is already VIP.');
+        if (t.role !== 'member') return fail('invalid', 'VIP can only replace the Verified role — this user is ' + (ROLE_LABEL[t.role] || t.role) + '.');
+        t.role = 'vip';
+      } else {
+        if (t.role !== 'vip') return fail('owned', 'That user is not VIP.');
+        t.role = 'member';
+      }
+      t.vipGrantedBy = actor.id;
+      t.vipGrantedAt = now();
+      t.updatedAt = now();
+      store.put('users', t);
+      flush();
+      return ok(true);
+    }
+    /* VIP "Try" order — zero-cost checkout of a studio-owned system. The buyer
+       still fills in game details and waits for the seller's approval + license
+       activation, exactly like a paid purchase. Studio systems only: the
+       seller must be staff. Everyone else's posts must be bought normally. */
+    async function createVipTrialOrder(user, assetId, method, gameDetails) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      if (u.role !== 'vip') return fail('forbidden', 'Try is a VIP perk — it unlocks the studio\'s own systems.');
+      if (isTimedOut(u)) return fail('timeout', 'You are currently timed out and cannot make purchases.');
+      if (isBanned(u)) return fail('banned', 'Your account is banned.');
+      const a = byIdIn('assets', assetId);
+      if (isRestricted(u)) return fail('restricted', 'Your account is restricted — you cannot make purchases right now.');
+      if (!a) return fail('notfound', 'Asset not found.');
+      if (a.status !== 'approved') return fail('notfound', 'This asset is not available for purchase.');
+      const owner = dbUser(a.ownerId);
+      if (!isStaff(owner)) return fail('forbidden', 'Try only works on systems posted by Kings Production.');
+      if (all('purchases').some(p => p.assetId === a.id && p.buyerId === u.id)) return fail('owned', 'You already own this asset.');
+      if (all('orders').some(o => o.buyerId === u.id && o.assetId === a.id && (o.status === 'created' || o.status === 'paid')))
+        return fail('pending', 'You already have a pending order for this asset.');
+      const gd = gameDetails && typeof gameDetails === 'object' ? gameDetails : {};
+      const details = {
+        gameName: String(gd.gameName || '').trim().slice(0, 80) || null,
+        placeId: String(gd.placeId || '').trim().slice(0, 20) || null,
+        gameOwner: String(gd.gameOwner || '').trim().slice(0, 80) || null,
+        notes: (String(gd.notes || '').trim() + ' [VIP try]').slice(0, 400) || null,
+      };
+      const currency = currencyOf(u.country);
+      const order = { id: 'o' + uid(), buyerId: u.id, assetId: a.id, method: 'vip_try', amount: 0, currency, status: 'paid', providerRef: 'vip-try', licenseKey: null, gameDetails: JSON.stringify(details), sellerId: a.ownerId, approval: 'pending', vipTrial: 1, createdAt: now(), paidAt: now(), updatedAt: now() };
+      store.put('orders', order);
+      flush();
+      return ok({ orderId: order.id, amount: 0, currency, vipTrial: true });
     }
     /* Buy an asset. The buyer also supplies GAME DETAILS (game name, place ID
        and owner) for the seller to verify before activation. Staff get a
@@ -1212,14 +1269,14 @@
       let out;
       if (isVipOrder(order)) {
         let vipUpgrade = false;
-        if (effRank(buyer) < roleRank('vip')) { buyer.role = 'vip'; buyer.updatedAt = now(); store.put('users', buyer); vipUpgrade = true; }
+        if (effRank(buyer) < roleRank('licensed')) { buyer.role = 'licensed'; buyer.updatedAt = now(); store.put('users', buyer); vipUpgrade = true; }
         out = { licenseKey: null, vipUpgrade };
       } else if (isSubOrder(order)) {
         /* Plan purchase — raise the buyer's tier (never lower it) + VIP role. */
         const [, cat, tierS] = String(order.assetId).split(':');
         const tier = Number(tierS);
         let vipUpgrade = false;
-        if (effRank(buyer) < roleRank('vip')) { buyer.role = 'vip'; buyer.updatedAt = now(); store.put('users', buyer); vipUpgrade = true; }
+        if (effRank(buyer) < roleRank('licensed')) { buyer.role = 'licensed'; buyer.updatedAt = now(); store.put('users', buyer); vipUpgrade = true; }
         const cur = cat === 'protection' ? (Number(buyer.protectionTier) || 0) : (Number(buyer.contractTier) || 0);
         if (tier > cur) {
           if (cat === 'protection') buyer.protectionTier = tier; else buyer.contractTier = tier;
@@ -2377,8 +2434,20 @@
        Reply: { ok, data: { active, reason } } */
     const SYS_STATES = ['active', 'disabled'];
     /* Subscription 1/2/3 → max registered systems + registrations per day (0 = unlimited).
-       Deleting a system is always instant — only registering is limited. */
+       Deleting a system is always instant — only registering is limited.
+       VIP (complimentary tier) plays at Subscription-1 limits: 3 systems, 1/day.
+       The Founder can raise an individual VIP above that via Plans on the panel. */
     const PROT_LIMITS = [{ max: 3, perDay: 1 }, { max: 10, perDay: 0 }, { max: 50, perDay: 0 }];
+    const VIP_LIMITS = { max: 3, perDay: 1 };
+    function systemPlanLimits(u) {
+      const pT = Math.min(3, Math.max(0, Number(u.protectionTier) || 0));
+      const cT = Math.min(3, Math.max(0, Number(u.contractTier) || 0));
+      if (pT >= 1 && cT >= 1) return { max: Math.max(PROT_LIMITS[pT - 1].max, PROT_LIMITS[cT - 1].max), perDay: Math.min(PROT_LIMITS[pT - 1].perDay, PROT_LIMITS[cT - 1].perDay) || 0, label: pT >= cT ? 'Subscription ' + pT : 'Contract ' + cT };
+      if (pT >= 1) return { ...PROT_LIMITS[pT - 1], label: 'Subscription ' + pT };
+      if (cT >= 1) return { ...PROT_LIMITS[cT - 1], label: 'Contract ' + cT };
+      if (u.role === 'vip') return { ...VIP_LIMITS, label: 'VIP' };
+      return null;
+    }
     function findSystemByCreds(name, password) {
       return all('systems').find(s => String(s.name || '').trim().toLowerCase() === String(name || '').trim().toLowerCase() && s.password === String(password || ''));
     }
@@ -2408,15 +2477,14 @@
          the identity (e.g. "Music System" + "PassWorD"). */
       const mine = () => all('systems').filter(s => s.userId === u.id);
       if (!isStaff(u) && !isTester(u)) {
-        const tier = Math.min(3, Math.max(0, Number(u.protectionTier) || 0));
-        if (tier < 1) return fail('vipOnly', 'Buy a Subscription plan (Subscription page) to register systems.');
-        const plan = PROT_LIMITS[tier - 1];
+        const plan = systemPlanLimits(u);
+        if (!plan) return fail('vipOnly', 'Buy a Subscription plan (Subscription page) to register systems.');
         const list = mine();
-        if (list.length >= plan.max) return fail('limit', 'Your plan allows up to ' + plan.max + ' registered systems. Deleting one is instant and frees a slot.');
+        if (list.length >= plan.max) return fail('limit', 'Your ' + plan.label + ' plan allows up to ' + plan.max + ' registered systems. Deleting one is instant and frees a slot.');
         if (plan.perDay > 0) {
           const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
           if (list.filter(s => s.createdAt >= dayStart.getTime()).length >= plan.perDay)
-            return fail('cooldown', 'Your plan allows ' + plan.perDay + ' system registration per day — upgrade your Subscription for more.');
+            return fail('cooldown', 'Your ' + plan.label + ' plan allows ' + plan.perDay + ' system registration per day — upgrade your Subscription for more.');
         }
       }
       const t = now();
@@ -2702,6 +2770,9 @@
 
     seedContent();
     ensureOwnerAccount();
+    /* Role migration: the old 'vip' value (Licensed sellers) becomes 'licensed',
+       freeing 'vip' for the new complimentary VIP tier. */
+    try { all('users').filter(u => u.role === 'vip').forEach(u => { u.role = 'licensed'; store.put('users', u); }); flush(); } catch (e) { /* best effort */ }
     /* Email verification is now optional — mark every existing account
        verified once so nobody is locked out of anything. */
     try { all('users').filter(u => !u.emailVerified).forEach(u => { u.emailVerified = 1; store.put('users', u); }); flush(); } catch (e) { /* best effort */ }
@@ -2711,7 +2782,7 @@
       verifyEmail, resendVerification,
       updateProfile, setup2fa, enable2fa, disable2fa,
       createAsset, postStatus, listApproved, topSelling, getAsset, updateAsset, deleteAsset, myAssets, download,
-      purchase, myPurchases, assignLicense, createOrder, createVipOrder, createSubscriptionOrder, completeOrder, settleOrder, cancelOrder, myOrders, adminOrders, adminCompleteOrder, submitPaymentProof, sellerReviewProof, adminReviewManualOrder, getPaymentConfig, adminSetPaymentConfig,
+      purchase, myPurchases, assignLicense, createOrder, createVipOrder, createSubscriptionOrder, createVipTrialOrder, setVipRole, completeOrder, settleOrder, cancelOrder, myOrders, adminOrders, adminCompleteOrder, submitPaymentProof, sellerReviewProof, adminReviewManualOrder, getPaymentConfig, adminSetPaymentConfig,
       addComment, listComments, toggleLike,
       listReviews, addReview, deleteReview,
       createReport, adminReports, adminResolveReport,

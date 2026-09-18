@@ -602,12 +602,18 @@ async function main() {
     const u = await needAuth(req, res); if (!u) return;
     const { assetId, plan, method, gameDetails } = req.body || {};
     const isVip = plan === 'vip';
+    const isVipTry = plan === 'vip_try';
     const isSub = plan && String(plan).startsWith('sub:');
     const r = isVip ? await engine.createVipOrder(u, method)
+      : isVipTry ? await engine.createVipTrialOrder(u, assetId, method, gameDetails)
       : isSub ? await engine.createSubscriptionOrder(u, String(plan).split(':')[1], String(plan).split(':')[2], method)
       : await engine.createOrder(u, assetId, method, gameDetails);
     if (!r.ok) return send(res, r);
     const { orderId, amount, currency } = r.data;
+    if (isVipTry) {
+      // Zero-cost VIP try — the order is created already paid, awaiting the seller's approval.
+      return send(res, { ok: true, data: { orderId, vipTrial: true } });
+    }
     if (PAYMENT.dev && !String(method || '').endsWith('_manual')) {
       // No gateway keys configured — complete instantly (test mode, no money moves).
       // Manual methods are exempt: they wait for the buyer's proof + staff verification.
@@ -720,6 +726,7 @@ async function main() {
   app.post('/api/admin/users/:id/timeout', admin(async (u, req) => engine.adminTimeout(u, req.params.id, (req.body || {}).minutes)));
   app.post('/api/admin/users/:id/clear-timeout', admin(async (u, req) => engine.adminClearTimeout(u, req.params.id)));
   app.post('/api/admin/users/:id/role', admin(async (u, req) => engine.adminSetRole(u, req.params.id, (req.body || {}).role)));
+  app.post('/api/admin/users/:id/vip', admin(async (u, req) => engine.setVipRole(u, req.params.id, !!(req.body || {}).on)));
   app.post('/api/admin/users/:id/tags', admin(async (u, req) => engine.adminSetTags(u, req.params.id, (req.body || {}).tags)));
   app.get('/api/admin/sessions', admin(async u => engine.adminSessions(u)));
   app.get('/api/admin/emails', admin(async u => engine.adminEmails(u)));
