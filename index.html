@@ -5063,7 +5063,8 @@ async function paintNavBadges() {
   const mark = () => `<span class="nav-alert" title="Action needed">!</span>`;
   document.querySelectorAll('[data-nav="dashboard"]').forEach(a => { const has = a.querySelector('.nav-alert'); if (dashCount > 0 && !has) a.insertAdjacentHTML('beforeend', mark()); else if (!dashCount && has) has.remove(); });
   document.querySelectorAll('#user-menu a[href="#/orders"], .m-nav-item[href="#/orders"]').forEach(a => { const has = a.querySelector('.nav-alert'); if (ordCount > 0 && !has) a.insertAdjacentHTML('beforeend', mark()); else if (!ordCount && has) has.remove(); });
-  document.querySelectorAll('[data-nav="shop"]').forEach(a => { const has = a.querySelector('.nav-alert'); if (ordCount > 0 && !has) a.insertAdjacentHTML('beforeend', mark()); else if (!ordCount && has) has.remove(); });
+  /* Shop deliberately carries no alert badge — only the places the user must
+     act (dashboard / orders) get one. */
 }
 function bindHeader() {
   const btn = document.getElementById('user-btn');
@@ -5619,6 +5620,7 @@ VIEWS.asset = async ({ params }) => {
   const comments = await API.listComments(a.id);
   const reviews = await API.listReviews(a.id);
   const ownerView = a.isOwner || (me && isStaff(me));
+  const canRate = !!a.canRate;   /* engine-computed: verified buyer / owner / staff / tester */
 
   let buyHtml = '';
   if (me && a.isOwner) {
