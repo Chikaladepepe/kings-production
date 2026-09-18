@@ -4278,7 +4278,12 @@ function imageUploadButton(inputEl, opts = {}) {
     btn.disabled = false;
     if (!r.ok) { status.textContent = r.error; toast(r.error, 'err'); return; }
     status.textContent = 'Uploaded ✓ ' + r.url;
-    if (opts.appendRow) opts.appendRow(r.url); else if (inputEl) inputEl.value = r.url;
+    if (!opts.appendRow && inputEl) {
+      inputEl.value = r.url;
+      /* Fire 'input' so live previews and listeners react to the filled URL. */
+      inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    if (opts.onDone) opts.onDone(r.url);
     toast('Image uploaded — URL filled in.');
   };
   wrap.appendChild(btn); wrap.appendChild(status); wrap.appendChild(fileInput);
@@ -4289,6 +4294,8 @@ function attachImageUploadWidgets(root = document) {
   const targets = [
     { sel: 'input[name=imageUrl]', label: 'cover photo' },
     { sel: '#pc-gqr', label: 'GCash QR' },
+    { sel: '#cv-img', label: 'creator portrait' },
+    { sel: '#cr-img', label: 'creator portrait' },
   ];
   targets.forEach(({ sel }) => {
     root.querySelectorAll(sel).forEach(inp => {
@@ -4300,6 +4307,16 @@ function attachImageUploadWidgets(root = document) {
       wrap.appendChild(inp);
       wrap.appendChild(imageUploadButton(inp));
     });
+  });
+  /* Buyer payment-proof screenshot in the manual-payment modal. */
+  root.querySelectorAll('#mp-url').forEach(inp => {
+    if (inp.closest('.kp-upwrap')) return;
+    const wrap = document.createElement('span');
+    wrap.className = 'kp-upwrap';
+    wrap.style.cssText = 'display:flex;gap:8px;align-items:center';
+    inp.parentNode.insertBefore(wrap, inp);
+    wrap.appendChild(inp);
+    wrap.appendChild(imageUploadButton(inp));
   });
 }
 API.submitPaymentProof = (user, orderId, proof) => _wrap(async () => _mode === 'local' ? await _engine.submitPaymentProof(user, orderId, proof) : await _call('POST', '/api/orders/' + orderId + '/proof', proof));
@@ -5153,9 +5170,10 @@ async function openManualPayment(orderId, method, sellerDetails, assetId) {
     },
     onConfirm: async v => {
       const r = await API.submitPaymentProof(STATE.user, orderId, v);
-      if (r.ok) { toast('Proof submitted — staff will verify it shortly. Track it under Orders.'); await router(); }
+      if (r.ok) { toast('Proof submitted — the seller will verify it shortly. Track it under Orders.'); await router(); }
       else toast(r.error, 'err');
     },
+    afterOpen: ovm => { attachImageUploadWidgets(ovm); },
   });
 }
 async function triggerFileDownload(res) {
@@ -5925,6 +5943,16 @@ function renderSellerPmDetails() {
       <div style="display:grid;gap:10px;margin-top:10px">${fields}</div>
     </div>`;
   }).join('');
+  /* The QR-image field of every manual method gets an Upload button. */
+  host.querySelectorAll('input[data-pm-field$=":qrUrl"]').forEach(inp => {
+    if (inp.closest('.kp-upwrap')) return;
+    const wrap = document.createElement('span');
+    wrap.className = 'kp-upwrap';
+    wrap.style.cssText = 'display:flex;gap:8px;align-items:center';
+    inp.parentNode.insertBefore(wrap, inp);
+    wrap.appendChild(inp);
+    wrap.appendChild(imageUploadButton(inp));
+  });
 }
 function collectSellerPmDetails() {
   const out = {};
@@ -7034,6 +7062,7 @@ function addPfImgRow(box, url, onPaint) {
   const inp = row.querySelector('input');
   inp.addEventListener('input', () => onPaint && onPaint());
   row.querySelector('button').onclick = () => { row.remove(); onPaint && onPaint(); };
+  row.appendChild(imageUploadButton(inp, { onDone: onPaint }));
   box.appendChild(row);
 }
 function addPfLinkRow(box, url) {
@@ -7140,6 +7169,7 @@ function openCreatorViewer(id) {
       toast('Creator updated.');
       return true;
     }) : (() => {}),
+    afterOpen: ovm => { attachImageUploadWidgets(ovm); },
   });
 }
 /* ---- admin creator publishing (admin-only, like portfolio) ---- */
@@ -7185,7 +7215,16 @@ function openCreatorEditor(id) {
       ? `<div class="hint" style="margin-bottom:6px">Preview:</div>${creatorAvatarHtml({ name: ov.querySelector('#cr-name').value || '?', imageUrl: url }, 78)}`
       : '';
   };
-  ov.querySelector('#cr-img').addEventListener('input', renderImgPrev);
+  const crImg = ov.querySelector('#cr-img');
+  crImg.addEventListener('input', renderImgPrev);
+  if (!crImg.closest('.kp-upwrap')) {
+    const wrap = document.createElement('span');
+    wrap.className = 'kp-upwrap';
+    wrap.style.cssText = 'display:flex;gap:8px;align-items:center';
+    crImg.parentNode.insertBefore(wrap, crImg);
+    wrap.appendChild(crImg);
+    wrap.appendChild(imageUploadButton(crImg, { onDone: renderImgPrev }));
+  }
   renderImgPrev();
 }
 async function onDeleteCreator(id) {
