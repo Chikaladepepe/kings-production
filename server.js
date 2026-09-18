@@ -27,7 +27,7 @@ const { createMailer } = require('./server/mail.js');
 const ROOT = __dirname;
 /* Bumped when server behavior changes — visible in /api/health so a stale
    production deploy is instantly recognizable. */
-const BUILD_STAMP = '2026-09-19.5';
+const BUILD_STAMP = '2026-09-19.6';
 const PORT = Number(process.env.PORT) || 3000; // treats PORT=0 as unset so a stray empty env value can't bind a random port
 const PUBLIC_URL = String(process.env.PUBLIC_URL || `http://localhost:${PORT}`).replace(/\/+$/, '');
 const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');

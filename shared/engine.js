@@ -734,12 +734,11 @@
       if (!u) return fail('auth', 'You must be logged in to do that.');
       const a = byIdIn('assets', id);
       if (!a) return fail('notfound', 'Asset not found.');
-      const own = a.ownerId === u.id;
       const staff = isStaff(u);
       const founderish = effRank(u) >= roleRank('cofounder');
-      /* Co-Founder / Founder can hard-delete any post from the Founder Panel;
-         plain Admins can only disable. Owners can always delete their own. */
-      if (!own && !founderish) return fail('forbidden', staff ? 'Staff cannot delete other users\' posts. Disable the asset instead (Admin → Assets).' : 'Only the creator of this asset can delete it.');
+      /* ONLY Co-Founder / Founder can hard-delete a post. Sellers and Admins
+         cannot — a seller who wants their post removed opens a Support ticket. */
+      if (!founderish) return fail('forbidden', staff ? 'Admins cannot delete posts — only Disable. Ask a Co-Founder/Founder.' : 'Posts cannot be deleted directly. Open a Support ticket and staff will remove it for you.');
       cascadeDelete(id);
       flush();
       return ok(true);
@@ -1555,7 +1554,9 @@
     async function creatorDashboard(user) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
-      if (!canPost(u)) return fail('vipOnly', 'Only Licensed sellers have a dashboard.');
+      /* VIPs get the dashboard too — capped at Subscription-1 limits when
+         registering systems (enforced in registerSystem). */
+      if (!canPost(u) && u.role !== 'vip') return fail('vipOnly', 'The dashboard is for Licensed sellers and VIPs.');
       /* Founder / Co-Founder own the platform — the dashboard is theirs too;
          plain Admins still need a Contract plan to use it. */
       if (isStaff(u) && effRank(u) < roleRank('cofounder')) return fail('vipOnly', 'Staff use the Admin Panel — the Licensed Dashboard needs a Contract plan (granted on the Founder Panel or the Subscription page).');

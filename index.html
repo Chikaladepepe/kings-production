@@ -2168,12 +2168,11 @@ const API = {};
       if (!u) return fail('auth', 'You must be logged in to do that.');
       const a = byIdIn('assets', id);
       if (!a) return fail('notfound', 'Asset not found.');
-      const own = a.ownerId === u.id;
       const staff = isStaff(u);
       const founderish = effRank(u) >= roleRank('cofounder');
-      /* Co-Founder / Founder can hard-delete any post from the Founder Panel;
-         plain Admins can only disable. Owners can always delete their own. */
-      if (!own && !founderish) return fail('forbidden', staff ? 'Staff cannot delete other users\' posts. Disable the asset instead (Admin → Assets).' : 'Only the creator of this asset can delete it.');
+      /* ONLY Co-Founder / Founder can hard-delete a post. Sellers and Admins
+         cannot — a seller who wants their post removed opens a Support ticket. */
+      if (!founderish) return fail('forbidden', staff ? 'Admins cannot delete posts — only Disable. Ask a Co-Founder/Founder.' : 'Posts cannot be deleted directly. Open a Support ticket and staff will remove it for you.');
       cascadeDelete(id);
       flush();
       return ok(true);
@@ -2989,7 +2988,9 @@ const API = {};
     async function creatorDashboard(user) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
-      if (!canPost(u)) return fail('vipOnly', 'Only Licensed sellers have a dashboard.');
+      /* VIPs get the dashboard too — capped at Subscription-1 limits when
+         registering systems (enforced in registerSystem). */
+      if (!canPost(u) && u.role !== 'vip') return fail('vipOnly', 'The dashboard is for Licensed sellers and VIPs.');
       /* Founder / Co-Founder own the platform — the dashboard is theirs too;
          plain Admins still need a Contract plan to use it. */
       if (isStaff(u) && effRank(u) < roleRank('cofounder')) return fail('vipOnly', 'Staff use the Admin Panel — the Licensed Dashboard needs a Contract plan (granted on the Founder Panel or the Subscription page).');
@@ -5599,7 +5600,7 @@ VIEWS.asset = async ({ params }) => {
   if (me && a.isOwner) {
     buyHtml = `
       <div class="form-${a.status === 'rejected' ? 'error' : 'ok'}">${a.status === 'pending' ? 'This asset is in the pending approval queue and is not visible to the public yet.' : a.status === 'rejected' ? 'This asset was rejected: ' + esc(a.rejectReason) : ''}</div>
-      <div class="row"><button class="btn btn-danger" onclick="onDeleteAsset('${a.id}')">${ICON.trash} Delete</button></div>`;
+      `;
   } else if (me && isTimedOut(me)) {
     buyHtml = `<div class="form-error">You are currently timed out (${esc(timeoutText(me))} remaining) and cannot purchase or comment.</div>`;
   } else if (a.hasPurchased) {
@@ -5725,11 +5726,6 @@ async function onComment(e) {
   if (!rating || rating < 1 || rating > 5) { toast('Pick a star rating (1–5) to post your comment.', 'err'); return; }
   const res = await API.addComment(STATE.user, f.dataset.asset, { body: f.body.value, rating });
   if (res.ok) { toast('Comment posted — thanks for the feedback!'); await router(); } else toast(res.error, 'err');
-}
-async function onDeleteAsset(id) {
-  modal({ title: 'Delete this asset?', danger: true, confirmLabel: 'Delete',
-    body: '<p>This permanently removes the asset, its purchases, and all comments. This cannot be undone.</p>',
-    onConfirm: async () => { const res = await API.deleteAsset(STATE.user, id); if (res.ok) { toast('Asset deleted.'); await router(); } else toast(res.error, 'err'); } });
 }
 
 /* ---- reviews & ratings actions ---- */
@@ -6403,7 +6399,7 @@ VIEWS['my-assets'] = async () => {
         <div style="width:46px;height:46px;border-radius:9px;border:1px solid var(--border);overflow:hidden;position:relative;flex-shrink:0">${thumbHtml(a, 22)}</div>
         <div style="flex:1;min-width:0"><div class="bold" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.title)}</div><div class="muted small">${catBadge(a.category)} ${ICON.cart}${a.sales} sold · posted ${fmtDate(a.createdAt)}</div></div>
         <div>${statusBadge(a.status, a.rejectReason)}</div>
-        <div class="row" style="gap:8px"><button class="btn btn-danger btn-sm" onclick="onDeleteAsset('${a.id}')">${ICON.trash} Delete</button></div>
+        <span class="muted small">Need this post removed? Open a <a href=\"#/support\">Support ticket</a> and staff will handle it.</span>
       </div>`).join('')}</div>`
     : emptyHtml('No assets yet', canPost(STATE.user) ? 'Upload your first asset — Founder / Co-Founder posts go live instantly; other sellers are reviewed before going live.' : 'Members cannot post assets. Upgrade to a Licensed seller to sell on the marketplace.')}
   </div>`;
@@ -6460,9 +6456,15 @@ VIEWS.dashboard = async ({ query = {} } = {}) => {
     return `<div class="page page-narrow"><div class="card card-pad center" style="padding:56px 30px"><span class="crown" style="font-size:34px">${ICON.shield}</span><h2 style="font-family:var(--font-display);font-size:24px;margin:14px 0 8px">Staff use the Admin Panel</h2><p class="muted" style="max-width:440px;margin:0 auto">The Licensed Dashboard is for Licensed sellers. Admins get it too when they hold a <b style="color:var(--vip)">Contract</b> plan — grant one on the Founder Panel (Users → Plans), or grab it on the Subscription page.</p></div><div class="center mt2"><a class="btn btn-primary" href="#/admin">${ICON.shield} Open your panel</a> <a class="btn btn-ghost" href="#/subscription">${ICON.key} View plans</a></div></div>`;
   }
   if (!canPost(STATE.user)) {
-    return `<div class="page page-narrow">${STATE.user.role === 'member'
-      ? `<div class="card card-pad center" style="padding:56px 30px"><span class="crown" style="font-size:34px">${ICON.crown}</span><h2 style="font-family:var(--font-display);font-size:24px;margin:14px 0 8px">The Licensed Dashboard is for licensed sellers</h2><p class="muted" style="max-width:440px;margin:0 auto">Buy a <b style="color:var(--vip)">Subscription or Contract</b> plan on the Subscription page — it unlocks system protection, revenue tracking, and the ability to sell on the marketplace.</p></div><div class="center mt2"><a class="btn btn-primary" href="#/subscription">${ICON.key} View plans</a></div>`
-      : `<div class="page">${emptyHtml('Restricted', 'Your account is currently restricted.')}</div>`}</div>`;
+    /* Only a real restriction (ban / timeout / restrictedUntil) shows the
+       Restricted screen. VIPs and other non-member sellers flow through to
+       the dashboard below — being unable to post is not a restriction. */
+    if (STATE.user.role !== 'vip' && !isRestricted(STATE.user)) {
+      return `<div class="page page-narrow"><div class="card card-pad center" style="padding:56px 30px"><span class="crown" style="font-size:34px">${ICON.crown}</span><h2 style="font-family:var(--font-display);font-size:24px;margin:14px 0 8px">The Licensed Dashboard is for licensed sellers</h2><p class="muted" style="max-width:440px;margin:0 auto">Buy a <b style="color:var(--vip)">Subscription or Contract</b> plan on the Subscription page — it unlocks system protection, revenue tracking, and the ability to sell on the marketplace.</p></div><div class="center mt2"><a class="btn btn-primary" href="#/subscription">${ICON.key} View plans</a></div></div>`;
+    }
+    if (isRestricted(STATE.user)) {
+      return `<div class="page">${emptyHtml('Restricted', 'Your account is currently restricted.')}</div>`;
+    }
   }
   const isVipRole = STATE.user.role === 'vip';
   const tab = ['systems', 'revenue', 'registered', 'orders', 'support'].includes(query.tab) ? query.tab : 'systems';
