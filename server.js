@@ -713,6 +713,7 @@ async function main() {
   app.get('/api/orders/mine', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.myOrders(u)); }));
   app.post('/api/orders/:id/proof', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.submitPaymentProof(u, req.params.id, req.body || {})); }));
   app.post('/api/orders/:id/cancel', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.cancelOrder(u, req.params.id)); }));
+  app.delete('/api/orders/:id', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.deleteOrder(u, req.params.id)); }));
 
   /* ---- profiles & content ---- */
   app.get('/api/profile/:handle', h(async (req, res) => send(res, await engine.publicProfile(req.params.handle))));

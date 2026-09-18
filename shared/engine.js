@@ -966,7 +966,7 @@
     }
 
     /* ============ PURCHASES & LICENSES ============ */
-    /* Issue the license, bump sales. Buying does NOT change the buyer's role —
+    /* Issue the license. Buying does NOT change the buyer's role —
        the Licensed role is for Subscription/Contract holders only; buyers stay
        Verified (or whatever role they already have). */
     function grantLicense(u, a) {
@@ -1344,7 +1344,27 @@
       order.approval = decision;
       order.approvalNote = String(note || '').trim().slice(0, 300) || null;
       order.updatedAt = now();
+      /* A rejected order leaves pending for good: it moves to the buyer's
+         Rejected list (they can delete it there) and the buyer is emailed. */
+      if (decision === 'rejected') {
+        order.status = 'rejected';
+        order.rejectedAt = now();
+        const buyer = dbUser(order.buyerId);
+        const aTitle = (byIdIn('assets', order.assetId) || {}).title || 'your order';
+        if (buyer) sendEmail({ to: buyer.email, subject: 'Your order was rejected — Kings Production', action: 'order_rejected', body: 'The seller rejected the game details for your order of "' + aTitle + '".' + (order.approvalNote ? ' Their note: ' + order.approvalNote : '') + '\n\nYou can view or delete the rejected order on your Orders page. If you believe this was a mistake, open a Support ticket.', link: '#/orders' });
+      }
       store.put('orders', order);
+      flush();
+      return ok(true);
+    }
+    /* Buyer-side cleanup: a rejected order can be deleted from their list. */
+    async function deleteOrder(user, orderId) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const order = byIdIn('orders', orderId);
+      if (!order || order.buyerId !== u.id) return fail('forbidden', 'Order not found.');
+      if (order.status !== 'rejected') return fail('invalid', 'Only rejected orders can be deleted.');
+      store.del('orders', order.id);
       flush();
       return ok(true);
     }
@@ -2880,7 +2900,7 @@
       verifyEmail, resendVerification,
       updateProfile, setup2fa, enable2fa, disable2fa,
       createAsset, postStatus, listApproved, topSelling, getAsset, updateAsset, deleteAsset, myAssets, download,
-      purchase, myPurchases, assignLicense, createOrder, createVipOrder, createSubscriptionOrder, createVipTrialOrder, setVipRole, completeOrder, settleOrder, cancelOrder, myOrders, adminOrders, adminCompleteOrder, submitPaymentProof, sellerReviewProof, adminReviewManualOrder, getPaymentConfig, adminSetPaymentConfig,
+      purchase, myPurchases, assignLicense, createOrder, createVipOrder, createSubscriptionOrder, createVipTrialOrder, setVipRole, completeOrder, settleOrder, cancelOrder, deleteOrder, myOrders, adminOrders, adminCompleteOrder, submitPaymentProof, sellerReviewProof, adminReviewManualOrder, getPaymentConfig, adminSetPaymentConfig,
       addComment, listComments, toggleLike,
       listReviews, addReview, deleteReview,
       createReport, adminReports, adminResolveReport,

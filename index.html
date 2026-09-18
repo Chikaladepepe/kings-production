@@ -2401,7 +2401,7 @@ const API = {};
     }
 
     /* ============ PURCHASES & LICENSES ============ */
-    /* Issue the license, bump sales. Buying does NOT change the buyer's role —
+    /* Issue the license. Buying does NOT change the buyer's role —
        the Licensed role is for Subscription/Contract holders only; buyers stay
        Verified (or whatever role they already have). */
     function grantLicense(u, a) {
@@ -2779,7 +2779,27 @@ const API = {};
       order.approval = decision;
       order.approvalNote = String(note || '').trim().slice(0, 300) || null;
       order.updatedAt = now();
+      /* A rejected order leaves pending for good: it moves to the buyer's
+         Rejected list (they can delete it there) and the buyer is emailed. */
+      if (decision === 'rejected') {
+        order.status = 'rejected';
+        order.rejectedAt = now();
+        const buyer = dbUser(order.buyerId);
+        const aTitle = (byIdIn('assets', order.assetId) || {}).title || 'your order';
+        if (buyer) sendEmail({ to: buyer.email, subject: 'Your order was rejected — Kings Production', action: 'order_rejected', body: 'The seller rejected the game details for your order of "' + aTitle + '".' + (order.approvalNote ? ' Their note: ' + order.approvalNote : '') + '\n\nYou can view or delete the rejected order on your Orders page. If you believe this was a mistake, open a Support ticket.', link: '#/orders' });
+      }
       store.put('orders', order);
+      flush();
+      return ok(true);
+    }
+    /* Buyer-side cleanup: a rejected order can be deleted from their list. */
+    async function deleteOrder(user, orderId) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const order = byIdIn('orders', orderId);
+      if (!order || order.buyerId !== u.id) return fail('forbidden', 'Order not found.');
+      if (order.status !== 'rejected') return fail('invalid', 'Only rejected orders can be deleted.');
+      store.del('orders', order.id);
       flush();
       return ok(true);
     }
@@ -4315,7 +4335,7 @@ const API = {};
       verifyEmail, resendVerification,
       updateProfile, setup2fa, enable2fa, disable2fa,
       createAsset, postStatus, listApproved, topSelling, getAsset, updateAsset, deleteAsset, myAssets, download,
-      purchase, myPurchases, assignLicense, createOrder, createVipOrder, createSubscriptionOrder, createVipTrialOrder, setVipRole, completeOrder, settleOrder, cancelOrder, myOrders, adminOrders, adminCompleteOrder, submitPaymentProof, sellerReviewProof, adminReviewManualOrder, getPaymentConfig, adminSetPaymentConfig,
+      purchase, myPurchases, assignLicense, createOrder, createVipOrder, createSubscriptionOrder, createVipTrialOrder, setVipRole, completeOrder, settleOrder, cancelOrder, deleteOrder, myOrders, adminOrders, adminCompleteOrder, submitPaymentProof, sellerReviewProof, adminReviewManualOrder, getPaymentConfig, adminSetPaymentConfig,
       addComment, listComments, toggleLike,
       listReviews, addReview, deleteReview,
       createReport, adminReports, adminResolveReport,
@@ -4620,6 +4640,7 @@ API.checkout = (user, assetId, method, plan, gameDetails) => _wrap(async () => _
 API.confirmPayment = (orderId, providerRef) => _wrap(async () => _mode === 'local' ? { ok: true, data: {} } : await _call('POST', '/api/payments/confirm', { orderId, providerRef }));
 API.myOrders = user => _wrap(async () => _mode === 'local' ? await _engine.myOrders(user) : await _call('GET', '/api/orders/mine'));
 API.cancelOrder = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.cancelOrder(user, id) : await _call('POST', '/api/orders/' + _e(id) + '/cancel'));
+API.deleteOrder = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.deleteOrder(user, id) : await _call('DELETE', '/api/orders/' + _e(id)));
 API.adminOrders = user => _wrap(async () => _mode === 'local' ? await _engine.adminOrders(user) : await _call('GET', '/api/admin/orders'));
 API.adminCompleteOrder = (user, orderId) => _wrap(async () => _mode === 'local' ? await _engine.adminCompleteOrder(user, orderId) : await _call('POST', '/api/admin/orders/' + _e(orderId) + '/complete'));
 API.adminSetVipRole = (user, id, on) => _wrap(async () => _mode === 'local' ? await _engine.setVipRole(user, id, on) : await _call('POST', '/api/admin/users/' + _e(id) + '/vip', { on }));
@@ -4900,7 +4921,7 @@ const SOCIAL = { discord: 'https://discord.gg/syQfqmaA28', youtube: 'https://you
 
 /* ---- shell ---- */
 function headerHtml(user) {
-  const navItems = [...(user && dashVisible(user) ? [['dashboard', user.role === 'vip' ? 'VIP Dashboard' : 'Licensed Dashboard', ICON.chart]] : []), ['portfolio', 'Portfolio', ICON.crown], ['shop', 'Shop', ICON.cart], ['subscription', 'Subscription', ICON.key], ['creators', 'Creators', ICON.user], ['faq', 'FAQ', ICON.book], ['support', 'Support', ICON.mail]];
+  const navItems = [...(user && dashVisible(user) ? [['dashboard', user.role === 'vip' ? (Number(user.protectionTier) > 0 || Number(user.contractTier) > 0 ? 'Licensed Vip Dashboard' : 'Vip Dashboard') : 'Licensed Dashboard', ICON.chart]] : []), ['portfolio', 'Portfolio', ICON.crown], ['shop', 'Shop', ICON.cart], ['subscription', 'Subscription', ICON.key], ['creators', 'Creators', ICON.user], ['faq', 'FAQ', ICON.book], ['support', 'Support', ICON.mail]];
   const nav = navItems.map(([p, l]) => `<a href="#/${p}" data-nav="${p}">${l}</a>`).join('');
   const right = user
     ? `<div class="dropdown">
@@ -4910,7 +4931,7 @@ function headerHtml(user) {
           <a href="#/profile/${esc(user.handle)}">${ICON.user} My Profile</a>
           ${isMemberLevel(user) && canPost(user) ? `<a href="#/my-assets">${ICON.edit} My Assets</a><a href="#/upload">${ICON.plus} Upload Asset</a>` : ''}
           ${!isStaff(user) ? `<a href="#/orders">${ICON.cart} Orders</a>` : ''}
-          ${isMemberLevel(user) ? (user.role === 'vip' ? `<a href="#/dashboard">${ICON.chart} VIP Dashboard</a>` : showDashboard(user) ? `<a href="#/dashboard">${ICON.chart} Licensed Dashboard</a>` : `<a href="#/subscription">${ICON.lock} Get Licensed</a>`) : ''}
+          ${isMemberLevel(user) ? (user.role === 'vip' ? `<a href="#/dashboard">${ICON.chart} ${Number(user.protectionTier) > 0 || Number(user.contractTier) > 0 ? 'Licensed Vip Dashboard' : 'Vip Dashboard'}</a>` : showDashboard(user) ? `<a href="#/dashboard">${ICON.chart} Licensed Dashboard</a>` : `<a href="#/subscription">${ICON.lock} Get Licensed</a>`) : ''}
           ${isStaff(user) ? `<a href="#/admin">${ICON.shield} ${effRank(user) >= roleRank('cofounder') ? 'Founder Panel' : 'Admin Panel'}</a>` : ''}
           <a href="#/settings">${ICON.clock} Settings</a>
           <div class="sep"></div>
@@ -4929,13 +4950,13 @@ function drawerHtml() {
      the header the containing block for position:fixed descendants, which would
      clip the drawer to the header's height on phones. */
   const user = STATE.user;
-  const navItems = [...(user && dashVisible(user) ? [['dashboard', user.role === 'vip' ? 'VIP Dashboard' : 'Licensed Dashboard', ICON.chart]] : []), ['portfolio', 'Portfolio', ICON.crown], ['shop', 'Shop', ICON.cart], ['subscription', 'Subscription', ICON.key], ['creators', 'Creators', ICON.user], ['faq', 'FAQ', ICON.book], ['support', 'Support', ICON.mail]];
+  const navItems = [...(user && dashVisible(user) ? [['dashboard', user.role === 'vip' ? (Number(user.protectionTier) > 0 || Number(user.contractTier) > 0 ? 'Licensed Vip Dashboard' : 'Vip Dashboard') : 'Licensed Dashboard', ICON.chart]] : []), ['portfolio', 'Portfolio', ICON.crown], ['shop', 'Shop', ICON.cart], ['subscription', 'Subscription', ICON.key], ['creators', 'Creators', ICON.user], ['faq', 'FAQ', ICON.book], ['support', 'Support', ICON.mail]];
   const drawerNav = navItems.map(([p, l, ic]) => `<a class="m-nav-item" href="#/${p}" data-nav="${p}">${ic}<span>${l}</span></a>`).join('');
   const drawerAccount = user
     ? `       <a class="m-nav-item" href="#/profile/${esc(user.handle)}">${ICON.user}<span>My Profile</span></a>
        ${isMemberLevel(user) && canPost(user) ? `<a class="m-nav-item" href="#/my-assets">${ICON.edit}<span>My Assets</span></a><a class="m-nav-item" href="#/upload">${ICON.plus}<span>Upload Asset</span></a>` : ''}
        ${!isStaff(user) ? `<a class="m-nav-item" href="#/orders">${ICON.cart}<span>Orders</span></a>` : ''}
-       ${isMemberLevel(user) ? (user.role === 'vip' ? `<a class="m-nav-item" href="#/dashboard">${ICON.chart}<span>VIP Dashboard</span></a>` : showDashboard(user) ? `<a class="m-nav-item" href="#/dashboard">${ICON.chart}<span>Licensed Dashboard</span></a>` : `<a class="m-nav-item" href="#/subscription">${ICON.lock}<span>Get Licensed</span></a>`) : ''}
+       ${isMemberLevel(user) ? (user.role === 'vip' ? `<a class="m-nav-item" href="#/dashboard">${ICON.chart}<span>${Number(user.protectionTier) > 0 || Number(user.contractTier) > 0 ? 'Licensed Vip Dashboard' : 'Vip Dashboard'}</span></a>` : showDashboard(user) ? `<a class="m-nav-item" href="#/dashboard">${ICON.chart}<span>Licensed Dashboard</span></a>` : `<a class="m-nav-item" href="#/subscription">${ICON.lock}<span>Get Licensed</span></a>`) : ''}
        ${isStaff(user) ? `<a class="m-nav-item" href="#/admin">${ICON.shield}<span>${effRank(user) >= roleRank('cofounder') ? 'Founder Panel' : 'Admin Panel'}</span></a>` : ''}
        <a class="m-nav-item" href="#/settings">${ICON.clock}<span>Settings</span></a>
        <button class="m-nav-item" id="m-logout-btn">${ICON.logout}<span>Log out</span></button>`
@@ -6419,6 +6440,7 @@ VIEWS.orders = async () => {
     const proof = o.proof && typeof o.proof === 'object' ? o.proof : null;
     const statusBadge = completed ? '<span class="badge ok">COMPLETED</span>'
       : o.status === 'cancelled' ? '<span class="badge plain">Cancelled</span>'
+      : o.status === 'rejected' ? `<span class="badge" style="background:rgba(229,72,77,.12);color:#ff9aa0;border:1px solid rgba(229,72,77,.4)" title="The seller rejected the game details — you can delete this order">REJECTED</span>`
       : o.status === 'pending_verification' ? '<span class="badge warn" title="The seller has 24 hours to verify your proof — after that the order reverts and you\'re notified">Proof submitted — the seller is verifying (24h)</span>'
       : o.status === 'awaiting_proof' && o.manual ? '<span class="badge warn">Payment proof needed</span>'
       : '<span class="badge warn">PENDING</span>';
@@ -6434,6 +6456,7 @@ VIEWS.orders = async () => {
         <div style="flex:1;min-width:200px"><b style="font-family:var(--font-display)">${esc(title)}</b><div class="muted small">Ordered ${fmtDate(o.createdAt)} · <span class="price" style="font-size:13px">${o.amount} ${esc(o.currency)}</span></div></div>
         ${statusBadge}
         ${completed ? '<span class="badge soft-ok">Delivered</span>' : ''}
+      ${o.status === 'rejected' ? `<div style="padding:4px 20px 16px"><button class="btn btn-danger btn-sm" onclick="onDeleteRejectedOrder('${o.id}')">${ICON.trash} Delete rejected order</button></div>` : ''}
       </div>
       ${a && !completed && !o.manual ? `<div style="padding:10px 20px 4px" class="muted small">The seller reviews your game details before activation — you will get an email once it is approved.</div>` : ''}
       ${a && completed ? `<div style="padding:10px 20px 4px" class="muted small">System file delivered${a.deliverDuringPending ? ' — the seller released it early, so you can download it right now' : ''}.</div><div style="padding:4px 20px 16px"><button class="btn btn-primary btn-sm" onclick="onDownload('${a.id}')">${ICON.download} Download system file</button></div>` : ''}
@@ -6451,8 +6474,15 @@ async function onCancelMyOrder(orderId) {
     body: '<p>The order is removed from the seller\'s queue. If you already paid, contact Support for a refund.</p>',
     onConfirm: async () => { const r = await API.cancelOrder ? await API.cancelOrder(STATE.user, orderId) : { ok: false, error: 'Not available in local mode.' }; r.ok ? (toast('Order cancelled.'), await router()) : toast(r.error, 'err'); } });
 }
+/* Rejected orders stay visible (so the buyer knows what happened) until they
+   delete them from the Orders page. */
+function onDeleteRejectedOrder(orderId) {
+  modal({ title: 'Delete this rejected order?', danger: true, confirmLabel: 'Delete',
+    body: '<p>The rejected order is removed from your Orders page. The seller\'s copy is unaffected.</p>',
+    onConfirm: async () => { const r = await API.deleteOrder(STATE.user, orderId); r.ok ? (toast('Rejected order deleted.'), await router()) : toast(r.error, 'err'); } });
+}
 VIEWS.dashboard = async ({ query = {} } = {}) => {
-  if (!STATE.user) return `<div class="page">${emptyHtml('Not logged in', 'Log in to view your Licensed Dashboard.')}<div class="center mt2"><a class="btn btn-primary" href="#/login">Log in</a></div></div>`;
+  if (!STATE.user) return `<div class="page">${emptyHtml('Not logged in', 'Log in to view your dashboard.')}<div class="center mt2"><a class="btn btn-primary" href="#/login">Log in</a></div></div>`;
   if (isStaff(STATE.user) && effRank(STATE.user) < roleRank('cofounder')) {
     return `<div class="page page-narrow"><div class="card card-pad center" style="padding:56px 30px"><span class="crown" style="font-size:34px">${ICON.shield}</span><h2 style="font-family:var(--font-display);font-size:24px;margin:14px 0 8px">Staff use the Admin Panel</h2><p class="muted" style="max-width:440px;margin:0 auto">The Licensed Dashboard is for Licensed sellers. Admins get it too when they hold a <b style="color:var(--vip)">Contract</b> plan — grant one on the Founder Panel (Users → Plans), or grab it on the Subscription page.</p></div><div class="center mt2"><a class="btn btn-primary" href="#/admin">${ICON.shield} Open your panel</a> <a class="btn btn-ghost" href="#/subscription">${ICON.key} View plans</a></div></div>`;
   }
@@ -6468,7 +6498,13 @@ VIEWS.dashboard = async ({ query = {} } = {}) => {
     }
   }
   const isVipRole = STATE.user.role === 'vip';
-  const tab = ['systems', 'revenue', 'registered', 'orders', 'support'].includes(query.tab) ? query.tab : 'systems';
+  /* A VIP who buys a plan stacks it: the dashboard grows to the full Licensed
+     set and the title becomes "Licensed Vip Dashboard". */
+  const protTier = Number(STATE.user.protectionTier) || 0;
+  const contractTier = Number(STATE.user.contractTier) || 0;
+  const hasPlan = protTier > 0 || contractTier > 0;
+  const dashTitle = isVipRole ? (hasPlan ? 'Licensed Vip Dashboard' : 'Vip Dashboard') : 'Licensed Dashboard';
+  const tab = ['systems', 'registered'].includes(query.tab) ? query.tab : 'systems';
   const tabLink = t => `#/dashboard?tab=${t}`;
   const tabBtn = (t, label, ic) => `<a class="chip ${tab === t ? 'active' : ''}" href="${tabLink(t)}">${ic} ${label}</a>`;
   const d = await API.dashboard(STATE.user);
@@ -6502,13 +6538,10 @@ VIEWS.dashboard = async ({ query = {} } = {}) => {
     : isVipRole
     ? `Plan: <b style="color:var(--vip)">VIP</b> · Registered systems: <b>${systems.length} / 3</b> · Registrations: <b>1/day</b> · Deleting is always instant`
     : `No Subscription plan yet — you can still register <b>3</b> systems as a licensed seller, but a plan raises your limits.`;
-  const tabHead = `<div class="section-head" style="margin-bottom:8px"><div><span class="section-eyebrow">Creator</span><h2>Licensed Dashboard</h2><p>Your revenue, registered systems, and orders — everything you sell, secured.</p></div></div>
+  const tabHead = `<div class="section-head" style="margin-bottom:8px"><div><span class="section-eyebrow">Creator</span><h2>${dashTitle}</h2><p>Your personal systems, protected — register them, license your games, and control every copy that runs.</p></div></div>
     <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:22px">
       ${tabBtn('systems', 'Register System', ICON.system)}
-      ${tabBtn('revenue', 'Revenue', ICON.chart)}
       ${tabBtn('registered', 'Registered Systems (' + systems.length + ')', ICON.key)}
-      ${tabBtn('orders', 'Orders' + (pendingOrders ? ' (' + pendingOrders + ')' : ''), ICON.cart)}
-      ${tabBtn('support', 'Support', ICON.mail)}
     </div>`;
   /* ---- TAB 1: Register System ---- */
   const systemsTab = `${vipBanner}
@@ -6646,7 +6679,7 @@ VIEWS.dashboard = async ({ query = {} } = {}) => {
     </div>`).join('') : `<div class="card card-pad muted small">No tickets yet — submitted tickets appear here.</div>`}`;
   return `<div class="page" style="max-width:1080px">
     ${tabHead}
-    ${tab === 'systems' ? systemsTab : tab === 'revenue' ? revenueTab : tab === 'registered' ? licensesTab : tab === 'orders' ? ordersTab : tab === 'support' ? supportTab : licensesTab}
+    ${tab === 'systems' ? systemsTab : licensesTab}
   </div>`;
 };
 function licenseRowHtml(p) {
