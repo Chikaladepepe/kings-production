@@ -4687,7 +4687,7 @@ function thumbHtml(a, size = 44) {
   return `<div class="thumb-bg ${CAT_THUMB[cat] || 'thumb-default'}"></div><span class="thumb-icon" style="width:${size}px;height:${size}px">${CAT_ICON[cat]}</span>`;
 }
 function assetCardHtml(a, rank) {
-  return `<article class="card card-hover asset-card" data-id="${a.id}" onclick="go('#/asset/${a.id}')">
+  return `<article class="card card-hover asset-card" data-id="${a.id}" onclick="go('/asset/${a.id}')">
     <div class="asset-thumb">${rank !== undefined ? `<span class="asset-rank">#${rank + 1}</span>` : ''}<span class="asset-cat">${catBadge(a.category)}</span>${thumbHtml(a, 40)}</div>
     <div class="asset-body">
       <h3 class="asset-title">${esc(a.title)}</h3>
@@ -4764,9 +4764,12 @@ function promptModal({ title, label, placeholder, confirmLabel = 'Confirm', dang
 }
 
 /* ---- navigation ---- */
-const go = path => { location.hash = '#' + path; };
+/* go() tolerates callers that already include the leading '#' (some card
+   templates pass '#/asset/…'), otherwise the hash becomes '##/…' and the
+   router treats the path as '#' and bounces the user home. */
+const go = path => { location.hash = '#' + String(path || '').replace(/^#+/, ''); };
 function parseHash() {
-  const h = location.hash.replace(/^#\/?/, '');
+  const h = location.hash.replace(/^#+\/?/, '');
   const [pathPart, queryPart] = h.split('?');
   const segs = pathPart.split('/').filter(Boolean);
   return { path: segs[0] || 'home', params: segs.slice(1), query: Object.fromEntries(new URLSearchParams(queryPart || '')) };
@@ -5421,6 +5424,7 @@ VIEWS.asset = async ({ params }) => {
     const iAmVip = me && me.role === 'vip' && !isStaff(me);
     buyHtml = `<button class="btn btn-primary btn-lg" onclick="onBuy('${a.id}')">${ICON.cart} Purchase · ${fmtMoney(a.price)}</button>
       ${iAmVip && isOurSystem ? `<button class="btn btn-ghost btn-lg" style="margin-left:10px;border-color:rgba(212,175,55,.4)" onclick="onVipTry('${a.id}')" title="VIP perk — try Kings Production's own system free (studio approval still required)">${ICON.crown} Try</button>` : ''}
+      <a class="btn btn-ghost btn-lg" style="margin-left:10px" href="#/support" title="Ask the seller a question before buying">${ICON.mail} Contact seller</a>
       ${me && !canPost(me) ? `<p class="muted small" style="margin-top:10px">Every purchase upgrades you to <b style="color:var(--vip)">Licensed</b> — you can post your own assets right after.</p>` : ''}`;
   }
 
