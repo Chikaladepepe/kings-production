@@ -101,6 +101,8 @@ async function main() {
   if (engine.processAdminPauseExpiry) {
     try { engine.processAdminPauseExpiry(); } catch (e) { console.error('[pause] boot sweep failed:', e && e.message || e); }
     setInterval(() => { try { engine.processAdminPauseExpiry(); } catch (e) { console.error('[pause] sweep failed:', e && e.message || e); } }, 60e3).unref();
+    try { engine.processProofDeadlines(); } catch (e) { console.error('[proof] boot sweep failed:', e && e.message || e); }
+    setInterval(() => { try { engine.processProofDeadlines(); } catch (e) { console.error('[proof] sweep failed:', e && e.message || e); } }, 5 * 60e3).unref();
   }
 
   /* ---- payments (Stripe · PayPal · GCash via PayMongo) ----
@@ -524,7 +526,11 @@ async function main() {
        the download gated. A type=file query asks for a direct redirect. */
     if (r.data.fileUrl) {
       try {
-        const upstream = await fetch(r.data.fileUrl);
+        /* Short upstream timeout so buyers get a fast, clear error instead of a hang. */
+        const upstream = await Promise.race([
+          fetch(r.data.fileUrl, { signal: AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined }),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 16000)),
+        ]).catch(e => { throw e; });
         if (!upstream.ok || !upstream.body) throw new Error('upstream ' + upstream.status);
         const safe = String(r.data.fileName || 'asset-file').replace(/[^\w.\- ]+/g, '_');
         res.setHeader('Content-Disposition', `attachment; filename="${safe}"`);
@@ -533,6 +539,16 @@ async function main() {
         upstream.body.pipe(res);
         return;
       } catch (e) {
+        /* Fallback: if the post also carries a local copy, serve that instead. */
+        const f = await files.get(req.params.id);
+        if (f) {
+          const safe = String(r.data.fileName || 'asset-file').replace(/[^\w.\- ]+/g, '_');
+          res.setHeader('Content-Disposition', `attachment; filename="${safe}"`);
+          res.setHeader('Content-Type', r.data.mime || 'application/octet-stream');
+          res.setHeader('X-Content-Type-Options', 'nosniff');
+          res.send(f.data);
+          return;
+        }
         return send(res, { ok: false, code: 'notfound', error: 'The hosted file could not be fetched — ask the seller to re-upload it.' });
       }
     }
@@ -553,6 +569,7 @@ async function main() {
   /* ---- comments ---- */
   app.get('/api/assets/:id/comments', h(async (req, res) => send(res, await engine.listComments(req.params.id))));
   app.post('/api/assets/:id/comments', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.addComment(u, req.params.id, req.body || {})); }));
+  app.post('/api/assets/:id/chat', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.chatWithSeller(u, req.params.id, (req.body || {}).body)); }));
 
   /* ---- reviews & ratings ---- */
   app.get('/api/assets/:id/reviews', h(async (req, res) => send(res, await engine.listReviews(req.params.id))));
@@ -775,6 +792,7 @@ async function main() {
   app.get('/api/admin/sub-revokes', admin(async u => engine.adminListSubRevokes(u)));
   /* Seller order queue (Licensed Dashboard → Orders). */
   app.get('/api/dashboard/orders', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.sellerOrders(u)); }));
+  app.get('/api/dashboard/response', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, { ok: true, data: await engine.sellerResponseStats(u.id) }); }));
   app.post('/api/dashboard/orders/:id/approval', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.setOrderApproval(u, req.params.id, (req.body || {}).decision, (req.body || {}).note)); }));
   app.post('/api/dashboard/orders/:id/review-proof', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.sellerReviewProof(u, req.params.id, (req.body || {}).decision, (req.body || {}).note)); }));
   /* ---- announcements (admin) ---- */

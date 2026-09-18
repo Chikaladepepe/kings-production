@@ -632,6 +632,8 @@
         hasPurchased: !!purchase,
         canDownload: !!(isOwner || isAdminView || purchase),
         purchase,
+        sellerResponse: sellerResponseStats(a.ownerId),
+        canRate: isVerifiedBuyer(viewer, id),
       });
     }
 
@@ -952,17 +954,88 @@
     }
 
     /* ============ PURCHASES & LICENSES ============ */
-    /* Issue the license, bump sales, and auto-upgrade Members → Licensed
-       creators (that is the whole point of buying a license: you can post). */
+    /* Issue the license, bump sales. Buying does NOT change the buyer's role —
+       the Licensed role is for Subscription/Contract holders only; buyers stay
+       Verified (or whatever role they already have). */
     function grantLicense(u, a) {
       const key = 'KP-' + randomToken(4).toUpperCase().match(/.{1,4}/g).join('-');
       store.put('purchases', { id: 'p' + uid(), assetId: a.id, buyerId: u.id, price: a.price, licenseKey: key, gameId: null, gameName: '', createdAt: now() });
       a.sales = (a.sales || 0) + 1;
       store.put('assets', a);
-      let vipUpgrade = false;
-      if (u.role === 'member') { u.role = 'licensed'; u.updatedAt = now(); store.put('users', u); vipUpgrade = true; }
       flush();
-      return { licenseKey: key, vipUpgrade };
+      return { licenseKey: key, vipUpgrade: false };
+    }
+    /* Only buyers whose purchase was actually granted (owner / staff / tester /
+       verified purchase) may rate, review, and comment on an asset. */
+    function isVerifiedBuyer(u, assetId) {
+      if (!u) return false;
+      const a = byIdIn('assets', assetId);
+      if (a && a.ownerId === u.id) return true;
+      if (isStaff(u) || isTester(u)) return true;
+      return all('purchases').some(p => p.assetId === assetId && p.buyerId === u.id);
+    }
+    /* Seller response rate — automatic. Of the manual-payment proofs sent to
+       this seller in the last 30 days, the share they verified within 24h. */
+    function sellerResponseStats(sellerId) {
+      const cutoff = now() - 30 * 24 * 36e5;
+      const rows = all('orders').filter(o => o.sellerId === sellerId && o.proof && (o.proofVerifiedAt || o.updatedAt) > cutoff);
+      if (!rows.length) return null;
+      const withTime = rows.map(o => { let s = 0; try { s = JSON.parse(o.proof).submittedAt || 0; } catch (e) {} return { submittedAt: s, verifiedAt: o.proofVerifiedAt || 0 }; }).filter(x => x.submittedAt && x.verifiedAt);
+      const fast = rows.filter(o => { let s = 0; try { s = JSON.parse(o.proof).submittedAt || 0; } catch (e) {} return o.proofVerifiedAt && (o.proofVerifiedAt - s) <= 24 * 36e5; }).length;
+      const pct = Math.round((fast / rows.length) * 100);
+      const avg = withTime.length ? Math.round(withTime.reduce((s, x) => s + (x.verifiedAt - x.submittedAt), 0) / withTime.length / 36e5) : null;
+      return { pct, label: pct >= 80 ? 'Fast responder' : pct >= 50 ? 'Usually responds' : 'Slow responder', avgHours: avg };
+    }
+    /* Auto-approve the buyer's game on the seller's registered system when a
+       post with "give file during pending" is completed — the buyer's game is
+       licensed immediately, matching the early file delivery. */
+    function autoApproveGamesForOrder(order) {
+      try {
+        const a = byIdIn('assets', order.assetId);
+        if (!a || !a.deliverDuringPending) return;
+        let details = null; try { details = order.gameDetails ? JSON.parse(order.gameDetails) : null; } catch (e) {}
+        const placeId = details && details.placeId ? String(details.placeId).trim() : '';
+        if (!placeId) return;
+        const games = all('system_games').filter(g => String(g.placeId) === placeId);
+        const systemIds = new Set(all('systems').filter(s => s.userId === a.ownerId).map(s => s.id));
+        games.forEach(g => {
+          if (!systemIds.has(g.systemId)) return;
+          if (g.status === 'active') return;
+          g.status = 'active';
+          g.approvedBy = 'auto-early-delivery';
+          g.lastSeenAt = now();
+          store.put('system_games', g);
+        });
+        flush();
+      } catch (e) { /* best effort */ }
+    }
+    function processProofDeadlines() {
+      const DAY = 24 * 36e5;
+      let changed = 0;
+      all('orders').filter(o => o.status === 'pending_verification' && o.proof && !o.proofVerifiedAt).forEach(o => {
+        let submittedAt = 0; try { submittedAt = JSON.parse(o.proof).submittedAt || 0; } catch (e) {}
+        if (!submittedAt || now() - submittedAt <= DAY) return;
+        o.status = 'awaiting_proof';
+        o.proofTimeouts = (Number(o.proofTimeouts) || 0) + 1;
+        o.updatedAt = now();
+        store.put('orders', o);
+        changed++;
+        const buyer = dbUser(o.buyerId);
+        const seller = dbUser(o.sellerId);
+        if (buyer) {
+          try {
+            sendEmail({
+              to: buyer.email,
+              subject: 'Your payment proof was not verified within 24h — Kings Production',
+              action: 'proof-timeout',
+              body: 'The seller' + (seller ? ' (' + seller.displayName + ')' : '') + ' did not verify your payment proof for order ' + o.id + ' within 24 hours, so the order is back to "payment proof needed".\n\nYou can submit an updated proof, use Chat with seller on the asset page to reach them directly, or open a Support ticket if they keep ignoring you. Your payment reference stays on the order.',
+              link: '#/orders',
+            });
+          } catch (e) { /* best effort */ }
+        }
+      });
+      if (changed) flush();
+      return changed;
     }
 
     async function purchase(user, id) {
@@ -1001,6 +1074,7 @@
         submittedAt: now(),
       });
       order.status = 'pending_verification';
+      order.proofVerifiedAt = null;
       order.updatedAt = now();
       store.put('orders', order);
       flush();
@@ -1265,6 +1339,7 @@
     function finalizeOrder(order, buyer) {
       if (order.status === 'completed') return ok({ licenseKey: order.licenseKey, vipUpgrade: false });
       if (order.status !== 'paid') { order.status = 'paid'; order.paidAt = now(); }
+      if (order.proof && !order.proofVerifiedAt) order.proofVerifiedAt = now();
       order.updatedAt = now();
       let out;
       if (isVipOrder(order)) {
@@ -1309,6 +1384,9 @@
       order.licenseKey = out.licenseKey;
       order.updatedAt = now();
       store.put('orders', order);
+      /* "Give file during pending" posts auto-license the buyer's game on the
+         seller's registered system the moment the order completes. */
+      autoApproveGamesForOrder(order);
       /* Purchase receipt — delivered to the buyer with their license key. */
       try {
         const subM = isSubOrder(order) ? String(order.assetId).split(':').slice(1) : null;
@@ -1560,6 +1638,7 @@
       const a = byIdIn('assets', assetId);
       if (!a) return fail('notfound', 'Asset not found.');
       if (a.status !== 'approved') return fail('notfound', 'This asset is not available yet.');
+      if (!isVerifiedBuyer(u, assetId)) return fail('buyersOnly', 'Only verified buyers can rate and comment here.');
       body = String(body || '').trim();
       if (!body) return fail('invalid', 'Write a comment first.');
       if (body.length > 1000) return fail('invalid', 'Comments are limited to 1000 characters.');
@@ -1608,6 +1687,7 @@
       if (!a) return fail('notfound', 'Asset not found.');
       if (a.status !== 'approved') return fail('notfound', 'This asset is not available yet.');
       if (a.ownerId === u.id) return fail('self', 'You cannot review your own asset.');
+      if (!isVerifiedBuyer(u, assetId)) return fail('buyersOnly', 'Only verified buyers can rate and review here.');
       rating = Number(rating);
       if (!Number.isInteger(rating) || rating < 1 || rating > 5) return fail('invalid', 'Pick a star rating from 1 to 5.');
       body = String(body || '').trim().slice(0, 1000);
@@ -2246,6 +2326,41 @@
       const u = resolveUser(user); if (!u) return fail('usernotfound', 'User not found.');
       return ok(all('tickets').filter(t => t.userId === u.id).sort((a, b) => b.lastActivityAt - a.lastActivityAt));
     }
+    /* ============ CHAT WITH SELLER (per-asset ephemeral chat) ============
+       A lightweight buyer↔seller conversation attached to an asset. Messages
+       are EPHEMERAL: any message older than 24h is pruned on read, only the
+       stable chat code ("ticket number") survives, so nothing is kept forever. */
+    const CHAT_TTL_MS = 24 * 36e5;
+    const chatCodeFor = assetId => 'KP-CHT-' + String(assetId || 'x').replace(/[^a-z0-9]/gi, '').slice(-8).toUpperCase();
+    function pruneChat(assetId, buyerId) {
+      const cutoff = now() - CHAT_TTL_MS;
+      all('chats').filter(m => m.assetId === assetId && m.buyerId === buyerId && m.createdAt < cutoff).forEach(m => store.del('chats', m.id));
+    }
+    async function chatWithSeller(user, assetId, body) {
+      const u = resolveUser(user); if (!u) return fail('auth', 'You must be logged in to do that.');
+      const a = byIdIn('assets', assetId);
+      if (!a) return fail('notfound', 'Asset not found.');
+      const isSeller = a.ownerId === u.id;
+      const isBuyer = a.ownerId !== u.id;
+      if (isBuyer && !isVerifiedBuyer(u, assetId)) return fail('forbidden', 'Chat unlocks once your purchase is approved — this keeps sellers reachable only to their real customers.');
+      if (isStaff(u) && !isSeller) return fail('forbidden', 'Staff use their own channels — this chat is between the buyer and the seller.');
+      body = String(body || '').trim().slice(0, 2000);
+      if (body) {
+        store.put('chats', { id: 'ch' + uid(), assetId, buyerId: isSeller ? null : u.id, sellerId: a.ownerId, userId: u.id, body, createdAt: now() });
+        flush();
+      }
+      const buyerId = isSeller ? null : u.id;
+      pruneChat(assetId, buyerId);
+      /* The seller sees one thread per buyer; the buyer sees their own thread.
+         The conversation code is derived from the asset itself so both sides
+         see the SAME "ticket number" for this conversation. */
+      const who = isSeller ? null : u.id;
+      const raw = all('chats').filter(m => m.assetId === assetId && (isSeller ? true : m.buyerId === who))
+        .sort((x, y) => x.createdAt - y.createdAt);
+      const code = chatCodeFor(assetId);
+      const msgs = raw.map(m => ({ id: m.id, body: m.body, createdAt: m.createdAt, mine: m.userId === u.id, from: publicUser(byIdIn('users', m.userId)) }));
+      return ok({ code, messages: msgs, ttlHours: 24 });
+    }
     /* ---- FAQ (editable from the Founder/Admin Panel) ----
        Persisted in site_settings as JSON so staff can edit Q&A from the web. */
     const FAQ_DEFAULTS = [
@@ -2789,13 +2904,14 @@
       licenseActivate, licenseHeartbeat, creatorDashboard, creatorLicenses, setLicenseStatus, revokeDevice,
       publicProfile, content, createPortfolio, updatePortfolio, deletePortfolio,
       createCreator, updateCreator, deleteCreator,
-      createTicket, addTicketMessage, getTicket, listMyTickets,
+      createTicket, addTicketMessage, getTicket, listMyTickets, chatWithSeller,
       adminListTickets, adminCloseTicket, adminDeleteTicket, getFaqs, saveFaqs, getLegalDoc, saveLegalDoc, processAdminPauseExpiry,
       listAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement,
+      processProofDeadlines,
       registerSystem, listSystems, deleteSystem, refreshSystemGames, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice, authorizeSystemDevice, setSystemGameStatus, removeSystemGame, adminSystemDetail, adminSetSystemState, adminSubscriberDetail, adminDeleteSystem, setSystemEnforcement,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset, getImgurSettings, adminSetImgurSettings, siteStatus, recordSecurityEvent,
       adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSetUserPlan, adminSessions, adminEmails, adminSendEmail, adminListBlasts, adminDeleteBlast, adminEmailHistory, adminListInbound, adminSetUnsubscribed, inboundMailEvent, processScheduledBlasts, adminOrders, adminCompleteOrder,
-      sellerOrders, setOrderApproval, adminTakeFile, adminSetAssetStatus, adminSetRestriction, adminRequestSubRevoke, adminResolveSubRevoke, adminListSubRevokes, adminUnsubscribePlan, adminSystems,
+      sellerOrders, setOrderApproval, sellerResponseStats, adminTakeFile, adminSetAssetStatus, adminSetRestriction, adminRequestSubRevoke, adminResolveSubRevoke, adminListSubRevokes, adminUnsubscribePlan, adminSystems,
       setFx,
     };
   }

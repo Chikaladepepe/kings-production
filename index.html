@@ -327,12 +327,16 @@ main{flex:1;width:100%}
 .totp-ring .arc{stroke:var(--ok);stroke-linecap:round;transition:stroke-dashoffset 1s linear}
 
 /* asset page */
-.asset-hero{display:grid;grid-template-columns:minmax(300px,440px) 1fr;gap:34px;align-items:start}
-.asset-hero-thumb{position:relative;height:300px;border-radius:16px;border:1px solid var(--border);overflow:hidden;display:flex;align-items:center;justify-content:center}
-.asset-hero-thumb .thumb-icon svg{width:84px;height:84px}
+.asset-hero{display:grid;grid-template-columns:minmax(340px,520px) 1fr;gap:38px;align-items:start}
+.asset-hero-thumb{position:relative;aspect-ratio:16/10;width:100%;border-radius:18px;border:1px solid var(--border);overflow:hidden;display:flex;align-items:center;justify-content:center;cursor:zoom-in;box-shadow:0 18px 44px rgba(0,0,0,.35)}
+.asset-hero-thumb .thumb-icon svg{width:96px;height:96px}
+.asset-desc-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 24px;margin-top:26px}
+.asset-desc-card h3{font-family:var(--font-display);font-size:16px;margin:0 0 10px}
 .asset-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px}
-.asset-desc{color:var(--text-2);font-size:15px;line-height:1.75;white-space:pre-wrap;margin-top:18px}
-.buy-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:14px;margin-top:22px;max-width:380px}
+.nav-alert{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:6px;border-radius:50%;background:var(--gold);color:#1a1408;font-size:10.5px;font-weight:800;line-height:1;box-shadow:0 0 0 2px var(--surface);animation:navAlertPulse 2.2s ease-in-out infinite}
+@keyframes navAlertPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.18);opacity:.85}}
+.asset-desc{color:var(--text-2);font-size:15px;line-height:1.75;white-space:pre-wrap}
+.buy-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:14px;margin-top:22px}
 .buy-box .price{font-size:24px}
 .poster-row{display:flex;align-items:center;gap:12px;padding:16px 0;border-top:1px solid var(--border);margin-top:26px}
 .poster-row .avatar{width:44px;height:44px;font-size:17px}
@@ -417,7 +421,7 @@ main{flex:1;width:100%}
 /* mobile */
 @media (max-width:860px){
   .asset-hero{grid-template-columns:1fr}
-  .asset-hero-thumb{height:210px}
+  .asset-hero-thumb{aspect-ratio:16/9}
   .page{padding:28px 16px 56px}
   .header-inner{padding:0 14px;gap:14px}
   .hero-inner{padding:56px 18px 44px}
@@ -2061,6 +2065,8 @@ const API = {};
         hasPurchased: !!purchase,
         canDownload: !!(isOwner || isAdminView || purchase),
         purchase,
+        sellerResponse: sellerResponseStats(a.ownerId),
+        canRate: isVerifiedBuyer(viewer, id),
       });
     }
 
@@ -2381,17 +2387,88 @@ const API = {};
     }
 
     /* ============ PURCHASES & LICENSES ============ */
-    /* Issue the license, bump sales, and auto-upgrade Members → Licensed
-       creators (that is the whole point of buying a license: you can post). */
+    /* Issue the license, bump sales. Buying does NOT change the buyer's role —
+       the Licensed role is for Subscription/Contract holders only; buyers stay
+       Verified (or whatever role they already have). */
     function grantLicense(u, a) {
       const key = 'KP-' + randomToken(4).toUpperCase().match(/.{1,4}/g).join('-');
       store.put('purchases', { id: 'p' + uid(), assetId: a.id, buyerId: u.id, price: a.price, licenseKey: key, gameId: null, gameName: '', createdAt: now() });
       a.sales = (a.sales || 0) + 1;
       store.put('assets', a);
-      let vipUpgrade = false;
-      if (u.role === 'member') { u.role = 'licensed'; u.updatedAt = now(); store.put('users', u); vipUpgrade = true; }
       flush();
-      return { licenseKey: key, vipUpgrade };
+      return { licenseKey: key, vipUpgrade: false };
+    }
+    /* Only buyers whose purchase was actually granted (owner / staff / tester /
+       verified purchase) may rate, review, and comment on an asset. */
+    function isVerifiedBuyer(u, assetId) {
+      if (!u) return false;
+      const a = byIdIn('assets', assetId);
+      if (a && a.ownerId === u.id) return true;
+      if (isStaff(u) || isTester(u)) return true;
+      return all('purchases').some(p => p.assetId === assetId && p.buyerId === u.id);
+    }
+    /* Seller response rate — automatic. Of the manual-payment proofs sent to
+       this seller in the last 30 days, the share they verified within 24h. */
+    function sellerResponseStats(sellerId) {
+      const cutoff = now() - 30 * 24 * 36e5;
+      const rows = all('orders').filter(o => o.sellerId === sellerId && o.proof && (o.proofVerifiedAt || o.updatedAt) > cutoff);
+      if (!rows.length) return null;
+      const withTime = rows.map(o => { let s = 0; try { s = JSON.parse(o.proof).submittedAt || 0; } catch (e) {} return { submittedAt: s, verifiedAt: o.proofVerifiedAt || 0 }; }).filter(x => x.submittedAt && x.verifiedAt);
+      const fast = rows.filter(o => { let s = 0; try { s = JSON.parse(o.proof).submittedAt || 0; } catch (e) {} return o.proofVerifiedAt && (o.proofVerifiedAt - s) <= 24 * 36e5; }).length;
+      const pct = Math.round((fast / rows.length) * 100);
+      const avg = withTime.length ? Math.round(withTime.reduce((s, x) => s + (x.verifiedAt - x.submittedAt), 0) / withTime.length / 36e5) : null;
+      return { pct, label: pct >= 80 ? 'Fast responder' : pct >= 50 ? 'Usually responds' : 'Slow responder', avgHours: avg };
+    }
+    /* Auto-approve the buyer's game on the seller's registered system when a
+       post with "give file during pending" is completed — the buyer's game is
+       licensed immediately, matching the early file delivery. */
+    function autoApproveGamesForOrder(order) {
+      try {
+        const a = byIdIn('assets', order.assetId);
+        if (!a || !a.deliverDuringPending) return;
+        let details = null; try { details = order.gameDetails ? JSON.parse(order.gameDetails) : null; } catch (e) {}
+        const placeId = details && details.placeId ? String(details.placeId).trim() : '';
+        if (!placeId) return;
+        const games = all('system_games').filter(g => String(g.placeId) === placeId);
+        const systemIds = new Set(all('systems').filter(s => s.userId === a.ownerId).map(s => s.id));
+        games.forEach(g => {
+          if (!systemIds.has(g.systemId)) return;
+          if (g.status === 'active') return;
+          g.status = 'active';
+          g.approvedBy = 'auto-early-delivery';
+          g.lastSeenAt = now();
+          store.put('system_games', g);
+        });
+        flush();
+      } catch (e) { /* best effort */ }
+    }
+    function processProofDeadlines() {
+      const DAY = 24 * 36e5;
+      let changed = 0;
+      all('orders').filter(o => o.status === 'pending_verification' && o.proof && !o.proofVerifiedAt).forEach(o => {
+        let submittedAt = 0; try { submittedAt = JSON.parse(o.proof).submittedAt || 0; } catch (e) {}
+        if (!submittedAt || now() - submittedAt <= DAY) return;
+        o.status = 'awaiting_proof';
+        o.proofTimeouts = (Number(o.proofTimeouts) || 0) + 1;
+        o.updatedAt = now();
+        store.put('orders', o);
+        changed++;
+        const buyer = dbUser(o.buyerId);
+        const seller = dbUser(o.sellerId);
+        if (buyer) {
+          try {
+            sendEmail({
+              to: buyer.email,
+              subject: 'Your payment proof was not verified within 24h — Kings Production',
+              action: 'proof-timeout',
+              body: 'The seller' + (seller ? ' (' + seller.displayName + ')' : '') + ' did not verify your payment proof for order ' + o.id + ' within 24 hours, so the order is back to "payment proof needed".\n\nYou can submit an updated proof, use Chat with seller on the asset page to reach them directly, or open a Support ticket if they keep ignoring you. Your payment reference stays on the order.',
+              link: '#/orders',
+            });
+          } catch (e) { /* best effort */ }
+        }
+      });
+      if (changed) flush();
+      return changed;
     }
 
     async function purchase(user, id) {
@@ -2430,6 +2507,7 @@ const API = {};
         submittedAt: now(),
       });
       order.status = 'pending_verification';
+      order.proofVerifiedAt = null;
       order.updatedAt = now();
       store.put('orders', order);
       flush();
@@ -2694,6 +2772,7 @@ const API = {};
     function finalizeOrder(order, buyer) {
       if (order.status === 'completed') return ok({ licenseKey: order.licenseKey, vipUpgrade: false });
       if (order.status !== 'paid') { order.status = 'paid'; order.paidAt = now(); }
+      if (order.proof && !order.proofVerifiedAt) order.proofVerifiedAt = now();
       order.updatedAt = now();
       let out;
       if (isVipOrder(order)) {
@@ -2738,6 +2817,9 @@ const API = {};
       order.licenseKey = out.licenseKey;
       order.updatedAt = now();
       store.put('orders', order);
+      /* "Give file during pending" posts auto-license the buyer's game on the
+         seller's registered system the moment the order completes. */
+      autoApproveGamesForOrder(order);
       /* Purchase receipt — delivered to the buyer with their license key. */
       try {
         const subM = isSubOrder(order) ? String(order.assetId).split(':').slice(1) : null;
@@ -2989,6 +3071,7 @@ const API = {};
       const a = byIdIn('assets', assetId);
       if (!a) return fail('notfound', 'Asset not found.');
       if (a.status !== 'approved') return fail('notfound', 'This asset is not available yet.');
+      if (!isVerifiedBuyer(u, assetId)) return fail('buyersOnly', 'Only verified buyers can rate and comment here.');
       body = String(body || '').trim();
       if (!body) return fail('invalid', 'Write a comment first.');
       if (body.length > 1000) return fail('invalid', 'Comments are limited to 1000 characters.');
@@ -3037,6 +3120,7 @@ const API = {};
       if (!a) return fail('notfound', 'Asset not found.');
       if (a.status !== 'approved') return fail('notfound', 'This asset is not available yet.');
       if (a.ownerId === u.id) return fail('self', 'You cannot review your own asset.');
+      if (!isVerifiedBuyer(u, assetId)) return fail('buyersOnly', 'Only verified buyers can rate and review here.');
       rating = Number(rating);
       if (!Number.isInteger(rating) || rating < 1 || rating > 5) return fail('invalid', 'Pick a star rating from 1 to 5.');
       body = String(body || '').trim().slice(0, 1000);
@@ -3675,6 +3759,41 @@ const API = {};
       const u = resolveUser(user); if (!u) return fail('usernotfound', 'User not found.');
       return ok(all('tickets').filter(t => t.userId === u.id).sort((a, b) => b.lastActivityAt - a.lastActivityAt));
     }
+    /* ============ CHAT WITH SELLER (per-asset ephemeral chat) ============
+       A lightweight buyer↔seller conversation attached to an asset. Messages
+       are EPHEMERAL: any message older than 24h is pruned on read, only the
+       stable chat code ("ticket number") survives, so nothing is kept forever. */
+    const CHAT_TTL_MS = 24 * 36e5;
+    const chatCodeFor = assetId => 'KP-CHT-' + String(assetId || 'x').replace(/[^a-z0-9]/gi, '').slice(-8).toUpperCase();
+    function pruneChat(assetId, buyerId) {
+      const cutoff = now() - CHAT_TTL_MS;
+      all('chats').filter(m => m.assetId === assetId && m.buyerId === buyerId && m.createdAt < cutoff).forEach(m => store.del('chats', m.id));
+    }
+    async function chatWithSeller(user, assetId, body) {
+      const u = resolveUser(user); if (!u) return fail('auth', 'You must be logged in to do that.');
+      const a = byIdIn('assets', assetId);
+      if (!a) return fail('notfound', 'Asset not found.');
+      const isSeller = a.ownerId === u.id;
+      const isBuyer = a.ownerId !== u.id;
+      if (isBuyer && !isVerifiedBuyer(u, assetId)) return fail('forbidden', 'Chat unlocks once your purchase is approved — this keeps sellers reachable only to their real customers.');
+      if (isStaff(u) && !isSeller) return fail('forbidden', 'Staff use their own channels — this chat is between the buyer and the seller.');
+      body = String(body || '').trim().slice(0, 2000);
+      if (body) {
+        store.put('chats', { id: 'ch' + uid(), assetId, buyerId: isSeller ? null : u.id, sellerId: a.ownerId, userId: u.id, body, createdAt: now() });
+        flush();
+      }
+      const buyerId = isSeller ? null : u.id;
+      pruneChat(assetId, buyerId);
+      /* The seller sees one thread per buyer; the buyer sees their own thread.
+         The conversation code is derived from the asset itself so both sides
+         see the SAME "ticket number" for this conversation. */
+      const who = isSeller ? null : u.id;
+      const raw = all('chats').filter(m => m.assetId === assetId && (isSeller ? true : m.buyerId === who))
+        .sort((x, y) => x.createdAt - y.createdAt);
+      const code = chatCodeFor(assetId);
+      const msgs = raw.map(m => ({ id: m.id, body: m.body, createdAt: m.createdAt, mine: m.userId === u.id, from: publicUser(byIdIn('users', m.userId)) }));
+      return ok({ code, messages: msgs, ttlHours: 24 });
+    }
     /* ---- FAQ (editable from the Founder/Admin Panel) ----
        Persisted in site_settings as JSON so staff can edit Q&A from the web. */
     const FAQ_DEFAULTS = [
@@ -4218,13 +4337,14 @@ const API = {};
       licenseActivate, licenseHeartbeat, creatorDashboard, creatorLicenses, setLicenseStatus, revokeDevice,
       publicProfile, content, createPortfolio, updatePortfolio, deletePortfolio,
       createCreator, updateCreator, deleteCreator,
-      createTicket, addTicketMessage, getTicket, listMyTickets,
+      createTicket, addTicketMessage, getTicket, listMyTickets, chatWithSeller,
       adminListTickets, adminCloseTicket, adminDeleteTicket, getFaqs, saveFaqs, getLegalDoc, saveLegalDoc, processAdminPauseExpiry,
       listAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement,
+      processProofDeadlines,
       registerSystem, listSystems, deleteSystem, refreshSystemGames, systemActivate, systemHeartbeat, registerSystemDevice, setSystemStatus, revokeSystemDevice, authorizeSystemDevice, setSystemGameStatus, removeSystemGame, adminSystemDetail, adminSetSystemState, adminSubscriberDetail, adminDeleteSystem, setSystemEnforcement,
       adminOverview, adminPending, adminRejected, adminApprove, adminReject, adminAssets, adminDeleteAsset, getImgurSettings, adminSetImgurSettings, siteStatus, recordSecurityEvent,
       adminUsers, adminBan, adminUnban, adminTimeout, adminClearTimeout, adminSetRole, adminSetTags, adminSetUserPlan, adminSessions, adminEmails, adminSendEmail, adminListBlasts, adminDeleteBlast, adminEmailHistory, adminListInbound, adminSetUnsubscribed, inboundMailEvent, processScheduledBlasts, adminOrders, adminCompleteOrder,
-      sellerOrders, setOrderApproval, adminTakeFile, adminSetAssetStatus, adminSetRestriction, adminRequestSubRevoke, adminResolveSubRevoke, adminListSubRevokes, adminUnsubscribePlan, adminSystems,
+      sellerOrders, setOrderApproval, sellerResponseStats, adminTakeFile, adminSetAssetStatus, adminSetRestriction, adminRequestSubRevoke, adminResolveSubRevoke, adminListSubRevokes, adminUnsubscribePlan, adminSystems,
       setFx,
     };
   }
@@ -4523,6 +4643,7 @@ API.assignSubscription = (user, purchaseId, a) => _wrap(async () => _mode === 'l
 API.adminListTickets = user => _wrap(async () => _mode === 'local' ? await _engine.adminListTickets(user) : await _call('GET', '/api/admin/tickets'));
 API.adminCloseTicket = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.adminCloseTicket(user, id) : await _call('POST', '/api/admin/tickets/' + _e(id) + '/close'));
 API.getFaqs = () => _wrap(async () => _mode === 'local' ? await _engine.getFaqs() : await _call('GET', '/api/faqs'));
+API.chatWithSeller = (user, assetId, body) => _wrap(async () => _mode === 'local' ? await _engine.chatWithSeller(user, assetId, body || '') : await _call('POST', '/api/assets/' + _e(assetId) + '/chat', { body: body || '' }));
 API.saveFaqs = (user, faqs) => _wrap(async () => _mode === 'local' ? await _engine.saveFaqs(user, faqs) : await _call('POST', '/api/admin/faqs', { faqs }));
 API.getLegalDoc = key => _wrap(async () => _mode === 'local' ? await _engine.getLegalDoc(key) : await _call('GET', '/api/legal/' + key));
 API.saveLegalDoc = (user, key, body) => _wrap(async () => _mode === 'local' ? await _engine.saveLegalDoc(user, key, body) : await _call('POST', '/api/admin/legal/' + key, { body }));
@@ -4919,6 +5040,30 @@ function renderHeader() {
   const root = document.getElementById('drawer-root');
   if (root) root.innerHTML = drawerHtml();
   bindHeader();
+  paintNavBadges();
+}
+/* Attention badges: a gold exclamation mark pinned to the nav item that needs
+   attention — Licensed/VIP Dashboard (pending orders, new games, open tickets)
+   and Profile → Orders (awaiting proof / verification / new downloads). */
+let _badgeToken = 0;
+async function paintNavBadges() {
+  const token = ++_badgeToken;
+  const u = STATE.user;
+  const needsDash = u && canPost(u);
+  const needsOrders = u && (!isStaff(u) || u.role === 'vip');
+  if (!needsDash && !needsOrders) return;
+  const [dash, ord] = await Promise.all([
+    needsDash ? API.dashboardOrders(u).catch(() => null) : null,
+    needsOrders ? API.myOrders(u).catch(() => null) : null,
+  ]);
+  if (token !== _badgeToken) return;   /* a newer render superseded this one */
+  let dashCount = 0, ordCount = 0;
+  if (dash && dash.ok && Array.isArray(dash.data)) dashCount = dash.data.filter(o => o.status !== 'completed').length;
+  if (ord && ord.ok && Array.isArray(ord.data)) ordCount = ord.data.filter(o => (o.manual && (o.status === 'awaiting_proof' || o.status === 'pending_verification')) || (o.status === 'completed' && o.asset && !o.delivered)).length;
+  const mark = () => `<span class="nav-alert" title="Action needed">!</span>`;
+  document.querySelectorAll('[data-nav="dashboard"]').forEach(a => { const has = a.querySelector('.nav-alert'); if (dashCount > 0 && !has) a.insertAdjacentHTML('beforeend', mark()); else if (!dashCount && has) has.remove(); });
+  document.querySelectorAll('#user-menu a[href="#/orders"], .m-nav-item[href="#/orders"]').forEach(a => { const has = a.querySelector('.nav-alert'); if (ordCount > 0 && !has) a.insertAdjacentHTML('beforeend', mark()); else if (!ordCount && has) has.remove(); });
+  document.querySelectorAll('[data-nav="shop"]').forEach(a => { const has = a.querySelector('.nav-alert'); if (ordCount > 0 && !has) a.insertAdjacentHTML('beforeend', mark()); else if (!ordCount && has) has.remove(); });
 }
 function bindHeader() {
   const btn = document.getElementById('user-btn');
@@ -5293,10 +5438,10 @@ async function openCheckout(assetId, plan) {
     if (res.data && res.data.redirect) { location.href = res.data.redirect; return; }
     if (res.data && res.data.orderId && entry.manual) { await openManualPayment(res.data.orderId, entry.id, STATE._checkoutSellerDetails || null, assetId); return; }
     if (res.data && (res.data.licenseKey || res.data.vipUpgrade)) {
-      toast(res.data.vipUpgrade ? 'You are now Licensed — you can post assets. 👑' : 'Subscription issued! It is on your Subscription page.');
+      /* Buying does NOT change your role — Licensed is for plan holders only. */
+      toast(res.data.vipUpgrade ? 'Plan activated! It is on your Subscription page. 👑' : 'Purchase complete — your license key is ready.');
       burstAt(innerWidth / 2, innerHeight / 2, 30);
       SFX.play('purchase');
-      if (STATE.user) STATE.user.role = 'vip';
       await router();
       return;
     }
@@ -5313,10 +5458,11 @@ async function openManualPayment(orderId, method, sellerDetails, assetId) {
     try { const ar = await API.getAsset(assetId); if (ar.ok && ar.data && ar.data.sellerPaymentDetails) seller = ar.data.sellerPaymentDetails; } catch (e) {}
   }
   const sd = seller || {};
+  const QR_STYLE = 'width:280px;max-width:100%;height:auto;aspect-ratio:1/1;object-fit:contain;border-radius:14px;border:1px solid var(--gold);background:#fff;padding:10px;box-shadow:0 8px 30px rgba(0,0,0,.25)';
   const sellerBlock = m => {
     const d = sd[m]; if (!d) return null;
     const parts = [];
-    if (d.qrUrl) parts.push(`<div class="center"><img src="${esc(proxiedImageUrl(d.qrUrl))}" alt="Payment QR" style="width:210px;height:210px;object-fit:contain;border-radius:12px;border:1px solid var(--border);background:#fff;padding:8px"></div>`);
+    if (d.qrUrl) parts.push(`<div class="center"><img src="${esc(proxiedImageUrl(d.qrUrl))}" alt="Payment QR" style="${QR_STYLE}"></div>`);
     if (d.accountName || d.accountNumber) parts.push(`<div class="card card-pad" style="padding:12px 14px"><b style="font-size:13px">Account details</b>${d.accountName ? `<p class="muted small" style="margin:4px 0 0">Name: <b style="color:var(--text)">${esc(d.accountName)}</b></p>` : ''}${d.accountNumber ? `<p class="muted small" style="margin:4px 0 0">Number: <b style="color:var(--text)">${esc(d.accountNumber)}</b></p>` : ''}</div>`);
     if (d.instructions) parts.push(`<p class="muted small" style="margin:0">${esc(d.instructions)}</p>`);
     return parts.length ? `<div style="border:1px solid var(--gold);border-radius:12px;padding:12px;display:grid;gap:10px;background:var(--surface-2)"><b style="font-size:13px">The seller's payment details</b>${parts.join('')}</div>` : null;
@@ -5328,7 +5474,7 @@ async function openManualPayment(orderId, method, sellerDetails, assetId) {
     const sb = sellerBlock('gcash');
     if (sb) { blocks.push(sb); }
     else {
-      if (c.gcashQrUrl) blocks.push(`<div class="center"><img src="${esc(proxiedImageUrl(c.gcashQrUrl))}" alt="GCash QR" style="width:210px;height:210px;object-fit:contain;border-radius:12px;border:1px solid var(--border);background:#fff;padding:8px"></div>`);
+      if (c.gcashQrUrl) blocks.push(`<div class="center"><img src="${esc(proxiedImageUrl(c.gcashQrUrl))}" alt="GCash QR" style="${QR_STYLE}"></div>`);
       if (c.gcashDetails) blocks.push(`<div class="card card-pad" style="padding:12px 14px"><b style="font-size:13px">GCash details</b><p class="muted small" style="margin:4px 0 0;white-space:pre-wrap">${esc(c.gcashDetails)}</p></div>`);
       blocks.push(`<p class="muted small" style="margin:0">${esc(c.gcashInstructions || 'Open GCash, scan the QR (or send to the number above), then enter the reference number from your receipt below.')}</p>`);
     }
@@ -5355,8 +5501,7 @@ async function openManualPayment(orderId, method, sellerDetails, assetId) {
     title: 'Complete your payment',
     wide: true,
     confirmLabel: 'Submit proof',
-    cancelLabel: 'Pay later',
-    body: `<p class="muted small" style="margin:0 0 10px">Order <b>${esc(orderId)}</b> — send the exact amount, then submit your proof. Staff verify it before your license is issued.</p>
+    body: `<p class="muted small" style="margin:0 0 10px">Order <b>${esc(orderId)}</b> — send the exact amount, then submit your proof. The seller verifies it before your license is issued; if they don't respond within <b>24 hours</b> the order goes back to "payment proof needed" and you're notified — you can also reach them via <b>Chat with seller</b> on the asset page or a Support ticket.</p>
       <div style="display:grid;gap:10px;margin-bottom:14px">${blocks.join('')}</div>
       <div class="field"><label>Payment reference number / transaction ID<span class="req">*</span></label><input class="input" id="mp-ref" maxlength="80" placeholder="e.g. GCash ref no. 1234-5678-9012"></div>
       <div class="field"><label>Proof link <span class="muted small" style="font-weight:400">(optional — screenshot URL)</span></label><input class="input" id="mp-url" type="url" placeholder="https://i.imgur.com/…"></div>
@@ -5378,14 +5523,19 @@ async function triggerFileDownload(res) {
   if (!res.ok) { toast(res.error, 'err'); return; }
   if (res.data.url) {
     try {
+      /* The gated file route authenticates via Bearer token (localStorage). */
       const r = await fetch(res.data.url, { headers: { Authorization: 'Bearer ' + _getToken() } });
-      if (!r.ok) throw new Error('download failed');
+      if (!r.ok) {
+        let msg = 'download failed ' + r.status;
+        try { const j = await r.json(); if (j && j.error) msg = j.error; } catch (e) {}
+        throw new Error(msg);
+      }
       const blob = await r.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url; a.download = res.data.fileName || 'asset-file';
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 4000);
-    } catch (err) { toast('Could not download the file.', 'err'); return; }
+    } catch (err) { toast(err && err.message && !/failed/.test(err.message) ? err.message : 'Could not download the file — try again, or ask the seller to re-upload.', 'err'); return; }
   } else {
     const a = document.createElement('a');
     a.href = res.data.dataURL; a.download = res.data.fileName || 'asset-file';
@@ -5398,6 +5548,68 @@ async function onDownload(id) {
   triggerFileDownload(res);
 }
 
+/* ---- chat with seller: bottom-right ephemeral chat (24h retention) ---- */
+let CHAT = { assetId: null, open: false, timer: null };
+async function openChatWithSeller(assetId) {
+  if (!STATE.user) { go('/login'); return; }
+  CHAT.assetId = assetId;
+  CHAT.open = true;
+  ensureChatPanel();
+  await refreshChat();
+  clearInterval(CHAT.timer);
+  CHAT.timer = setInterval(refreshChat, 6000);
+}
+function closeChatPanel() { CHAT.open = false; clearInterval(CHAT.timer); const p = document.getElementById('seller-chat'); if (p) p.remove(); }
+function ensureChatPanel() {
+  if (document.getElementById('seller-chat')) return;
+  const p = document.createElement('div');
+  p.id = 'seller-chat';
+  p.style.cssText = 'position:fixed;right:22px;bottom:22px;width:340px;max-width:calc(100vw - 32px);height:460px;max-height:70vh;background:var(--surface);border:1px solid var(--gold);border-radius:16px;box-shadow:0 24px 60px rgba(0,0,0,.5);display:flex;flex-direction:column;z-index:9000;overflow:hidden';
+  p.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--border);background:var(--surface-2)">
+      <b style="flex:1;font-family:var(--font-display);font-size:14px">${ICON.mail} Chat with seller</b>
+      <button class="icon-btn" title="Close" onclick="closeChatPanel()" style="color:var(--text-2)">${ICON.close}</button>
+    </div>
+    <div id="chat-code" class="muted small" style="padding:6px 14px;border-bottom:1px solid var(--border)"></div>
+    <div id="chat-msgs" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px"></div>
+    <form id="chat-form" style="display:flex;gap:8px;padding:10px;border-top:1px solid var(--border)">
+      <input class="input" id="chat-input" maxlength="2000" placeholder="Type a message…" autocomplete="off" style="flex:1">
+      <button class="btn btn-primary btn-sm" type="submit">Send</button>
+    </form>`;
+  document.body.appendChild(p);
+  document.getElementById('chat-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const inp = document.getElementById('chat-input');
+    const body = inp.value.trim();
+    if (!body) return;
+    inp.value = '';
+    await API.chatWithSeller(STATE.user, CHAT.assetId, body);
+    await refreshChat();
+  });
+}
+async function refreshChat() {
+  if (!CHAT.open || !CHAT.assetId) return;
+  const r = await API.chatWithSeller(STATE.user, CHAT.assetId, '');
+  if (!r.ok) { toast(r.error, 'err'); closeChatPanel(); return; }
+  const code = document.getElementById('chat-code');
+  const box = document.getElementById('chat-msgs');
+  if (!code || !box) return;
+  code.innerHTML = `Conversation code: <b style="color:var(--text)">${esc(r.data.code)}</b> <span class="muted" style="font-weight:400">· messages auto-delete after 24h</span>`;
+  box.innerHTML = r.data.messages.length ? r.data.messages.map(m => `
+    <div style="align-self:${m.mine ? 'flex-end' : 'flex-start'};max-width:80%;background:${m.mine ? 'var(--gold)' : 'var(--surface-2)'};color:${m.mine ? '#1a1408' : 'var(--text)'};padding:8px 12px;border-radius:12px;font-size:13.5px;line-height:1.5">
+      ${esc(m.body)}<div style="font-size:10.5px;opacity:.65;margin-top:2px">${esc(m.mine ? 'You' : (m.from && m.from.displayName) || 'Seller')} · ${timeAgo(m.createdAt)}</div>
+    </div>`).join('') : '<span class="muted small">No messages yet — say hi! Messages vanish after 24 hours.</span>';
+  box.scrollTop = box.scrollHeight;
+}
+/* ---- image lightbox ---- */
+function openLightbox(src) {
+  if (!src) return;
+  const lb = document.createElement('div');
+  lb.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9500;display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:30px';
+  lb.innerHTML = `<img src="${esc(src)}" style="max-width:94vw;max-height:90vh;border-radius:14px;box-shadow:0 30px 80px rgba(0,0,0,.6)">`;
+  lb.addEventListener('click', () => lb.remove());
+  document.body.appendChild(lb);
+}
 /* ---- asset detail ---- */
 VIEWS.asset = async ({ params }) => {
   const res = await API.getAsset(params[0], STATE.user && STATE.user.id);
@@ -5428,21 +5640,25 @@ VIEWS.asset = async ({ params }) => {
       ${me && !canPost(me) ? `<p class="muted small" style="margin-top:10px">Every purchase upgrades you to <b style="color:var(--vip)">Licensed</b> — you can post your own assets right after.</p>` : ''}`;
   }
 
-  const commentHtml = comments.ok ? comments.data.map(c => `
-    <div class="comment">${avatarHtml(c.user, 38)}
+  /* Comments come from verified buyers; hide identities from non-buyers. */
+  const commentHtml = comments.ok ? comments.data.map(c => {
+    const showUser = canRate;
+    return `<div class="comment">${showUser ? avatarHtml(c.user, 38) : `<span class="avatar" style="display:flex;align-items:center;justify-content:center">${ICON.user}</span>`}
       <div class="comment-body">
-        <div class="comment-head"><a class="comment-name" href="#/profile/${esc(c.user.handle)}">${esc(c.user.displayName)}</a>${badgeHtml(c.user.role, c.user.tags)}${c.rating ? starsHtml(c.rating) : ''}<span class="comment-time">${timeAgo(c.createdAt)}</span>${me && c.user && c.user.id !== me.id ? `<button class="icon-btn" title="Report comment" onclick="onReport('comment','${c.id}')">${ICON.flag}</button>` : ''}</div>
+        <div class="comment-head">${showUser ? `<a class="comment-name" href="#/profile/${esc(c.user.handle)}">${esc(c.user.displayName)}</a>${badgeHtml(c.user.role, c.user.tags)}` : `<span class="comment-name">Verified buyer</span>`}${c.rating ? starsHtml(c.rating) : ''}<span class="comment-time">${timeAgo(c.createdAt)}</span>${showUser && me && c.user && c.user.id !== me.id ? `<button class="icon-btn" title="Report comment" onclick="onReport('comment','${c.id}')">${ICON.flag}</button>` : ''}</div>
         <div class="comment-text">${esc(c.body)}</div>
-      </div></div>`).join('') : '';
+      </div></div>`;
+  }).join('') : '';
 
-  const composerHtml = me
-    ? (isTimedOut(me) ? `<div class="form-error">Commenting is disabled while you are timed out (${esc(timeoutText(me))} remaining).</div>`
-      : `<form class="composer" onsubmit="onComment(event)" data-asset="${a.id}">${avatarHtml(me, 40)}<div class="composer-main">
+  const composerHtml = !me
+    ? `<p class="muted"><a href="#/login">Log in</a> to see the discussion.</p>`
+    : isTimedOut(me) ? `<div class="form-error">Commenting is disabled while you are timed out (${esc(timeoutText(me))} remaining).</div>`
+    : !canRate ? `<div class="card card-pad muted small">Only buyers whose purchase was approved can rate and comment on this system — this keeps every review real.</div>`
+    : `<form class="composer" onsubmit="onComment(event)" data-asset="${a.id}">${avatarHtml(me, 40)}<div class="composer-main">
           <div class="stars-pick" title="Rate this asset to post">${[1, 2, 3, 4, 5].map(i => `<button type="button" class="star-btn" data-r="${i}" onclick="pickStars('rp-c-${a.id}', ${i})">★</button>`).join('')}</div>
           <textarea class="textarea" name="body" placeholder="Rate it (1–5 stars) and share your feedback…" maxlength="1000" required></textarea>
           <div class="row" style="gap:10px"><button class="btn btn-primary btn-sm" type="submit">${ICON.mail} Comment</button><span class="muted small" style="align-self:center">Comments require a star rating — they power each asset's score.</span></div>
-        </div></form>`)
-    : `<p class="muted"><a href="#/login">Log in</a> to join the discussion.</p>`;
+        </div></form>`;
 
   /* reviews & ratings */
   const reviewData = reviews.ok ? reviews.data : { avg: 0, count: 0, items: [] };
@@ -5451,6 +5667,7 @@ VIEWS.asset = async ({ params }) => {
   if (!me) reviewFormHtml = `<p class="muted small"><a href="#/login">Log in</a> to review this asset.</p>`;
   else if (isTimedOut(me)) reviewFormHtml = `<p class="form-error">Reviews are disabled while you are timed out (${esc(timeoutText(me))} remaining).</p>`;
   else if (a.isOwner) reviewFormHtml = `<p class="muted small">You cannot review your own asset.</p>`;
+  else if (!canRate) reviewFormHtml = `<p class="muted small">Only verified buyers can review this system.</p>`;
   else if (a.status !== 'approved') reviewFormHtml = '';
   else reviewFormHtml = `<form class="review-form" data-asset="${a.id}" onsubmit="onSubmitReview(event,'${a.id}')">
       <div class="stars-pick" id="rp-${a.id}">${[1, 2, 3, 4, 5].map(i => `<button type="button" class="star-btn ${myReview && myReview.rating >= i ? 'on' : ''}" data-r="${i}" onclick="pickStar('${a.id}', ${i})">★</button>`).join('')}</div>
@@ -5465,30 +5682,35 @@ VIEWS.asset = async ({ params }) => {
           <div class="comment-head"><a class="comment-name" href="#/profile/${esc(r.user.handle)}">${esc(r.user.displayName)}</a>${badgeHtml(r.user.role, r.user.tags)}${starsHtml(r.rating)}<span class="comment-time">${timeAgo(r.createdAt)}</span>${me && r.user && r.user.id === me.id ? `<button class="icon-btn danger" title="Delete review" onclick="onDeleteReview('${r.id}')">${ICON.trash}</button>` : ''}</div>
           ${r.body ? `<div class="review-text">${esc(r.body)}</div>` : ''}
         </div></div>`).join('')
-    : emptyHtml('No reviews yet', 'Be the first to rate this asset.');
+    : emptyHtml('No reviews yet', 'Verified buyers can be the first to rate this system.');
 
   return `<div class="page page-narrow">
     <div class="asset-hero">
-      <div class="asset-hero-thumb">${thumbHtml(a, 84)}</div>
+      <div class="asset-hero-thumb" title="Click to zoom" onclick="openLightbox('${esc(proxiedImageUrl(a.imageUrl || ''))}')">${thumbHtml(a, 84)}</div>
       <div>
         <div class="asset-meta">${catBadge(a.category)}${ownerView ? statusBadge(a.status, a.rejectReason) : ''}<span class="sales">${ICON.cart}${a.sales} sold</span>${a.ratingCount ? `${starsHtml(a.rating)}<span class="muted small">${a.rating} · ${a.ratingCount}</span>` : ''}</div>
         <h1 style="font-family:var(--font-display);font-size:clamp(26px,4vw,38px);font-weight:700;letter-spacing:-.02em;margin-top:10px">${esc(a.title)}</h1>
         <div class="asset-meta"><span class="price" style="font-size:22px">${fmtMoney(a.price)}</span><span class="muted small">· posted ${fmtDate(a.createdAt)}</span></div>
+        ${a.sellerResponse ? `<div class="row" style="gap:10px;margin-top:10px;flex-wrap:wrap"><span class="badge soft-ok" title="Share of payment proofs this seller verified within 24 hours over the last 30 days">${ICON.clock} Seller response: ${a.sellerResponse.pct}% · ${esc(a.sellerResponse.label)}</span>${a.sellerResponse.avgHours ? `<span class="muted small" style="align-self:center">avg ${a.sellerResponse.avgHours}h to verify</span>` : ''}</div>` : ''}
         <div class="row" style="gap:12px;margin-top:10px"><button class="like-btn lg ${a.liked ? 'on' : ''}" title="Like this asset" onclick="onLike(event,'${a.id}',this)">${ICON.heart}<span>${a.likes || 0}</span></button><span class="muted small" style="align-self:center">${a.likes || 0} like${a.likes === 1 ? '' : 's'} — the more likes and higher ratings, the higher it ranks.</span></div>
-        <div class="asset-desc">${esc(a.description)}</div>
         ${a.paymentMethods && a.paymentMethods.length ? `<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:12px"><span class="muted small" style="align-self:center">${ICON.check} The seller accepts:</span>${a.paymentMethods.map(m => `<span class="chip" style="cursor:default">${({ gcash: 'GCash', kofi: 'Ko-fi', paypal: 'PayPal', stripe: 'Stripe' })[m] || esc(m)}</span>`).join('')}</div>` : ''}
         <div class="buy-box">${buyHtml || `<span class="muted small">This asset is not for sale yet.</span>`}</div>
       </div>
     </div>
+    <div class="asset-desc-card">
+      <h3>About this system</h3>
+      <div class="asset-desc">${esc(a.description)}</div>
+    </div>
     ${(a.images && a.images.length) ? `<div class="section-head" style="margin-top:34px"><div><h2 style="font-size:19px">Photos</h2><p>Click any photo to view it full-size.</p></div></div>
-    <div class="row" style="gap:10px;flex-wrap:wrap">${a.images.map(u => `<a href="${esc(proxiedImageUrl(u))}" target="_blank" rel="noopener"><img src="${esc(proxiedImageUrl(u))}" alt="" loading="lazy" style="width:170px;aspect-ratio:16/9;object-fit:cover;border-radius:10px;border:1px solid var(--border)" onerror="this.parentElement.remove()"></a>`).join('')}</div>` : ''}
+    <div class="row" style="gap:10px;flex-wrap:wrap">${a.images.map(u => `<img src="${esc(proxiedImageUrl(u))}" alt="" loading="lazy" style="width:170px;aspect-ratio:16/9;object-fit:cover;border-radius:10px;border:1px solid var(--border);cursor:zoom-in" onclick="openLightbox('${esc(proxiedImageUrl(u))}')" onerror="this.remove()">`).join('')}</div>` : ''}
     <div class="poster-row">
       ${avatarHtml(a.owner, 44)}
       <div style="flex:1"><div class="row" style="gap:8px"><a href="#/profile/${esc(a.owner.handle)}" class="bold">${esc(a.owner.displayName)}</a>${badgeHtml(a.owner.role, a.owner.tags)}</div><div class="muted small">Creator · joined ${fmtDate(a.owner.createdAt)}</div></div>
+      ${me && !a.isOwner && canRate ? `<button class="btn btn-ghost btn-sm" onclick="openChatWithSeller('${a.id}')">${ICON.mail} Chat with seller</button>` : ''}
       ${me && !a.isOwner ? `<button class="btn btn-ghost btn-sm" onclick="onReport('asset','${a.id}')">${ICON.flag} Report</button>` : ''}
     </div>
     <div class="reviews" style="margin-top:44px">
-      <div class="section-head"><div><h2>Reviews &amp; Ratings <span class="muted small" style="font-weight:400">(${reviewData.count})</span></h2></div></div>
+      <div class="section-head"><div><h2>Reviews &amp; Ratings <span class="muted small" style="font-weight:400">(${reviewData.count} · verified buyers only)</span></h2></div></div>
       <div class="card card-pad review-summary">
         <div style="text-align:center;flex-shrink:0">
           <div style="font-family:var(--font-display);font-size:40px;font-weight:700;line-height:1">${reviewData.count ? reviewData.avg : '—'}</div>
@@ -5502,7 +5724,7 @@ VIEWS.asset = async ({ params }) => {
     <div class="comments" style="margin-top:44px">
       <div class="section-head"><div><h2>Comments <span class="muted small" style="font-weight:400">(${comments.ok ? comments.data.length : 0})</span></h2></div></div>
       ${composerHtml}
-      ${commentHtml || emptyHtml('No comments yet', 'Be the first to comment on this asset.')}
+      ${commentHtml || (canRate ? emptyHtml('No comments yet', 'Be the first to comment on this asset.') : '')}
     </div>
   </div>`;
 };
@@ -6209,7 +6431,7 @@ VIEWS.orders = async () => {
     const proof = o.proof && typeof o.proof === 'object' ? o.proof : null;
     const statusBadge = completed ? '<span class="badge ok">COMPLETED</span>'
       : o.status === 'cancelled' ? '<span class="badge plain">Cancelled</span>'
-      : o.status === 'pending_verification' ? '<span class="badge warn">Proof submitted — the seller is verifying</span>'
+      : o.status === 'pending_verification' ? '<span class="badge warn" title="The seller has 24 hours to verify your proof — after that the order reverts and you\'re notified">Proof submitted — the seller is verifying (24h)</span>'
       : o.status === 'awaiting_proof' && o.manual ? '<span class="badge warn">Payment proof needed</span>'
       : '<span class="badge warn">PENDING</span>';
     const proofBlock = o.manual && !completed ? `
@@ -6226,7 +6448,7 @@ VIEWS.orders = async () => {
         ${completed ? '<span class="badge soft-ok">Delivered</span>' : ''}
       </div>
       ${a && !completed && !o.manual ? `<div style="padding:10px 20px 4px" class="muted small">The seller reviews your game details before activation — you will get an email once it is approved.</div>` : ''}
-      ${a && completed ? `<div style="padding:10px 20px 4px" class="muted small">License delivered${a.deliverDuringPending ? ' — the seller released the file early, so you can download it right now' : ' — the file unlocks on the asset page'}.</div><div style="padding:4px 20px 16px"><a class="btn btn-ghost btn-sm" href="#/asset/${esc(a.id)}">${ICON.download} Go to asset &amp; download</a></div>` : ''}
+      ${a && completed ? `<div style="padding:10px 20px 4px" class="muted small">System file delivered${a.deliverDuringPending ? ' — the seller released it early, so you can download it right now' : ''}.</div><div style="padding:4px 20px 16px"><button class="btn btn-primary btn-sm" onclick="onDownload('${a.id}')">${ICON.download} Download system file</button></div>` : ''}
       ${proofBlock}
       ${completed || o.manual && o.status === 'pending_verification' ? '' : `<div style="padding:10px 20px 16px"><button class="btn btn-ghost btn-sm" onclick="onCancelMyOrder('${o.id}')">Cancel order</button></div>`}
     </div>`;
@@ -6386,13 +6608,17 @@ VIEWS.dashboard = async ({ query = {} } = {}) => {
           <span class="muted small">Owner: <b style="color:var(--text)">${gd.gameOwner ? esc(gd.gameOwner) : '—'}</b></span>
         </div>
         ${gd.notes ? `<div class="muted small" style="margin-bottom:10px">Buyer notes: ${esc(gd.notes)}</div>` : ''}
-        ${proof ? `<div class="card card-pad" style="padding:12px 14px;margin-bottom:10px;background:var(--surface-2)"><b style="font-size:13px">Payment proof</b><div class="muted small" style="margin-top:4px">Reference: <b style="color:var(--text)">${esc(proof.reference)}</b>${proof.proofUrl ? ` · <a href="${esc(proof.proofUrl)}" target="_blank" rel="noopener">proof link</a>` : ''}${proof.note ? ` · ${esc(proof.note)}` : ''}</div></div>` : ''}
+        ${proof ? `<div class="card card-pad" style="padding:12px 14px;margin-bottom:10px;background:var(--surface-2)"><b style="font-size:13px">Payment proof</b>
+          <div class="muted small" style="margin-top:4px">Reference: <b style="color:var(--text)">${esc(proof.reference)}</b>${proof.note ? ` · ${esc(proof.note)}` : ''}</div>
+          ${proof.proofUrl ? `<img src="${esc(proxiedImageUrl(proof.proofUrl))}" alt="Payment proof" loading="lazy" style="margin-top:10px;max-width:320px;width:100%;max-height:280px;object-fit:contain;border-radius:10px;border:1px solid var(--border);background:#fff;cursor:zoom-in" onclick="openLightbox('${esc(proxiedImageUrl(proof.proofUrl))}')" onerror="this.remove()">` : ''}
+        </div>` : ''}
         ${o.approvalNote ? `<div class="muted small" style="margin-bottom:10px">Your note: ${esc(o.approvalNote)}</div>` : ''}
         ${!completed ? `<div class="row" style="gap:8px;flex-wrap:wrap">
-          <button class="btn btn-primary btn-sm" onclick="onOrderApproval('${o.id}','approved')">${ICON.check} Approve details</button>
+          ${o.status === 'pending_verification' ? `<button class="btn btn-primary btn-sm" onclick="onSellerReviewProof('${o.id}','approve')">${ICON.crown} Verify payment &amp; deliver</button>` : ''}
+          <button class="btn btn-${o.status === 'pending_verification' ? 'ghost' : 'primary'} btn-sm" onclick="onOrderApproval('${o.id}','approved')">${ICON.check} Approve details</button>
           <button class="btn btn-danger btn-sm" onclick="onOrderApproval('${o.id}','rejected')">${ICON.ban} Reject</button>
+          ${o.status === 'pending_verification' ? `<button class="btn btn-ghost btn-sm" onclick="onSellerReviewProof('${o.id}','reject')">${ICON.ban} Reject proof</button>` : ''}
           ${o.status === 'paid' ? `<button class="btn btn-ghost btn-sm" onclick="onOrderApproveAndComplete('${o.id}')">${ICON.crown} Approve &amp; complete</button>` : ''}
-          ${o.status === 'pending_verification' ? `<button class="btn btn-primary btn-sm" onclick="onSellerReviewProof('${o.id}','approve')">${ICON.crown} Verify payment &amp; deliver</button><button class="btn btn-ghost btn-sm" onclick="onSellerReviewProof('${o.id}','reject')">${ICON.ban} Reject proof</button>` : ''}
         </div>` : ''}
       </div>
     </div>`;
@@ -6576,7 +6802,7 @@ async function onOrderApproval(orderId, decision) {
 function onSellerReviewProof(orderId, decision) {
   if (decision === 'approve') {
     modal({ title: 'Verify payment & deliver?', confirmLabel: 'Yes — deliver',
-      body: '<p>Confirm you received this buyer\'s payment (reference matches your GCash / Ko-fi history). The order completes instantly: the buyer gets their <b>license key</b> and, if you enabled early delivery, the file is available right away.</p>',
+      body: '<p>Confirm you received this buyer\'s payment (reference matches your GCash / Ko-fi history). The order completes instantly: the buyer gets their <b>system file</b> and the license for the game they entered is activated.</p>',
       onConfirm: async () => {
         const r = await API.sellerReviewProof(STATE.user, orderId, 'approve');
         r.ok ? (toast('Payment verified — license delivered to the buyer.'), burstAt(innerWidth / 2, innerHeight / 2, 24), SFX.play('purchase')) : toast(r.error, 'err');
