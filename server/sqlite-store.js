@@ -49,6 +49,7 @@ const SCHEMA = {
   sub_revokes: ['id', 'actorId', 'targetId', 'reason', 'prevProtection', 'prevContract', 'status', 'resolvedBy', 'resolvedAt', 'createdAt'],
   mail_blasts: ['id', 'subject', 'body', 'recipients', 'status', 'scheduledFor', 'createdAt', 'updatedAt', 'sentAt'],
   mail_inbound: ['id', 'email', 'event', 'subject', 'body', 'detail', 'createdAt'],
+  asset_blocks: ['id', 'assetId', 'userId', 'reason', 'blockedBy', 'createdAt'],
 };
 /* Booleans are persisted as 0/1 integers and restored on read. */
 const BOOLS = { users: ['banned', 'totpEnabled', 'emailVerified', 'unsubscribed'], tokens: ['used'], emails: ['read'], portfolio: ['featured'], announcements: ['active'] };
@@ -170,6 +171,11 @@ CREATE TABLE IF NOT EXISTS chats (
 CREATE INDEX IF NOT EXISTS idx_chats_asset ON chats (assetId);
 CREATE INDEX IF NOT EXISTS idx_mail_blasts_status ON mail_blasts (status);
 CREATE INDEX IF NOT EXISTS idx_mail_inbound_email ON mail_inbound (email);
+CREATE TABLE IF NOT EXISTS asset_blocks (
+  id TEXT PRIMARY KEY, assetId TEXT NOT NULL, userId TEXT NOT NULL,
+  reason TEXT, blockedBy TEXT, createdAt INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_asset_blocks_asset ON asset_blocks (assetId);
 CREATE INDEX IF NOT EXISTS idx_orders_buyer ON orders (buyerId);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders (status);
 CREATE INDEX IF NOT EXISTS idx_assets_status ON assets (status);
@@ -318,6 +324,9 @@ const MIGRATIONS = [
   "CREATE TABLE IF NOT EXISTS site_settings (id TEXT PRIMARY KEY, value TEXT NOT NULL, updatedAt INTEGER)",
   "CREATE TABLE IF NOT EXISTS chats (id TEXT PRIMARY KEY, assetId TEXT NOT NULL, buyerId TEXT, sellerId TEXT NOT NULL, userId TEXT NOT NULL, body TEXT NOT NULL, createdAt INTEGER NOT NULL)",
   "ALTER TABLE assets ADD COLUMN backupUrl TEXT",
+  "CREATE TABLE IF NOT EXISTS asset_blocks (id TEXT PRIMARY KEY, assetId TEXT NOT NULL, userId TEXT NOT NULL, reason TEXT, blockedBy TEXT, createdAt INTEGER NOT NULL)",
+  "CREATE INDEX IF NOT EXISTS idx_asset_blocks_asset ON asset_blocks (assetId)",
+  "CREATE INDEX IF NOT EXISTS idx_asset_blocks_user ON asset_blocks (userId)",
   "CREATE INDEX IF NOT EXISTS idx_chats_asset ON chats (assetId)",
 ];
 function ticketCleanup(db) {

@@ -1054,6 +1054,52 @@
       return changed;
     }
 
+    /* ---- Per-asset user blocks (seller's ban list) ----
+       A blocked user can never (re)purchase or VIP-try THIS asset; their
+       existing license is disabled and their games get denied. */
+    const isAssetBlocked = (assetId, userId) => !!byIdIn('asset_blocks', assetId + ':' + userId);
+    function blockAssetUser(actor, assetId, targetId, reason) {
+      const u = resolveUser(actor);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const a = byIdIn('assets', assetId);
+      if (!a) return fail('notfound', 'Asset not found.');
+      const target = dbUser(targetId);
+      if (!target) return fail('notfound', 'User not found.');
+      const founderish = effRank(u) >= roleRank('cofounder');
+      if (!founderish && a.ownerId !== u.id) return fail('forbidden', 'Only the creator can block users from this post.');
+      if (founderish && a.ownerId !== u.id && effRank(target) >= roleRank(u.role)) return fail('forbidden', 'You cannot block an equal or higher-ranked staff account.');
+      const id = assetId + ':' + targetId;
+      if (isAssetBlocked(assetId, targetId)) return fail('owned', 'That user is already blocked from this post.');
+      store.put('asset_blocks', { id, assetId, userId: targetId, reason: String(reason || '').trim().slice(0, 300) || null, blockedBy: u.id, createdAt: now() });
+      /* Kill existing access: disable their license (system stops working on
+         the next heartbeat) and remove pending/active try orders. */
+      all('purchases').filter(p => p.assetId === assetId && p.buyerId === targetId).forEach(p => { p.status = 'disabled'; store.put('purchases', p); });
+      all('orders').filter(o => o.buyerId === targetId && o.assetId === assetId && (o.status === 'created' || o.status === 'paid')).forEach(o => { o.status = 'rejected'; o.approval = 'rejected'; o.approvalNote = 'Blocked by the seller.'; o.updatedAt = now(); store.put('orders', o); });
+      const t = dbUser(targetId);
+      if (t) sendEmail({ to: t.email, subject: 'You were blocked from a system — Kings Production', action: 'asset_block', body: 'The seller of "' + a.title + '" has blocked your account from that system. Your license for it (if any) has been disabled and the system will stop working in your game.' + (reason ? ' Reason: ' + String(reason).trim().slice(0, 300) : '') + '\n\nIf you believe this was a mistake, open a Support ticket.', link: '#/orders' });
+      flush();
+      return ok(true);
+    }
+    function unblockAssetUser(actor, assetId, targetId) {
+      const u = resolveUser(actor);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const a = byIdIn('assets', assetId);
+      if (!a) return fail('notfound', 'Asset not found.');
+      if (a.ownerId !== u.id && effRank(u) < roleRank('cofounder')) return fail('forbidden', 'Only the creator can unblock users from this post.');
+      const id = assetId + ':' + targetId;
+      if (!isAssetBlocked(assetId, targetId)) return fail('notfound', 'That user is not blocked from this post.');
+      store.del('asset_blocks', id);
+      flush();
+      return ok(true);
+    }
+    function assetBlocksList(actor, assetId) {
+      const u = resolveUser(actor);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const a = byIdIn('assets', assetId);
+      if (!a) return fail('notfound', 'Asset not found.');
+      if (a.ownerId !== u.id && effRank(u) < roleRank('cofounder')) return fail('forbidden', 'Only the creator can view this list.');
+      return ok(all('asset_blocks').filter(b => b.assetId === assetId).sort((x, y) => y.createdAt - x.createdAt).map(b => ({ ...b, user: (() => { const t = dbUser(b.userId); return t ? { id: t.id, handle: t.handle, displayName: t.displayName } : null; })() })));
+    }
     async function purchase(user, id) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
@@ -1063,6 +1109,7 @@
       if (isBanned(u)) return fail('banned', 'Your account is banned.');
       if (a.status !== 'approved') return fail('notfound', 'This asset is not available for purchase.');
       if (a.ownerId === u.id) return fail('self', 'You cannot purchase your own asset.');
+      if (isAssetBlocked(id, u.id)) return fail('forbidden', 'The seller has blocked your account from this system.');
       if (all('purchases').some(p => p.assetId === id && p.buyerId === u.id)) return fail('owned', 'You already own this asset.');
       if (isTester(u)) { const r = grantLicense(u, a); return ok(Object.assign(r, { test: true })); }
       const r = grantLicense(u, a);
@@ -1277,6 +1324,7 @@
       if (a.status !== 'approved') return fail('notfound', 'This asset is not available for purchase.');
       const owner = dbUser(a.ownerId);
       if (!isStaff(owner)) return fail('forbidden', 'Try only works on systems posted by Kings Production.');
+      if (isAssetBlocked(a.id, u.id)) return fail('forbidden', 'The seller has blocked your account from this system.');
       if (all('purchases').some(p => p.assetId === a.id && p.buyerId === u.id)) return fail('owned', 'You already own this asset.');
       /* An existing pending request is FOLLOWED UP, not blocked: the new
          details replace the old ones and the request moves back to the top
@@ -1355,7 +1403,7 @@
           try { details = o.gameDetails ? JSON.parse(o.gameDetails) : null; } catch (e) {}
           let proof = null;
           try { proof = o.proof ? JSON.parse(o.proof) : null; } catch (e) {}
-          return { id: o.id, assetId: o.assetId, assetTitle: a ? a.title : '(deleted asset)', amount: o.amount, currency: o.currency, method: o.method, manual: MANUAL_METHODS.includes(o.method), proof, status: o.status, approval: o.approval || (o.status === 'completed' ? 'approved' : 'pending'), buyer: b ? { handle: b.handle, displayName: b.displayName } : null, gameDetails: details, createdAt: o.createdAt, completedAt: o.updatedAt };
+          return { id: o.id, assetId: o.assetId, assetTitle: a ? a.title : '(deleted asset)', amount: o.amount, currency: o.currency, method: o.method, manual: MANUAL_METHODS.includes(o.method), proof, status: o.status, approval: o.approval || (o.status === 'completed' ? 'approved' : 'pending'), buyer: b ? { id: b.id, handle: b.handle, displayName: b.displayName } : null, gameDetails: details, createdAt: o.createdAt, completedAt: o.updatedAt };
         });
       return ok(rows);
     }
@@ -1367,7 +1415,44 @@
       if (!order || order.sellerId !== u.id) return fail('forbidden', 'Order not found.');
       decision = String(decision || '');
       if (!['approved', 'rejected'].includes(decision)) return fail('invalid', 'Invalid decision.');
-      if (order.status === 'completed' && decision === 'rejected') return fail('invalid', 'This order is already completed — revoke the license instead.');
+      /* Unapprove: rejecting a COMPLETED order revokes its license — the
+         system stops working for that buyer on the next heartbeat. */
+      if (order.status === 'completed' && decision === 'rejected') {
+        order.approval = 'rejected';
+        order.approvalNote = String(note || '').trim().slice(0, 300) || null;
+        order.status = 'rejected';
+        order.rejectedAt = now();
+        order.unapprovedAt = now();
+        if (order.licenseKey) {
+          const lic = all('purchases').find(p => p.licenseKey === order.licenseKey);
+          if (lic) { lic.status = 'disabled'; store.put('purchases', lic); }
+        }
+        const buyer0 = dbUser(order.buyerId);
+        const aTitle0 = (byIdIn('assets', order.assetId) || {}).title || 'your order';
+        if (buyer0) sendEmail({ to: buyer0.email, subject: 'Your order approval was revoked — Kings Production', action: 'order_unapproved', body: 'The seller revoked the approval for your order of "' + aTitle0 + '". The license is now disabled and the system will stop working in your game.' + (order.approvalNote ? ' Their note: ' + order.approvalNote : '') + '\n\nIf you believe this was a mistake, open a Support ticket.', link: '#/orders' });
+        store.put('orders', order);
+        flush();
+        return ok(true);
+      }
+      /* Re-approve a previously rejected order: re-enable the license and
+         complete the order again. */
+      if (order.status === 'rejected' && decision === 'approved') {
+        order.approval = 'approved';
+        order.approvalNote = String(note || '').trim().slice(0, 300) || null;
+        order.status = 'completed';
+        order.updatedAt = now();
+        if (order.licenseKey) {
+          const lic = all('purchases').find(p => p.licenseKey === order.licenseKey);
+          if (lic) { lic.status = 'active'; store.put('purchases', lic); }
+        }
+        const buyerR = dbUser(order.buyerId);
+        const aTitleR = (byIdIn('assets', order.assetId) || {}).title || 'your order';
+        if (buyerR) sendEmail({ to: buyerR.email, subject: 'Your order was re-approved — Kings Production', action: 'order_reapproved', body: 'The seller re-approved your order of "' + aTitleR + '". The license is active again and the system works in your game.', link: '#/orders' });
+        store.put('orders', order);
+        flush();
+        return ok(true);
+      }
+      if (order.status === 'completed') return fail('invalid', 'This order is already completed.');
       order.approval = decision;
       order.approvalNote = String(note || '').trim().slice(0, 300) || null;
       order.updatedAt = now();
@@ -1391,6 +1476,22 @@
       const order = byIdIn('orders', orderId);
       if (!order || order.buyerId !== u.id) return fail('forbidden', 'Order not found.');
       if (order.status !== 'rejected') return fail('invalid', 'Only rejected orders can be deleted.');
+      store.del('orders', order.id);
+      flush();
+      return ok(true);
+    }
+    /* Seller-side cleanup: the seller can delete ANY of their orders (pending,
+       completed, rejected). Deleting a completed order also disables its
+       license so the buyer keeps no working copy. */
+    async function sellerDeleteOrder(user, orderId) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const order = byIdIn('orders', orderId);
+      if (!order || (order.sellerId !== u.id && effRank(u) < roleRank('cofounder'))) return fail('forbidden', 'Order not found.');
+      if (order.status === 'completed' && order.licenseKey) {
+        const lic = all('purchases').find(p => p.licenseKey === order.licenseKey);
+        if (lic) { lic.status = 'disabled'; store.put('purchases', lic); }
+      }
       store.del('orders', order.id);
       flush();
       return ok(true);
@@ -2940,11 +3041,11 @@
       verifyEmail, resendVerification,
       updateProfile, setup2fa, enable2fa, disable2fa,
       createAsset, postStatus, listApproved, topSelling, getAsset, updateAsset, deleteAsset, myAssets, download,
-      purchase, myPurchases, assignLicense, createOrder, createVipOrder, createSubscriptionOrder, createVipTrialOrder, setVipRole, completeOrder, settleOrder, cancelOrder, deleteOrder, myOrders, adminOrders, adminCompleteOrder, submitPaymentProof, sellerReviewProof, adminReviewManualOrder, getPaymentConfig, adminSetPaymentConfig,
+      purchase, myPurchases, assignLicense, createOrder, createVipOrder, createSubscriptionOrder, createVipTrialOrder, setVipRole, completeOrder, settleOrder, cancelOrder, deleteOrder, sellerDeleteOrder, myOrders, adminOrders, adminCompleteOrder, submitPaymentProof, sellerReviewProof, adminReviewManualOrder, getPaymentConfig, adminSetPaymentConfig,
       addComment, listComments, toggleLike,
       listReviews, addReview, deleteReview,
       createReport, adminReports, adminResolveReport,
-      licenseActivate, licenseHeartbeat, creatorDashboard, creatorLicenses, setLicenseStatus, revokeDevice,
+      licenseActivate, licenseHeartbeat, creatorDashboard, creatorLicenses, setLicenseStatus, revokeDevice, blockAssetUser, unblockAssetUser, assetBlocksList,
       publicProfile, content, createPortfolio, updatePortfolio, deletePortfolio,
       createCreator, updateCreator, deleteCreator,
       createTicket, addTicketMessage, getTicket, listMyTickets,

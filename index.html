@@ -2491,6 +2491,52 @@ const API = {};
       return changed;
     }
 
+    /* ---- Per-asset user blocks (seller's ban list) ----
+       A blocked user can never (re)purchase or VIP-try THIS asset; their
+       existing license is disabled and their games get denied. */
+    const isAssetBlocked = (assetId, userId) => !!byIdIn('asset_blocks', assetId + ':' + userId);
+    function blockAssetUser(actor, assetId, targetId, reason) {
+      const u = resolveUser(actor);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const a = byIdIn('assets', assetId);
+      if (!a) return fail('notfound', 'Asset not found.');
+      const target = dbUser(targetId);
+      if (!target) return fail('notfound', 'User not found.');
+      const founderish = effRank(u) >= roleRank('cofounder');
+      if (!founderish && a.ownerId !== u.id) return fail('forbidden', 'Only the creator can block users from this post.');
+      if (founderish && a.ownerId !== u.id && effRank(target) >= roleRank(u.role)) return fail('forbidden', 'You cannot block an equal or higher-ranked staff account.');
+      const id = assetId + ':' + targetId;
+      if (isAssetBlocked(assetId, targetId)) return fail('owned', 'That user is already blocked from this post.');
+      store.put('asset_blocks', { id, assetId, userId: targetId, reason: String(reason || '').trim().slice(0, 300) || null, blockedBy: u.id, createdAt: now() });
+      /* Kill existing access: disable their license (system stops working on
+         the next heartbeat) and remove pending/active try orders. */
+      all('purchases').filter(p => p.assetId === assetId && p.buyerId === targetId).forEach(p => { p.status = 'disabled'; store.put('purchases', p); });
+      all('orders').filter(o => o.buyerId === targetId && o.assetId === assetId && (o.status === 'created' || o.status === 'paid')).forEach(o => { o.status = 'rejected'; o.approval = 'rejected'; o.approvalNote = 'Blocked by the seller.'; o.updatedAt = now(); store.put('orders', o); });
+      const t = dbUser(targetId);
+      if (t) sendEmail({ to: t.email, subject: 'You were blocked from a system — Kings Production', action: 'asset_block', body: 'The seller of "' + a.title + '" has blocked your account from that system. Your license for it (if any) has been disabled and the system will stop working in your game.' + (reason ? ' Reason: ' + String(reason).trim().slice(0, 300) : '') + '\n\nIf you believe this was a mistake, open a Support ticket.', link: '#/orders' });
+      flush();
+      return ok(true);
+    }
+    function unblockAssetUser(actor, assetId, targetId) {
+      const u = resolveUser(actor);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const a = byIdIn('assets', assetId);
+      if (!a) return fail('notfound', 'Asset not found.');
+      if (a.ownerId !== u.id && effRank(u) < roleRank('cofounder')) return fail('forbidden', 'Only the creator can unblock users from this post.');
+      const id = assetId + ':' + targetId;
+      if (!isAssetBlocked(assetId, targetId)) return fail('notfound', 'That user is not blocked from this post.');
+      store.del('asset_blocks', id);
+      flush();
+      return ok(true);
+    }
+    function assetBlocksList(actor, assetId) {
+      const u = resolveUser(actor);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const a = byIdIn('assets', assetId);
+      if (!a) return fail('notfound', 'Asset not found.');
+      if (a.ownerId !== u.id && effRank(u) < roleRank('cofounder')) return fail('forbidden', 'Only the creator can view this list.');
+      return ok(all('asset_blocks').filter(b => b.assetId === assetId).sort((x, y) => y.createdAt - x.createdAt).map(b => ({ ...b, user: (() => { const t = dbUser(b.userId); return t ? { id: t.id, handle: t.handle, displayName: t.displayName } : null; })() })));
+    }
     async function purchase(user, id) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
@@ -2500,6 +2546,7 @@ const API = {};
       if (isBanned(u)) return fail('banned', 'Your account is banned.');
       if (a.status !== 'approved') return fail('notfound', 'This asset is not available for purchase.');
       if (a.ownerId === u.id) return fail('self', 'You cannot purchase your own asset.');
+      if (isAssetBlocked(id, u.id)) return fail('forbidden', 'The seller has blocked your account from this system.');
       if (all('purchases').some(p => p.assetId === id && p.buyerId === u.id)) return fail('owned', 'You already own this asset.');
       if (isTester(u)) { const r = grantLicense(u, a); return ok(Object.assign(r, { test: true })); }
       const r = grantLicense(u, a);
@@ -2714,6 +2761,7 @@ const API = {};
       if (a.status !== 'approved') return fail('notfound', 'This asset is not available for purchase.');
       const owner = dbUser(a.ownerId);
       if (!isStaff(owner)) return fail('forbidden', 'Try only works on systems posted by Kings Production.');
+      if (isAssetBlocked(a.id, u.id)) return fail('forbidden', 'The seller has blocked your account from this system.');
       if (all('purchases').some(p => p.assetId === a.id && p.buyerId === u.id)) return fail('owned', 'You already own this asset.');
       /* An existing pending request is FOLLOWED UP, not blocked: the new
          details replace the old ones and the request moves back to the top
@@ -2792,7 +2840,7 @@ const API = {};
           try { details = o.gameDetails ? JSON.parse(o.gameDetails) : null; } catch (e) {}
           let proof = null;
           try { proof = o.proof ? JSON.parse(o.proof) : null; } catch (e) {}
-          return { id: o.id, assetId: o.assetId, assetTitle: a ? a.title : '(deleted asset)', amount: o.amount, currency: o.currency, method: o.method, manual: MANUAL_METHODS.includes(o.method), proof, status: o.status, approval: o.approval || (o.status === 'completed' ? 'approved' : 'pending'), buyer: b ? { handle: b.handle, displayName: b.displayName } : null, gameDetails: details, createdAt: o.createdAt, completedAt: o.updatedAt };
+          return { id: o.id, assetId: o.assetId, assetTitle: a ? a.title : '(deleted asset)', amount: o.amount, currency: o.currency, method: o.method, manual: MANUAL_METHODS.includes(o.method), proof, status: o.status, approval: o.approval || (o.status === 'completed' ? 'approved' : 'pending'), buyer: b ? { id: b.id, handle: b.handle, displayName: b.displayName } : null, gameDetails: details, createdAt: o.createdAt, completedAt: o.updatedAt };
         });
       return ok(rows);
     }
@@ -2804,7 +2852,44 @@ const API = {};
       if (!order || order.sellerId !== u.id) return fail('forbidden', 'Order not found.');
       decision = String(decision || '');
       if (!['approved', 'rejected'].includes(decision)) return fail('invalid', 'Invalid decision.');
-      if (order.status === 'completed' && decision === 'rejected') return fail('invalid', 'This order is already completed — revoke the license instead.');
+      /* Unapprove: rejecting a COMPLETED order revokes its license — the
+         system stops working for that buyer on the next heartbeat. */
+      if (order.status === 'completed' && decision === 'rejected') {
+        order.approval = 'rejected';
+        order.approvalNote = String(note || '').trim().slice(0, 300) || null;
+        order.status = 'rejected';
+        order.rejectedAt = now();
+        order.unapprovedAt = now();
+        if (order.licenseKey) {
+          const lic = all('purchases').find(p => p.licenseKey === order.licenseKey);
+          if (lic) { lic.status = 'disabled'; store.put('purchases', lic); }
+        }
+        const buyer0 = dbUser(order.buyerId);
+        const aTitle0 = (byIdIn('assets', order.assetId) || {}).title || 'your order';
+        if (buyer0) sendEmail({ to: buyer0.email, subject: 'Your order approval was revoked — Kings Production', action: 'order_unapproved', body: 'The seller revoked the approval for your order of "' + aTitle0 + '". The license is now disabled and the system will stop working in your game.' + (order.approvalNote ? ' Their note: ' + order.approvalNote : '') + '\n\nIf you believe this was a mistake, open a Support ticket.', link: '#/orders' });
+        store.put('orders', order);
+        flush();
+        return ok(true);
+      }
+      /* Re-approve a previously rejected order: re-enable the license and
+         complete the order again. */
+      if (order.status === 'rejected' && decision === 'approved') {
+        order.approval = 'approved';
+        order.approvalNote = String(note || '').trim().slice(0, 300) || null;
+        order.status = 'completed';
+        order.updatedAt = now();
+        if (order.licenseKey) {
+          const lic = all('purchases').find(p => p.licenseKey === order.licenseKey);
+          if (lic) { lic.status = 'active'; store.put('purchases', lic); }
+        }
+        const buyerR = dbUser(order.buyerId);
+        const aTitleR = (byIdIn('assets', order.assetId) || {}).title || 'your order';
+        if (buyerR) sendEmail({ to: buyerR.email, subject: 'Your order was re-approved — Kings Production', action: 'order_reapproved', body: 'The seller re-approved your order of "' + aTitleR + '". The license is active again and the system works in your game.', link: '#/orders' });
+        store.put('orders', order);
+        flush();
+        return ok(true);
+      }
+      if (order.status === 'completed') return fail('invalid', 'This order is already completed.');
       order.approval = decision;
       order.approvalNote = String(note || '').trim().slice(0, 300) || null;
       order.updatedAt = now();
@@ -2828,6 +2913,22 @@ const API = {};
       const order = byIdIn('orders', orderId);
       if (!order || order.buyerId !== u.id) return fail('forbidden', 'Order not found.');
       if (order.status !== 'rejected') return fail('invalid', 'Only rejected orders can be deleted.');
+      store.del('orders', order.id);
+      flush();
+      return ok(true);
+    }
+    /* Seller-side cleanup: the seller can delete ANY of their orders (pending,
+       completed, rejected). Deleting a completed order also disables its
+       license so the buyer keeps no working copy. */
+    async function sellerDeleteOrder(user, orderId) {
+      const u = resolveUser(user);
+      if (!u) return fail('auth', 'You must be logged in to do that.');
+      const order = byIdIn('orders', orderId);
+      if (!order || (order.sellerId !== u.id && effRank(u) < roleRank('cofounder'))) return fail('forbidden', 'Order not found.');
+      if (order.status === 'completed' && order.licenseKey) {
+        const lic = all('purchases').find(p => p.licenseKey === order.licenseKey);
+        if (lic) { lic.status = 'disabled'; store.put('purchases', lic); }
+      }
       store.del('orders', order.id);
       flush();
       return ok(true);
@@ -4377,11 +4478,11 @@ const API = {};
       verifyEmail, resendVerification,
       updateProfile, setup2fa, enable2fa, disable2fa,
       createAsset, postStatus, listApproved, topSelling, getAsset, updateAsset, deleteAsset, myAssets, download,
-      purchase, myPurchases, assignLicense, createOrder, createVipOrder, createSubscriptionOrder, createVipTrialOrder, setVipRole, completeOrder, settleOrder, cancelOrder, deleteOrder, myOrders, adminOrders, adminCompleteOrder, submitPaymentProof, sellerReviewProof, adminReviewManualOrder, getPaymentConfig, adminSetPaymentConfig,
+      purchase, myPurchases, assignLicense, createOrder, createVipOrder, createSubscriptionOrder, createVipTrialOrder, setVipRole, completeOrder, settleOrder, cancelOrder, deleteOrder, sellerDeleteOrder, myOrders, adminOrders, adminCompleteOrder, submitPaymentProof, sellerReviewProof, adminReviewManualOrder, getPaymentConfig, adminSetPaymentConfig,
       addComment, listComments, toggleLike,
       listReviews, addReview, deleteReview,
       createReport, adminReports, adminResolveReport,
-      licenseActivate, licenseHeartbeat, creatorDashboard, creatorLicenses, setLicenseStatus, revokeDevice,
+      licenseActivate, licenseHeartbeat, creatorDashboard, creatorLicenses, setLicenseStatus, revokeDevice, blockAssetUser, unblockAssetUser, assetBlocksList,
       publicProfile, content, createPortfolio, updatePortfolio, deletePortfolio,
       createCreator, updateCreator, deleteCreator,
       createTicket, addTicketMessage, getTicket, listMyTickets,
@@ -4683,6 +4784,10 @@ API.confirmPayment = (orderId, providerRef) => _wrap(async () => _mode === 'loca
 API.myOrders = user => _wrap(async () => _mode === 'local' ? await _engine.myOrders(user) : await _call('GET', '/api/orders/mine'));
 API.cancelOrder = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.cancelOrder(user, id) : await _call('POST', '/api/orders/' + _e(id) + '/cancel'));
 API.deleteOrder = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.deleteOrder(user, id) : await _call('DELETE', '/api/orders/' + _e(id)));
+API.sellerDeleteOrder = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.sellerDeleteOrder(user, id) : await _call('DELETE', '/api/dashboard/orders/' + _e(id)));
+API.blockAssetUser = (user, assetId, userId, reason) => _wrap(async () => _mode === 'local' ? await _engine.blockAssetUser(user, assetId, userId, reason) : await _call('POST', '/api/assets/' + _e(assetId) + '/block/' + _e(userId), { reason }));
+API.unblockAssetUser = (user, assetId, userId) => _wrap(async () => _mode === 'local' ? await _engine.unblockAssetUser(user, assetId, userId) : await _call('DELETE', '/api/assets/' + _e(assetId) + '/block/' + _e(userId)));
+API.assetBlocksList = (user, assetId) => _wrap(async () => _mode === 'local' ? await _engine.assetBlocksList(user, assetId) : await _call('GET', '/api/assets/' + _e(assetId) + '/blocks'));
 API.adminOrders = user => _wrap(async () => _mode === 'local' ? await _engine.adminOrders(user) : await _call('GET', '/api/admin/orders'));
 API.adminCompleteOrder = (user, orderId) => _wrap(async () => _mode === 'local' ? await _engine.adminCompleteOrder(user, orderId) : await _call('POST', '/api/admin/orders/' + _e(orderId) + '/complete'));
 API.adminSetVipRole = (user, id, on) => _wrap(async () => _mode === 'local' ? await _engine.setVipRole(user, id, on) : await _call('POST', '/api/admin/users/' + _e(id) + '/vip', { on }));
@@ -6691,13 +6796,17 @@ VIEWS.dashboard = async ({ query = {} } = {}) => {
           ${proof.proofUrl ? `<img src="${esc(proxiedImageUrl(proof.proofUrl))}" alt="Payment proof" loading="lazy" style="margin-top:10px;max-width:320px;width:100%;max-height:280px;object-fit:contain;border-radius:10px;border:1px solid var(--border);background:#fff;cursor:zoom-in" onclick="openLightbox('${esc(proxiedImageUrl(proof.proofUrl))}')" onerror="this.remove()">` : ''}
         </div>` : ''}
         ${o.approvalNote ? `<div class="muted small" style="margin-bottom:10px">Your note: ${esc(o.approvalNote)}</div>` : ''}
-        ${!completed ? `<div class="row" style="gap:8px;flex-wrap:wrap">
+        <div class="row" style="gap:8px;flex-wrap:wrap">
+          ${!completed ? `
           ${o.status === 'pending_verification' ? `<button class="btn btn-primary btn-sm" onclick="onSellerReviewProof('${o.id}','approve')">${ICON.crown} Verify payment &amp; deliver</button>` : ''}
           <button class="btn btn-${o.status === 'pending_verification' ? 'ghost' : 'primary'} btn-sm" onclick="onOrderApproval('${o.id}','approved')">${ICON.check} Approve details</button>
           <button class="btn btn-danger btn-sm" onclick="onOrderApproval('${o.id}','rejected')">${ICON.ban} Reject</button>
           ${o.status === 'pending_verification' ? `<button class="btn btn-ghost btn-sm" onclick="onSellerReviewProof('${o.id}','reject')">${ICON.ban} Reject proof</button>` : ''}
-          ${o.status === 'paid' ? `<button class="btn btn-ghost btn-sm" onclick="onOrderApproveAndComplete('${o.id}')">${ICON.crown} Approve &amp; complete</button>` : ''}
-        </div>` : ''}
+          ${o.status === 'paid' ? `<button class="btn btn-ghost btn-sm" onclick="onOrderApproveAndComplete('${o.id}')">${ICON.crown} Approve &amp; complete</button>` : ''}` : `
+          <button class="btn btn-danger btn-sm" onclick="onOrderUnapprove('${o.id}')" title="Revokes the license — the system stops working for this buyer">${ICON.ban} Unapprove &amp; revoke license</button>`}
+          ${o.buyer ? `<button class="btn btn-danger btn-sm" onclick="onBlockBuyer('${o.assetId}','${o.buyer.id || ''}','${esc(o.buyer.handle || '')}')" title="Blocks them from this post: license disabled, no re-purchase, no re-try">${ICON.ban} Block from post</button>` : ''}
+          <button class="btn btn-ghost btn-sm" onclick="onSellerDeleteOrder('${o.id}')" title="Removes the order from your list">${ICON.trash} Delete order</button>
+        </div>
       </div>
     </div>`;
   };
@@ -6708,7 +6817,8 @@ VIEWS.dashboard = async ({ query = {} } = {}) => {
     <div class="section-head" style="margin:0 0 10px"><div><h2 style="font-size:19px">Pending <span class="muted small" style="font-weight:400">(${ordersPending.length})</span></h2></div></div>
     ${ordersPending.length ? ordersPending.map(orderRow).join('') : `<div class="card card-pad muted small">No pending orders.</div>`}
     <div class="section-head" style="margin:18px 0 10px"><div><h2 style="font-size:19px">Completed <span class="muted small" style="font-weight:400">(${ordersDone.length})</span></h2></div></div>
-    ${ordersDone.length ? ordersDone.map(orderRow).join('') : `<div class="card card-pad muted small">No completed orders yet.</div>`}`;
+    ${ordersDone.length ? ordersDone.map(orderRow).join('') : `<div class="card card-pad muted small">No completed orders yet.</div>`}
+    <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:14px">${[...new Set(orders.map(o => o.assetId))].filter(Boolean).map(aid => `<button class="btn btn-ghost btn-sm" onclick="onManageBlocks('${aid}')">${ICON.ban} Blocked users — ${esc((orders.find(o => o.assetId === aid) || {}).assetTitle || aid)}</button>`).join('')}</div>`;
   /* ---- TAB 5: Support (seller tickets & reports) ---- */
   const supportTab = `<p class="muted small" style="margin:0 0 14px">Stuck with a buyer, a payment, or a leak report? Open a ticket — only you and the staff can see it. Reports about your own listings also land here as tickets.</p>
     <div class="card card-pad" style="margin-bottom:22px">
@@ -6874,6 +6984,39 @@ async function onRemoveSystemGame(gameId) {
 async function onOrderApproval(orderId, decision) {
   const r = await API.setOrderApproval(STATE.user, orderId, decision);
   r.ok ? (toast(decision === 'approved' ? 'Game details approved.' : 'Game details rejected — tell the buyer to resubmit.'), await router()) : toast(r.error, 'err');
+}
+/* Seller power tools: unapprove a completed order (license revoked) or delete
+   any order outright. Deleting a completed one also kills the license. */
+function onOrderUnapprove(orderId) {
+  promptModal({ title: 'Unapprove this completed order?', label: 'Reason (shown to the buyer)', placeholder: 'e.g. refund issued / suspected leak', danger: true, confirmLabel: 'Unapprove & revoke',
+    body: '<p>The buyer\'s <b>license is disabled</b> — the system stops working in their game on the next heartbeat. The order moves to their Rejected list. You can re-approve it later to reactivate the license.</p>',
+    onConfirm: async ({ value }) => { const r = await API.setOrderApproval(STATE.user, orderId, 'rejected', value); r.ok ? (toast('Approval revoked — license disabled.'), await router()) : toast(r.error, 'err'); } });
+}
+function onSellerDeleteOrder(orderId) {
+  modal({ title: 'Delete this order?', danger: true, confirmLabel: 'Delete forever',
+    body: '<p>The order is removed from your Orders list. If it was completed, the buyer\'s license is <b>also disabled</b>. This cannot be undone.</p>',
+    onConfirm: async () => { const r = await API.sellerDeleteOrder(STATE.user, orderId); r.ok ? (toast('Order deleted.'), await router()) : toast(r.error, 'err'); } });
+}
+/* ---- Block from post (seller's per-asset ban list) ----
+   A blocked user loses their license for THIS asset and can never buy or
+   VIP-try it again — no lifetime free ride. Reversible from the same list. */
+function onBlockBuyer(assetId, userId, handle) {
+  if (!userId) { toast('Unknown buyer account.', 'err'); return; }
+  promptModal({ title: 'Block @' + handle + ' from this post?', label: 'Reason (shown to the buyer)', placeholder: 'e.g. leaked the file / fraudulent payment', danger: true, confirmLabel: 'Block',
+    body: '<p>Their license for this system is <b>disabled immediately</b> and they can <b>never re-purchase or re-try</b> this post. They are emailed. You can unblock any time from the same list.</p>',
+    onConfirm: async ({ value }) => { const r = await API.blockAssetUser(STATE.user, assetId, userId, value); r.ok ? (toast('@' + handle + ' blocked from this post.'), await router()) : toast(r.error, 'err'); } });
+}
+async function onManageBlocks(assetId) {
+  const r = await API.assetBlocksList(STATE.user, assetId);
+  if (!r.ok) { toast(r.error, 'err'); return; }
+  const rows = r.data;
+  modal({ title: 'Blocked users — this post', confirmLabel: 'Done', onConfirm: async () => {},
+    body: rows.length ? `<div class="card" style="padding:6px 0">${rows.map(b => `<div class="row" style="padding:10px 16px;border-bottom:1px solid var(--border);gap:12px"><div style="flex:1"><b>${esc(b.user ? b.user.displayName : '(deleted)')}</b> <span class="muted small">${b.user ? '@' + esc(b.user.handle) : ''}</span>${b.reason ? `<div class="muted small">Reason: ${esc(b.reason)}</div>` : ''}</div><button class="btn btn-ghost btn-sm" onclick="onUnblockBuyer('${b.assetId}','${b.userId}')">Unblock</button></div>`).join('')}</div>` : '<p class="muted small">Nobody is blocked from this post.</p>' });
+}
+async function onUnblockBuyer(assetId, userId) {
+  const r = await API.unblockAssetUser(STATE.user, assetId, userId);
+  if (r.ok) { toast('User unblocked — they can purchase or try again.'); document.querySelectorAll('.modal-overlay').forEach(el => el.remove()); onManageBlocks(assetId); }
+  else toast(r.error, 'err');
 }
 /* Seller-side manual-payment verification: the seller checks the buyer's
    proof against their own GCash / Ko-fi history and confirms or bounces it. */

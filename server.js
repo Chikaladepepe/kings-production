@@ -799,6 +799,10 @@ async function main() {
   app.get('/api/dashboard/orders', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.sellerOrders(u)); }));
   app.get('/api/dashboard/response', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, { ok: true, data: await engine.sellerResponseStats(u.id) }); }));
   app.post('/api/dashboard/orders/:id/approval', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.setOrderApproval(u, req.params.id, (req.body || {}).decision, (req.body || {}).note)); }));
+  app.delete('/api/dashboard/orders/:id', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.sellerDeleteOrder(u, req.params.id)); }));
+  app.post('/api/assets/:id/block/:userId', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.blockAssetUser(u, req.params.id, req.params.userId, (req.body || {}).reason)); }));
+  app.delete('/api/assets/:id/block/:userId', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.unblockAssetUser(u, req.params.id, req.params.userId)); }));
+  app.get('/api/assets/:id/blocks', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.assetBlocksList(u, req.params.id)); }));
   app.post('/api/dashboard/orders/:id/review-proof', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.sellerReviewProof(u, req.params.id, (req.body || {}).decision, (req.body || {}).note)); }));
   /* ---- announcements (admin) ---- */
   app.post('/api/admin/announcements', admin(async (u, req) => engine.createAnnouncement(u, req.body || {})));
