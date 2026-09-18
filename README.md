@@ -34,12 +34,10 @@ posting cooldown** keeps the marketplace fresh: creators can post one new
 asset per day (admins are exempt), with the countdown shown right on the
 upload page.
 
-**Posts that rank.** Every asset is **clickable** — open the full description,
-like it, and leave **star-rated comments** (comments require a 1–5 star pick
-before posting, so every piece of feedback feeds the asset's score). The more
-likes and the higher the ratings, the higher the post ranks: the front page
-and shop are sorted by a **trending score** (likes + ratings + sales, decayed
-by age), with Newest and Top-selling sort options too.
+**Posts that sell.** Every asset is **clickable** — open the full description,
+like it, and leave **star-rated comments** (only verified buyers can rate and
+comment, so every piece of feedback is real). The front page and shop offer
+**Trending, Newest, and Top-selling** sort options.
 
 **A Creator Dashboard for VIP / Licensed +.** A dedicated dashboard tab
 shows your **sales graph** (revenue per day over the last 30 days), your

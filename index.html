@@ -3767,7 +3767,8 @@ const API = {};
     const chatCodeFor = assetId => 'KP-CHT-' + String(assetId || 'x').replace(/[^a-z0-9]/gi, '').slice(-8).toUpperCase();
     function pruneChat(assetId, buyerId) {
       const cutoff = now() - CHAT_TTL_MS;
-      all('chats').filter(m => m.assetId === assetId && m.buyerId === buyerId && m.createdAt < cutoff).forEach(m => store.del('chats', m.id));
+      /* buyerId null = seller broadcast rows — they belong to every buyer's view of this asset */
+      all('chats').filter(m => m.assetId === assetId && (m.buyerId === buyerId || m.buyerId === null) && m.createdAt < cutoff).forEach(m => store.del('chats', m.id));
     }
     async function chatWithSeller(user, assetId, body) {
       const u = resolveUser(user); if (!u) return fail('auth', 'You must be logged in to do that.');
@@ -3779,16 +3780,25 @@ const API = {};
       if (isStaff(u) && !isSeller) return fail('forbidden', 'Staff use their own channels — this chat is between the buyer and the seller.');
       body = String(body || '').trim().slice(0, 2000);
       if (body) {
-        store.put('chats', { id: 'ch' + uid(), assetId, buyerId: isSeller ? null : u.id, sellerId: a.ownerId, userId: u.id, body, createdAt: now() });
+        /* Seller replying: attach to the most recently active buyer thread on
+           this asset so the buyer actually receives it. If no buyer has written
+           yet, the reply becomes a broadcast row visible to every buyer. */
+        let threadBuyerId = isSeller ? null : u.id;
+        if (isSeller) {
+          const last = all('chats').filter(m => m.assetId === assetId && m.buyerId)
+            .sort((x, y) => y.createdAt - x.createdAt)[0];
+          threadBuyerId = last ? last.buyerId : null;
+        }
+        store.put('chats', { id: 'ch' + uid(), assetId, buyerId: threadBuyerId, sellerId: a.ownerId, userId: u.id, body, createdAt: now() });
         flush();
       }
       const buyerId = isSeller ? null : u.id;
       pruneChat(assetId, buyerId);
-      /* The seller sees one thread per buyer; the buyer sees their own thread.
-         The conversation code is derived from the asset itself so both sides
-         see the SAME "ticket number" for this conversation. */
+      /* The seller sees one merged thread across buyers; each buyer sees their
+         own thread plus the seller's broadcast replies. The conversation code
+         is derived from the asset so both sides see the SAME "ticket number". */
       const who = isSeller ? null : u.id;
-      const raw = all('chats').filter(m => m.assetId === assetId && (isSeller ? true : m.buyerId === who))
+      const raw = all('chats').filter(m => m.assetId === assetId && (isSeller ? true : (m.buyerId === who || m.buyerId === null)))
         .sort((x, y) => x.createdAt - y.createdAt);
       const code = chatCodeFor(assetId);
       const msgs = raw.map(m => ({ id: m.id, body: m.body, createdAt: m.createdAt, mine: m.userId === u.id, from: publicUser(byIdIn('users', m.userId)) }));
@@ -4803,7 +4813,12 @@ function statusBadge(status, rejectReason) {
 }
 function catBadge(cat) { return `<span class="badge plain"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${CAT_ICON[cat].replace(/<svg[^>]*>/i, '').replace(/<\/svg>/i, '')}</svg>${CAT_LABEL[cat]}</span>`; }
 function thumbHtml(a, size = 44) {
-  if (a && a.imageUrl) return `<img class="thumb-img" src="${esc(proxiedImageUrl(a.imageUrl))}" alt="" loading="lazy" onerror="this.remove()">`;
+  if (a && a.imageUrl) {
+    const direct = esc(a.imageUrl);
+    /* If the proxy can't fetch the host (rate-limit / block), fall back to the
+       direct URL so thumbnails never go blank. */
+    return `<img class="thumb-img" src="${esc(proxiedImageUrl(a.imageUrl))}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${direct}'">`;
+  }
   const cat = a && a.category;
   return `<div class="thumb-bg ${CAT_THUMB[cat] || 'thumb-default'}"></div><span class="thumb-icon" style="width:${size}px;height:${size}px">${CAT_ICON[cat]}</span>`;
 }
@@ -5638,7 +5653,7 @@ VIEWS.asset = async ({ params }) => {
     const iAmVip = me && me.role === 'vip' && !isStaff(me);
     buyHtml = `<button class="btn btn-primary btn-lg" onclick="onBuy('${a.id}')">${ICON.cart} Purchase · ${fmtMoney(a.price)}</button>
       ${iAmVip && isOurSystem ? `<button class="btn btn-ghost btn-lg" style="margin-left:10px;border-color:rgba(212,175,55,.4)" onclick="onVipTry('${a.id}')" title="VIP perk — try Kings Production's own system free (studio approval still required)">${ICON.crown} Try</button>` : ''}
-      <a class="btn btn-ghost btn-lg" style="margin-left:10px" href="#/support" title="Ask the seller a question before buying">${ICON.mail} Contact seller</a>
+      <button class="btn btn-ghost btn-lg" style="margin-left:10px" title="Chat with the seller right here — no ticket needed" onclick="openChatWithSeller('${a.id}')">${ICON.mail} Contact seller</button>
       ${me && !canPost(me) ? `<p class="muted small" style="margin-top:10px">Every purchase upgrades you to <b style="color:var(--vip)">Licensed</b> — you can post your own assets right after.</p>` : ''}`;
   }
 
@@ -5694,7 +5709,7 @@ VIEWS.asset = async ({ params }) => {
         <h1 style="font-family:var(--font-display);font-size:clamp(26px,4vw,38px);font-weight:700;letter-spacing:-.02em;margin-top:10px">${esc(a.title)}</h1>
         <div class="asset-meta"><span class="price" style="font-size:22px">${fmtMoney(a.price)}</span><span class="muted small">· posted ${fmtDate(a.createdAt)}</span></div>
         ${a.sellerResponse ? `<div class="row" style="gap:10px;margin-top:10px;flex-wrap:wrap"><span class="badge soft-ok" title="Share of payment proofs this seller verified within 24 hours over the last 30 days">${ICON.clock} Seller response: ${a.sellerResponse.pct}% · ${esc(a.sellerResponse.label)}</span>${a.sellerResponse.avgHours ? `<span class="muted small" style="align-self:center">avg ${a.sellerResponse.avgHours}h to verify</span>` : ''}</div>` : ''}
-        <div class="row" style="gap:12px;margin-top:10px"><button class="like-btn lg ${a.liked ? 'on' : ''}" title="Like this asset" onclick="onLike(event,'${a.id}',this)">${ICON.heart}<span>${a.likes || 0}</span></button><span class="muted small" style="align-self:center">${a.likes || 0} like${a.likes === 1 ? '' : 's'} — the more likes and higher ratings, the higher it ranks.</span></div>
+        <div class="row" style="gap:12px;margin-top:10px"><button class="like-btn lg ${a.liked ? 'on' : ''}" title="Like this asset" onclick="onLike(event,'${a.id}',this)">${ICON.heart}<span>${a.likes || 0}</span></button></div>
         ${a.paymentMethods && a.paymentMethods.length ? `<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:12px"><span class="muted small" style="align-self:center">${ICON.check} The seller accepts:</span>${a.paymentMethods.map(m => `<span class="chip" style="cursor:default">${({ gcash: 'GCash', kofi: 'Ko-fi', paypal: 'PayPal', stripe: 'Stripe' })[m] || esc(m)}</span>`).join('')}</div>` : ''}
         <div class="buy-box">${buyHtml || `<span class="muted small">This asset is not for sale yet.</span>`}</div>
       </div>
@@ -5704,7 +5719,7 @@ VIEWS.asset = async ({ params }) => {
       <div class="asset-desc">${esc(a.description)}</div>
     </div>
     ${(a.images && a.images.length) ? `<div class="section-head" style="margin-top:34px"><div><h2 style="font-size:19px">Photos</h2><p>Click any photo to view it full-size.</p></div></div>
-    <div class="row" style="gap:10px;flex-wrap:wrap">${a.images.map(u => `<img src="${esc(proxiedImageUrl(u))}" alt="" loading="lazy" style="width:170px;aspect-ratio:16/9;object-fit:cover;border-radius:10px;border:1px solid var(--border);cursor:zoom-in" onclick="openLightbox('${esc(proxiedImageUrl(u))}')" onerror="this.remove()">`).join('')}</div>` : ''}
+    <div class="row" style="gap:10px;flex-wrap:wrap">${a.images.map(u => `<img src="${esc(proxiedImageUrl(u))}" alt="" loading="lazy" style="width:170px;aspect-ratio:16/9;object-fit:cover;border-radius:10px;border:1px solid var(--border);cursor:zoom-in" onclick="openLightbox('${esc(proxiedImageUrl(u))}')" onerror="this.onerror=null;this.src='${esc(u)}'">`).join('')}</div>` : ''}
     <div class="poster-row">
       ${avatarHtml(a.owner, 44)}
       <div style="flex:1"><div class="row" style="gap:8px"><a href="#/profile/${esc(a.owner.handle)}" class="bold">${esc(a.owner.displayName)}</a>${badgeHtml(a.owner.role, a.owner.tags)}</div><div class="muted small">Creator · joined ${fmtDate(a.owner.createdAt)}</div></div>

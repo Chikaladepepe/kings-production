@@ -163,6 +163,11 @@ CREATE TABLE IF NOT EXISTS mail_inbound (
   id TEXT PRIMARY KEY, email TEXT NOT NULL, event TEXT NOT NULL,
   subject TEXT, body TEXT, detail TEXT, createdAt INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS chats (
+  id TEXT PRIMARY KEY, assetId TEXT NOT NULL, buyerId TEXT, sellerId TEXT NOT NULL,
+  userId TEXT NOT NULL, body TEXT NOT NULL, createdAt INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_chats_asset ON chats (assetId);
 CREATE INDEX IF NOT EXISTS idx_mail_blasts_status ON mail_blasts (status);
 CREATE INDEX IF NOT EXISTS idx_mail_inbound_email ON mail_inbound (email);
 CREATE INDEX IF NOT EXISTS idx_orders_buyer ON orders (buyerId);
@@ -311,6 +316,8 @@ const MIGRATIONS = [
   "ALTER TABLE ticket_messages ADD COLUMN kind TEXT",
   "ALTER TABLE ticket_messages ADD COLUMN actorName TEXT",
   "CREATE TABLE IF NOT EXISTS site_settings (id TEXT PRIMARY KEY, value TEXT NOT NULL, updatedAt INTEGER)",
+  "CREATE TABLE IF NOT EXISTS chats (id TEXT PRIMARY KEY, assetId TEXT NOT NULL, buyerId TEXT, sellerId TEXT NOT NULL, userId TEXT NOT NULL, body TEXT NOT NULL, createdAt INTEGER NOT NULL)",
+  "CREATE INDEX IF NOT EXISTS idx_chats_asset ON chats (assetId)",
 ];
 function ticketCleanup(db) {
   const cutoff = Date.now() - 5 * 24 * 3600 * 1000;

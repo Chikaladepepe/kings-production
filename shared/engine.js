@@ -2334,7 +2334,8 @@
     const chatCodeFor = assetId => 'KP-CHT-' + String(assetId || 'x').replace(/[^a-z0-9]/gi, '').slice(-8).toUpperCase();
     function pruneChat(assetId, buyerId) {
       const cutoff = now() - CHAT_TTL_MS;
-      all('chats').filter(m => m.assetId === assetId && m.buyerId === buyerId && m.createdAt < cutoff).forEach(m => store.del('chats', m.id));
+      /* buyerId null = seller broadcast rows — they belong to every buyer's view of this asset */
+      all('chats').filter(m => m.assetId === assetId && (m.buyerId === buyerId || m.buyerId === null) && m.createdAt < cutoff).forEach(m => store.del('chats', m.id));
     }
     async function chatWithSeller(user, assetId, body) {
       const u = resolveUser(user); if (!u) return fail('auth', 'You must be logged in to do that.');
@@ -2346,16 +2347,25 @@
       if (isStaff(u) && !isSeller) return fail('forbidden', 'Staff use their own channels — this chat is between the buyer and the seller.');
       body = String(body || '').trim().slice(0, 2000);
       if (body) {
-        store.put('chats', { id: 'ch' + uid(), assetId, buyerId: isSeller ? null : u.id, sellerId: a.ownerId, userId: u.id, body, createdAt: now() });
+        /* Seller replying: attach to the most recently active buyer thread on
+           this asset so the buyer actually receives it. If no buyer has written
+           yet, the reply becomes a broadcast row visible to every buyer. */
+        let threadBuyerId = isSeller ? null : u.id;
+        if (isSeller) {
+          const last = all('chats').filter(m => m.assetId === assetId && m.buyerId)
+            .sort((x, y) => y.createdAt - x.createdAt)[0];
+          threadBuyerId = last ? last.buyerId : null;
+        }
+        store.put('chats', { id: 'ch' + uid(), assetId, buyerId: threadBuyerId, sellerId: a.ownerId, userId: u.id, body, createdAt: now() });
         flush();
       }
       const buyerId = isSeller ? null : u.id;
       pruneChat(assetId, buyerId);
-      /* The seller sees one thread per buyer; the buyer sees their own thread.
-         The conversation code is derived from the asset itself so both sides
-         see the SAME "ticket number" for this conversation. */
+      /* The seller sees one merged thread across buyers; each buyer sees their
+         own thread plus the seller's broadcast replies. The conversation code
+         is derived from the asset so both sides see the SAME "ticket number". */
       const who = isSeller ? null : u.id;
-      const raw = all('chats').filter(m => m.assetId === assetId && (isSeller ? true : m.buyerId === who))
+      const raw = all('chats').filter(m => m.assetId === assetId && (isSeller ? true : (m.buyerId === who || m.buyerId === null)))
         .sort((x, y) => x.createdAt - y.createdAt);
       const code = chatCodeFor(assetId);
       const msgs = raw.map(m => ({ id: m.id, body: m.body, createdAt: m.createdAt, mine: m.userId === u.id, from: publicUser(byIdIn('users', m.userId)) }));
