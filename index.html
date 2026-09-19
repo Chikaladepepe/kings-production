@@ -1705,6 +1705,9 @@ const API = {};
       return pop / Math.pow(hours + 3, 0.5);
     }
     function summarize(a, viewerId) {
+      /* Deleted/missing post: degrade gracefully instead of throwing — one
+         orphan order or purchase must never blank the whole Orders page. */
+      if (!a) return null;
       const o = dbUser(a.ownerId);
       const rv = assetRating(a);
       let images = [], paymentMethods = [], sellerPaymentDetails = null;
@@ -3122,7 +3125,7 @@ const API = {};
     async function myPurchases(user) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
-      return ok(all('purchases').filter(p => p.buyerId === u.id).sort((x, y) => y.createdAt - x.createdAt).map(p => ({ ...p, asset: summarize(byIdIn('assets', p.assetId)) })));
+      return ok(all('purchases').filter(p => p.buyerId === u.id).sort((x, y) => y.createdAt - x.createdAt).map(p => ({ ...p, asset: summarize(byIdIn('assets', p.assetId)) })).filter(x => x.asset !== null));
     }
 
     async function assignLicense(user, purchaseId, { gameId, gameName } = {}) {
@@ -3246,7 +3249,7 @@ const API = {};
         .map(p => ({
           ...p,
           buyer: publicUser(dbUser(p.buyerId)),
-          asset: summarize(byIdIn('assets', p.assetId), u.id),
+          asset: summarize(byIdIn('assets', p.assetId), u.id) || null,
           devices: all('devices').filter(d => d.purchaseId === p.id).sort((a, b) => b.lastSeen - a.lastSeen),
         }));
       return ok(list);
@@ -6728,7 +6731,8 @@ VIEWS.orders = async () => {
   const list = r.ok ? r.data : [];
   const rows = list.map(o => {
     const a = o.asset || null;
-    const title = o.sub ? (o.sub.category === 'protection' ? 'Subscription ' : 'Contract ') + o.sub.tier : o.vip ? 'Licensed seller plan' : (a ? a.title : '(deleted asset)');
+    const gone = !a && !o.sub && !o.vip && !String(o.assetId || '').startsWith('sub:') && o.assetId !== 'vip';
+    const title = gone ? (o.assetTitle || '(deleted post)') : o.sub ? (o.sub.category === 'protection' ? 'Subscription ' : 'Contract ') + o.sub.tier : o.vip ? 'Licensed seller plan' : (a ? a.title : '(deleted asset)');
     const completed = o.status === 'completed';
     const isTry = o.method === 'vip_try' || !!o.vipTrial;
     const proof = o.proof && typeof o.proof === 'object' ? o.proof : null;
@@ -6754,6 +6758,7 @@ VIEWS.orders = async () => {
       </div>
       ${a && !completed && !o.manual ? `<div style="padding:10px 20px 4px" class="muted small">The seller reviews your game details before activation — you will get an email once it is approved.</div>` : ''}
       ${a && completed ? `<div style="padding:10px 20px 4px" class="muted small">System file delivered${a.deliverDuringPending ? ' — the seller released it early, so you can download it right now' : ''}.</div><div style="padding:4px 20px 16px"><button class="btn btn-primary btn-sm" onclick="onDownload('${a.id}')">${ICON.download} Download system file</button></div>` : ''}
+      ${gone && completed && o.licenseKey ? `<div style="padding:10px 20px 4px" class="muted small">The original post was removed, but your license stays valid: <b style="color:var(--text)">${esc(o.licenseKey)}</b></div>` : ''}
       ${proofBlock}
       ${completed || o.manual && o.status === 'pending_verification' ? '' : `<div style="padding:10px 20px 16px"><button class="btn btn-ghost btn-sm" onclick="onCancelMyOrder('${o.id}')">Cancel order</button></div>`}
     </div>`;

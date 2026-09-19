@@ -266,6 +266,9 @@
       return pop / Math.pow(hours + 3, 0.5);
     }
     function summarize(a, viewerId) {
+      /* Deleted/missing post: degrade gracefully instead of throwing — one
+         orphan order or purchase must never blank the whole Orders page. */
+      if (!a) return null;
       const o = dbUser(a.ownerId);
       const rv = assetRating(a);
       let images = [], paymentMethods = [], sellerPaymentDetails = null;
@@ -1683,7 +1686,7 @@
     async function myPurchases(user) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
-      return ok(all('purchases').filter(p => p.buyerId === u.id).sort((x, y) => y.createdAt - x.createdAt).map(p => ({ ...p, asset: summarize(byIdIn('assets', p.assetId)) })));
+      return ok(all('purchases').filter(p => p.buyerId === u.id).sort((x, y) => y.createdAt - x.createdAt).map(p => ({ ...p, asset: summarize(byIdIn('assets', p.assetId)) })).filter(x => x.asset !== null));
     }
 
     async function assignLicense(user, purchaseId, { gameId, gameName } = {}) {
@@ -1807,7 +1810,7 @@
         .map(p => ({
           ...p,
           buyer: publicUser(dbUser(p.buyerId)),
-          asset: summarize(byIdIn('assets', p.assetId), u.id),
+          asset: summarize(byIdIn('assets', p.assetId), u.id) || null,
           devices: all('devices').filter(d => d.purchaseId === p.id).sort((a, b) => b.lastSeen - a.lastSeen),
         }));
       return ok(list);
