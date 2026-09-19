@@ -502,7 +502,9 @@ async function main() {
       images: j('images'), paymentMethods: j('paymentMethods'), sellerPaymentDetails: j('sellerPaymentDetails'), deliverDuringPending: req.body.deliverDuringPending === '1' || req.body.deliverDuringPending === 'true',
       freeLicensed: req.body.freeLicensed === '1' || req.body.freeLicensed === 'true',
       backupUrl: req.body.backupUrl || undefined,
-      fileName: req.file && req.file.originalname, fileData: bodyFile(req),
+      fileUrl: req.body.fileUrl || undefined, /* hosted (Catbox) file — REQUIRED or the engine reports "system file is required" */
+      fileName: (req.file && req.file.originalname) || req.body.fileName || undefined, /* original name when the file went to the host */
+      fileData: bodyFile(req),
     }));
   }));
   app.patch('/api/assets/:id', upload.single('file'), h(async (req, res) => {
@@ -513,7 +515,9 @@ async function main() {
       images: j('images'), paymentMethods: j('paymentMethods'), sellerPaymentDetails: j('sellerPaymentDetails'), deliverDuringPending: req.body.deliverDuringPending === undefined ? undefined : (req.body.deliverDuringPending === '1' || req.body.deliverDuringPending === 'true'),
       freeLicensed: req.body.freeLicensed === undefined ? undefined : (req.body.freeLicensed === '1' || req.body.freeLicensed === 'true'),
       backupUrl: req.body.backupUrl,
-      fileName: req.file && req.file.originalname, fileData: bodyFile(req),
+      fileUrl: req.body.fileUrl || undefined, /* hosted (Catbox) file */
+      fileName: (req.file && req.file.originalname) || req.body.fileName || undefined,
+      fileData: bodyFile(req),
     }));
   }));
   app.delete('/api/assets/:id', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.deleteAsset(u, req.params.id)); }));

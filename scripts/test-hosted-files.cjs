@@ -36,7 +36,7 @@ const engine = factory.createEngine({ store: st, files, mail: { send: () => {} }
   u.role = 'owner'; st.put('users', u); // founder-level: posts skip the approval queue
 
   // 1. create asset with hosted fileUrl only (no raw file)
-  const a1 = await engine.createAsset(u, { title: 'Hosted System', category: 'system', description: 'A full description of at least ten characters.', price: '50', fileName: 'MusicSystem.rbxm', fileUrl: 'https://files.catbox.moe/abc123.rbxm', imageUrl: 'https://i.imgur.com/x.png' });
+  const a1 = await engine.createAsset(u, { title: 'Hosted System', category: 'system', description: 'A full description of at least ten characters.', price: '50', fileName: 'MusicSystem.rbxm', fileUrl: 'https://files.catbox.moe/abc123.rbxm', imageUrl: 'https://i.imgur.com/x.png', backupUrl: 'https://www.mediafire.com/abc123', paymentMethods: ['gcash'] });
   t('hosted-file post ok', a1.ok);
   const got = await engine.getAsset(a1.data.id, null);
   t('fileUrl stored', got.ok && got.data.fileUrl === 'https://files.catbox.moe/abc123.rbxm');
@@ -54,7 +54,7 @@ const engine = factory.createEngine({ store: st, files, mail: { send: () => {} }
   t('stranger blocked', dls.ok === false);
 
   // 4. raw file still works (fallback)
-  const a2 = await engine.createAsset(u, { title: 'Raw System', category: 'system', description: 'A full description of at least ten characters.', price: '30', fileName: 'raw.lua', fileData: 'data:text/plain;base64,YWJj', imageUrl: 'https://i.imgur.com/y.png' });
+  const a2 = await engine.createAsset(u, { title: 'Raw System', category: 'system', description: 'A full description of at least ten characters.', price: '30', fileName: 'raw.lua', fileData: 'data:text/plain;base64,YWJj', imageUrl: 'https://i.imgur.com/y.png', backupUrl: 'https://www.mediafire.com/raw123', paymentMethods: ['gcash'] });
   t('raw file still ok', a2.ok);
   const got2 = await engine.getAsset(a2.data.id, null);
   t('raw has no fileUrl', got2.ok && !got2.data.fileUrl);

@@ -4667,6 +4667,7 @@ async function _assetForm(a, withFile) {
   if (a.freeLicensed !== undefined) fd.append('freeLicensed', a.freeLicensed ? '1' : '0');
   if (a.backupUrl !== undefined) fd.append('backupUrl', a.backupUrl || '');
   if (a.fileUrl) fd.append('fileUrl', a.fileUrl);
+  if (a.fileName) fd.append('fileName', a.fileName); /* keep the original name when the file is hosted */
   if (withFile && a.fileData) fd.append('file', await (await fetch(a.fileData)).blob(), a.fileName || 'asset-file');
   return fd;
 }
