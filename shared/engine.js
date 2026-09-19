@@ -1651,7 +1651,7 @@
       if (!u) return fail('auth', 'You must be logged in to do that.');
       const order = byIdIn('orders', orderId);
       if (!order || order.buyerId !== u.id) return fail('forbidden', 'Order not found.');
-      if (order.status === 'created') { order.status = 'cancelled'; order.updatedAt = now(); store.put('orders', order); flush(); }
+      if (order.status === 'created') { store.del('orders', order.id); flush(); } // cancelled = gone, not a lingering row
       return ok(true);
     }
     async function myOrders(user) {

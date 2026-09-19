@@ -631,6 +631,11 @@ async function main() {
       : await engine.createOrder(u, assetId, method, gameDetails);
     if (!r.ok) return send(res, r);
     const { orderId, amount, currency } = r.data;
+    if (String(method || '').toLowerCase() === 'free') {
+      // Free claim — the engine already completed it (open source) or queued it
+      // for the seller's approval (licensed free). No payment step exists.
+      return send(res, { ok: true, data: { orderId, amount: 0, free: true, freeLicensed: !!r.data.freeLicensed } });
+    }
     if (isVipTry) {
       // Zero-cost VIP try — the order is created already paid, awaiting the seller's approval.
       return send(res, { ok: true, data: { orderId, vipTrial: true } });
