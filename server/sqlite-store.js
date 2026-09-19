@@ -27,7 +27,7 @@ const fs = require('node:fs');
 const SCHEMA = {
   users: ['id', 'handle', 'email', 'displayName', 'passHash', 'bio', 'pfp', 'role', 'banned', 'banReason', 'timeoutUntil', 'restrictedUntil', 'restrictReason', 'totpSecret', 'totpEnabled', 'country', 'tags', 'googleId', 'acceptedTermsAt', 'emailVerified', 'unsubscribed', 'needsPasswordSetup', 'protectionTier', 'contractTier', 'createdAt', 'updatedAt'],
   sessions: ['id', 'userId', 'label', 'createdAt', 'lastSeen', 'expiresAt'],
-  assets: ['id', 'ownerId', 'title', 'category', 'description', 'price', 'fileName', 'fileMime', 'fileSize', 'fileUrl', 'backupUrl', 'imageUrl', 'images', 'paymentMethods', 'sellerPaymentDetails', 'deliverDuringPending', 'status', 'rejectReason', 'sales', 'createdAt', 'updatedAt', 'approvedAt'],
+  assets: ['id', 'ownerId', 'title', 'category', 'description', 'price', 'fileName', 'fileMime', 'fileSize', 'fileUrl', 'backupUrl', 'imageUrl', 'images', 'paymentMethods', 'sellerPaymentDetails', 'deliverDuringPending', 'freeLicensed', 'status', 'rejectReason', 'sales', 'createdAt', 'updatedAt', 'approvedAt'],
   purchases: ['id', 'assetId', 'buyerId', 'price', 'licenseKey', 'gameId', 'gameName', 'status', 'activatedAt', 'deviceId', 'deviceName', 'lastSeen', 'createdAt'],
   comments: ['id', 'assetId', 'userId', 'body', 'rating', 'createdAt'],
   likes: ['id', 'assetId', 'userId', 'createdAt'],
@@ -307,6 +307,7 @@ const MIGRATIONS = [
   "ALTER TABLE assets ADD COLUMN paymentMethods TEXT",
   "ALTER TABLE assets ADD COLUMN sellerPaymentDetails TEXT",
   "ALTER TABLE assets ADD COLUMN deliverDuringPending INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE assets ADD COLUMN freeLicensed INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE assets ADD COLUMN fileUrl TEXT",
   "ALTER TABLE systems ADD COLUMN kickOnDeny INTEGER NOT NULL DEFAULT 1",
   "ALTER TABLE systems ADD COLUMN banOnBlacklist INTEGER NOT NULL DEFAULT 0",

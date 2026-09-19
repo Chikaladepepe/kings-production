@@ -254,6 +254,9 @@
     }
     const likeCount = id => all('likes').filter(l => l.assetId === id).length;
     const likedBy = (id, userId) => !!(userId && all('likes').some(l => l.assetId === id && l.userId === userId));
+    /* Free-claim reach: how many distinct users have the free system
+       (completed free order). Shown as "N users" instead of "N sold". */
+    const usersOf = id => new Set(all('orders').filter(o => o.assetId === id && o.method === 'free' && o.status === 'completed').map(o => o.buyerId)).size;
     /* Trending score — likes + ratings + sales, decayed by age so fresh
        engagement rises to the top of the front page. */
     function hotScore(a) {
@@ -269,7 +272,7 @@
       try { images = a.images ? JSON.parse(a.images) : []; } catch (e) {}
       try { paymentMethods = a.paymentMethods ? JSON.parse(a.paymentMethods) : []; } catch (e) {}
       try { sellerPaymentDetails = a.sellerPaymentDetails ? JSON.parse(a.sellerPaymentDetails) : null; } catch (e) {}
-      return { id: a.id, title: a.title, category: a.category, description: a.description, price: a.price, sales: a.sales, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, fileUrl: a.fileUrl || null, imageUrl: a.imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending: !!a.deliverDuringPending, owner: o ? publicUser(o) : null, rating: rv ? rv.rating : null, ratingCount: rv ? rv.count : 0, likes: likeCount(a.id), liked: likedBy(a.id, viewerId) };
+      return { id: a.id, title: a.title, category: a.category, description: a.description, price: a.price, sales: a.sales, users: usersOf(a.id), freeLicensed: !!a.freeLicensed, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, fileUrl: a.fileUrl || null, imageUrl: a.imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending: !!a.deliverDuringPending, owner: o ? publicUser(o) : null, rating: rv ? rv.rating : null, ratingCount: rv ? rv.count : 0, likes: likeCount(a.id), liked: likedBy(a.id, viewerId) };
     }
     function sendEmail(rec) {
       const row = { id: 'e' + uid(), to: rec.to, subject: rec.subject, action: rec.action, body: rec.body, link: rec.link || null, createdAt: now(), read: false };
@@ -564,7 +567,7 @@
       });
       return out;
     }
-    async function createAsset(user, { title, category, description, price, fileName, fileData, fileUrl, backupUrl, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending } = {}) {
+    async function createAsset(user, { title, category, description, price, fileName, fileData, fileUrl, backupUrl, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending, freeLicensed } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to post assets.');
       if (!canPost(u)) {
@@ -608,7 +611,7 @@
         fileName: file ? file.name : (fileName || (hostedFileUrl ? hostedFileUrl.split('/').pop().split('?')[0] || 'system-file' : 'system-file')), fileMime: file ? file.mime : 'application/octet-stream', fileSize: file ? file.size : 0,
         fileUrl: hostedFileUrl || null,
         backupUrl: backup || null,
-        images: JSON.stringify(cleanImages), paymentMethods: JSON.stringify(sellerPm), sellerPaymentDetails: JSON.stringify(cleanSellerPaymentDetails(sellerPm, sellerPaymentDetails)), deliverDuringPending: deliverDuringPending ? 1 : 0,
+        images: JSON.stringify(cleanImages), paymentMethods: JSON.stringify(sellerPm), sellerPaymentDetails: JSON.stringify(cleanSellerPaymentDetails(sellerPm, sellerPaymentDetails)), deliverDuringPending: deliverDuringPending ? 1 : 0, freeLicensed: Number(price) > 0 ? 0 : (freeLicensed ? 1 : 0),
         imageUrl: img, status: founderLevel ? 'approved' : 'pending', rejectReason: null, sales: 0, createdAt: now(), updatedAt: now(), approvedAt: founderLevel ? now() : null,
       };
       if (file) {
@@ -652,7 +655,7 @@
       });
     }
 
-    async function updateAsset(user, id, { title, category, description, price, fileName, fileData, fileUrl, backupUrl, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending } = {}) {
+    async function updateAsset(user, id, { title, category, description, price, fileName, fileData, fileUrl, backupUrl, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending, freeLicensed } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       const a = byIdIn('assets', id);
@@ -699,6 +702,7 @@
         a.sellerPaymentDetails = JSON.stringify(cleanSellerPaymentDetails(pms, Object.assign({}, prev, sellerPaymentDetails)));
       }
       if (deliverDuringPending !== undefined) a.deliverDuringPending = !!deliverDuringPending ? 1 : 0;
+      if (freeLicensed !== undefined) a.freeLicensed = !!freeLicensed ? 1 : 0;
       if (backupUrl !== undefined) {
         const bu = normalizeImageUrl(backupUrl);
         if (!bu) return fail('invalid', 'A backup download link is required — upload the same file to MediaFire, Mega, GoFile, or Drive and paste the link.');
@@ -980,7 +984,9 @@
     function grantLicense(u, a) {
       const key = 'KP-' + randomToken(4).toUpperCase().match(/.{1,4}/g).join('-');
       store.put('purchases', { id: 'p' + uid(), assetId: a.id, buyerId: u.id, price: a.price, licenseKey: key, gameId: null, gameName: '', createdAt: now() });
-      a.sales = (a.sales || 0) + 1;
+      /* Free systems count USERS, not sales — the shop shows "N users" instead
+         of "N sold" for zero-price posts. */
+      if (Number(a.price) > 0) a.sales = (a.sales || 0) + 1;
       store.put('assets', a);
       flush();
       return { licenseKey: key, vipUpgrade: false };
@@ -1382,15 +1388,25 @@
       if (all('purchases').some(p => p.assetId === a.id && p.buyerId === u.id)) return fail('owned', 'You already own this asset.');
       if (all('orders').some(o => o.buyerId === u.id && o.assetId === a.id && (o.status === 'created' || o.status === 'paid')))
         return fail('pending', 'You already have a pending order for this asset.');
-      /* FREE posts (price 0): no payment, no method picker — the claim goes
-         straight to a completed order with a license, downloadable from Orders. */
+      /* FREE posts (price 0): no payment, no method picker. Two flavors:
+         - freeLicensed (checked): the free system still carries a license —
+           the claimer fills in game details; the order waits for the seller's
+           approval exactly like a paid order (Approve details → completes +
+           license).
+         - open source (unchecked): no license, no questions — the claim
+           completes instantly and the file is downloadable right away. */
       if (!(Number(a.price) > 0)) {
-        const gd0 = gameDetails && typeof gameDetails === 'object' ? gameDetails : {};
-        const freeDetails = { gameName: String(gd0.gameName || '').trim().slice(0, 80) || null, placeId: String(gd0.placeId || '').trim().slice(0, 20) || null, gameOwner: String(gd0.gameOwner || '').trim().slice(0, 80) || null, notes: String(gd0.notes || '').trim().slice(0, 400) || null };
-        const order0 = { id: 'o' + uid(), buyerId: u.id, assetId: a.id, method: 'free', amount: 0, currency: currencyOf(u.country), status: 'created', providerRef: null, licenseKey: null, gameDetails: JSON.stringify(freeDetails), sellerId: a.ownerId, approval: 'pending', createdAt: now(), paidAt: null, updatedAt: now() };
+        const needsDetails = !!a.freeLicensed;
+        let freeDetails = null;
+        if (needsDetails) {
+          const gd0 = gameDetails && typeof gameDetails === 'object' ? gameDetails : {};
+          freeDetails = { gameName: String(gd0.gameName || '').trim().slice(0, 80) || null, placeId: String(gd0.placeId || '').trim().slice(0, 20) || null, gameOwner: String(gd0.gameOwner || '').trim().slice(0, 80) || null, notes: String(gd0.notes || '').trim().slice(0, 400) || null };
+          if (!freeDetails.gameName || !freeDetails.placeId || !freeDetails.gameOwner) return fail('invalid', 'This free system is licensed — game name, place ID, and game creator are required to claim it.');
+        }
+        const order0 = { id: 'o' + uid(), buyerId: u.id, assetId: a.id, method: 'free', amount: 0, currency: currencyOf(u.country), status: needsDetails ? 'paid' : 'created', providerRef: needsDetails ? 'free-claim' : null, licenseKey: null, gameDetails: JSON.stringify(freeDetails), sellerId: a.ownerId, approval: 'pending', createdAt: now(), paidAt: needsDetails ? now() : null, updatedAt: now() };
         store.put('orders', order0);
         flush();
-        return finalizeOrder(order0, u);
+        return needsDetails ? ok({ orderId: order0.id, amount: 0, currency: order0.currency, freeLicensed: true }) : finalizeOrder(order0, u);
       }
       const currency = currencyOf(u.country);
       const amount = convertPrice(a.price, u.country);
@@ -1473,6 +1489,14 @@
       order.approval = decision;
       order.approvalNote = String(note || '').trim().slice(0, 300) || null;
       order.updatedAt = now();
+      /* FREE licensed claims complete on approval: the seller accepts the
+         claimer's game details and the license is issued right here — no
+         payment ever happened, so there is nothing else to verify. */
+      if (decision === 'approved' && order.method === 'free' && order.status === 'paid') {
+        const buyerF = dbUser(order.buyerId);
+        const outF = finalizeOrder(order, buyerF);
+        return outF;
+      }
       /* A rejected order leaves pending for good: it moves to the buyer's
          Rejected list (they can delete it there) and the buyer is emailed. */
       if (decision === 'rejected') {

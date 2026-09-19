@@ -1693,6 +1693,9 @@ const API = {};
     }
     const likeCount = id => all('likes').filter(l => l.assetId === id).length;
     const likedBy = (id, userId) => !!(userId && all('likes').some(l => l.assetId === id && l.userId === userId));
+    /* Free-claim reach: how many distinct users have the free system
+       (completed free order). Shown as "N users" instead of "N sold". */
+    const usersOf = id => new Set(all('orders').filter(o => o.assetId === id && o.method === 'free' && o.status === 'completed').map(o => o.buyerId)).size;
     /* Trending score — likes + ratings + sales, decayed by age so fresh
        engagement rises to the top of the front page. */
     function hotScore(a) {
@@ -1708,7 +1711,7 @@ const API = {};
       try { images = a.images ? JSON.parse(a.images) : []; } catch (e) {}
       try { paymentMethods = a.paymentMethods ? JSON.parse(a.paymentMethods) : []; } catch (e) {}
       try { sellerPaymentDetails = a.sellerPaymentDetails ? JSON.parse(a.sellerPaymentDetails) : null; } catch (e) {}
-      return { id: a.id, title: a.title, category: a.category, description: a.description, price: a.price, sales: a.sales, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, fileUrl: a.fileUrl || null, imageUrl: a.imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending: !!a.deliverDuringPending, owner: o ? publicUser(o) : null, rating: rv ? rv.rating : null, ratingCount: rv ? rv.count : 0, likes: likeCount(a.id), liked: likedBy(a.id, viewerId) };
+      return { id: a.id, title: a.title, category: a.category, description: a.description, price: a.price, sales: a.sales, users: usersOf(a.id), freeLicensed: !!a.freeLicensed, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, fileUrl: a.fileUrl || null, imageUrl: a.imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending: !!a.deliverDuringPending, owner: o ? publicUser(o) : null, rating: rv ? rv.rating : null, ratingCount: rv ? rv.count : 0, likes: likeCount(a.id), liked: likedBy(a.id, viewerId) };
     }
     function sendEmail(rec) {
       const row = { id: 'e' + uid(), to: rec.to, subject: rec.subject, action: rec.action, body: rec.body, link: rec.link || null, createdAt: now(), read: false };
@@ -2003,7 +2006,7 @@ const API = {};
       });
       return out;
     }
-    async function createAsset(user, { title, category, description, price, fileName, fileData, fileUrl, backupUrl, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending } = {}) {
+    async function createAsset(user, { title, category, description, price, fileName, fileData, fileUrl, backupUrl, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending, freeLicensed } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to post assets.');
       if (!canPost(u)) {
@@ -2047,7 +2050,7 @@ const API = {};
         fileName: file ? file.name : (fileName || (hostedFileUrl ? hostedFileUrl.split('/').pop().split('?')[0] || 'system-file' : 'system-file')), fileMime: file ? file.mime : 'application/octet-stream', fileSize: file ? file.size : 0,
         fileUrl: hostedFileUrl || null,
         backupUrl: backup || null,
-        images: JSON.stringify(cleanImages), paymentMethods: JSON.stringify(sellerPm), sellerPaymentDetails: JSON.stringify(cleanSellerPaymentDetails(sellerPm, sellerPaymentDetails)), deliverDuringPending: deliverDuringPending ? 1 : 0,
+        images: JSON.stringify(cleanImages), paymentMethods: JSON.stringify(sellerPm), sellerPaymentDetails: JSON.stringify(cleanSellerPaymentDetails(sellerPm, sellerPaymentDetails)), deliverDuringPending: deliverDuringPending ? 1 : 0, freeLicensed: Number(price) > 0 ? 0 : (freeLicensed ? 1 : 0),
         imageUrl: img, status: founderLevel ? 'approved' : 'pending', rejectReason: null, sales: 0, createdAt: now(), updatedAt: now(), approvedAt: founderLevel ? now() : null,
       };
       if (file) {
@@ -2091,7 +2094,7 @@ const API = {};
       });
     }
 
-    async function updateAsset(user, id, { title, category, description, price, fileName, fileData, fileUrl, backupUrl, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending } = {}) {
+    async function updateAsset(user, id, { title, category, description, price, fileName, fileData, fileUrl, backupUrl, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending, freeLicensed } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       const a = byIdIn('assets', id);
@@ -2138,6 +2141,7 @@ const API = {};
         a.sellerPaymentDetails = JSON.stringify(cleanSellerPaymentDetails(pms, Object.assign({}, prev, sellerPaymentDetails)));
       }
       if (deliverDuringPending !== undefined) a.deliverDuringPending = !!deliverDuringPending ? 1 : 0;
+      if (freeLicensed !== undefined) a.freeLicensed = !!freeLicensed ? 1 : 0;
       if (backupUrl !== undefined) {
         const bu = normalizeImageUrl(backupUrl);
         if (!bu) return fail('invalid', 'A backup download link is required — upload the same file to MediaFire, Mega, GoFile, or Drive and paste the link.');
@@ -2419,7 +2423,9 @@ const API = {};
     function grantLicense(u, a) {
       const key = 'KP-' + randomToken(4).toUpperCase().match(/.{1,4}/g).join('-');
       store.put('purchases', { id: 'p' + uid(), assetId: a.id, buyerId: u.id, price: a.price, licenseKey: key, gameId: null, gameName: '', createdAt: now() });
-      a.sales = (a.sales || 0) + 1;
+      /* Free systems count USERS, not sales — the shop shows "N users" instead
+         of "N sold" for zero-price posts. */
+      if (Number(a.price) > 0) a.sales = (a.sales || 0) + 1;
       store.put('assets', a);
       flush();
       return { licenseKey: key, vipUpgrade: false };
@@ -2821,15 +2827,25 @@ const API = {};
       if (all('purchases').some(p => p.assetId === a.id && p.buyerId === u.id)) return fail('owned', 'You already own this asset.');
       if (all('orders').some(o => o.buyerId === u.id && o.assetId === a.id && (o.status === 'created' || o.status === 'paid')))
         return fail('pending', 'You already have a pending order for this asset.');
-      /* FREE posts (price 0): no payment, no method picker — the claim goes
-         straight to a completed order with a license, downloadable from Orders. */
+      /* FREE posts (price 0): no payment, no method picker. Two flavors:
+         - freeLicensed (checked): the free system still carries a license —
+           the claimer fills in game details; the order waits for the seller's
+           approval exactly like a paid order (Approve details → completes +
+           license).
+         - open source (unchecked): no license, no questions — the claim
+           completes instantly and the file is downloadable right away. */
       if (!(Number(a.price) > 0)) {
-        const gd0 = gameDetails && typeof gameDetails === 'object' ? gameDetails : {};
-        const freeDetails = { gameName: String(gd0.gameName || '').trim().slice(0, 80) || null, placeId: String(gd0.placeId || '').trim().slice(0, 20) || null, gameOwner: String(gd0.gameOwner || '').trim().slice(0, 80) || null, notes: String(gd0.notes || '').trim().slice(0, 400) || null };
-        const order0 = { id: 'o' + uid(), buyerId: u.id, assetId: a.id, method: 'free', amount: 0, currency: currencyOf(u.country), status: 'created', providerRef: null, licenseKey: null, gameDetails: JSON.stringify(freeDetails), sellerId: a.ownerId, approval: 'pending', createdAt: now(), paidAt: null, updatedAt: now() };
+        const needsDetails = !!a.freeLicensed;
+        let freeDetails = null;
+        if (needsDetails) {
+          const gd0 = gameDetails && typeof gameDetails === 'object' ? gameDetails : {};
+          freeDetails = { gameName: String(gd0.gameName || '').trim().slice(0, 80) || null, placeId: String(gd0.placeId || '').trim().slice(0, 20) || null, gameOwner: String(gd0.gameOwner || '').trim().slice(0, 80) || null, notes: String(gd0.notes || '').trim().slice(0, 400) || null };
+          if (!freeDetails.gameName || !freeDetails.placeId || !freeDetails.gameOwner) return fail('invalid', 'This free system is licensed — game name, place ID, and game creator are required to claim it.');
+        }
+        const order0 = { id: 'o' + uid(), buyerId: u.id, assetId: a.id, method: 'free', amount: 0, currency: currencyOf(u.country), status: needsDetails ? 'paid' : 'created', providerRef: needsDetails ? 'free-claim' : null, licenseKey: null, gameDetails: JSON.stringify(freeDetails), sellerId: a.ownerId, approval: 'pending', createdAt: now(), paidAt: needsDetails ? now() : null, updatedAt: now() };
         store.put('orders', order0);
         flush();
-        return finalizeOrder(order0, u);
+        return needsDetails ? ok({ orderId: order0.id, amount: 0, currency: order0.currency, freeLicensed: true }) : finalizeOrder(order0, u);
       }
       const currency = currencyOf(u.country);
       const amount = convertPrice(a.price, u.country);
@@ -2912,6 +2928,14 @@ const API = {};
       order.approval = decision;
       order.approvalNote = String(note || '').trim().slice(0, 300) || null;
       order.updatedAt = now();
+      /* FREE licensed claims complete on approval: the seller accepts the
+         claimer's game details and the license is issued right here — no
+         payment ever happened, so there is nothing else to verify. */
+      if (decision === 'approved' && order.method === 'free' && order.status === 'paid') {
+        const buyerF = dbUser(order.buyerId);
+        const outF = finalizeOrder(order, buyerF);
+        return outF;
+      }
       /* A rejected order leaves pending for good: it moves to the buyer's
          Rejected list (they can delete it there) and the buyer is emailed. */
       if (decision === 'rejected') {
@@ -5002,7 +5026,7 @@ function assetCardHtml(a, rank) {
       ${a.ratingCount ? `<div class="asset-rating">${starsHtml(a.rating)}<span class="muted small">${a.rating} · ${a.ratingCount}</span></div>` : ''}
       <div class="asset-foot">
         <span class="price">${Number(a.price) > 0 ? fmtMoney(a.price) : '<b style="color:var(--ok)">FREE</b>'}</span>
-        <span class="row" style="gap:8px"><span class="sales">${ICON.cart}${a.sales || 0}</span><button class="like-btn ${a.liked ? 'on' : ''}" data-count="${a.likes || 0}" title="Like this asset" onclick="onLike(event,'${a.id}',this)">${ICON.heart}<span>${a.likes || 0}</span></button></span>
+        <span class="row" style="gap:8px"><span class="sales" title="${Number(a.price) > 0 ? 'Times sold' : 'Users who have this free system'}">${ICON.user}${Number(a.price) > 0 ? (a.sales || 0) : (a.users || 0)}</span><button class="like-btn ${a.liked ? 'on' : ''}" data-count="${a.likes || 0}" title="Like this asset" onclick="onLike(event,'${a.id}',this)">${ICON.heart}<span>${a.likes || 0}</span></button></span>
       </div>
     </div></article>`;
 }
@@ -5528,15 +5552,26 @@ async function onBuy(id) {
   try { const ar = await API.getAsset(id, STATE.user && STATE.user.id); if (ar.ok && ar.data && !(Number(ar.data.price) > 0)) { onClaimFree(id); return; } } catch (e) {}
   openCheckout(id);
 }
-/* Free posts (price 0): the buyer enters their game details and the claim
-   completes instantly — a completed order + license key, downloadable from
-   Orders. No payment, no method picker. */
-function onClaimFree(id) {
+/* Free posts (price 0):
+   - Open source (no license): one click — the claim completes instantly and
+     the file is ready on Orders. No details, no approval.
+   - Licensed (seller ticked the box): the claimer fills in game details and
+     the seller approves each claim, exactly like a paid order. */
+async function onClaimFree(id) {
   if (!STATE.user) { go('/login'); return; }
+  let licensed = false;
+  try { const ar = await API.getAsset(id, STATE.user && STATE.user.id); if (ar.ok && ar.data) licensed = !!ar.data.freeLicensed; } catch (e) {}
+  if (!licensed) {
+    /* Open source — instant claim, no questions. */
+    const r = await API.checkout(STATE.user, id, 'free', null, {});
+    if (r.ok) { toast('Claimed! The system file is on your Orders page. 🎉', 'ok'); burstAt(innerWidth / 2, innerHeight / 2, 26); SFX.play('purchase'); go('/orders'); }
+    else toast(r.error, 'err');
+    return;
+  }
   modal({
-    title: 'Get this system for free',
-    confirmLabel: 'Claim for free',
-    body: `<p class="muted small" style="margin:0 0 12px"><b style="color:var(--ok)">This system is free.</b> Enter your game details so the seller knows where it will be used — the file is added to your Orders instantly, ready to download.</p>
+    title: 'Get this licensed system for free',
+    confirmLabel: 'Submit claim',
+    body: `<p class="muted small" style="margin:0 0 12px"><b style="color:var(--ok)">This free system is licensed.</b> Enter your game details — the seller reviews and approves your claim, then the file unlocks on your Orders page.</p>
       <div class="field"><label>Game name<span class="req">*</span></label><input class="input" id="fr-name" maxlength="80" placeholder="e.g. Blox Kingdom" required></div>
       <div class="field"><label>Game place ID<span class="req">*</span></label><input class="input" id="fr-place" maxlength="30" inputmode="numeric" placeholder="e.g. 1234567890" required></div>
       <div class="field"><label>Game creator<span class="req">*</span></label><input class="input" id="fr-owner" maxlength="80" placeholder="Your username or group name" required></div>
@@ -5550,7 +5585,7 @@ function onClaimFree(id) {
     },
     onConfirm: async v => {
       const r = await API.checkout(STATE.user, id, 'free', null, v);
-      if (r.ok) { toast('Claimed! The system file is on your Orders page. 🎉', 'ok'); burstAt(innerWidth / 2, innerHeight / 2, 26); SFX.play('purchase'); go('/orders'); }
+      if (r.ok) { toast('Claim submitted — the seller will review and approve it. 🎉', 'ok'); burstAt(innerWidth / 2, innerHeight / 2, 26); SFX.play('purchase'); go('/orders'); }
       else toast(r.error, 'err');
     },
   });
@@ -5899,7 +5934,7 @@ VIEWS.asset = async ({ params }) => {
     <div class="asset-hero">
       <div class="asset-hero-thumb" title="Click to zoom" onclick="openLightbox('${esc(proxiedImageUrl(a.imageUrl || ''))}')">${thumbHtml(a, 84)}</div>
       <div>
-        <div class="asset-meta">${catBadge(a.category)}${ownerView ? statusBadge(a.status, a.rejectReason) : ''}<span class="sales">${ICON.cart}${a.sales} sold</span>${a.ratingCount ? `${starsHtml(a.rating)}<span class="muted small">${a.rating} · ${a.ratingCount}</span>` : ''}</div>
+        <div class="asset-meta">${catBadge(a.category)}${ownerView ? statusBadge(a.status, a.rejectReason) : ''}${Number(a.price) > 0 ? `<span class="sales">${ICON.cart}${a.sales} sold</span>` : `<span class="sales" title="Users who have this free system">${ICON.user}${a.users || 0} users</span>`}${a.ratingCount ? `${starsHtml(a.rating)}<span class="muted small">${a.rating} · ${a.ratingCount}</span>` : ''}</div>
         <h1 style="font-family:var(--font-display);font-size:clamp(26px,4vw,38px);font-weight:700;letter-spacing:-.02em;margin-top:10px">${esc(a.title)}</h1>
         <div class="asset-meta"><span class="price" style="font-size:22px">${Number(a.price) > 0 ? fmtMoney(a.price) : '<b style="color:var(--ok)">FREE</b>'}</span><span class="muted small">· posted ${fmtDate(a.createdAt)}</span></div>
         ${a.sellerResponse ? `<div class="row" style="gap:10px;margin-top:10px;flex-wrap:wrap"><span class="badge soft-ok" title="Share of payment proofs this seller verified within 24 hours over the last 30 days">${ICON.clock} Seller response: ${a.sellerResponse.pct}% · ${esc(a.sellerResponse.label)}</span>${a.sellerResponse.avgHours ? `<span class="muted small" style="align-self:center">avg ${a.sellerResponse.avgHours}h to verify</span>` : ''}</div>` : ''}
@@ -6499,6 +6534,9 @@ VIEWS.upload = async ({ query }) => {
         <div class="field" id="up-ddp-wrap"><label style="display:inline-flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" name="deliverDuringPending" style="accent-color:var(--gold);width:17px;height:17px"> <span><b>Give the system file while approval is pending</b> <span class="muted small" style="font-weight:400">(optional)</span></span></label>
           <div class="hint">When checked, buyers who paid get the file immediately — they only wait for you to activate the license for their game. When unchecked (default), buyers wait for your full approval before the file unlocks.</div>
         </div>
+        <div class="field" id="up-free-lic-wrap" style="display:none"><label style="display:inline-flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" name="freeLicensed" style="accent-color:var(--gold);width:17px;height:17px"> <span><b>This free system has a license</b> <span class="muted small" style="font-weight:400">(optional)</span></span></label>
+          <div class="hint">Checked: claimers must fill in their <b>game details</b> (game name, place ID, creator) and you approve each claim — the system stays protected. Unchecked: the system is <b>open source</b> — no license, no questions — claimers get the file instantly with no details asked.</div>
+        </div>
         <div class="row"><button class="btn btn-primary" type="submit" ${cooldown ? 'disabled' : ''}>${(STATE.user && effRank(STATE.user) >= roleRank('cofounder')) ? 'Post it' : 'Submit for approval'}</button></div>
         ${cooldown ? `<p class="muted small mt">Submit is locked while the cooldown runs. Come back in ${esc(cooldown.text)}.</p>` : ''}
       </form>
@@ -6530,6 +6568,7 @@ async function onSubmitAsset(e) {
     }
   }
   const deliverDuringPending = f.querySelector('input[name=deliverDuringPending]').checked;
+  const freeLicensed = priceNum > 0 ? false : !!(f.querySelector('input[name=freeLicensed]') && f.querySelector('input[name=freeLicensed]').checked);
   const backupUrl = (f.backupUrl && f.backupUrl.value || '').trim();
   const btn = f.querySelector('button[type=submit]');
   const origLabel = btn.textContent;
@@ -6544,7 +6583,7 @@ async function onSubmitAsset(e) {
       if (hosted.ok) { fileUrl = hosted.url; fileName = file.name; }
       else { toast('Could not reach the file host — storing the file directly instead.', 'warn'); fileData = await readFileAsDataURL(file); fileName = file.name; }
     }
-    const payload = { title: f.title.value, category: f.category.value, description: f.description.value, price: f.price.value, imageUrl: f.imageUrl.value.trim(), images, paymentMethods, sellerPaymentDetails, deliverDuringPending, backupUrl, fileName, fileData, fileUrl };
+    const payload = { title: f.title.value, category: f.category.value, description: f.description.value, price: f.price.value, imageUrl: f.imageUrl.value.trim(), images, paymentMethods, sellerPaymentDetails, deliverDuringPending, freeLicensed, backupUrl, fileName, fileData, fileUrl };
     const res = f.assetId.value
       ? await API.updateAsset(STATE.user, f.assetId.value, payload)
       : await API.createAsset(STATE.user, payload);
@@ -6634,16 +6673,20 @@ VIEWS_BIND.upload = () => {
   const priceInput = f.querySelector('input[name=price]');
   const pmWrap = f.querySelector('#up-pm-wrap');
   const ddpWrap = f.querySelector('#up-ddp-wrap');
+  const freeLicWrap = f.querySelector('#up-free-lic-wrap');
+  const freeLicBox = f.querySelector('input[name=freeLicensed]');
   let banner = null;
   const apply = () => {
     const isFree = !(Number(priceInput.value) > 0);
     if (pmWrap) pmWrap.style.display = isFree ? 'none' : '';
     if (ddpWrap) ddpWrap.style.display = isFree ? 'none' : '';
+    if (freeLicWrap) freeLicWrap.style.display = isFree ? '' : 'none';
+    if (!isFree && freeLicBox) freeLicBox.checked = false;
     if (isFree && !banner) {
       banner = document.createElement('div');
       banner.className = 'form-ok';
       banner.style.margin = '10px 0';
-      banner.innerHTML = '<b style="color:var(--ok)">FREE post</b> — no payment needed. Payment methods and "give file while pending" are hidden because buyers claim this system instantly with no checkout.';
+      banner.innerHTML = '<b style="color:var(--ok)">FREE post</b> — no payment needed. Payment methods and "give file while pending" are hidden because buyers claim this system instantly with no checkout. Optionally tick <b>This free system has a license</b> to collect game details and approve each claim.';
       ddpWrap && ddpWrap.parentElement.insertBefore(banner, ddpWrap);
     } else if (!isFree && banner) { banner.remove(); banner = null; }
   };
