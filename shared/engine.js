@@ -581,7 +581,7 @@
       if (title.length < 3 || title.length > 60) return fail('invalid', 'Title must be 3–60 characters.');
       if (!CATEGORIES.includes(category)) return fail('invalid', 'Choose a valid category: Animation, Model, Plugin, or System.');
       if (description.length < 10) return fail('invalid', 'A full description is required (at least 10 characters).');
-      if (!Number.isFinite(price) || price <= 0 || price > 999999) return fail('invalid', 'Price must be a positive number of USD.');
+      if (!Number.isFinite(price) || price < 0 || price > 999999) return fail('invalid', 'Price must be 0 (free) or a positive number of USD.');
       const img = normalizeImageUrl(imageUrl);
       if (img === null && String(imageUrl || '').trim()) return fail('invalid', 'Image link must be a valid http(s) URL.');
       const file = normalizeFile(fileData, fileName);
@@ -599,9 +599,10 @@
       const cleanImages = Array.isArray(images) ? images.map(x => normalizeImageUrl(x)).filter(Boolean).slice(0, 12) : [];
       const allowedPm = ['stripe', 'paypal', 'gcash', 'kofi'];
       const sellerPm = Array.isArray(paymentMethods) ? paymentMethods.filter(m => allowedPm.includes(m)).slice(0, 4) : [];
-      /* Accepted payment methods are REQUIRED — buyers can only pay with
-         methods the seller actually checked, so an empty list is a bug. */
-      if (!sellerPm.length) return fail('invalid', 'Select at least one accepted payment method (GCash, Ko-fi, PayPal, or Stripe) — buyers can only pay with methods you accept.');
+      /* Accepted payment methods are REQUIRED on paid posts — buyers can only
+         pay with methods the seller actually checked. Free posts (price 0)
+         skip payment entirely, so no methods are needed. */
+      if (Number(price) > 0 && !sellerPm.length) return fail('invalid', 'Select at least one accepted payment method (GCash, Ko-fi, PayPal, or Stripe) — buyers can only pay with methods you accept. (Set the price to 0 to post for free instead.)');
       const asset = {
         id: 'a' + uid(), ownerId: u.id, title, category, description, price,
         fileName: file ? file.name : (fileName || (hostedFileUrl ? hostedFileUrl.split('/').pop().split('?')[0] || 'system-file' : 'system-file')), fileMime: file ? file.mime : 'application/octet-stream', fileSize: file ? file.size : 0,
@@ -675,7 +676,7 @@
       }
       if (price !== undefined) {
         price = Number(price);
-        if (!Number.isFinite(price) || price <= 0 || price > 999999) return fail('invalid', 'Price must be a positive number of USD.');
+        if (!Number.isFinite(price) || price < 0 || price > 999999) return fail('invalid', 'Price must be 0 (free) or a positive number of USD.');
         a.price = price;
       }
       if (imageUrl !== undefined) {
@@ -1366,8 +1367,10 @@
     async function createOrder(user, assetId, method, gameDetails) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
+      /* Free claims arrive with method 'free' — skip the payment-method gate. */
+      const isFreeClaim = String(method || '').toLowerCase() === 'free';
       method = String(method || '').toLowerCase();
-      if (!PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, GCash, or Ko-fi.');
+      if (!isFreeClaim && !PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, GCash, or Ko-fi.');
       const a = byIdIn('assets', assetId);
       if (isRestricted(u)) return fail('restricted', 'Your account is restricted — you cannot make purchases right now. You may appeal or wait out the restriction.');
       if (!a) return fail('notfound', 'Asset not found.');
@@ -1375,9 +1378,20 @@
       if (isBanned(u)) return fail('banned', 'Your account is banned.');
       if (a.status !== 'approved') return fail('notfound', 'This asset is not available for purchase.');
       if (a.ownerId === u.id) return fail('self', 'You cannot purchase your own asset.');
+      if (isAssetBlocked(a.id, u.id)) return fail('forbidden', 'The seller has blocked your account from this system.');
       if (all('purchases').some(p => p.assetId === a.id && p.buyerId === u.id)) return fail('owned', 'You already own this asset.');
       if (all('orders').some(o => o.buyerId === u.id && o.assetId === a.id && (o.status === 'created' || o.status === 'paid')))
         return fail('pending', 'You already have a pending order for this asset.');
+      /* FREE posts (price 0): no payment, no method picker — the claim goes
+         straight to a completed order with a license, downloadable from Orders. */
+      if (!(Number(a.price) > 0)) {
+        const gd0 = gameDetails && typeof gameDetails === 'object' ? gameDetails : {};
+        const freeDetails = { gameName: String(gd0.gameName || '').trim().slice(0, 80) || null, placeId: String(gd0.placeId || '').trim().slice(0, 20) || null, gameOwner: String(gd0.gameOwner || '').trim().slice(0, 80) || null, notes: String(gd0.notes || '').trim().slice(0, 400) || null };
+        const order0 = { id: 'o' + uid(), buyerId: u.id, assetId: a.id, method: 'free', amount: 0, currency: currencyOf(u.country), status: 'created', providerRef: null, licenseKey: null, gameDetails: JSON.stringify(freeDetails), sellerId: a.ownerId, approval: 'pending', createdAt: now(), paidAt: null, updatedAt: now() };
+        store.put('orders', order0);
+        flush();
+        return finalizeOrder(order0, u);
+      }
       const currency = currencyOf(u.country);
       const amount = convertPrice(a.price, u.country);
       const gd = gameDetails && typeof gameDetails === 'object' ? gameDetails : {};
@@ -1966,7 +1980,7 @@
       if (!Array.isArray(links)) return [];
       return links.map(l => ({ url: String((l && l.url) || '').trim() })).filter(l => /^https?:\/\//i.test(l.url)).slice(0, 12).map(l => ({ url: l.url.slice(0, 500) }));
     }
-    async function createPortfolio(actor, { title, category, desc, stat, status, imageUrl, images, links, featured } = {}) {
+    async function createPortfolio(actor, { title, category, desc, stat, status, imageUrl, images, links, featured, creatorId } = {}) {
       const r = requireCofounder(actor, 'create portfolio posts'); if (r) return r;
       title = String(title || '').trim();
       desc = String(desc || '').trim();
@@ -1978,7 +1992,7 @@
       const item = {
         id: 'pp' + uid(), title, category: String(category || '').trim().slice(0, 40),
         desc, stat: String(stat || '').trim().slice(0, 60), status: String(status || 'Live').trim().slice(0, 24),
-        imageUrl: img, images: JSON.stringify(imgs), links: JSON.stringify(cleanPortfolioLinks(links)), featured: !!featured, createdAt: now(),
+        imageUrl: img, images: JSON.stringify(imgs), links: JSON.stringify(cleanPortfolioLinks(links)), featured: !!featured, creatorId: String(creatorId || '').trim() || null, createdAt: now(),
       };
       if (item.featured) all('portfolio').filter(x => x.featured && x.id !== item.id).forEach(x => { x.featured = false; store.put('portfolio', x); });
       store.put('portfolio', item);
@@ -2013,6 +2027,7 @@
         it.images = JSON.stringify(imgs);
       }
       if (patch.links !== undefined) it.links = JSON.stringify(cleanPortfolioLinks(patch.links));
+      if (patch.creatorId !== undefined) it.creatorId = String(patch.creatorId || '').trim() || null;
       if (patch.featured !== undefined) {
         it.featured = !!patch.featured;
         if (it.featured) all('portfolio').filter(x => x.featured && x.id !== it.id).forEach(x => { x.featured = false; store.put('portfolio', x); });

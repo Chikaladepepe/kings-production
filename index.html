@@ -2018,7 +2018,7 @@ const API = {};
       if (title.length < 3 || title.length > 60) return fail('invalid', 'Title must be 3–60 characters.');
       if (!CATEGORIES.includes(category)) return fail('invalid', 'Choose a valid category: Animation, Model, Plugin, or System.');
       if (description.length < 10) return fail('invalid', 'A full description is required (at least 10 characters).');
-      if (!Number.isFinite(price) || price <= 0 || price > 999999) return fail('invalid', 'Price must be a positive number of USD.');
+      if (!Number.isFinite(price) || price < 0 || price > 999999) return fail('invalid', 'Price must be 0 (free) or a positive number of USD.');
       const img = normalizeImageUrl(imageUrl);
       if (img === null && String(imageUrl || '').trim()) return fail('invalid', 'Image link must be a valid http(s) URL.');
       const file = normalizeFile(fileData, fileName);
@@ -2036,9 +2036,10 @@ const API = {};
       const cleanImages = Array.isArray(images) ? images.map(x => normalizeImageUrl(x)).filter(Boolean).slice(0, 12) : [];
       const allowedPm = ['stripe', 'paypal', 'gcash', 'kofi'];
       const sellerPm = Array.isArray(paymentMethods) ? paymentMethods.filter(m => allowedPm.includes(m)).slice(0, 4) : [];
-      /* Accepted payment methods are REQUIRED — buyers can only pay with
-         methods the seller actually checked, so an empty list is a bug. */
-      if (!sellerPm.length) return fail('invalid', 'Select at least one accepted payment method (GCash, Ko-fi, PayPal, or Stripe) — buyers can only pay with methods you accept.');
+      /* Accepted payment methods are REQUIRED on paid posts — buyers can only
+         pay with methods the seller actually checked. Free posts (price 0)
+         skip payment entirely, so no methods are needed. */
+      if (Number(price) > 0 && !sellerPm.length) return fail('invalid', 'Select at least one accepted payment method (GCash, Ko-fi, PayPal, or Stripe) — buyers can only pay with methods you accept. (Set the price to 0 to post for free instead.)');
       const asset = {
         id: 'a' + uid(), ownerId: u.id, title, category, description, price,
         fileName: file ? file.name : (fileName || (hostedFileUrl ? hostedFileUrl.split('/').pop().split('?')[0] || 'system-file' : 'system-file')), fileMime: file ? file.mime : 'application/octet-stream', fileSize: file ? file.size : 0,
@@ -2112,7 +2113,7 @@ const API = {};
       }
       if (price !== undefined) {
         price = Number(price);
-        if (!Number.isFinite(price) || price <= 0 || price > 999999) return fail('invalid', 'Price must be a positive number of USD.');
+        if (!Number.isFinite(price) || price < 0 || price > 999999) return fail('invalid', 'Price must be 0 (free) or a positive number of USD.');
         a.price = price;
       }
       if (imageUrl !== undefined) {
@@ -2803,8 +2804,10 @@ const API = {};
     async function createOrder(user, assetId, method, gameDetails) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
+      /* Free claims arrive with method 'free' — skip the payment-method gate. */
+      const isFreeClaim = String(method || '').toLowerCase() === 'free';
       method = String(method || '').toLowerCase();
-      if (!PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, GCash, or Ko-fi.');
+      if (!isFreeClaim && !PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, GCash, or Ko-fi.');
       const a = byIdIn('assets', assetId);
       if (isRestricted(u)) return fail('restricted', 'Your account is restricted — you cannot make purchases right now. You may appeal or wait out the restriction.');
       if (!a) return fail('notfound', 'Asset not found.');
@@ -2812,9 +2815,20 @@ const API = {};
       if (isBanned(u)) return fail('banned', 'Your account is banned.');
       if (a.status !== 'approved') return fail('notfound', 'This asset is not available for purchase.');
       if (a.ownerId === u.id) return fail('self', 'You cannot purchase your own asset.');
+      if (isAssetBlocked(a.id, u.id)) return fail('forbidden', 'The seller has blocked your account from this system.');
       if (all('purchases').some(p => p.assetId === a.id && p.buyerId === u.id)) return fail('owned', 'You already own this asset.');
       if (all('orders').some(o => o.buyerId === u.id && o.assetId === a.id && (o.status === 'created' || o.status === 'paid')))
         return fail('pending', 'You already have a pending order for this asset.');
+      /* FREE posts (price 0): no payment, no method picker — the claim goes
+         straight to a completed order with a license, downloadable from Orders. */
+      if (!(Number(a.price) > 0)) {
+        const gd0 = gameDetails && typeof gameDetails === 'object' ? gameDetails : {};
+        const freeDetails = { gameName: String(gd0.gameName || '').trim().slice(0, 80) || null, placeId: String(gd0.placeId || '').trim().slice(0, 20) || null, gameOwner: String(gd0.gameOwner || '').trim().slice(0, 80) || null, notes: String(gd0.notes || '').trim().slice(0, 400) || null };
+        const order0 = { id: 'o' + uid(), buyerId: u.id, assetId: a.id, method: 'free', amount: 0, currency: currencyOf(u.country), status: 'created', providerRef: null, licenseKey: null, gameDetails: JSON.stringify(freeDetails), sellerId: a.ownerId, approval: 'pending', createdAt: now(), paidAt: null, updatedAt: now() };
+        store.put('orders', order0);
+        flush();
+        return finalizeOrder(order0, u);
+      }
       const currency = currencyOf(u.country);
       const amount = convertPrice(a.price, u.country);
       const gd = gameDetails && typeof gameDetails === 'object' ? gameDetails : {};
@@ -3403,7 +3417,7 @@ const API = {};
       if (!Array.isArray(links)) return [];
       return links.map(l => ({ url: String((l && l.url) || '').trim() })).filter(l => /^https?:\/\//i.test(l.url)).slice(0, 12).map(l => ({ url: l.url.slice(0, 500) }));
     }
-    async function createPortfolio(actor, { title, category, desc, stat, status, imageUrl, images, links, featured } = {}) {
+    async function createPortfolio(actor, { title, category, desc, stat, status, imageUrl, images, links, featured, creatorId } = {}) {
       const r = requireCofounder(actor, 'create portfolio posts'); if (r) return r;
       title = String(title || '').trim();
       desc = String(desc || '').trim();
@@ -3415,7 +3429,7 @@ const API = {};
       const item = {
         id: 'pp' + uid(), title, category: String(category || '').trim().slice(0, 40),
         desc, stat: String(stat || '').trim().slice(0, 60), status: String(status || 'Live').trim().slice(0, 24),
-        imageUrl: img, images: JSON.stringify(imgs), links: JSON.stringify(cleanPortfolioLinks(links)), featured: !!featured, createdAt: now(),
+        imageUrl: img, images: JSON.stringify(imgs), links: JSON.stringify(cleanPortfolioLinks(links)), featured: !!featured, creatorId: String(creatorId || '').trim() || null, createdAt: now(),
       };
       if (item.featured) all('portfolio').filter(x => x.featured && x.id !== item.id).forEach(x => { x.featured = false; store.put('portfolio', x); });
       store.put('portfolio', item);
@@ -3450,6 +3464,7 @@ const API = {};
         it.images = JSON.stringify(imgs);
       }
       if (patch.links !== undefined) it.links = JSON.stringify(cleanPortfolioLinks(patch.links));
+      if (patch.creatorId !== undefined) it.creatorId = String(patch.creatorId || '').trim() || null;
       if (patch.featured !== undefined) {
         it.featured = !!patch.featured;
         if (it.featured) all('portfolio').filter(x => x.featured && x.id !== it.id).forEach(x => { x.featured = false; store.put('portfolio', x); });
@@ -4984,7 +4999,7 @@ function assetCardHtml(a, rank) {
       <div class="asset-owner">${avatarHtml(a.owner, 22)}<a href="#/profile/${esc(a.owner.handle)}" onclick="event.stopPropagation()">${esc(a.owner.displayName)}</a>${badgeHtml(a.owner.role, a.owner.tags, a.owner)}</div>
       ${a.ratingCount ? `<div class="asset-rating">${starsHtml(a.rating)}<span class="muted small">${a.rating} · ${a.ratingCount}</span></div>` : ''}
       <div class="asset-foot">
-        <span class="price">${fmtMoney(a.price)}</span>
+        <span class="price">${Number(a.price) > 0 ? fmtMoney(a.price) : '<b style="color:var(--ok)">FREE</b>'}</span>
         <span class="row" style="gap:8px"><span class="sales">${ICON.cart}${a.sales || 0}</span><button class="like-btn ${a.liked ? 'on' : ''}" data-count="${a.likes || 0}" title="Like this asset" onclick="onLike(event,'${a.id}',this)">${ICON.heart}<span>${a.likes || 0}</span></button></span>
       </div>
     </div></article>`;
@@ -5265,7 +5280,7 @@ function bindHeader() {
 /* ---- router ---- */
 const TITLES = {
   home: 'Kings Production — Premium Roblox Development Studio', shop: 'Shop — Kings Production',
-  portfolio: 'Portfolio — Kings Production', subscription: 'Subscription — Kings Production', creators: 'Creators — Kings Production',
+  portfolio: 'Portfolio — Kings Production', subscription: 'Subscription — Kings Production', creators: 'Creators — Kings Production', creator: 'Creator — Kings Production',
   support: 'Support — Kings Production', ticket: 'Ticket — Kings Production',
   verify: 'Verify your email — Kings Production', faq: 'FAQ & Q&A — Kings Production',
   login: 'Log in — Kings Production', register: 'Create account — Kings Production',
@@ -5277,7 +5292,7 @@ async function router(opts = {}) {
   const { path, params, query } = parseHash();
   /* Auth pages are full-screen and focused — hide the site chrome around them. */
   document.body.classList.toggle('auth-mode', ['login', 'register', 'forgot', 'reset'].includes(path));
-  if (!['home', 'shop', 'portfolio', 'subscription', 'creators', 'support', 'ticket', 'verify', 'asset', 'profile', 'login', 'register', 'forgot', 'reset', 'settings', 'upload', 'my-assets', 'orders', 'dashboard', 'admin', 'privacy', 'terms', 'faq'].includes(path)) { location.hash = '#/'; return; }
+  if (!['home', 'shop', 'portfolio', 'subscription', 'creators', 'creator', 'support', 'ticket', 'verify', 'asset', 'profile', 'login', 'register', 'forgot', 'reset', 'settings', 'upload', 'my-assets', 'orders', 'dashboard', 'admin', 'privacy', 'terms', 'faq'].includes(path)) { location.hash = '#/'; return; }
   const me = await API.me();
   STATE.user = me.ok ? me.data : null;
   renderHeader();
@@ -5407,7 +5422,7 @@ VIEWS.shop = async () => {
   STATE.shopSeller.assets = sellerAssets;
 
   function sectionHtml(label, eyebrow, desc, id, st) {
-    const catChips = ['', ...CATEGORIES].map(c => `<button class="chip ${st.cat === c ? 'active' : ''}" data-s="${id}" data-cat="${c}">${c ? CAT_LABEL[c] : 'All'}</button>`).join('');
+    const catChips = ['', 'free', ...CATEGORIES].map(c => `<button class="chip ${st.cat === c ? 'active' : ''}" data-s="${id}" data-cat="${c}">${c === 'free' ? 'Free' : c ? CAT_LABEL[c] : 'All'}</button>`).join('');
     const sortBtns = [['trending', 'Trending', ICON.zap], ['newest', 'Newest', ICON.clock], ['top', 'Top selling', ICON.cart]].map(([k, l, ic]) => `<button class="sort-chip ${st.sort === k ? 'active' : ''}" data-s="${id}" data-sort="${k}">${ic}${l}</button>`).join('');
     return `<div class="section-head"><div><span class="section-eyebrow">${eyebrow}</span><h2>${label}</h2><p>${desc}</p></div></div>
       <div class="toolbar">
@@ -5443,9 +5458,12 @@ function renderShopGrid(containerId, assets, st) {
   const grid = document.getElementById(containerId);
   if (!grid) return;
   const q = st.q.toLowerCase();
-  const list = assets.filter(a =>
-    (!st.cat || a.category === st.cat) &&
-    (!q || ((a.title || '') + ' ' + (a.description || '') + ' ' + (a.owner && a.owner.displayName || '')).toLowerCase().includes(q)));
+  const list = assets.filter(a => {
+    if (st.cat === 'free' && Number(a.price) > 0) return false;
+    if (st.cat && st.cat !== 'free' && a.category !== st.cat) return false;
+    if (!q) return true;
+    return ((a.title || '') + ' ' + (a.description || '') + ' ' + (a.owner && a.owner.displayName || '')).toLowerCase().includes(q);
+  });
   if (st.sort === 'newest') list.sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0));
   else if (st.sort === 'top') list.sort((x, y) => (y.sales || 0) - (x.sales || 0));
   /* 'trending' = default order from the API (hot score) */
@@ -5504,7 +5522,36 @@ function readFileAsDataURL(file) { return new Promise((res, rej) => { const r = 
 /* ---- shared actions ---- */
 async function onBuy(id) {
   if (!STATE.user) { go('/login'); return; }
+  /* Zero-price posts skip checkout entirely — straight to the free claim. */
+  try { const ar = await API.getAsset(id, STATE.user && STATE.user.id); if (ar.ok && ar.data && !(Number(ar.data.price) > 0)) { onClaimFree(id); return; } } catch (e) {}
   openCheckout(id);
+}
+/* Free posts (price 0): the buyer enters their game details and the claim
+   completes instantly — a completed order + license key, downloadable from
+   Orders. No payment, no method picker. */
+function onClaimFree(id) {
+  if (!STATE.user) { go('/login'); return; }
+  modal({
+    title: 'Get this system for free',
+    confirmLabel: 'Claim for free',
+    body: `<p class="muted small" style="margin:0 0 12px"><b style="color:var(--ok)">This system is free.</b> Enter your game details so the seller knows where it will be used — the file is added to your Orders instantly, ready to download.</p>
+      <div class="field"><label>Game name<span class="req">*</span></label><input class="input" id="fr-name" maxlength="80" placeholder="e.g. Blox Kingdom" required></div>
+      <div class="field"><label>Game place ID<span class="req">*</span></label><input class="input" id="fr-place" maxlength="30" inputmode="numeric" placeholder="e.g. 1234567890" required></div>
+      <div class="field"><label>Game creator<span class="req">*</span></label><input class="input" id="fr-owner" maxlength="80" placeholder="Your username or group name" required></div>
+      <div class="field"><label>Notes <span class="muted small" style="font-weight:400">(optional)</span></label><textarea class="textarea" id="fr-notes" rows="2" maxlength="300" placeholder="Anything the seller should know"></textarea></div>`,
+    validate: ov => {
+      const gameName = ov.querySelector('#fr-name').value.trim();
+      const placeId = ov.querySelector('#fr-place').value.trim();
+      const gameOwner = ov.querySelector('#fr-owner').value.trim();
+      if (!gameName || !placeId || !gameOwner) { toast('Game name, place ID, and creator are required.', 'err'); return false; }
+      return { gameName, placeId, gameOwner, notes: ov.querySelector('#fr-notes').value.trim() };
+    },
+    onConfirm: async v => {
+      const r = await API.checkout(STATE.user, id, 'free', null, v);
+      if (r.ok) { toast('Claimed! The system file is on your Orders page. 🎉', 'ok'); burstAt(innerWidth / 2, innerHeight / 2, 26); SFX.play('purchase'); go('/orders'); }
+      else toast(r.error, 'err');
+    },
+  });
 }
 /* VIP perk: zero-cost Try order on the studio's own systems — still goes
    through game details + seller approval, exactly like a paid purchase. */
@@ -5552,6 +5599,7 @@ async function openCheckout(assetId, plan) {
   let sellerMethods = null;
   if (isAsset) {
     const ar = await API.getAsset(assetId, STATE.user && STATE.user.id);
+    if (ar.ok && ar.data && !(Number(ar.data.price) > 0)) { onClaimFree(assetId); return; } // free post — no checkout
     if (ar.ok && ar.data && Array.isArray(ar.data.paymentMethods) && ar.data.paymentMethods.length) {
       const map = { gcash: 'gcash_manual', kofi: 'kofi_manual', paypal: 'paypal', stripe: 'stripe' };
       sellerMethods = ar.data.paymentMethods.map(m => map[m] || m);
@@ -5792,7 +5840,11 @@ VIEWS.asset = async ({ params }) => {
   } else if (a.status === 'approved') {
     const isOurSystem = a.owner && isStaff(a.owner);
     const iAmVip = me && isVipUser(me) && !isStaff(me);
-    buyHtml = `<button class="btn btn-primary btn-lg" onclick="onBuy('${a.id}')">${ICON.cart} Purchase · ${fmtMoney(a.price)}</button>
+    const isFree = !(Number(a.price) > 0);
+    buyHtml = isFree
+      ? `<button class="btn btn-primary btn-lg" onclick="onClaimFree('${a.id}')">${ICON.download} Get for free</button>
+         ${iAmVip && isOurSystem ? `<button class="btn btn-ghost btn-lg" style="margin-left:10px;border-color:rgba(212,175,55,.4)" onclick="onVipTry('${a.id}')" title="VIP perk — try Kings Production's own system free (studio approval still required)">${ICON.crown} Try</button>` : ''}`
+      : `<button class="btn btn-primary btn-lg" onclick="onBuy('${a.id}')">${ICON.cart} Purchase · ${fmtMoney(a.price)}</button>
       ${iAmVip && isOurSystem ? `<button class="btn btn-ghost btn-lg" style="margin-left:10px;border-color:rgba(212,175,55,.4)" onclick="onVipTry('${a.id}')" title="VIP perk — try Kings Production's own system free (studio approval still required)">${ICON.crown} Try</button>` : ''}
       ${me && !canPost(me) ? `<p class="muted small" style="margin-top:10px">Buying this system gives you a license key for your game. Want to sell your own? A <a href=\"#/subscription\" style="color:var(--vip)">Contract plan</a> unlocks posting.</p>` : ''}`;
   }
@@ -5847,7 +5899,7 @@ VIEWS.asset = async ({ params }) => {
       <div>
         <div class="asset-meta">${catBadge(a.category)}${ownerView ? statusBadge(a.status, a.rejectReason) : ''}<span class="sales">${ICON.cart}${a.sales} sold</span>${a.ratingCount ? `${starsHtml(a.rating)}<span class="muted small">${a.rating} · ${a.ratingCount}</span>` : ''}</div>
         <h1 style="font-family:var(--font-display);font-size:clamp(26px,4vw,38px);font-weight:700;letter-spacing:-.02em;margin-top:10px">${esc(a.title)}</h1>
-        <div class="asset-meta"><span class="price" style="font-size:22px">${fmtMoney(a.price)}</span><span class="muted small">· posted ${fmtDate(a.createdAt)}</span></div>
+        <div class="asset-meta"><span class="price" style="font-size:22px">${Number(a.price) > 0 ? fmtMoney(a.price) : '<b style="color:var(--ok)">FREE</b>'}</span><span class="muted small">· posted ${fmtDate(a.createdAt)}</span></div>
         ${a.sellerResponse ? `<div class="row" style="gap:10px;margin-top:10px;flex-wrap:wrap"><span class="badge soft-ok" title="Share of payment proofs this seller verified within 24 hours over the last 30 days">${ICON.clock} Seller response: ${a.sellerResponse.pct}% · ${esc(a.sellerResponse.label)}</span>${a.sellerResponse.avgHours ? `<span class="muted small" style="align-self:center">avg ${a.sellerResponse.avgHours}h to verify</span>` : ''}</div>` : ''}
         <div class="row" style="gap:12px;margin-top:10px"><button class="like-btn lg ${a.liked ? 'on' : ''}" title="Like this asset" onclick="onLike(event,'${a.id}',this)">${ICON.heart}<span>${a.likes || 0}</span></button></div>
         ${a.paymentMethods && a.paymentMethods.length ? `<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:12px"><span class="muted small" style="align-self:center">${ICON.check} The seller accepts:</span>${a.paymentMethods.map(m => `<span class="chip" style="cursor:default">${({ gcash: 'GCash', kofi: 'Ko-fi', paypal: 'PayPal', stripe: 'Stripe' })[m] || esc(m)}</span>`).join('')}</div>` : ''}
@@ -6416,7 +6468,7 @@ VIEWS.upload = async ({ query }) => {
         <div class="field"><label>Title<span class="req">*</span></label><input class="input" name="title" maxlength="60" placeholder="e.g. Onyx Admin Commands" value="${esc(a ? a.title : '')}" required></div>
         <div class="row" style="align-items:flex-start">
           <div class="field" style="flex:1;min-width:200px"><label>Category<span class="req">*</span></label><select class="select" name="category" required>${CATEGORIES.map(c => `<option value="${c}" ${a && a.category === c ? 'selected' : ''}>${CAT_LABEL[c]}</option>`).join('')}</select><div class="hint">Roblox categories only.</div></div>
-          <div class="field" style="flex:1;min-width:160px"><label>Price (USD)<span class="req">*</span></label><input class="input" name="price" type="number" min="0.5" max="999999" step="0.01" placeholder="9.99" value="${a ? a.price : ''}" required><div class="hint">Stored in USD — buyers see it in their own currency.</div></div>
+          <div class="field" style="flex:1;min-width:160px"><label>Price (USD)<span class="req">*</span></label><input class="input" name="price" type="number" min="0" max="999999" step="0.01" placeholder="9.99" value="${a ? a.price : ''}" required><div class="hint">Stored in USD — buyers see it in their own currency. Set <b>0</b> to post it as <b style="color:var(--ok)">FREE</b> (no payment — buyers claim it instantly).</div></div>
         </div>
         <div class="field"><label>Full description<span class="req">*</span></label><textarea class="textarea" name="description" placeholder="Describe the asset in detail — what it includes, how it works, what it is built for…" required>${esc(a ? a.description : '')}</textarea></div>
         <div class="field"><label>Image link<span class="req">*</span></label>
@@ -6460,7 +6512,10 @@ async function onSubmitAsset(e) {
   if (!file && !f.assetId.value) { toast('A system file is required.', 'err'); return; }
   const images = [...f.querySelectorAll('#up-imgs input')].map(i => i.value.trim()).filter(Boolean);
   const paymentMethods = [...f.querySelectorAll('input[name=pm]:checked')].map(c => c.value);
-  if (!paymentMethods.length) { toast('Select at least one accepted payment method — buyers can only pay with methods you accept.', 'err'); return; }
+  const priceNum = Number(f.price.value);
+  /* Free posts (price 0) skip payment entirely — no methods needed. Paid
+     posts must have at least one accepted method. */
+  if (priceNum > 0 && !paymentMethods.length) { toast('Select at least one accepted payment method — buyers can only pay with methods you accept. (Set the price to 0 to post for free instead.)', 'err'); return; }
   const sellerPaymentDetails = collectSellerPmDetails();
   /* Manual methods must carry at least one contact point (QR image or account) —
      otherwise the buyer has no way to pay you. */
@@ -6620,7 +6675,7 @@ VIEWS.orders = async () => {
       <div style="padding:4px 20px 16px"><button class="btn btn-ghost btn-sm" onclick="openManualPayment('${o.id}', '${esc(o.method)}', null, '${esc(o.assetId || '')}')">${proof ? 'Update proof' : 'Submit payment proof'}</button></div>` : '';
     return `<div class="card" style="margin-bottom:12px;overflow:hidden">
       <div class="row" style="padding:14px 20px;gap:12px;border-bottom:1px solid var(--border);flex-wrap:wrap">
-        <div style="flex:1;min-width:200px"><b style="font-family:var(--font-display)">${esc(title)}</b><div class="muted small">${isTry ? `Requested ${fmtDate(o.createdAt)} · <b style="color:var(--vip)">VIP</b>` : `Ordered ${fmtDate(o.createdAt)} · <span class="price" style="font-size:13px">${o.amount} ${esc(o.currency)}</span>`}</div></div>
+        <div style="flex:1;min-width:200px"><b style="font-family:var(--font-display)">${esc(title)}</b><div class="muted small">${isTry ? `Requested ${fmtDate(o.createdAt)} · <b style="color:var(--vip)">VIP</b>` : o.method === 'free' ? `Claimed ${fmtDate(o.createdAt)} · <b style="color:var(--ok)">FREE</b>` : `Ordered ${fmtDate(o.createdAt)} · <span class="price" style="font-size:13px">${o.amount} ${esc(o.currency)}</span>`}</div></div>
         ${statusBadge}
         ${completed ? '<span class="badge soft-ok">Delivered</span>' : ''}
       ${o.status === 'rejected' ? `<div style="padding:4px 20px 16px"><button class="btn btn-danger btn-sm" onclick="onDeleteRejectedOrder('${o.id}')">${ICON.trash} Delete rejected order</button></div>` : ''}
@@ -7612,9 +7667,9 @@ function drawSalesChart(canvas) {
 VIEWS.portfolio = async () => {
   const c = await API.content();
   const list = c.ok && c.data && c.data.portfolio ? c.data.portfolio : [];
-  const isAdmin = isStaff(STATE.user);
   STATE._pfItems = {};
   list.forEach(p => { STATE._pfItems[p.id] = p; });
+  STATE._creatorOptions = (c.ok && c.data && c.data.creators) || [];
   const canDelete = effRank(STATE.user) >= roleRank('cofounder');
   const cardFor = p => {
     const adminRow = isAdmin ? `<div class="row" style="gap:8px;margin-top:14px"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openPortfolioEditor('${p.id}')">${ICON.edit} Edit</button><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();onToggleSpotlight('${p.id}')" title="Pin / unpin at the top">${p.featured ? `★ Unpin spotlight` : `★ Spotlight`}</button>${canDelete ? `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();onDeletePortfolio('${p.id}')">${ICON.trash}</button>` : ''}</div>` : '';
@@ -7705,6 +7760,8 @@ function openPortfolioEditor(id) {
         <div class="field"><label>Links <span class="muted small" style="font-weight:400">— auto-detected: Discord, YouTube, Twitch, X, Roblox, MediaFire, GitHub, Spotify, Telegram, Drive…</span></label>
           <div id="pf-links" style="display:flex;flex-direction:column;gap:8px"></div>
           <button class="btn btn-ghost btn-sm" type="button" id="pf-add-link" style="margin-top:8px">${ICON.plus} Add link</button></div>
+        <div class="field"><label>Credit to creator <span class="muted small" style="font-weight:400">(optional — shows this project on their Creators profile)</span></label>
+          <select class="select" id="pf-creator"><option value="">— Studio (no single creator) —</option>${(STATE._creatorOptions || []).map(cr => `<option value="${esc(cr.id)}" ${item && item.creatorId === cr.id ? 'selected' : ''}>${esc(cr.name)}${cr.role ? ' · ' + esc(cr.role) : ''}</option>`).join('')}</select></div>
         <label style="display:flex;align-items:flex-start;gap:9px;margin:16px 0 2px;cursor:pointer;font-size:13.5px;color:var(--text-2);line-height:1.45"><input type="checkbox" id="pf-featured" ${item && item.featured ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--gold);margin-top:1px;flex-shrink:0"> <span><b style="color:var(--gold)">★ Pin to top as Spotlight</b> — the featured project renders larger at the top of the portfolio. Only one project can be spotlighted at a time.</span></label>`,
     validate: async o => {
       const title = o.querySelector('#pf-title').value.trim();
@@ -7715,7 +7772,7 @@ function openPortfolioEditor(id) {
       if (img && !/^https?:\/\//i.test(img)) { toast('Cover image must be a valid http(s) URL.', 'err'); return false; }
       const links = [...o.querySelectorAll('.pf-link-row')].map(r => ({ url: r.querySelector('input').value.trim() })).filter(l => l.url);
       const images = [...o.querySelectorAll('.pf-img-row')].map(r => r.querySelector('input').value.trim()).filter(u => u);
-      const payload = { title, category: o.querySelector('#pf-cat').value.trim(), desc, stat: o.querySelector('#pf-stat').value.trim(), status: o.querySelector('#pf-status').value.trim() || 'Live', imageUrl: img, images, links, featured: !!o.querySelector('#pf-featured').checked };
+      const payload = { title, category: o.querySelector('#pf-cat').value.trim(), desc, stat: o.querySelector('#pf-stat').value.trim(), status: o.querySelector('#pf-status').value.trim() || 'Live', imageUrl: img, images, links, featured: !!o.querySelector('#pf-featured').checked, creatorId: o.querySelector('#pf-creator') ? o.querySelector('#pf-creator').value : undefined };
       const res = isEdit ? await API.updatePortfolio(STATE.user, item.id, payload) : await API.createPortfolio(STATE.user, payload);
       if (!res.ok) { toast(res.error, 'err'); return false; }
       toast(isEdit ? 'Project updated.' : 'Project published!');
@@ -7779,7 +7836,7 @@ VIEWS.creators = async () => {
     <div class="grid creators-grid">${list.map(cr => {
       const canDeleteCr = effRank(STATE.user) >= roleRank('cofounder');
       const adminRow = isAdmin ? `<div class="row" style="gap:8px;margin-top:12px"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openCreatorEditor('${cr.id}')">${ICON.edit} Edit</button>${canDeleteCr ? `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();onDeleteCreator('${cr.id}')">${ICON.trash}</button>` : ''}</div>` : '';
-      const profileLink = `onclick="openCreatorViewer('${cr.id}')" role="link" tabindex="0" style="cursor:pointer"`;
+      const profileLink = `onclick="go('/creator/${cr.id}')" role="link" tabindex="0" style="cursor:pointer"`;
       const hasDocs = !!(cr.docs && String(cr.docs).trim());
       return `<div class="card card-hover creator-card" ${profileLink}>
         <span>${creatorAvatarHtml(cr, 78)}</span>
@@ -7792,6 +7849,55 @@ VIEWS.creators = async () => {
         ${adminRow}
       </div>`;
     }).join('') || emptyHtml('No creators yet', 'The studio team will appear here.')}</div>
+  </div>`;
+};
+/* ============ CREATOR PROFILE PAGE (#/creator/<id>) ============
+   A full page (not a modal): status, bio, connected links, and this
+   creator's works — portfolio projects tagged to them plus the systems
+   they have posted to the shop. No "member since" — staff are forever. */
+VIEWS.creator = async ({ params = [] } = {}) => {
+  const id = params[0];
+  const c = await API.content();
+  const creators = c.ok && c.data && c.data.creators ? c.data.creators : [];
+  const cr = creators.find(x => x.id === id);
+  if (!cr) return `<div class="page">${emptyHtml('Creator not found', 'This profile does not exist or was removed.')}<div class="center mt2"><a class="btn btn-primary" href="#/creators">← Back to Creators</a></div></div>`;
+  STATE._crItems = STATE._crItems || {}; STATE._crItems[cr.id] = cr;
+  /* Their works: portfolio items assigned to this creator + shop systems by
+     the linked site account (or — for unlinked legends — matched by name). */
+  const portfolio = c.ok && c.data && c.data.portfolio ? c.data.portfolio : [];
+  const myPortfolio = portfolio.filter(p => (p.creatorId || '') === cr.id || (!p.creatorId && cr.handle && p.ownerHandle === cr.handle));
+  const assetsRes = await API.listApproved(STATE.user);
+  const allAssets = assetsRes.ok ? assetsRes.data : [];
+  const mySystems = allAssets.filter(a => (cr.handle && a.owner && a.owner.handle === cr.handle) || (!cr.handle && a.owner && a.owner.displayName === cr.name));
+  let linksHtml = '';
+  try { const ls = typeof cr.links === 'string' ? JSON.parse(cr.links || '[]') : (cr.links || []); linksHtml = ls.length ? `<div class="project-links" style="justify-content:center">${ls.map(l => linkIconHtml(l)).join('')}</div>` : ''; } catch (e) {}
+  const staff = effRank(STATE.user) >= roleRank('cofounder');
+  const sysCard = a => `<article class="card card-hover asset-card" onclick="go('/asset/${a.id}')">
+    <div class="asset-thumb"><span class="asset-cat">${catBadge(a.category)}</span>${thumbHtml(a, 40)}</div>
+    <div class="asset-body">
+      <h3 class="asset-title">${esc(a.title)}</h3>
+      <div class="asset-foot"><span class="price">${Number(a.price) > 0 ? fmtMoney(a.price) : '<b style="color:var(--ok)">FREE</b>'}</span><span class="row" style="gap:8px"><span class="sales">${ICON.cart}${a.sales || 0}</span></span></div>
+    </div></article>`;
+  const pfCard = p => `<article class="card card-hover project-card" onclick="openPortfolioZoom('${p.id}')" role="button" tabindex="0" style="cursor:pointer">
+    <div class="project-banner">${p.imageUrl ? `<img class="proj-img" src="${esc(proxiedImageUrl(p.imageUrl))}" alt="" loading="lazy" onerror="this.remove()">` : `<div class="thumb-bg thumb-default"></div><span style="position:relative">${ICON.model}</span>`}</div>
+    <div class="project-body"><div class="project-tags"><span class="badge plain">${esc(p.category || 'Project')}</span><span class="badge ${p.status === 'Live' ? 'ok' : 'plain'}">${esc(p.status || 'Live')}</span></div><h3>${esc(p.title)}</h3><div class="pf-note">${esc((p.desc || '').slice(0, 110))}${(p.desc || '').length > 110 ? '…' : ''}</div></div></article>`;
+  return `<div class="page">
+    <a class="muted small" href="#/creators" style="display:inline-flex;align-items:center;gap:6px;margin-bottom:18px">← Back to Creators</a>
+    <div class="card card-pad" style="padding:34px 30px;text-align:center;position:relative">
+      ${staff ? `<button class="btn btn-ghost btn-sm" style="position:absolute;top:14px;right:14px" onclick="openCreatorEditor('${cr.id}')">${ICON.edit} Edit</button>` : ''}
+      <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+        ${creatorAvatarHtml(cr, 110)}
+        <div><h1 style="font-family:var(--font-display);font-size:clamp(26px,4vw,36px);margin:0">${esc(cr.name)}</h1><div class="role" style="font-size:15px;margin-top:4px">${esc(cr.role || 'Creator')}</div></div>
+        <p style="max-width:640px;margin:6px 0 0;line-height:1.75;font-size:14.5px;white-space:pre-wrap">${esc(cr.bio || 'This creator has not written a bio yet.')}</p>
+        ${linksHtml}
+      </div>
+    </div>
+    ${cr.docs && String(cr.docs).trim() ? `<div class="section-head" style="margin-top:40px"><div><span class="section-eyebrow">Documentation</span><h2>Their story &amp; systems</h2><p>Documentaries, guides, and showcase notes from this creator.</p></div></div>
+    <div class="card card-pad"><div style="white-space:pre-wrap;line-height:1.7;font-size:14px">${esc(cr.docs)}</div></div>` : ''}
+    <div class="section-head" style="margin-top:40px"><div><span class="section-eyebrow">Works</span><h2>Portfolio projects</h2><p>Showcase projects published by ${esc(cr.name)} — the full studio portfolio lives on the <a href="#/portfolio" style="color:var(--gold)">Portfolio</a> page.</p></div></div>
+    ${myPortfolio.length ? `<div class="grid portfolio-grid">${myPortfolio.map(pfCard).join('')}</div>` : emptyHtml('No projects yet', 'Portfolio work by this creator will appear here.')}
+    <div class="section-head" style="margin-top:40px"><div><span class="section-eyebrow">Marketplace</span><h2>Posted systems</h2><p>Systems ${esc(cr.name)} has published to the shop.</p></div></div>
+    ${mySystems.length ? `<div class="grid grid-assets">${mySystems.map(sysCard).join('')}</div>` : emptyHtml('No systems posted yet', 'Shop systems by this creator will appear here.')}
   </div>`;
 };
 /* Creator documentation — a public viewer, editable by staff in the creator editor. */
@@ -8127,7 +8233,9 @@ function legalSection(title, ...paras) {
 VIEWS.faq = async () => {
   const r = await API.getFaqs();
   const list = r.ok && Array.isArray(r.data) ? r.data : [];
+  STATE._faqItems = list;
   const staff = isStaff(STATE.user);
+  const staffBtn = staff ? `<button class="btn btn-ghost btn-sm" onclick="openFaqEditor()">${ICON.edit} Edit FAQ</button>` : '';
   const item = (f, i) => `
     <details class="card card-pad" style="margin-bottom:10px;cursor:pointer" ${i === 0 ? 'open' : ''}>
       <summary style="font-family:var(--font-display);font-size:15.5px;font-weight:600;list-style:none;display:flex;justify-content:space-between;gap:10px"><span>${esc(f.q)}</span><span class="muted">＋</span></summary>
@@ -8139,6 +8247,37 @@ VIEWS.faq = async () => {
     <div class="card card-pad center mt2" style="padding:26px"><p class="muted" style="margin:0 0 12px">Still stuck? Our team answers every ticket.</p><a class="btn btn-primary" href="#/support">${ICON.mail} Contact support</a></div>
   </div>`;
 };
+/* FAQ editor — staff can add / edit / remove questions & answers from the web. */
+function openFaqEditor() {
+  if (!isStaff(STATE.user)) { toast('Only staff can edit the FAQ.', 'err'); return; }
+  const items = (STATE._faqItems || []).map(f => ({ q: f.q, a: f.a }));
+  const row = (f = { q: '', a: '' }) => `<div class="faq-edit-row" style="border:1px solid var(--border);border-radius:10px;padding:10px;display:grid;gap:8px;margin-bottom:10px">
+      <input class="input fe-q" maxlength="200" placeholder="Question" value="${esc(f.q)}">
+      <textarea class="textarea fe-a" rows="2" maxlength="2000" placeholder="Answer">${esc(f.a)}</textarea>
+      <button class="btn btn-danger btn-sm" type="button" style="justify-self:start" onclick="this.closest('.faq-edit-row').remove()">${ICON.trash} Remove</button>
+    </div>`;
+  const ov = modal({
+    title: 'Edit FAQ',
+    wide: true,
+    confirmLabel: 'Save FAQ',
+    body: `<p class="muted small" style="margin:0 0 12px">Questions show on the public FAQ page in this order. Empty rows are dropped on save.</p>
+      <div id="faq-rows">${items.length ? items.map(f => row(f)).join('') : row()}</div>
+      <button class="btn btn-ghost btn-sm" type="button" id="faq-add">${ICON.plus} Add question</button>`,
+    validate: o => {
+      const faqs = [...o.querySelectorAll('.faq-edit-row')].map(r => ({ q: r.querySelector('.fe-q').value.trim(), a: r.querySelector('.fe-a').value.trim() })).filter(f => f.q && f.a);
+      if (!faqs.length) { toast('Add at least one question with an answer.', 'err'); return false; }
+      return { faqs };
+    },
+    onConfirm: async v => {
+      const r = await API.saveFaqs(STATE.user, v.faqs);
+      if (!r.ok) { toast(r.error, 'err'); return false; }
+      toast('FAQ saved.');
+      return true;
+    },
+    onConfirm2: undefined,
+  });
+  ov.querySelector('#faq-add').addEventListener('click', () => { const d = document.createElement('div'); d.innerHTML = row(); ov.querySelector('#faq-rows').appendChild(d.firstElementChild); });
+}
 /* Legal documents are editable text (Co-Founder/Founder) stored on the server.
    Lines starting with "## " render as section headings. */
 function legalBodyHtml(body) {
