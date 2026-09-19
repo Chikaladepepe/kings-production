@@ -441,6 +441,7 @@ main{flex:1;width:100%}
 .thumb-model{background:linear-gradient(150deg,#2c2338,#14121a)}
 .thumb-plugin{background:linear-gradient(150deg,#1f3a34,#101612)}
 .thumb-system{background:linear-gradient(150deg,#3a2b1f,#171310)}
+.thumb-tool{background:linear-gradient(150deg,#1f2f3a,#101518)}
 .thumb-default{background:linear-gradient(150deg,#26262e,#141418)}
 
 /* reviews & ratings */
@@ -1270,6 +1271,7 @@ const ICON = {
   model: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 2.8 20 7.4v9.2L12 21.2 4 16.6V7.4L12 2.8Z"/><path d="M12 2.8v9.2m0 0L4 7.4m8 4.6 8-4.6M12 21.2v-9.2"/></svg>',
   plugin: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M8 4a1 1 0 0 1 2 0v1h4V4a1 1 0 0 1 2 0v1a2 2 0 0 0 2 2h1v4h-1a1 1 0 0 0 0 2h1v4h-1a2 2 0 0 0-2 2v1h-4v-1a1 1 0 0 0-2 0v1H6v-1a2 2 0 0 0-2-2H3v-4h1a1 1 0 0 0 0-2H3V7h1a2 2 0 0 0 2-2V4h2Z"/></svg>',
   system: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.5M12 18.7v2.5M2.8 12h2.5M18.7 12h2.5M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8"/></svg>',
+  tool: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4.2 4.2 0 0 0-5.6 5.1L3.6 16.9a2 2 0 0 0 2.8 2.8l5.5-5.5a4.2 4.2 0 0 0 5.1-5.6l-2.9 2.9-2.5-2.5 2.9-2.9Z"/><path d="m14 5 5 5"/></svg>',
   flag: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 4.5c4.5-2 7 2 11 0v8.5c-4.5 2-7-2-11 0"/><path d="M5 13c4.5-2 7 2 11 0"/></svg>',
   heart: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.5S3.5 15.4 3.5 9.6A4.6 4.6 0 0 1 12 7a4.6 4.6 0 0 1 8.5 2.6c0 5.8-8.5 10.9-8.5 10.9Z"/></svg>',
   chart: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/></svg>',
@@ -1297,10 +1299,10 @@ const ICON = {
   gumroad: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M16.5 7.2c-1.2-.9-2.6-1.3-4.1-1.2-3.2.1-5.4 2.2-5.4 5.5 0 3.2 2.3 5.4 5.5 5.4 1.6 0 3-.5 4-1.4M16.5 7.2V4.9h.1M16.5 7.2H12"/></svg>',
   link: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5"/></svg>'
 };
-const CATEGORIES = ['animation', 'model', 'plugin', 'system'];
-const CAT_LABEL = { animation: 'Animation', model: 'Model', plugin: 'Plugin', system: 'System' };
-const CAT_ICON = { animation: ICON.anim, model: ICON.model, plugin: ICON.plugin, system: ICON.system };
-const CAT_THUMB = { animation: 'thumb-anim', model: 'thumb-model', plugin: 'thumb-plugin', system: 'thumb-system' };
+const CATEGORIES = ['animation', 'model', 'plugin', 'system', 'tool'];
+const CAT_LABEL = { animation: 'Animation', model: 'Model', plugin: 'Plugin', system: 'System', tool: 'Tool' };
+const CAT_ICON = { animation: ICON.anim, model: ICON.model, plugin: ICON.plugin, system: ICON.system, tool: ICON.tool };
+const CAT_THUMB = { animation: 'thumb-anim', model: 'thumb-model', plugin: 'thumb-plugin', system: 'thumb-system', tool: 'thumb-tool' };
 
 /* ---- smart link detection: every known site becomes its brand icon ---- */
 const LINK_TYPES = [
@@ -1463,7 +1465,7 @@ const API = {};
   const fail = (code, error) => ({ ok: false, code, error });
   const byId = (list, id) => list.find(x => x.id === id);
 
-  const CATEGORIES = ['animation', 'model', 'plugin', 'system'];
+  const CATEGORIES = ['animation', 'model', 'plugin', 'system', 'tool'];
   const CAT_LABEL = { animation: 'Animation', model: 'Model', plugin: 'Plugin', system: 'System' };
   /* Role hierarchy (index = rank). Owner and Co-Founder can do everything;
      Admin can do everything except grant roles at admin level or higher;
@@ -2016,7 +2018,7 @@ const API = {};
       price = Number(price);
       category = String(category || '').toLowerCase();
       if (title.length < 3 || title.length > 60) return fail('invalid', 'Title must be 3–60 characters.');
-      if (!CATEGORIES.includes(category)) return fail('invalid', 'Choose a valid category: Animation, Model, Plugin, or System.');
+      if (!CATEGORIES.includes(category)) return fail('invalid', 'Choose a valid category: Animation, Model, Plugin, System, or Tool.');
       if (description.length < 10) return fail('invalid', 'A full description is required (at least 10 characters).');
       if (!Number.isFinite(price) || price < 0 || price > 999999) return fail('invalid', 'Price must be 0 (free) or a positive number of USD.');
       const img = normalizeImageUrl(imageUrl);
@@ -6479,7 +6481,7 @@ VIEWS.upload = async ({ query }) => {
           <div id="up-imgs" style="display:flex;flex-direction:column;gap:8px"></div>
           <button class="btn btn-ghost btn-sm" type="button" id="up-add-img" style="margin-top:8px">${ICON.plus} Add photo</button>
         </div>
-        <div class="field"><label>Accepted payment methods <span class="muted small" style="font-weight:400">— buyers pick from these on your post (leave empty for all staff methods)</span></label>
+        <div class="field" id="up-pm-wrap"><label>Accepted payment methods <span class="muted small" style="font-weight:400">— buyers pick from these on your post (leave empty for all staff methods)</span></label>
           <div class="row" style="gap:8px;flex-wrap:wrap">
             ${[['gcash', 'GCash (QR / manual)'], ['kofi', 'Ko-fi (manual)'], ['paypal', 'PayPal'], ['stripe', 'Stripe']].map(([v, l]) => `<label class="chip" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;padding:7px 12px"><input type="checkbox" name="pm" value="${v}" style="accent-color:var(--gold)"> ${l}</label>`).join('')}
           </div>
@@ -6494,7 +6496,7 @@ VIEWS.upload = async ({ query }) => {
           <input class="input" name="backupUrl" type="url" required placeholder="https://www.mediafire.com/… or https://mega.nz/… or https://gofile.io/…" value="${esc(a ? (a.backupUrl || '') : '')}">
           <div class="hint">Required — upload the same file to MediaFire, Mega, GoFile, or Drive and paste the link. If the primary host is ever unreachable, buyers automatically fall back to this link, so a host outage never blocks a sale.</div>
         </div>
-        <div class="field"><label style="display:inline-flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" name="deliverDuringPending" style="accent-color:var(--gold);width:17px;height:17px"> <span><b>Give the system file while approval is pending</b> <span class="muted small" style="font-weight:400">(optional)</span></span></label>
+        <div class="field" id="up-ddp-wrap"><label style="display:inline-flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" name="deliverDuringPending" style="accent-color:var(--gold);width:17px;height:17px"> <span><b>Give the system file while approval is pending</b> <span class="muted small" style="font-weight:400">(optional)</span></span></label>
           <div class="hint">When checked, buyers who paid get the file immediately — they only wait for you to activate the license for their game. When unchecked (default), buyers wait for your full approval before the file unlocks.</div>
         </div>
         <div class="row"><button class="btn btn-primary" type="submit" ${cooldown ? 'disabled' : ''}>${(STATE.user && effRank(STATE.user) >= roleRank('cofounder')) ? 'Post it' : 'Submit for approval'}</button></div>
@@ -6622,7 +6624,32 @@ function collectSellerPmDetails() {
   });
   return out;
 }
-VIEWS_BIND.upload = () => { initUploadExtras(STATE._uploadAsset || null); attachImageUploadWidgets(); };
+VIEWS_BIND.upload = () => {
+  initUploadExtras(STATE._uploadAsset || null);
+  attachImageUploadWidgets();
+  /* FREE posts (price 0): payment methods + "give file while pending" are
+     payment concepts — hide them live as the seller types the price. */
+  const f = document.querySelector('form[onsubmit="onSubmitAsset(event)"]');
+  if (!f) return;
+  const priceInput = f.querySelector('input[name=price]');
+  const pmWrap = f.querySelector('#up-pm-wrap');
+  const ddpWrap = f.querySelector('#up-ddp-wrap');
+  let banner = null;
+  const apply = () => {
+    const isFree = !(Number(priceInput.value) > 0);
+    if (pmWrap) pmWrap.style.display = isFree ? 'none' : '';
+    if (ddpWrap) ddpWrap.style.display = isFree ? 'none' : '';
+    if (isFree && !banner) {
+      banner = document.createElement('div');
+      banner.className = 'form-ok';
+      banner.style.margin = '10px 0';
+      banner.innerHTML = '<b style="color:var(--ok)">FREE post</b> — no payment needed. Payment methods and "give file while pending" are hidden because buyers claim this system instantly with no checkout.';
+      ddpWrap && ddpWrap.parentElement.insertBefore(banner, ddpWrap);
+    } else if (!isFree && banner) { banner.remove(); banner = null; }
+  };
+  priceInput && priceInput.addEventListener('input', apply);
+  apply();
+};
 
 /* ---- my assets ---- */
 VIEWS['my-assets'] = async () => {

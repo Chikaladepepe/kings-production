@@ -26,7 +26,7 @@
   const fail = (code, error) => ({ ok: false, code, error });
   const byId = (list, id) => list.find(x => x.id === id);
 
-  const CATEGORIES = ['animation', 'model', 'plugin', 'system'];
+  const CATEGORIES = ['animation', 'model', 'plugin', 'system', 'tool'];
   const CAT_LABEL = { animation: 'Animation', model: 'Model', plugin: 'Plugin', system: 'System' };
   /* Role hierarchy (index = rank). Owner and Co-Founder can do everything;
      Admin can do everything except grant roles at admin level or higher;
@@ -579,7 +579,7 @@
       price = Number(price);
       category = String(category || '').toLowerCase();
       if (title.length < 3 || title.length > 60) return fail('invalid', 'Title must be 3–60 characters.');
-      if (!CATEGORIES.includes(category)) return fail('invalid', 'Choose a valid category: Animation, Model, Plugin, or System.');
+      if (!CATEGORIES.includes(category)) return fail('invalid', 'Choose a valid category: Animation, Model, Plugin, System, or Tool.');
       if (description.length < 10) return fail('invalid', 'A full description is required (at least 10 characters).');
       if (!Number.isFinite(price) || price < 0 || price > 999999) return fail('invalid', 'Price must be 0 (free) or a positive number of USD.');
       const img = normalizeImageUrl(imageUrl);
