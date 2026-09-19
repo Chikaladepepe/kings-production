@@ -500,7 +500,7 @@ async function main() {
     send(res, await engine.createAsset(u, {
       title: req.body.title, category: req.body.category, description: req.body.description, price: req.body.price, imageUrl: req.body.imageUrl,
       images: j('images'), paymentMethods: j('paymentMethods'), sellerPaymentDetails: j('sellerPaymentDetails'), deliverDuringPending: req.body.deliverDuringPending === '1' || req.body.deliverDuringPending === 'true',
-      fileUrl: req.body.fileUrl || undefined,
+      freeLicensed: req.body.freeLicensed === '1' || req.body.freeLicensed === 'true',
       backupUrl: req.body.backupUrl || undefined,
       fileName: req.file && req.file.originalname, fileData: bodyFile(req),
     }));
@@ -511,7 +511,7 @@ async function main() {
     send(res, await engine.updateAsset(u, req.params.id, {
       title: req.body.title, category: req.body.category, description: req.body.description, price: req.body.price, imageUrl: req.body.imageUrl,
       images: j('images'), paymentMethods: j('paymentMethods'), sellerPaymentDetails: j('sellerPaymentDetails'), deliverDuringPending: req.body.deliverDuringPending === undefined ? undefined : (req.body.deliverDuringPending === '1' || req.body.deliverDuringPending === 'true'),
-      fileUrl: req.body.fileUrl,
+      freeLicensed: req.body.freeLicensed === undefined ? undefined : (req.body.freeLicensed === '1' || req.body.freeLicensed === 'true'),
       backupUrl: req.body.backupUrl,
       fileName: req.file && req.file.originalname, fileData: bodyFile(req),
     }));
