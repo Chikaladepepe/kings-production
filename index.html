@@ -7667,6 +7667,7 @@ function drawSalesChart(canvas) {
 VIEWS.portfolio = async () => {
   const c = await API.content();
   const list = c.ok && c.data && c.data.portfolio ? c.data.portfolio : [];
+  const isAdmin = isStaff(STATE.user);
   STATE._pfItems = {};
   list.forEach(p => { STATE._pfItems[p.id] = p; });
   STATE._creatorOptions = (c.ok && c.data && c.data.creators) || [];
