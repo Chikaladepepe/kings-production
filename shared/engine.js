@@ -736,6 +736,7 @@
       const purchaseIds = all('purchases').filter(p => p.assetId === id).map(p => p.id);
       all('comments').filter(c => c.assetId === id).forEach(c => store.del('comments', c.id));
       all('purchases').filter(p => p.assetId === id).forEach(p => store.del('purchases', p.id));
+      all('orders').filter(o => o.assetId === id).forEach(o => store.del('orders', o.id)); // post deleted → its orders go with it, nothing lingers
       all('likes').filter(l => l.assetId === id).forEach(l => store.del('likes', l.id));
       all('devices').filter(d => d.assetId === id || purchaseIds.includes(d.purchaseId)).forEach(d => store.del('devices', d.id));
       all('reviews').filter(r => r.assetId === id).forEach(r => store.del('reviews', r.id));
@@ -1660,7 +1661,10 @@
     async function myOrders(user) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
-      return ok(all('orders').filter(o => o.buyerId === u.id).sort((x, y) => y.createdAt - x.createdAt).map(o => {
+      /* Only live orders show: cancelled rows and orders whose post no longer
+         exists are filtered out (plan orders — VIP / subscription — always stay). */
+      const live = o => o.status !== 'cancelled' && (isVipOrder(o) || isSubOrder(o) || !!byIdIn('assets', o.assetId));
+      return ok(all('orders').filter(o => o.buyerId === u.id && live(o)).sort((x, y) => y.createdAt - x.createdAt).map(o => {
         let proof = null;
         try { proof = o.proof ? JSON.parse(o.proof) : null; } catch (e) {}
         return { ...o, proof, manual: MANUAL_METHODS.includes(o.method), vip: isVipOrder(o), sub: isSubOrder(o) ? { category: String(o.assetId).split(':')[1], tier: Number(String(o.assetId).split(':')[2]) } : null, asset: (isVipOrder(o) || isSubOrder(o)) ? null : summarize(byIdIn('assets', o.assetId)) };
@@ -1668,7 +1672,8 @@
     }
     async function adminOrders(actor) {
       const r = requireAdmin(actor); if (r) return r;
-      return ok(all('orders').slice().sort((x, y) => y.createdAt - x.createdAt).map(o => ({ ...o, vip: isVipOrder(o), buyer: publicUser(dbUser(o.buyerId)), asset: (isVipOrder(o) || isSubOrder(o)) ? null : summarize(byIdIn('assets', o.assetId)) })));
+      const live = o => o.status !== 'cancelled' && (isVipOrder(o) || isSubOrder(o) || !!byIdIn('assets', o.assetId));
+      return ok(all('orders').filter(live).slice().sort((x, y) => y.createdAt - x.createdAt).map(o => ({ ...o, vip: isVipOrder(o), buyer: publicUser(dbUser(o.buyerId)), asset: (isVipOrder(o) || isSubOrder(o)) ? null : summarize(byIdIn('assets', o.assetId)) })));
     }
     async function adminCompleteOrder(actor, orderId) {
       const r = requireAdmin(actor); if (r) return r;
@@ -3080,6 +3085,16 @@
     /* Email verification is now optional — mark every existing account
        verified once so nobody is locked out of anything. */
     try { all('users').filter(u => !u.emailVerified).forEach(u => { u.emailVerified = 1; store.put('users', u); }); flush(); } catch (e) { /* best effort */ }
+
+    /* Orders hygiene on boot — legacy rows from older builds are removed so
+       buyers only ever see orders that still exist: cancelled rows, and
+       orders whose post was deleted. Plan orders (VIP / subscription) have
+       no asset and always stay. */
+    try {
+      const dead = all('orders').filter(o => o.status === 'cancelled' || (!isVipOrder(o) && !isSubOrder(o) && !byIdIn('assets', o.assetId)));
+      dead.forEach(o => store.del('orders', o.id));
+      if (dead.length) flush();
+    } catch (e) { /* best effort */ }
 
     return {
       register, requestRegisterCode, login, googleLogin, verify2fa, requestReset, resetPassword, logout, me,
