@@ -5386,7 +5386,7 @@ function catalogSectionHtml(insidePage) {
   const inner = `<div class="section-head"><div><span class="section-eyebrow">Marketplace</span><h2>All Assets</h2><p>Scripts, models, plugins, animations, and systems — approved by the Kings Production team.</p></div></div>
     <div class="toolbar">
       <div class="search">${ICON.search}<input class="input" id="cat-q" placeholder="Search assets…" value="${esc(STATE.catalogQ)}"></div>
-      <div class="row" id="cat-chips">${['', ...CATEGORIES].map(c => `<button class="chip ${STATE.catalogCat === c ? 'active' : ''}" data-cat="${c}">${c ? CAT_LABEL[c] : 'All'}</button>`).join('')}</div>
+      <div class="row" id="cat-chips">${['', 'free', ...CATEGORIES].map(c => `<button class="chip ${STATE.catalogCat === c ? 'active' : ''}" data-cat="${c}">${c === 'free' ? 'Free' : c ? CAT_LABEL[c] : 'All'}</button>`).join('')}</div>
       <div class="row" id="cat-sort" style="gap:8px;flex-wrap:wrap">${[['trending', 'Trending', ICON.zap], ['newest', 'Newest', ICON.clock], ['top', 'Top selling', ICON.cart]].map(([k, l, ic]) => `<button class="sort-chip ${STATE.catalogSort === k ? 'active' : ''}" data-sort="${k}">${ic}${l}</button>`).join('')}</div>
     </div>
     <div id="cat-grid">${loadingHtml()}</div>`;
@@ -5400,7 +5400,7 @@ function refreshCatalog() {
     if (!res.ok) { grid.innerHTML = emptyHtml('Could not load assets', res.error); return; }
     const q = STATE.catalogQ.toLowerCase();
     const list = res.data.filter(a =>
-      (!STATE.catalogCat || a.category === STATE.catalogCat) &&
+      (STATE.catalogCat === 'free' ? Number(a.price) === 0 : !STATE.catalogCat || a.category === STATE.catalogCat) &&
       (!q || (a.title + ' ' + a.description + ' ' + (a.owner && a.owner.displayName)).toLowerCase().includes(q)));
     if (STATE.catalogSort === 'newest') list.sort((x, y) => y.createdAt - x.createdAt);
     else if (STATE.catalogSort === 'top') list.sort((x, y) => (y.sales || 0) - (x.sales || 0));
