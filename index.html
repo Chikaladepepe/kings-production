@@ -1466,7 +1466,7 @@ const API = {};
   const byId = (list, id) => list.find(x => x.id === id);
 
   const CATEGORIES = ['animation', 'model', 'plugin', 'system', 'tool'];
-  const CAT_LABEL = { animation: 'Animation', model: 'Model', plugin: 'Plugin', system: 'System' };
+  const CAT_LABEL = { animation: 'Animation', model: 'Model', plugin: 'Plugin', system: 'System', tool: 'Tool' };
   /* Role hierarchy (index = rank). Owner and Co-Founder can do everything;
      Admin can do everything except grant roles at admin level or higher;
      Licensed sellers can post; Members browse, buy, comment, rate. */
@@ -5026,7 +5026,7 @@ function statusBadge(status, rejectReason) {
   if (status === 'pending') return `<span class="status-pill status-pending">Pending approval</span>`;
   return `<span class="status-pill status-rejected" title="${esc(rejectReason || '')}">Rejected</span>`;
 }
-function catBadge(cat) { return `<span class="badge plain"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${CAT_ICON[cat].replace(/<svg[^>]*>/i, '').replace(/<\/svg>/i, '')}</svg>${CAT_LABEL[cat]}</span>`; }
+function catBadge(cat) { const icon = CAT_ICON[cat] || CAT_ICON.system || ''; const label = CAT_LABEL[cat] || 'Other'; return `<span class="badge plain"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${String(icon).replace(/<svg[^>]*>/i, '').replace(/<\/svg>/i, '')}</svg>${esc(label)}</span>`; }
 function thumbHtml(a, size = 44) {
   if (a && a.imageUrl) {
     const direct = esc(a.imageUrl);
@@ -5118,7 +5118,14 @@ function promptModal({ title, label, placeholder, confirmLabel = 'Confirm', dang
 /* go() tolerates callers that already include the leading '#' (some card
    templates pass '#/asset/…'), otherwise the hash becomes '##/…' and the
    router treats the path as '#' and bounces the user home. */
-const go = path => { location.hash = '#' + String(path || '').replace(/^#+/, ''); };
+const go = path => {
+  const target = '#' + String(path || '').replace(/^#+/, '');
+  /* Re-clicking the route you're already on refreshes the view — the router
+     reruns and refetches — instead of being a silent no-op because the hash
+     never changed (no hashchange event fires). */
+  if (location.hash === target) { router(); return; }
+  location.hash = target;
+};
 function parseHash() {
   const h = location.hash.replace(/^#+\/?/, '');
   const [pathPart, queryPart] = h.split('?');
@@ -5514,7 +5521,7 @@ function renderShopGrid(containerId, assets, st) {
   else if (st.sort === 'top') list.sort((x, y) => (y.sales || 0) - (x.sales || 0));
   /* 'trending' = default order from the API (hot score) */
   grid.innerHTML = list.length
-    ? `<div class="grid grid-assets">${list.map(a => assetCardHtml(a)).join('')}</div>`
+    ? `<div class="grid grid-assets">${list.map(a => { try { return assetCardHtml(a); } catch (e) { console.error('card render failed for', a && a.id, e); return ''; } }).join('')}</div>`
     : emptyHtml('No assets found', 'Try a different search or category.');
 }
 VIEWS_BIND.shop = () => {

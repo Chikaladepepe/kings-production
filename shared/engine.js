@@ -27,7 +27,7 @@
   const byId = (list, id) => list.find(x => x.id === id);
 
   const CATEGORIES = ['animation', 'model', 'plugin', 'system', 'tool'];
-  const CAT_LABEL = { animation: 'Animation', model: 'Model', plugin: 'Plugin', system: 'System' };
+  const CAT_LABEL = { animation: 'Animation', model: 'Model', plugin: 'Plugin', system: 'System', tool: 'Tool' };
   /* Role hierarchy (index = rank). Owner and Co-Founder can do everything;
      Admin can do everything except grant roles at admin level or higher;
      Licensed sellers can post; Members browse, buy, comment, rate. */
