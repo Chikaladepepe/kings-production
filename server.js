@@ -864,7 +864,9 @@ async function main() {
   app.post('/api/admin/users/:id/plan', admin(async (u, req) => engine.adminSetUserPlan(u, req.params.id, req.body || {})));
 
   /* ---- the app (single-file SPA) ---- */
-  app.get('/', (req, res) => res.sendFile(path.join(ROOT, 'index.html')));
+  app.get('/', (req, res) => { res.setHeader('Cache-Control', 'no-store, must-revalidate'); res.sendFile(path.join(ROOT, 'index.html')); });
+  /* Build stamp — lets anyone confirm which page version the browser is running */
+  app.get('/api/build', (req, res) => res.json({ ok: true, data: { build: BUILD_STAMP } }));
   app.get('/logo.png', (req, res) => {
     const p = path.join(ROOT, 'public', 'logo.png');
     if (fs.existsSync(p)) { res.setHeader('content-type', 'image/png'); res.setHeader('cache-control', 'public, max-age=86400'); res.sendFile(p); }

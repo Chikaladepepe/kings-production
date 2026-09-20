@@ -5409,43 +5409,25 @@ function refreshCatalog() {
       : emptyHtml('No assets found', 'Try a different search or category.');
   });
 }
-/* One delegated listener for EVERY category/sort chip row on the page —
-   survives re-renders and can never be lost to a failed bind (the old
-   per-render binding died whenever any card threw mid-bind, leaving the
-   chips permanently dead). Rows declare data-chips="shopOur|shopSeller|home". */
-document.addEventListener('click', e => {
-  const chip = e.target.closest('.chip[data-cat]');
-  if (chip) {
-    const row = chip.closest('[id="cat-chips"], .shop-chips');
-    if (!row) return;
-    if (row.id === 'cat-chips') {
-      STATE.catalogCat = chip.dataset.cat;
-      row.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.cat === chip.dataset.cat));
-      if (typeof refreshCatalog === 'function') refreshCatalog();
-    } else {
-      const st = chip.dataset.s === 'our' ? STATE.shopOur : STATE.shopSeller;
-      st.cat = chip.dataset.cat;
-      row.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.cat === chip.dataset.cat));
-      renderShopGrid('shop-grid-' + chip.dataset.s, st.assets || [], st);
-    }
-    return;
-  }
-  const sort = e.target.closest('.sort-chip[data-sort]');
-  if (sort) {
-    const row = sort.closest('#cat-sort, .shop-sort');
-    if (!row) return;
-    if (row.id === 'cat-sort') {
-      STATE.catalogSort = sort.dataset.sort;
-      row.querySelectorAll('.sort-chip').forEach(c => c.classList.toggle('active', c.dataset.sort === sort.dataset.sort));
-      if (typeof refreshCatalog === 'function') refreshCatalog();
-    } else {
-      const st = sort.dataset.s === 'our' ? STATE.shopOur : STATE.shopSeller;
-      st.sort = sort.dataset.sort;
-      row.querySelectorAll('.sort-chip').forEach(c => c.classList.toggle('active', c.dataset.sort === sort.dataset.sort));
-      renderShopGrid('shop-grid-' + sort.dataset.s, st.assets || [], st);
-    }
-  }
-});
+function bindCatalog() {
+  const q = document.getElementById('cat-q');
+  q && q.addEventListener('input', e => { STATE.catalogQ = e.target.value; clearTimeout(q._t); q._t = setTimeout(refreshCatalog, 180); });
+  const chips = document.getElementById('cat-chips');
+  chips && chips.addEventListener('click', e => {
+    const b = e.target.closest('[data-cat]'); if (!b) return;
+    STATE.catalogCat = b.dataset.cat;
+    chips.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.cat === b.dataset.cat));
+    refreshCatalog();
+  });
+  const sort = document.getElementById('cat-sort');
+  sort && sort.addEventListener('click', e => {
+    const b = e.target.closest('[data-sort]'); if (!b) return;
+    STATE.catalogSort = b.dataset.sort;
+    sort.querySelectorAll('.sort-chip').forEach(c => c.classList.toggle('active', c.dataset.sort === b.dataset.sort));
+    refreshCatalog();
+  });
+  refreshCatalog();
+}
 
 /* ================= VIEWS ================= */
 const VIEWS = {};
@@ -5523,13 +5505,6 @@ VIEWS.shop = async () => {
 
 /* ================= CHUNK 5: ASSET · PROFILE · AUTH · SETTINGS · UPLOAD · MY-ASSETS ================= */
 const VIEWS_BIND = {};
-/* Home catalog: search input only — chip/sort clicks go through the global
-   delegated listener; this also drives the initial fetch+render. */
-function bindCatalog() {
-  const q = document.getElementById('cat-q');
-  q && q.addEventListener('input', e => { STATE.catalogQ = e.target.value; clearTimeout(q._t); q._t = setTimeout(refreshCatalog, 180); });
-  refreshCatalog();
-}
 VIEWS_BIND.home = () => { bindCatalog(); spawnParticles(); setupRotor(); setupMarquee(); document.querySelectorAll('.count-up').forEach(el => countUp(el, el.dataset.count)); };
 /* Render one shop grid from a raw asset list + filter state */
 function renderShopGrid(containerId, assets, st) {
@@ -5556,7 +5531,24 @@ VIEWS_BIND.shop = () => {
     const q = document.getElementById('shop-q-' + id);
     if (q) q.addEventListener('input', e => { st.q = e.target.value; clearTimeout(q._t); q._t = setTimeout(() => renderShopGrid('shop-grid-' + id, assets, st), 180); });
   });
-  /* chip + sort clicks are handled by the global delegated listener */
+  document.querySelectorAll('.shop-chips').forEach(row => {
+    row.addEventListener('click', e => {
+      const b = e.target.closest('[data-cat]'); if (!b) return;
+      const st = b.dataset.s === 'our' ? STATE.shopOur : STATE.shopSeller;
+      st.cat = b.dataset.cat;
+      row.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.cat === b.dataset.cat));
+      renderShopGrid('shop-grid-' + b.dataset.s, st.assets || [], st);
+    });
+  });
+  document.querySelectorAll('.shop-sort').forEach(row => {
+    row.addEventListener('click', e => {
+      const b = e.target.closest('[data-sort]'); if (!b) return;
+      const st = b.dataset.s === 'our' ? STATE.shopOur : STATE.shopSeller;
+      st.sort = b.dataset.sort;
+      row.querySelectorAll('.sort-chip').forEach(c => c.classList.toggle('active', c.dataset.sort === b.dataset.sort));
+      renderShopGrid('shop-grid-' + b.dataset.s, st.assets || [], st);
+    });
+  });
 };
 VIEWS_BIND.profile = () => { initProfileTags((STATE._pfUser && STATE._pfUser.tags) || []); };
 VIEWS_BIND.login = async ({ query } = {}) => {
