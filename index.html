@@ -5154,8 +5154,11 @@ function thumbHtml(a, size = 44) {
   const cat = a && a.category;
   return `<div class="thumb-bg ${CAT_THUMB[cat] || 'thumb-default'}"></div><span class="thumb-icon" style="width:${size}px;height:${size}px">${CAT_ICON[cat]}</span>`;
 }
-function assetCardHtml(a, rank) {
-  return `<article class="card card-hover asset-card" data-id="${a.id}" onclick="go('/asset/${a.id}')">
+function assetCardHtml(a, rank, opts) {
+  /* preIn: for dynamic filter re-renders — card ships WITH the reveal class so
+     it paints at full opacity instantly (no observer, no transition race). */
+  const preIn = opts && opts.preIn ? ' in' : '';
+  return `<article class="card card-hover asset-card${preIn}" data-id="${a.id}" onclick="go('/asset/${a.id}')">
     <div class="asset-thumb">${rank !== undefined ? `<span class="asset-rank">#${rank + 1}</span>` : ''}<span class="asset-cat">${catBadge(a.category)}</span>${thumbHtml(a, 40)}</div>
     <div class="asset-body">
       <h3 class="asset-title">${esc(a.title)}</h3>
@@ -5522,8 +5525,9 @@ function refreshCatalog() {
     if (STATE.catalogSort === 'newest') list.sort((x, y) => y.createdAt - x.createdAt);
     else if (STATE.catalogSort === 'top') list.sort((x, y) => (y.sales || 0) - (x.sales || 0));
     grid.innerHTML = list.length
-      ? `<div class="grid grid-assets">${list.map(a => assetCardHtml(a)).join('')}</div>`
+      ? `<div class="grid grid-assets">${list.map(a => assetCardHtml(a, undefined, { preIn: true })).join('')}</div>`
       : emptyHtml('No assets found', 'Try a different search or category.');
+    if (typeof bindReveals === 'function') bindReveals();
   });
 }
 /* One delegated listener for EVERY category/sort chip row on the page —
@@ -5591,7 +5595,7 @@ VIEWS.home = async () => {
   </div></div>
   <div class="page">
     <div class="section-head"><div><span class="section-eyebrow">Featured</span><h2>Top Selling Assets</h2><p>Our most purchased assets, ranked by sales.</p></div><a class="btn btn-ghost btn-sm" href="#/shop">Browse all →</a></div>
-    <div class="grid grid-assets">${top.ok && top.data.length ? top.data.map((a, i) => assetCardHtml(a, i)).join('') : emptyHtml('No assets yet', 'Approved assets will appear here.')}</div>
+    <div class="grid grid-assets">${top.ok && top.data.length ? top.data.map((a, i) => assetCardHtml(a, i, { preIn: true })).join('') : emptyHtml('No assets yet', 'Approved assets will appear here.')}</div>
   </div>
   ${catalogSectionHtml()}`;
 };
@@ -5663,8 +5667,9 @@ function renderShopGrid(containerId, assets, st) {
   else if (st.sort === 'top') list.sort((x, y) => (y.sales || 0) - (x.sales || 0));
   /* 'trending' = default order from the API (hot score) */
   grid.innerHTML = list.length
-    ? `<div class="grid grid-assets">${list.map(a => { try { return assetCardHtml(a); } catch (e) { console.error('card render failed for', a && a.id, e); return ''; } }).join('')}</div>`
+    ? `<div class="grid grid-assets">${list.map(a => { try { return assetCardHtml(a, undefined, { preIn: true }); } catch (e) { console.error('card render failed for', a && a.id, e); return ''; } }).join('')}</div>`
     : emptyHtml('No assets found', 'Try a different search or category.');
+  if (typeof bindReveals === 'function') bindReveals();
 }
 VIEWS_BIND.shop = () => {
   [['our', STATE.shopOur], ['seller', STATE.shopSeller]].forEach(([id, st]) => {
@@ -9503,14 +9508,29 @@ function setupWow() {
 
 /* ---- scroll reveals (only when JS + motion are OK) ---- */
 let _revealIO = null;
+let _revealSafety = null;
 function setupReveal() {
   if (!('IntersectionObserver' in window) || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   document.body.classList.add('js-reveal');
   _revealIO = new IntersectionObserver(es => es.forEach(e => {
     if (e.isIntersecting) { e.target.classList.add('in'); _revealIO.unobserve(e.target); }
   }), { threshold: 0.06 });
+  /* Safety net: if an observed element hasn't revealed within 4s of being
+     observed (IO silently broken for that subtree in some browsers), force
+     it visible — an invisible-but-clickable card is worse than no animation. */
+  _revealSafety = setInterval(() => {
+    document.querySelectorAll('[data-revealed="1"]:not(.in)').forEach(el => { el.classList.add('in'); try { _revealIO.unobserve(el); } catch (_) {} });
+  }, 4000);
   bindReveals();
+  /* Cards rendered AFTER the route settled (shop chip / search re-renders,
+     home catalog refreshes) never got observed and stayed at opacity:0 —
+     invisible but clickable. Watch for them so every re-render reveals. */
+  if ('MutationObserver' in window && !_revealMut) {
+    _revealMut = new MutationObserver(() => { clearTimeout(_revealMut._t); _revealMut._t = setTimeout(bindReveals, 60); });
+    _revealMut.observe(document.getElementById('main') || document.body, { childList: true, subtree: true });
+  }
 }
+let _revealMut = null;
 function bindReveals() {
   if (!_revealIO) return;
   document.querySelectorAll('.section-head, .profile-hero, .tier, .approve-card, .creator-card, .asset-card, .project-card').forEach(el => {
