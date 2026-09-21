@@ -38,8 +38,12 @@ const engine = factory.createEngine({ store: st, files, mail: { send: () => {} }
   // 1. create asset with hosted fileUrl only (no raw file)
   const a1 = await engine.createAsset(u, { title: 'Hosted System', category: 'system', description: 'A full description of at least ten characters.', price: '50', fileName: 'MusicSystem.rbxm', fileUrl: 'https://files.catbox.moe/abc123.rbxm', imageUrl: 'https://i.imgur.com/x.png', backupUrl: 'https://www.mediafire.com/abc123', paymentMethods: ['gcash'] });
   t('hosted-file post ok', a1.ok);
+  /* The URL is stored (owner/staff view) — but never shown to the public. */
+  const gotOwner = await engine.getAsset(a1.data.id, u.id);
+  t('fileUrl stored', gotOwner.ok && gotOwner.data.fileUrl === 'https://files.catbox.moe/abc123.rbxm');
   const got = await engine.getAsset(a1.data.id, null);
-  t('fileUrl stored', got.ok && got.data.fileUrl === 'https://files.catbox.moe/abc123.rbxm');
+  t('public view withholds fileUrl', got.ok && got.data.fileUrl === null);
+  t('public list withholds fileUrl', (await engine.listApproved(null)).data.every(a => a.fileUrl === undefined));
   t('fileName kept', got.ok && got.data.fileName === 'MusicSystem.rbxm');
   t('no bytes stored (files empty)', Object.keys(memFiles).length === 0);
 
@@ -62,7 +66,7 @@ const engine = factory.createEngine({ store: st, files, mail: { send: () => {} }
   // 5. edit: replace hosted URL
   const upd = await engine.updateAsset(u, a1.data.id, { fileUrl: 'https://files.catbox.moe/newurl.rbxm' });
   t('edit fileUrl', upd.ok);
-  const got3 = await engine.getAsset(a1.data.id, null);
+  const got3 = await engine.getAsset(a1.data.id, u.id);
   t('fileUrl updated', got3.ok && got3.data.fileUrl === 'https://files.catbox.moe/newurl.rbxm');
 
   console.log('PASS:' + pass + ' FAIL:' + fail);

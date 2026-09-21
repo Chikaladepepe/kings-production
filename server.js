@@ -16,6 +16,9 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const crypto = require('node:crypto');
+/* fetch() hands back a WEB stream — it has no .pipe(), so hosted downloads must
+   be converted before they can be streamed to the client. */
+const { Readable } = require('node:stream');
 const express = require('express');
 const multer = require('multer');
 const { createEngine } = require('./shared/engine.js');
@@ -32,7 +35,10 @@ const PORT = Number(process.env.PORT) || 3000; // treats PORT=0 as unset so a st
 const PUBLIC_URL = String(process.env.PUBLIC_URL || `http://localhost:${PORT}`).replace(/\/+$/, '');
 const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(ROOT, 'uploads');
-const MAX_UPLOAD = 20 * 1024 * 1024;
+/* Sellers ship real .rbxl/.rbxm system files — these are routinely tens of MB.
+   The old 20 MB cap silently rejected them, so big systems could never be
+   posted. 100 MB matches the client-side limit. */
+const MAX_UPLOAD = 100 * 1024 * 1024;
 const STORE_BACKEND = process.env.TURSO_URL ? 'turso' : 'sqlite';
 
 async function main() {
@@ -118,6 +124,8 @@ async function main() {
     paymongo: process.env.PAYMONGO_SECRET_KEY || null,
   };
   PAYMENT.dev = !(PAYMENT.stripe || PAYMENT.paypal || PAYMENT.paymongo);
+  /* Instant order completion for LOCAL testing only — never on the live site. */
+  const DEV_COMPLETE = process.env.KP_DEV_PAYMENTS === '1';
   /* Live by default; set PAYPAL_ENV=sandbox to test against the sandbox API
      (sandbox Client ID + Secret from developer.paypal.com). */
   const PAYPAL_BASE = process.env.PAYPAL_ENV === 'sandbox' ? 'https://api-m.sandbox.paypal.com' : 'https://api-m.paypal.com';
@@ -208,6 +216,50 @@ async function main() {
   });
   app.use(express.json({ limit: '4mb' })); // profile pictures are base64 data URLs
 
+  /* ---- security headers on every response ---- */
+  app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=()');
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    /* The page itself runs inline scripts/styles, so those stay allowed; what
+       this blocks is any injected external script, framing, and form hijack. */
+    res.setHeader('Content-Security-Policy', [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data: https://fonts.gstatic.com",
+      "connect-src 'self'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+    ].join('; '));
+    next();
+  });
+
+  /* ---- brute-force guard for the auth endpoints (per IP) ---- */
+  const authHits = new Map();
+  const authLimiter = (max, windowMs) => (req, res, next) => {
+    const ip = req.ip || (req.socket && req.socket.remoteAddress) || 'unknown';
+    req._authIp = ip;
+    const t = Date.now();
+    let rec = authHits.get(ip);
+    if (!rec || t > rec.resetAt) { rec = { n: 0, resetAt: t + windowMs }; authHits.set(ip, rec); }
+    rec.n += 1;
+    if (authHits.size > 5000) { for (const [k, v] of authHits) if (t > v.resetAt) authHits.delete(k); }
+    if (rec.n > max) {
+      if (engine.recordSecurityEvent) engine.recordSecurityEvent('auth_rate_limited', { ip, path: req.path.slice(0, 60) });
+      return res.status(429).json({ ok: false, code: 'ratelimit', error: 'Too many attempts — please wait a minute and try again.' });
+    }
+    next();
+  };
+  /* A correct password clears the counter, so only FAILED attempts are throttled
+     (someone logging in repeatedly isn't treated like an attacker). */
+  const clearAuthHit = req => { if (req && req._authIp) authHits.delete(req._authIp); };
+
   /* ---- image proxy: make "page" URLs work as images (imgur.com/abc → the
      direct image) and bypass hotlink blocks for supported hosts.
      Route handler registered after the `h` helper is defined, below. ---- */
@@ -217,9 +269,21 @@ async function main() {
   /* With a cloud store, wait until every pending write has landed in Turso
      before the client sees the response (the engine writes synchronously to
      its cache; the mirror to Turso drains here). */
+  /* Map engine failure codes onto real HTTP statuses. Everything used to come
+     back as 400 — including permission denials — which meant browsers, proxies
+     and security tooling could never tell "not allowed" from "bad input". */
+  const STATUS_FOR = {
+    auth: 401, adminProtected: 401,
+    forbidden: 403, adminOnly: 403, vipOnly: 403, buyersOnly: 403, banned: 403, restricted: 403, denied: 403, owned: 403,
+    notfound: 404, usernotfound: 404, limit: 404,
+    taken: 409, duplicate: 409,
+    ratelimit: 429, cooldown: 429, timeout: 429,
+    expired: 410, pending: 409, self: 400, storage: 500,
+  };
   const send = async (res, r, okStatus) => {
     if (store && store.idle) { try { await store.idle(); } catch (e) { console.error('[store] idle failed:', e); } }
-    res.status(r.ok ? (okStatus || 200) : 400).json(r);
+    if (r && r.ok) return res.status(okStatus || 200).json(r);
+    res.status(STATUS_FOR[(r && r.code) || ''] || 400).json(r);
   };
   const h = fn => (req, res) => Promise.resolve(fn(req, res)).catch(e => {
     console.error('[api]', e);
@@ -319,11 +383,11 @@ async function main() {
   app.get('/api/health', (req, res) => res.json({ ok: true, data: { name: 'Kings Production API', store: STORE_BACKEND, uptime: Math.round(process.uptime()), build: BUILD_STAMP } }));
 
   /* ---- auth ---- */
-  app.post('/api/auth/register-code', h(async (req, res) => send(res, await engine.requestRegisterCode(req.body || {}))));
-  app.post('/api/auth/register', h(async (req, res) => send(res, await engine.register(req.body || {}))));
-  app.post('/api/auth/login', h(async (req, res) => send(res, await engine.login({ ...(req.body || {}), label: shortLabel(req) }))));
-  app.post('/api/auth/verify2fa', h(async (req, res) => send(res, await engine.verify2fa({ ...(req.body || {}), label: shortLabel(req) }))));
-  app.post('/api/auth/request-reset', h(async (req, res) => send(res, await engine.requestReset(req.body || {}))));
+  app.post('/api/auth/register-code', authLimiter(5, 60e3), h(async (req, res) => send(res, await engine.requestRegisterCode(req.body || {}))));
+  app.post('/api/auth/register', authLimiter(10, 60e3), h(async (req, res) => { const r = await engine.register(req.body || {}); if (r.ok) clearAuthHit(req); send(res, r); }));
+  app.post('/api/auth/login', authLimiter(20, 60e3), h(async (req, res) => { const r = await engine.login({ ...(req.body || {}), label: shortLabel(req) }); if (r.ok) clearAuthHit(req); send(res, r); }));
+  app.post('/api/auth/verify2fa', authLimiter(15, 60e3), h(async (req, res) => { const r = await engine.verify2fa({ ...(req.body || {}), label: shortLabel(req) }); if (r.ok) clearAuthHit(req); send(res, r); }));
+  app.post('/api/auth/request-reset', authLimiter(5, 60e3), h(async (req, res) => send(res, await engine.requestReset(req.body || {}))));
   app.post('/api/auth/reset-password', h(async (req, res) => send(res, await engine.resetPassword(req.body || {}))));
   app.post('/api/auth/logout', h(async (req, res) => {
     const u = await authUser(req);
@@ -527,47 +591,57 @@ async function main() {
     if (!r.ok) return send(res, r);
     send(res, { ok: true, data: { fileName: r.data.fileName, size: r.data.size } });
   }));
+  /* Deliver a system file to an entitled buyer. Three possible sources, tried
+     in order of reliability:
+       1. our own copy on this server (new posts) — always works;
+       2. the seller's file host;
+       3. the seller's required mirror link.
+     Hosts like Catbox block plain server-side requests from datacenter IPs, so
+     every upstream attempt goes out with real browser headers, and if the
+     primary refuses we fetch the mirror automatically — the buyer should never
+     have to go find the backup link themselves. */
+  const FILE_FETCH_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Accept': '*/*',
+    'Accept-Language': 'en-US,en;q=0.9',
+  };
+  async function openUpstream(url) {
+    let referer;
+    try { referer = new URL(url).origin + '/'; } catch (e) { referer = undefined; }
+    const r = await fetch(url, {
+      headers: referer ? { ...FILE_FETCH_HEADERS, Referer: referer } : FILE_FETCH_HEADERS,
+      redirect: 'follow',
+      signal: AbortSignal.timeout ? AbortSignal.timeout(25000) : undefined,
+    });
+    if (!r.ok || !r.body) { try { if (r.body) r.body.cancel(); } catch (e) {} throw new Error('upstream ' + r.status); }
+    return r;
+  }
   app.get('/api/assets/:id/file', h(async (req, res) => {
     const u = await authUser(req);
     const r = await engine.download(u, req.params.id);
     if (!r.ok) return send(res, r, 403);
-    /* Hosted file (Catbox): stream it through, keeping the URL hidden and
-       the download gated. A type=file query asks for a direct redirect. */
-    if (r.data.fileUrl) {
+    const safe = String(r.data.fileName || 'asset-file').replace(/[^\w.\- ]+/g, '_');
+    const head = (mime, len) => {
+      res.setHeader('Content-Disposition', `attachment; filename="${safe}"`);
+      res.setHeader('Content-Type', mime || 'application/octet-stream');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      if (len) res.setHeader('Content-Length', len);
+    };
+    /* 1. our own copy */
+    const local = await files.get(req.params.id);
+    if (local) { head(r.data.mime, local.data && local.data.length); return res.send(local.data); }
+    /* 2 & 3. the seller's host, then their mirror */
+    const sources = [r.data.fileUrl, r.data.backupUrl].filter(Boolean);
+    for (const src of sources) {
       try {
-        /* Short upstream timeout so buyers get a fast, clear error instead of a hang. */
-        const upstream = await Promise.race([
-          fetch(r.data.fileUrl, { signal: AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined }),
-          new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 16000)),
-        ]).catch(e => { throw e; });
-        if (!upstream.ok || !upstream.body) throw new Error('upstream ' + upstream.status);
-        const safe = String(r.data.fileName || 'asset-file').replace(/[^\w.\- ]+/g, '_');
-        res.setHeader('Content-Disposition', `attachment; filename="${safe}"`);
-        res.setHeader('Content-Type', r.data.mime || upstream.headers.get('content-type') || 'application/octet-stream');
-        if (upstream.headers.get('content-length')) res.setHeader('Content-Length', upstream.headers.get('content-length'));
-        upstream.body.pipe(res);
-        return;
+        const upstream = await openUpstream(src);
+        head(r.data.mime || upstream.headers.get('content-type'), upstream.headers.get('content-length'));
+        return Readable.fromWeb(upstream.body).pipe(res);
       } catch (e) {
-        /* Fallback: if the post also carries a local copy, serve that instead. */
-        const f = await files.get(req.params.id);
-        if (f) {
-          const safe = String(r.data.fileName || 'asset-file').replace(/[^\w.\- ]+/g, '_');
-          res.setHeader('Content-Disposition', `attachment; filename="${safe}"`);
-          res.setHeader('Content-Type', r.data.mime || 'application/octet-stream');
-          res.setHeader('X-Content-Type-Options', 'nosniff');
-          res.send(f.data);
-          return;
-        }
-        return send(res, { ok: false, code: 'notfound', backupUrl: r.data.backupUrl || null, error: 'The hosted file could not be fetched — try the seller\'s backup link, or ask them to re-upload.' });
+        console.warn('[download] source failed (' + String(src).slice(0, 70) + '):', e.message);
       }
     }
-    const f = await files.get(req.params.id);
-    if (!f) return send(res, { ok: false, code: 'notfound', error: 'The file for this asset is missing.' });
-    const safe = String(r.data.fileName || 'asset-file').replace(/[^\w.\- ]+/g, '_');
-    res.setHeader('Content-Disposition', `attachment; filename="${safe}"`);
-    res.setHeader('Content-Type', r.data.mime || 'application/octet-stream');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.send(f.data);
+    return send(res, { ok: false, code: 'notfound', backupUrl: r.data.backupUrl || null, error: 'The file could not be fetched from the seller\'s host or mirror — ask the seller to re-upload it.' });
   }));
   app.post('/api/assets/:id/purchase', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.purchase(u, req.params.id)); }));
   app.post('/api/assets/:id/like', h(async (req, res) => { const u = await needAuth(req, res); if (!u) return; send(res, await engine.toggleLike(u, req.params.id)); }));
@@ -612,6 +686,9 @@ async function main() {
     data: {
       dev: PAYMENT.dev,
       currency: PAYMENT.currency,
+      /* Automatic methods are only offered when their gateway is actually
+         configured — otherwise the buyer is sent down the manual (QR + proof)
+         route instead of being told a payment went through. */
       methods: [
         { id: 'stripe', label: 'Stripe · automatic', enabled: !!PAYMENT.stripe, auto: true },
         { id: 'paypal', label: 'PayPal · automatic', enabled: !!PAYMENT.paypal, auto: true },
@@ -621,11 +698,24 @@ async function main() {
         { id: 'gcash_manual', label: 'GCash · manual (QR)', enabled: true, manual: true },
         { id: 'kofi_manual', label: 'Ko-fi · manual', enabled: true, manual: true },
       ],
+      devComplete: DEV_COMPLETE,
     },
   }));
+  /* Somebody picked a payment method, but the platform has no gateway keys for
+     it (this is exactly the Kings situation: GCash goes by QR, not PayMongo).
+     Rather than silently completing the order — which handed paid systems away
+     for free — the method is downgraded to its manual counterpart: the buyer
+     pays off-site, sends the proof, and the SELLER confirms before delivery. */
+  const AUTO_GATEWAY = { stripe: () => PAYMENT.stripe, paypal: () => PAYMENT.paypal, gcash: () => PAYMENT.paymongo, kofi: () => null };
+  const normalizeMethod = m => {
+    const raw = String(m || '').toLowerCase();
+    if (!AUTO_GATEWAY[raw]) return raw;
+    return AUTO_GATEWAY[raw]() ? raw : raw + '_manual';
+  };
   app.post('/api/checkout', h(async (req, res) => {
     const u = await needAuth(req, res); if (!u) return;
-    const { assetId, plan, method, gameDetails } = req.body || {};
+    const { assetId, plan, gameDetails } = req.body || {};
+    const method = normalizeMethod((req.body || {}).method);
     const isVip = plan === 'vip';
     const isVipTry = plan === 'vip_try';
     const isSub = plan && String(plan).startsWith('sub:');
@@ -644,9 +734,10 @@ async function main() {
       // Zero-cost VIP try — the order is created already paid, awaiting the seller's approval.
       return send(res, { ok: true, data: { orderId, vipTrial: true } });
     }
-    if (PAYMENT.dev && !String(method || '').endsWith('_manual')) {
-      // No gateway keys configured — complete instantly (test mode, no money moves).
-      // Manual methods are exempt: they wait for the buyer's proof + staff verification.
+    if (DEV_COMPLETE && !String(method || '').endsWith('_manual')) {
+      /* Explicit local-testing switch only (KP_DEV_PAYMENTS=1). It used to key
+         off "no gateway keys configured", which meant any unconfigured method
+         completed the order for free on the live site. */
       return send(res, await engine.completeOrder(u, orderId, 'dev'));
     }
     if (String(method || '').endsWith('_manual')) {
@@ -863,8 +954,28 @@ async function main() {
   /* ---- Founder grant: set plan tiers directly (Co-Founder / Founder only) ---- */
   app.post('/api/admin/users/:id/plan', admin(async (u, req) => engine.adminSetUserPlan(u, req.params.id, req.body || {})));
 
-  /* ---- the app (single-file SPA) ---- */
-  app.get('/', (req, res) => { res.setHeader('Cache-Control', 'no-store, must-revalidate'); res.sendFile(path.join(ROOT, 'index.html')); });
+  /* ---- the app (single-file SPA) ----
+     Served WITHOUT the in-browser business engine. That block
+     (KP-ENGINE-BEGIN…END) exists only for opening index.html straight from disk
+     during development — shipping it would hand anyone who downloads the page
+     the complete marketplace logic, ruleset and admin surface. Cached by mtime
+     so the strip is not redone on every request. */
+  let _pageCache = { html: null, mtime: 0 };
+  function productionPage() {
+    const p = path.join(ROOT, 'index.html');
+    const st = fs.statSync(p);
+    if (_pageCache.html && _pageCache.mtime === st.mtimeMs) return _pageCache.html;
+    const stripped = fs.readFileSync(p, 'utf8')
+      .replace(/\/\* ==== KP-ENGINE-BEGIN ==== \*\/[\s\S]*?\/\* ==== KP-ENGINE-END ==== \*\//, '/* in-browser engine intentionally removed from the production build */');
+    _pageCache = { html: stripped, mtime: st.mtimeMs };
+    return stripped;
+  }
+  app.get('/', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store, must-revalidate');
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    try { res.send(productionPage()); }
+    catch (e) { console.error('[page]', e.message); res.status(500).send('Server error'); }
+  });
   /* Build stamp — lets anyone confirm which page version the browser is running */
   app.get('/api/build', (req, res) => res.json({ ok: true, data: { build: BUILD_STAMP } }));
   app.get('/logo.png', (req, res) => {

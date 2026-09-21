@@ -158,7 +158,7 @@
   function createEngine(deps) {
     const store = deps.store, files = deps.files, mail = deps.mail;
     const cfg = Object.assign(
-      { autoAdminFirstUser: true, devMail: true, onlineWindowMs: 10 * 6e4, sessionTtlMs: 30 * 24 * 36e5, maxUploadBytes: 20 * 1024 * 1024, currency: 'USD', priceMultiplier: 1 },
+      { autoAdminFirstUser: true, devMail: true, onlineWindowMs: 10 * 6e4, sessionTtlMs: 30 * 24 * 36e5, maxUploadBytes: 100 * 1024 * 1024, currency: 'USD', priceMultiplier: 1 },
       deps.config || {}
     );
     const fx = Object.assign({}, FX_FALLBACK, cfg.fx || {});
@@ -183,17 +183,27 @@
       if (effRank(actor) < roleRank('cofounder')) return fail('forbidden', 'Only the Co-Founder or Founder can ' + (what || 'do that') + '.');
       return null;
     };
-    /* Posting cooldown — one new post per 24h for creators (admins are exempt). */
+    /* Posting cooldown — a rolling 24h allowance that follows the seller's
+       Contract tier: Contract 1 = 1 post/day, Contract 2 = 3/day, Contract 3 =
+       10/day. Staff and anyone posting without a Contract get the base 1/day.
+       Admins (Admin rank and above) are exempt entirely. */
     const POST_COOLDOWN_MS = cfg.postCooldownMs || 24 * 36e5;
+    const CONTRACT_POST_LIMIT = { 1: 1, 2: 3, 3: 10 };
+    function postLimitFor(u) {
+      const tier = Number(u && u.contractTier) || 0;
+      return CONTRACT_POST_LIMIT[tier] || 1;
+    }
     function cooldownInfo(u) {
       if (!u || isAdmin(u) || !canPost(u)) return null;
+      const limit = postLimitFor(u);
       const posts = all('assets').filter(a => a.ownerId === u.id).sort((x, y) => y.createdAt - x.createdAt);
-      if (!posts.length) return null;
-      const last = posts[0].createdAt;
-      const remainingMs = POST_COOLDOWN_MS - (now() - last);
+      if (posts.length < limit) return null;
+      /* The oldest post still inside the window is the one that frees a slot. */
+      const gate = posts[limit - 1].createdAt;
+      const remainingMs = POST_COOLDOWN_MS - (now() - gate);
       if (remainingMs <= 0) return null;
       const h = Math.floor(remainingMs / 36e5), m = Math.floor((remainingMs % 36e5) / 6e4);
-      return { allowed: false, nextPostAt: last + POST_COOLDOWN_MS, remainingMs, text: (h > 0 ? h + 'h ' : '') + m + 'm' };
+      return { allowed: false, nextPostAt: gate + POST_COOLDOWN_MS, remainingMs, limit, used: posts.filter(a => now() - a.createdAt < POST_COOLDOWN_MS).length, text: (h > 0 ? h + 'h ' : '') + m + 'm' };
     }
     async function postStatus(user) {
       const u = resolveUser(user);
@@ -275,7 +285,12 @@
       try { images = a.images ? JSON.parse(a.images) : []; } catch (e) {}
       try { paymentMethods = a.paymentMethods ? JSON.parse(a.paymentMethods) : []; } catch (e) {}
       try { sellerPaymentDetails = a.sellerPaymentDetails ? JSON.parse(a.sellerPaymentDetails) : null; } catch (e) {}
-      return { id: a.id, title: a.title, category: a.category, description: a.description, price: a.price, sales: a.sales, users: usersOf(a.id), freeLicensed: !!a.freeLicensed, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, fileUrl: a.fileUrl || null, imageUrl: a.imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending: !!a.deliverDuringPending, owner: o ? publicUser(o) : null, rating: rv ? rv.rating : null, ratingCount: rv ? rv.count : 0, likes: likeCount(a.id), liked: likedBy(a.id, viewerId) };
+      /* Public shape. Deliberately EXCLUDES fileUrl (the deliverable — it used
+         to ride along in the shop list, so anyone could grab a paid system for
+         free) and sellerPaymentDetails (the seller's GCash/QR details — payment
+         info is revealed on the asset page at checkout, not scraped in bulk).
+         fileName stays because buyers see what they are getting. */
+      return { id: a.id, title: a.title, category: a.category, description: a.description, price: a.price, sales: a.sales, users: usersOf(a.id), freeLicensed: !!a.freeLicensed, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, imageUrl: a.imageUrl, images, paymentMethods, deliverDuringPending: !!a.deliverDuringPending, owner: o ? publicUser(o) : null, rating: rv ? rv.rating : null, ratingCount: rv ? rv.count : 0, likes: likeCount(a.id), liked: likedBy(a.id, viewerId) };
     }
     function sendEmail(rec) {
       const row = { id: 'e' + uid(), to: rec.to, subject: rec.subject, action: rec.action, body: rec.body, link: rec.link || null, createdAt: now(), read: false };
@@ -579,7 +594,7 @@
         return fail('auth', 'You must be logged in to post assets.');
       }
       const cd = cooldownInfo(u);
-      if (cd) return fail('cooldown', 'Posting cooldown active — you can post again in ' + cd.text + '.');
+      if (cd) return fail('cooldown', 'Posting limit reached for your Contract tier (' + cd.limit + ' post' + (cd.limit > 1 ? 's' : '') + ' per 24h) — you can post again in ' + cd.text + '.');
       title = String(title || '').trim();
       description = String(description || '').trim();
       price = Number(price);
@@ -618,7 +633,7 @@
         imageUrl: img, status: founderLevel ? 'approved' : 'pending', rejectReason: null, sales: 0, createdAt: now(), updatedAt: now(), approvedAt: founderLevel ? now() : null,
       };
       if (file) {
-        if (file.size > cfg.maxUploadBytes) return fail('invalid', 'File is too large (max 20 MB).');
+        if (file.size > cfg.maxUploadBytes) return fail('invalid', 'File is too large (max ' + Math.round(cfg.maxUploadBytes / 1048576) + ' MB).');
         try { await files.put(asset.id, file); }
         catch (err) { console.error(err); return fail('storage', 'Could not store the file.'); }
       }
@@ -643,15 +658,23 @@
       const isOwner = !!viewer && viewer.id === a.ownerId;
       const isAdminView = !!viewer && isStaff(viewer);
       if (a.status !== 'approved' && !isOwner && !isAdminView) return fail('notfound', 'This asset is not available yet.');
-      const purchase = viewer ? all('purchases').find(p => p.assetId === id && p.buyerId === viewer.id) : null;
+      const purchase = viewer ? livePurchaseFor(viewer.id, id) : null;
+      const blockedHere = !!(viewer && !isOwner && !isAdminView && isAssetBlocked(id, viewer.id));
       return ok({
         ...summarize(a, viewerId),
         description: a.description,
         isOwner,
         hasPurchased: !!purchase,
-        canDownload: !!(isOwner || isAdminView || purchase),
+        blocked: blockedHere,
+        canDownload: !blockedHere && !!(isOwner || isAdminView || purchase),
         /* Mirror link is private — only entitled viewers ever see it. */
         backupUrl: (isOwner || isAdminView || purchase) ? (a.backupUrl || null) : null,
+        /* The primary file link is private too: the owner/staff see where it
+           lives, everyone else must go through the gated /file route. */
+        fileUrl: (isOwner || isAdminView) ? (a.fileUrl || null) : null,
+        /* Payment details are shown to buyers at checkout (this page), which is
+           where a purchase actually happens — never in the public shop list. */
+        sellerPaymentDetails: (() => { try { return a.sellerPaymentDetails ? JSON.parse(a.sellerPaymentDetails) : null; } catch (e) { return null; } })(),
         purchase,
         sellerResponse: sellerResponseStats(a.ownerId),
         canRate: isVerifiedBuyer(viewer, id),
@@ -713,7 +736,7 @@
       }
       const file = normalizeFile(fileData, fileName);
       if (file) {
-        if (file.size > cfg.maxUploadBytes) return fail('invalid', 'File is too large (max 20 MB).');
+        if (file.size > cfg.maxUploadBytes) return fail('invalid', 'File is too large (max ' + Math.round(cfg.maxUploadBytes / 1048576) + ' MB).');
         a.fileName = file.name; a.fileMime = file.mime; a.fileSize = file.size;
         a.fileUrl = null; // raw bytes replace any hosted URL
         try { await files.put(a.id, file); } catch (err) { console.error(err); return fail('storage', 'Could not store the file.'); }
@@ -969,6 +992,19 @@
       }));
     }
 
+    /* A purchase row only grants a download while its license is live. Revoked
+       and disabled licenses (seller unapproved the order, blocked the buyer, or
+       admin revoked it) must lose the FILE as well — the license status alone
+       only stopped the system in-game, so a blocked buyer could still download
+       the deliverable forever. */
+    function livePurchaseFor(viewerId, assetId) {
+      if (!viewerId) return null;
+      const p = all('purchases').find(x => x.assetId === assetId && x.buyerId === viewerId);
+      if (!p) return null;
+      const st = String(p.status || 'active').toLowerCase();
+      if (st === 'disabled' || st === 'revoked') return null;
+      return p;
+    }
     async function download(user, id) {
       const a = byIdIn('assets', id);
       if (!a) return fail('notfound', 'Asset not found.');
@@ -976,7 +1012,8 @@
       const isOwner = v && v.id === a.ownerId;
       const isAdminView = v && isStaff(v);
       const isTest = v && isTester(v);
-      const hasPurchased = v && all('purchases').some(p => p.assetId === id && p.buyerId === v.id);
+      if (v && !isOwner && !isAdminView && isAssetBlocked(id, v.id)) return fail('forbidden', 'The seller has blocked your account from this system.');
+      const hasPurchased = !!livePurchaseFor(v && v.id, id);
       if (!isOwner && !isAdminView && !isTest && !hasPurchased) return fail('forbidden', 'Purchase this asset to download the file.');
       return ok({ fileName: a.fileName, mime: a.fileMime, size: a.fileSize, fileUrl: a.fileUrl || null, backupUrl: a.backupUrl || null });
     }
@@ -1655,7 +1692,14 @@
       if (!u) return fail('auth', 'You must be logged in to do that.');
       const order = byIdIn('orders', orderId);
       if (!order || order.buyerId !== u.id) return fail('forbidden', 'Order not found.');
-      if (order.status === 'created') { store.del('orders', order.id); flush(); } // cancelled = gone, not a lingering row
+      /* A completed order is a delivered license — deleting it here would strand
+         the buyer's license. The seller has to unapprove / reject it instead. */
+      if (order.status === 'completed') return fail('invalid', 'This order is already completed — ask the seller to unapprove it if you need it changed.');
+      /* Cancel removes the order outright. It used to only delete orders still in
+         the 'created' state, so a manual-payment order (awaiting proof) stayed in
+         the buyer's Orders page after they cancelled it. */
+      store.del('orders', order.id);
+      flush();
       return ok(true);
     }
     async function myOrders(user) {
@@ -2205,14 +2249,19 @@
       if (effRank(actor) < roleRank('cofounder')) return fail('forbidden', 'Only the Co-Founder / Founder can grant plans directly.');
       const t = dbUser(targetId);
       if (!t) return fail('notfound', 'User not found.');
-      const pT = Number(protectionTier), cT = Number(contractTier);
-      if (![0, 1, 2, 3].includes(pT) || ![0, 1, 2, 3].includes(cT)) return fail('invalid', 'Tiers must be 0–3.');
-      t.protectionTier = pT;
-      t.contractTier = cT;
+      /* Omitted tiers keep their current value, so the Founder Panel can grant
+         one plan without having to resend the other (it used to reject the
+         whole grant with "Tiers must be 0–3" when only one was supplied). */
+      const readTier = n => (n === undefined || n === null || n === '' ? undefined : Number(n));
+      const okTier = n => n === undefined || [0, 1, 2, 3].includes(n);
+      const pT = readTier(protectionTier), cT = readTier(contractTier);
+      if (!okTier(pT) || !okTier(cT)) return fail('invalid', 'Tiers must be 0–3.');
+      if (pT !== undefined) t.protectionTier = pT;
+      if (cT !== undefined) t.contractTier = cT;
       t.updatedAt = now();
       store.put('users', t);
       flush();
-      return ok({ protectionTier: pT, contractTier: cT });
+      return ok({ protectionTier: t.protectionTier, contractTier: t.contractTier });
     }
     async function adminSetTags(actor, targetId, tags) {
       const r = requireAdmin(actor); if (r) return r;

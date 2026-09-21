@@ -10,7 +10,7 @@ const j = async r => { const t = await r.text(); try { return JSON.parse(t); } c
 (async () => {
   // fresh DB + throwaway server
   const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'kp-shop-'));
-  const srv = spawn(process.execPath, ['server.js'], { cwd: process.cwd(), env: { ...process.env, PORT: '3189', DATA_DIR: dir, UPLOADS_DIR: path.join(dir, 'up') }, stdio: 'ignore' });
+  const srv = spawn(process.execPath, ['server.js'], { cwd: process.cwd(), env: { ...process.env, PORT: '3189', DATA_DIR: dir, UPLOAD_DIR: path.join(dir, 'up') }, stdio: 'ignore' });
   try {
     for (let i = 0; i < 40; i++) { try { const r = await fetch(B + '/api/health'); if (r.ok) break; } catch {} await new Promise(r => setTimeout(r, 250)); }
     const uniq = Date.now() % 1000000;

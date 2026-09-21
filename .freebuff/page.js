@@ -1,1150 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kings Production — Premium Roblox Development Studio</title>
-<meta name="description" content="Kings Production — premium Roblox assets: scripts, models, plugins, animations, and systems.">
-<link rel="icon" href="/logo.png" type="image/png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-/* ============ CHUNK A: TOKENS · BASE · SHELL ============ */
-:root{
-  --bg:#0c0c0e; --bg-2:#0f0f12; --surface:#141418; --surface-2:#1a1a1f; --surface-3:#22222a;
-  --border:#26262c; --border-strong:#34343d;
-  --text:#ececee; --text-2:#a3a3ad; --text-3:#65656e;
-  --gold:#d4af37;
-  --member:#7d7d88; --vip:#4d8dff; --danger:#e5484d; --ok:#46a758;
-  --radius:14px; --radius-s:9px;
-  --font-ui:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;
-  --font-display:'Space Grotesk','Inter',system-ui,sans-serif;
-  --shadow-1:0 1px 2px rgba(0,0,0,.5),0 10px 30px rgba(0,0,0,.4);
-  --shadow-2:0 2px 6px rgba(0,0,0,.4),0 24px 60px rgba(0,0,0,.55);
-  --header-h:64px;
-}
-/* ---- light theme: user-togglable white look (Settings → Light theme) ---- */
-html[data-theme="light"]{
-  --bg:#f6f6f8; --bg-2:#ffffff; --surface:#ffffff; --surface-2:#f2f2f5; --surface-3:#e9e9ee;
-  --border:#e2e2e8; --border-strong:#c9c9d2;
-  --text:#17171c; --text-2:#55555f; --text-3:#8b8b95;
-  --gold:#b8912a;
-  --shadow-1:0 1px 2px rgba(16,16,24,.06),0 10px 30px rgba(16,16,24,.08);
-  --shadow-2:0 2px 6px rgba(16,16,24,.06),0 24px 60px rgba(16,16,24,.12);
-}
-html[data-theme="light"] body{background:
-  radial-gradient(1200px 620px at 50% -8%, rgba(184,145,42,.07), transparent 62%),
-  radial-gradient(1000px 560px at 90% 2%, rgba(77,141,255,.05), transparent 55%),
-  #f6f6f8;}
-html[data-theme="light"] ::selection{background:#ffe9a8;color:#17171c}
-*{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
-body{background:var(--bg);color:var(--text);font-family:var(--font-ui);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;min-height:100vh}
-::selection{background:#3a3a42;color:#fff}
-::-webkit-scrollbar{width:11px;height:11px}
-::-webkit-scrollbar-track{background:var(--bg)}
-::-webkit-scrollbar-thumb{background:#2a2a31;border-radius:8px;border:3px solid var(--bg)}
-::-webkit-scrollbar-thumb:hover{background:#3a3a44}
-a{color:inherit;text-decoration:none}
-img{max-width:100%;display:block}
-button{font-family:inherit}
-input,select,textarea{font-family:inherit;font-size:15px}
-:focus-visible{outline:2px solid #8a8a95;outline-offset:2px;border-radius:4px}
-.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
-/* crown — the ONLY gold element in the system */
-.crown{color:var(--gold);display:inline-flex;flex-shrink:0}
-.crown svg{display:block}
-
-/* ===== layout shell ===== */
-html,body{overflow-x:hidden}
-#app{min-height:100vh;display:flex;flex-direction:column}
-.site-header{position:sticky;top:0;z-index:50;height:var(--header-h);background:rgba(12,12,14,.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--border)}
-.account-name{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle}
-.header-inner{max-width:1200px;margin:0 auto;height:100%;padding:0 24px;display:flex;align-items:center;gap:28px;min-width:0}
-.brand{display:flex;align-items:center;gap:11px;font-family:var(--font-display);font-weight:700;font-size:18px;letter-spacing:-.01em;color:var(--text);flex-shrink:0}
-.brand .crown svg{width:26px;height:26px}
-.brand-sub{display:block;font-family:var(--font-ui);font-weight:500;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--text-3)}
-.brand-txt{display:flex;flex-direction:column;line-height:1.15}
-.main-nav{display:flex;gap:4px;margin-left:12px;flex:1 1 auto;min-width:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;flex-wrap:nowrap}
-.main-nav::-webkit-scrollbar{display:none}
-.main-nav a{padding:8px 14px;border-radius:9px;font-size:14px;font-weight:500;color:var(--text-2);transition:color .18s,background .18s;white-space:nowrap;flex-shrink:0}
-.main-nav a:hover{color:var(--text);background:rgba(255,255,255,.05)}
-.main-nav a.active{color:var(--text);background:rgba(255,255,255,.08)}
-.header-right{margin-left:auto;display:flex;align-items:center;gap:10px;flex-shrink:0}
-.header-cta{display:inline-flex;align-items:center;gap:10px}
-
-.site-footer{border-top:1px solid var(--border);background:var(--bg-2);margin-top:auto}
-.footer-inner{max-width:1200px;margin:0 auto;padding:46px 24px 34px;display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:40px}
-.footer-brand .crown svg{width:30px;height:30px}
-.footer-brand p{color:var(--text-3);font-size:13.5px;margin-top:12px;max-width:300px}
-.footer h4{font-family:var(--font-display);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-3);margin-bottom:14px}
-.footer-links{display:flex;flex-direction:column;gap:9px}
-.footer-links a{color:var(--text-2);font-size:14px;transition:color .18s}
-.footer-links a:hover{color:var(--text)}
-.footer-bottom{border-top:1px solid var(--border);padding:18px 0;text-align:center;color:var(--text-3);font-size:12.5px}
-
-main{flex:1;width:100%}
-.page{max-width:1200px;margin:0 auto;padding:40px 24px 72px}
-.page-narrow{max-width:760px}
-.view{animation:viewIn .32s cubic-bezier(.2,.7,.3,1)}
-@keyframes viewIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.view{animation:none}}
-
-/* hero */
-.hero{position:relative;overflow:hidden;border-bottom:1px solid var(--border);background:radial-gradient(1100px 500px at 50% -10%,rgba(255,255,255,.055),transparent 60%)}
-.hero-inner{max-width:1200px;margin:0 auto;padding:84px 24px 66px;text-align:center}
-.hero .crown svg{width:44px;height:44px;filter:drop-shadow(0 0 22px rgba(212,175,55,.35))}
-.hero-eyebrow{margin-top:18px;font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--text-3);font-weight:600}
-.hero h1{font-family:var(--font-display);font-size:clamp(38px,6vw,64px);line-height:1.04;letter-spacing:-.03em;font-weight:700;margin-top:14px}
-.hero-tag{font-size:clamp(17px,2.4vw,21px);color:var(--text-2);margin-top:16px;font-weight:400}
-.hero-em{color:var(--text);font-weight:500}
-.hero-cta{display:flex;gap:14px;justify-content:center;margin-top:34px;flex-wrap:wrap}
-.hero-stats{display:flex;gap:0;justify-content:center;margin-top:52px;border-top:1px solid var(--border);padding-top:30px;flex-wrap:wrap}
-.hero-stat{padding:0 38px;text-align:center}
-.hero-stat + .hero-stat{border-left:1px solid var(--border)}
-.hero-stat b{display:block;font-family:var(--font-display);font-size:30px;font-weight:700}
-.hero-stat span{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-3)}
-
-@media (max-width:760px){
-  .hero-stat{padding:10px 22px}
-  .footer-inner{grid-template-columns:1fr;gap:28px}
-  .main-nav{display:none}
-}
-
-/* ============ CHUNK B: COMPONENTS ============ */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 22px;border-radius:10px;border:1px solid transparent;font-size:14.5px;font-weight:600;cursor:pointer;transition:transform .15s,box-shadow .2s,background .18s,color .18s,border-color .18s,opacity .18s;white-space:nowrap}
-.btn:active{transform:translateY(1px)}
-.btn-primary{background:#f2f2f4;color:#101013}
-.btn-primary:hover{background:#fff;box-shadow:0 8px 22px rgba(255,255,255,.12)}
-.btn-ghost{background:transparent;color:var(--text-2);border-color:var(--border-strong)}
-.btn-ghost:hover{color:var(--text);border-color:#4a4a55;background:rgba(255,255,255,.03)}
-.btn-danger{background:transparent;color:#ff7b80;border-color:rgba(229,72,77,.45)}
-.btn-danger:hover{background:rgba(229,72,77,.12);border-color:var(--danger)}
-.btn-solid-danger{background:var(--danger);color:#fff}
-.btn-solid-danger:hover{background:#f0555a}
-.btn-sm{padding:7px 13px;font-size:13px;border-radius:8px}
-.btn-lg{padding:14px 30px;font-size:15.5px;border-radius:12px}
-.btn:disabled,.btn[disabled]{opacity:.45;cursor:not-allowed;transform:none}
-
-.input,.select,.textarea{width:100%;background:var(--surface-2);border:1px solid var(--border-strong);color:var(--text);border-radius:10px;padding:11px 14px;transition:border-color .18s,box-shadow .18s}
-.input::placeholder,.textarea::placeholder{color:var(--text-3)}
-.input:focus,.select:focus,.textarea:focus{outline:none;border-color:#5a5a66;box-shadow:0 0 0 3px rgba(255,255,255,.06)}
-.textarea{resize:vertical;min-height:110px;line-height:1.55}
-.select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%23a3a3ad' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:38px;cursor:pointer}
-.field{margin-bottom:18px}
-.field label{display:block;font-size:13px;font-weight:600;color:var(--text-2);margin-bottom:7px}
-.field .hint{font-size:12px;color:var(--text-3);margin-top:6px}
-.field .req{color:#ff7b80;margin-left:2px}
-.form-error{background:rgba(229,72,77,.1);border:1px solid rgba(229,72,77,.4);color:#ff9aa0;border-radius:10px;padding:11px 14px;font-size:13.5px;margin-bottom:16px}
-.form-ok{background:rgba(70,167,88,.1);border:1px solid rgba(70,167,88,.4);color:#7fd18d;border-radius:10px;padding:11px 14px;font-size:13.5px;margin-bottom:16px}
-
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);transition:border-color .2s,transform .2s,box-shadow .2s}
-.card-hover:hover{transform:translateY(-3px);border-color:var(--border-strong);box-shadow:var(--shadow-1)}
-.card-pad{padding:22px}
-
-.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;line-height:1.5;white-space:nowrap}
-.badge.member{background:rgba(125,125,136,.16);color:#a9a9b3;border:1px solid rgba(125,125,136,.35)}
-.badge.vip{background:rgba(77,141,255,.14);color:#7fb0ff;border:1px solid rgba(77,141,255,.4)}
-.badge.admin{background:rgba(212,175,55,.13);color:var(--gold);border:1px solid rgba(212,175,55,.45)}
-.badge.admin .crown svg{width:11px;height:11px}
-.badge.owner{background:linear-gradient(135deg,rgba(212,175,55,.24),rgba(212,175,55,.08));color:#ffd97a;border:1px solid rgba(255,199,84,.55);box-shadow:0 0 16px rgba(212,175,55,.32),inset 0 1px 0 rgba(255,255,255,.12)}
-.badge.owner .crown svg{width:11px;height:11px;filter:drop-shadow(0 0 4px rgba(255,199,84,.8))}
-.badge.cofounder{background:linear-gradient(135deg,rgba(167,139,250,.22),rgba(167,139,250,.07));color:#c9b8ff;border:1px solid rgba(167,139,250,.5);box-shadow:0 0 14px rgba(167,139,250,.24),inset 0 1px 0 rgba(255,255,255,.1)}
-.badge.tag{background:rgba(255,255,255,.07);color:var(--text-2);border:1px dashed var(--border-strong);text-transform:none;letter-spacing:.03em;font-weight:600}
-.badge.tag::before{content:'#';opacity:.6}
-.badge.plain{background:rgba(255,255,255,.06);color:var(--text-2);border:1px solid var(--border-strong)}
-.badge.ok{background:rgba(70,167,88,.13);color:#7fd18d;border:1px solid rgba(70,167,88,.4)}
-.badge.warn{background:rgba(163,163,173,.12);color:#b9b9c2;border:1px solid rgba(163,163,173,.4)}
-.badge.err{background:rgba(229,72,77,.12);color:#ff9aa0;border:1px solid rgba(229,72,77,.4)}
-
-.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border-radius:999px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text-2);font-size:13px;font-weight:500;cursor:pointer;transition:all .16s}
-.chip-x{background:none;border:none;color:inherit;cursor:pointer;font-size:15px;line-height:1;padding:0 0 0 3px;opacity:.65;transition:opacity .15s}
-.chip-x:hover{opacity:1;color:#ff9aa0}
-.chip:hover{color:var(--text);border-color:#4a4a55}
-.chip.active{color:#0c0c0e;background:#f2f2f4;border-color:#f2f2f4;font-weight:600}
-
-.avatar{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;overflow:hidden;background:linear-gradient(145deg,#232329,#1a1a1f);border:1px solid var(--border-strong);flex-shrink:0;color:var(--text-3);font-family:var(--font-display);font-weight:600}
-.avatar img{width:100%;height:100%;object-fit:cover}
-.avatar .crown svg{width:46%;height:46%}
-
-/* asset grid + card */
-.grid{display:grid;gap:20px}
-.grid-assets{grid-template-columns:repeat(auto-fill,minmax(248px,1fr))}
-.asset-card{display:flex;flex-direction:column;overflow:hidden;cursor:pointer}
-.asset-thumb{position:relative;height:150px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--border);overflow:hidden}
-.asset-thumb .thumb-bg{position:absolute;inset:0;opacity:.9}
-.asset-thumb .thumb-icon{position:relative;color:#fff;filter:drop-shadow(0 6px 16px rgba(0,0,0,.5))}
-.asset-thumb .thumb-icon svg{width:44px;height:44px;opacity:.92}
-.thumb-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
-.asset-hero-thumb .thumb-img{position:relative;object-fit:cover}
-
-/* floating social + post buttons */
-.social-dock{position:fixed;left:18px;bottom:18px;z-index:60;display:flex;flex-direction:column;gap:10px}
-.social-dock .s-btn{width:42px;height:42px;border-radius:50%;border:1px solid rgba(212,175,55,.28);background:linear-gradient(180deg, rgba(40,40,48,.9), rgba(22,22,27,.92));color:var(--text-1);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .18s,box-shadow .18s,border-color .18s;box-shadow:0 4px 14px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06);backdrop-filter:blur(8px)}
-.social-dock .s-btn:hover{transform:translateY(-2px);border-color:rgba(212,175,55,.55);box-shadow:0 6px 20px rgba(212,175,55,.18),inset 0 1px 0 rgba(255,255,255,.08)}
-.social-dock .s-btn svg{width:19px;height:19px}
-.social-dock .s-btn.help{font-weight:800;font-size:16px;color:var(--gold);background:linear-gradient(180deg, rgba(60,52,20,.95), rgba(26,23,14,.95))}
-.post-fab{position:fixed;right:18px;bottom:18px;z-index:60;width:52px;height:52px;border-radius:50%;border:1px solid rgba(212,175,55,.5);background:linear-gradient(180deg, #3a3220, #1d1910);color:var(--gold);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 6px 22px rgba(212,175,55,.28),inset 0 1px 0 rgba(255,255,255,.12);transition:transform .18s,box-shadow .18s}
-.post-fab:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 8px 26px rgba(212,175,55,.4)}
-.post-fab svg{width:22px;height:22px}
-.post-fab.locked{cursor:not-allowed;border-color:rgba(255,255,255,.18);background:linear-gradient(180deg, #2c2c33, #17171b);color:#8b8b94;box-shadow:0 6px 22px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.08)}
-.site-status{position:fixed;right:18px;bottom:84px;z-index:60;display:flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;border:1px solid var(--border-strong);background:linear-gradient(180deg, rgba(34,34,41,.92), rgba(18,18,22,.94));backdrop-filter:blur(8px);box-shadow:0 4px 14px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.05);font-size:11.5px;font-weight:700;letter-spacing:.04em;color:var(--text-2);white-space:nowrap;cursor:default}
-.site-status .dot{width:8px;height:8px;border-radius:50%;background:#8b8b94;box-shadow:0 0 0 0 rgba(139,139,148,.5);transition:background .25s}
-.site-status.online{color:#7fd18d;border-color:rgba(70,167,88,.45)}
-.site-status.online .dot{background:#54d97a;box-shadow:0 0 8px rgba(84,217,122,.9);animation:statusPulse 2.4s ease-out infinite}
-.site-status.waking{color:#ffd97a;border-color:rgba(255,199,84,.5)}
-.site-status.waking .dot{background:#ffcf5c;box-shadow:0 0 8px rgba(255,207,92,.9);animation:statusBlink 1s ease-in-out infinite}
-.site-status.asleep{color:#a9a9b3;border-color:rgba(125,125,136,.4)}
-.site-status.asleep .dot{background:#5a5a63}
-@keyframes statusPulse{0%{box-shadow:0 0 0 0 rgba(84,217,122,.55)}70%{box-shadow:0 0 0 7px rgba(84,217,122,0)}100%{box-shadow:0 0 0 0 rgba(84,217,122,0)}}
-@keyframes statusBlink{0%,100%{opacity:1}50%{opacity:.35}}
-.asset-rank{position:absolute;top:12px;left:12px;background:rgba(12,12,14,.78);backdrop-filter:blur(6px);border:1px solid var(--border-strong);color:var(--text);border-radius:8px;padding:3px 9px;font-size:12px;font-weight:700}
-.asset-cat{position:absolute;top:12px;right:12px}
-.asset-body{padding:15px 16px 16px;display:flex;flex-direction:column;gap:9px;flex:1}
-.asset-title{font-family:var(--font-display);font-size:15.5px;font-weight:600;line-height:1.3}
-.asset-owner{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-2)}
-.asset-owner .avatar{width:22px;height:22px;font-size:10px}
-.asset-foot{display:flex;align-items:center;justify-content:space-between;margin-top:auto;padding-top:9px;border-top:1px solid var(--border)}
-.price{font-family:var(--font-display);font-weight:700;font-size:16px}
-.sales{font-size:12.5px;color:var(--text-3);display:inline-flex;align-items:center;gap:5px}
-
-/* section headers */
-.section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:44px 0 20px}
-.section-head:first-child{margin-top:0}
-.section-head h2{font-family:var(--font-display);font-size:24px;font-weight:700;letter-spacing:-.02em}
-.section-head p{color:var(--text-3);font-size:14px;margin-top:3px}
-.section-eyebrow{font-size:11.5px;letter-spacing:.26em;text-transform:uppercase;color:var(--text-3);font-weight:600;margin-bottom:8px;display:block}
-
-/* toolbar */
-.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:22px}
-.search{position:relative;flex:1;min-width:220px;max-width:420px}
-.search svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--text-3)}
-.search .input{padding-left:38px}
-
-/* tables */
-.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)}
-.table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:640px}
-.table th{text-align:left;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-3);font-weight:600;padding:13px 16px;border-bottom:1px solid var(--border);white-space:nowrap}
-.table td{padding:13px 16px;border-bottom:1px solid var(--border);vertical-align:middle}
-.table tr:last-child td{border-bottom:none}
-.table tbody tr{transition:background .15s}
-.table tbody tr:hover{background:rgba(255,255,255,.025)}
-.table .row-actions{display:flex;gap:8px;flex-wrap:wrap}
-
-/* tabs */
-.tabs{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--border);margin-bottom:26px}
-.tab{appearance:none;background:transparent;padding:10px 16px;font-size:13.5px;font-weight:600;color:var(--text-3);border:none;border-bottom:2px solid transparent;margin-bottom:-1px;border-radius:8px 8px 0 0;cursor:pointer;white-space:nowrap;transition:color .16s,background .16s,border-color .16s}
-.tab:hover{color:var(--text);background:rgba(255,255,255,.05)}
-.tab.active{color:#fff;background:linear-gradient(180deg,rgba(212,175,55,.13),rgba(212,175,55,.02));border-bottom-color:var(--gold);text-shadow:0 0 14px rgba(212,175,55,.35)}
-
-/* toast */
-#toasts{position:fixed;bottom:22px;right:22px;z-index:120;display:flex;flex-direction:column;gap:10px;max-width:340px}
-.toast{background:var(--surface-2);border:1px solid var(--border-strong);color:var(--text);padding:13px 16px;border-radius:11px;box-shadow:var(--shadow-2);font-size:14px;display:flex;gap:10px;align-items:flex-start;animation:toastIn .28s cubic-bezier(.2,.8,.3,1);cursor:pointer}
-.toast.ok{border-color:rgba(70,167,88,.5)}
-.toast.err{border-color:rgba(229,72,77,.55)}
-.toast.out{opacity:0;transform:translateX(16px);transition:all .3s}
-@keyframes toastIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-
-/* modal */
-.modal-overlay{position:fixed;inset:0;z-index:110;background:rgba(6,6,8,.66);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .2s}
-.modal{width:100%;max-width:470px;background:var(--surface);border:1px solid var(--border-strong);border-radius:16px;box-shadow:var(--shadow-2);padding:26px;animation:popIn .24s cubic-bezier(.2,.8,.3,1);max-height:min(86vh,680px);overflow-y:auto}
-.modal-wide{max-width:920px}
-
-.modal h3{font-family:var(--font-display);font-size:19px;font-weight:700;margin-bottom:10px}
-.modal p{color:var(--text-2);font-size:14px;margin-bottom:20px}
-.modal-actions{display:flex;justify-content:flex-end;gap:10px}
-/* schedule calendar picker */
-.picker-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
-.picker-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:14px}
-.picker-dow{text-align:center;font-size:11px;color:var(--text-3);padding:4px 0;font-weight:700}
-.picker-day{border:1px solid transparent;background:transparent;color:var(--text);font-size:13px;border-radius:8px;padding:7px 0;cursor:pointer;transition:background .12s,border-color .12s,color .12s}
-.picker-day:hover{background:var(--border);border-color:var(--border-strong)}
-.picker-day-sel{background:linear-gradient(135deg,var(--gold),#b8891f);color:#0c0c0e !important;font-weight:700;border-color:transparent !important}
-.picker-time{margin-bottom:10px}
-.picker-hrs{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;max-height:118px;overflow:auto}
-.picker-hr{border:1px solid var(--border-strong);background:transparent;color:var(--text-2);font-size:12px;border-radius:7px;padding:5px 9px;cursor:pointer;transition:background .12s,color .12s,border-color .12s}
-.picker-hr:hover{border-color:var(--gold);color:var(--text)}
-.picker-preview{font-family:var(--font-display);font-size:14px;color:var(--gold);text-align:center;padding:10px;border:1px dashed var(--border-strong);border-radius:10px;margin-top:2px}
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
-@keyframes popIn{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:none}}
-
-/* dropdown */
-.dropdown{position:relative}
-.dropdown-menu{position:absolute;right:0;top:calc(100% + 8px);min-width:230px;background:var(--surface);border:1px solid var(--border-strong);border-radius:12px;box-shadow:var(--shadow-2);padding:6px;z-index:60;animation:popIn .16s}
-.dropdown-menu a,.dropdown-menu button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:10px 12px;border-radius:8px;font-size:14px;color:var(--text-2);background:none;border:none;cursor:pointer;transition:background .14s,color .14s}
-.dropdown-menu a:hover,.dropdown-menu button:hover{background:rgba(255,255,255,.05);color:var(--text)}
-.dropdown-menu .sep{height:1px;background:var(--border);margin:6px 4px}
-
-/* empty state */
-.empty{text-align:center;padding:64px 20px;color:var(--text-3)}
-.empty .crown svg{width:38px;height:38px;opacity:.5;margin:0 auto 14px}
-.empty h3{font-family:var(--font-display);color:var(--text-2);font-size:17px;margin-bottom:6px}
-.empty p{font-size:14px;max-width:360px;margin:0 auto}
-
-/* misc */
-.row{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
-.spacer{flex:1}
-.divider{border:none;border-top:1px solid var(--border);margin:26px 0}
-.dot{width:8px;height:8px;border-radius:50%;display:inline-block}
-.dot.on{background:var(--ok);box-shadow:0 0 8px rgba(70,167,88,.6)}
-.dot.off{background:var(--text-3)}
-.mono{font-family:ui-monospace,'SF Mono','Cascadia Code',Menlo,monospace}
-.muted{color:var(--text-3)}
-.small{font-size:12.5px}
-.bold{font-weight:600}
-.mt{margin-top:16px}
-.mt2{margin-top:28px}
-.mb{margin-bottom:16px}
-.center{text-align:center}
-.hidden{display:none!important}
-.loading{display:flex;align-items:center;justify-content:center;gap:10px;padding:60px 0;color:var(--text-3)}
-.spinner{width:18px;height:18px;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 260deg,var(--gold) 260deg 360deg);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 calc(100% - 2.4px));mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 calc(100% - 2.4px));animation:spin .8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-.kbd{background:var(--surface-2);border:1px solid var(--border-strong);border-radius:5px;padding:1px 6px;font-size:12px;color:var(--text-2);font-family:ui-monospace,monospace}
-
-/* ============ CHUNK C: VIEWS ============ */
-/* auth */
-.auth-wrap{max-width:420px;margin:48px auto;padding:34px;background:var(--surface);border:1px solid var(--border);border-radius:18px}
-.auth-wrap .brand{justify-content:center;margin-bottom:8px}
-.auth-title{font-family:var(--font-display);font-size:23px;font-weight:700;text-align:center;margin:14px 0 4px}
-.auth-sub{text-align:center;color:var(--text-3);font-size:13.5px;margin-bottom:24px}
-.auth-alt{text-align:center;font-size:13.5px;color:var(--text-2);margin-top:20px}
-.auth-alt a{color:var(--text);font-weight:600;border-bottom:1px solid var(--border-strong)}
-.auth-alt a:hover{border-color:var(--text)}
-.demo-box{margin-top:26px;border:1px dashed var(--border-strong);border-radius:11px;padding:14px 16px;background:var(--bg-2);font-size:12.5px;color:var(--text-3)}
-@media (max-width:760px){.pf-zoom{grid-template-columns:1fr !important}}
-.demo-box b{color:var(--text-2)}
-.demo-box code{color:#c9c9d1}
-
-/* 2FA digits */
-.otp-input{width:100%;text-align:center;font-size:26px;letter-spacing:.55em;padding:13px;font-family:var(--font-display);font-weight:700}
-.totp-live{display:flex;align-items:center;gap:16px;background:var(--bg-2);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
-.totp-code{font-family:var(--font-display);font-size:30px;font-weight:700;letter-spacing:.14em;color:#d7f4dc}
-.totp-ring{width:52px;height:52px;flex-shrink:0}
-.totp-ring circle{fill:none;stroke-width:3}
-.totp-ring .track{stroke:var(--border-strong)}
-.totp-ring .arc{stroke:var(--ok);stroke-linecap:round;transition:stroke-dashoffset 1s linear}
-
-/* asset page */
-.asset-hero{display:grid;grid-template-columns:minmax(400px,660px) 1fr;gap:38px;align-items:start}
-.asset-hero-thumb{position:relative;aspect-ratio:16/10;width:100%;border-radius:18px;border:1px solid var(--border);overflow:hidden;display:flex;align-items:center;justify-content:center;cursor:zoom-in;box-shadow:0 18px 44px rgba(0,0,0,.35)}
-.asset-hero-thumb .thumb-icon svg{width:96px;height:96px}
-.asset-desc-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 24px;margin-top:26px}
-.asset-desc-card h3{font-family:var(--font-display);font-size:16px;margin:0 0 10px}
-.asset-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px}
-.nav-alert{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:6px;border-radius:50%;background:var(--gold);color:#1a1408;font-size:10.5px;font-weight:800;line-height:1;box-shadow:0 0 0 2px var(--surface);animation:navAlertPulse 2.2s ease-in-out infinite}
-@keyframes navAlertPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.18);opacity:.85}}
-.asset-desc{color:var(--text-2);font-size:15px;line-height:1.75;white-space:pre-wrap}
-.buy-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:14px;margin-top:22px}
-.buy-box .price{font-size:24px}
-.poster-row{display:flex;align-items:center;gap:12px;padding:16px 0;border-top:1px solid var(--border);margin-top:26px}
-.poster-row .avatar{width:44px;height:44px;font-size:17px}
-
-/* comments */
-.comments{margin-top:44px}
-.comment{display:flex;gap:13px;padding:16px 0;border-top:1px solid var(--border)}
-.comment .avatar{width:38px;height:38px;font-size:14px}
-.comment-body{flex:1;min-width:0}
-.comment-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:4px}
-.comment-name{font-weight:600;font-size:14px}
-.comment-time{font-size:12px;color:var(--text-3)}
-.comment-text{font-size:14px;color:var(--text-2);line-height:1.65;overflow-wrap:break-word}
-.composer{display:flex;gap:12px;margin-top:18px;align-items:flex-start}
-.composer .avatar{width:40px;height:40px;font-size:15px}
-.composer textarea{flex:1;min-height:74px}
-
-/* profile */
-.profile-hero{display:flex;gap:26px;align-items:center;padding:34px;background:var(--surface);border:1px solid var(--border);border-radius:18px;flex-wrap:wrap}
-.profile-hero .avatar{width:104px;height:104px;font-size:38px;border-width:2px}
-.profile-name{font-family:var(--font-display);font-size:28px;font-weight:700;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.profile-handle{color:var(--text-3);font-size:15px}
-.profile-meta{display:flex;gap:26px;margin-top:14px;flex-wrap:wrap}
-.profile-meta div b{font-family:var(--font-display);font-size:19px;display:block}
-.profile-meta div span{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-3)}
-.profile-bio{color:var(--text-2);font-size:14px;margin-top:14px;max-width:560px}
-
-/* portfolio & creators */
-.portfolio-grid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
-.project-card{overflow:hidden}
-.project-banner{height:150px;position:relative;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--border);overflow:hidden}
-.portfolio-grid .project-card.spotlight{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);overflow:hidden;border-color:rgba(212,175,55,.35);box-shadow:0 0 0 1px rgba(212,175,55,.16),0 18px 44px rgba(0,0,0,.4)}
-.portfolio-grid .project-card.spotlight .project-banner{height:auto;min-height:250px;border-bottom:none;border-right:1px solid var(--border)}
-.portfolio-grid .project-card.spotlight .project-body{padding:26px 28px;justify-content:center;gap:13px}
-.portfolio-grid .project-card.spotlight h3{font-size:24px}
-.portfolio-grid .project-card.spotlight p{font-size:14.5px;color:var(--text-2)}
-.portfolio-grid .project-card.spotlight .project-foot{margin-top:4px}
-@media (max-width:760px){.portfolio-grid .project-card.spotlight{grid-template-columns:1fr}.portfolio-grid .project-card.spotlight .project-banner{min-height:170px;border-right:none;border-bottom:1px solid var(--border)}}
-.project-banner svg{width:52px;height:52px;color:rgba(255,255,255,.9)}
-.project-body{padding:18px 20px 20px}
-.project-body h3{font-family:var(--font-display);font-size:17.5px;font-weight:700;margin-bottom:6px}
-.project-body p{color:var(--text-2);font-size:13.5px;line-height:1.6}
-.project-foot{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
-.project-foot b{font-family:var(--font-display);font-size:15px}
-.project-foot span{font-size:12px;color:var(--text-3)}
-.creators-grid{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
-.creator-card{text-align:center;padding:30px 22px}
-.creator-card .avatar{width:78px;height:78px;font-size:28px;margin:0 auto 16px}
-.creator-card h3{font-family:var(--font-display);font-size:18px;font-weight:700}
-.creator-card .role{color:var(--vip);font-size:12.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-top:3px}  .creator-card p{color:var(--text-2);font-size:13.5px;margin-top:12px;line-height:1.6}
-  .creator-card .pf-note{color:var(--text-2);font-size:13.5px;margin-top:12px;line-height:1.6}
-
-/* license */
-.tier-grid{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
-.tier{border:1px solid var(--border);border-radius:16px;padding:26px;background:var(--surface);position:relative;display:flex;flex-direction:column;gap:12px}
-.tier.featured{border-color:var(--border-strong);background:var(--surface-2)}
-.tier h3{font-family:var(--font-display);font-size:19px}
-.tier .price-line{font-family:var(--font-display);font-size:24px;font-weight:700}
-.tier ul{list-style:none;display:flex;flex-direction:column;gap:8px;font-size:13.5px;color:var(--text-2)}
-.tier li{display:flex;gap:9px;align-items:flex-start}
-.tier li::before{content:"✓";color:var(--ok);font-weight:700;flex-shrink:0}
-.tier .btn{margin-top:auto}
-.license-key{font-family:ui-monospace,monospace;background:var(--bg-2);border:1px solid var(--border-strong);border-radius:8px;padding:5px 10px;font-size:12.5px;color:#c9c9d1;letter-spacing:.06em}
-
-/* admin */
-.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px}
-.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:18px 20px}
-.stat-card b{font-family:var(--font-display);font-size:27px;display:block}
-.stat-card span{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-3)}
-.approve-card{display:flex;gap:18px;background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:18px;align-items:flex-start;flex-wrap:wrap}
-.approve-card .thumb{width:110px;height:82px;border-radius:10px;border:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
-.approve-card .info{flex:1;min-width:220px}
-.approve-card h4{font-family:var(--font-display);font-size:16px;margin-bottom:4px}
-.approve-card .desc{color:var(--text-3);font-size:13px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.user-row{display:flex;align-items:center;gap:12px}
-.user-row .avatar{width:34px;height:34px;font-size:13px}
-.status-pill{font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;display:inline-block}
-.status-approved{background:rgba(70,167,88,.13);color:#7fd18d;border:1px solid rgba(70,167,88,.4)}
-.status-pending{background:rgba(163,163,173,.14);color:#b9b9c2;border:1px solid rgba(163,163,173,.45)}
-.status-rejected{background:rgba(229,72,77,.12);color:#ff9aa0;border:1px solid rgba(229,72,77,.4)}
-
-/* mobile */
-@media (max-width:860px){
-  .asset-hero{grid-template-columns:1fr}
-  .asset-hero-thumb{aspect-ratio:16/9}
-  .page{padding:28px 16px 56px}
-  .header-inner{padding:0 14px;gap:14px}
-  .hero-inner{padding:56px 18px 44px}
-  .profile-hero{padding:24px}
-  .modal{max-width:100%}
-}
-@media (max-width:560px){
-  .hide-sm{display:none!important}
-  .grid-assets{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px}
-  .asset-thumb{height:110px}
-  .asset-title{font-size:14px}
-}
-
-/* generic thumb gradients by category */
-.thumb-anim{background:linear-gradient(150deg,#24324a,#12141c)}
-.thumb-model{background:linear-gradient(150deg,#2c2338,#14121a)}
-.thumb-plugin{background:linear-gradient(150deg,#1f3a34,#101612)}
-.thumb-system{background:linear-gradient(150deg,#3a2b1f,#171310)}
-.thumb-tool{background:linear-gradient(150deg,#1f2f3a,#101518)}
-.thumb-default{background:linear-gradient(150deg,#26262e,#141418)}
-
-/* reviews & ratings */
-.stars{display:inline-flex;gap:2px;color:var(--text);font-size:13px;letter-spacing:1px;line-height:1}
-.stars .off{color:var(--border-strong)}
-.asset-rating{display:flex;align-items:center;gap:7px}
-.star-btn{background:none;border:none;cursor:pointer;font-size:21px;line-height:1;color:var(--border-strong);padding:2px 3px;transition:color .15s,transform .15s}
-.star-btn.on{color:var(--text)}
-.star-btn:hover{transform:scale(1.18)}
-.stars-pick{display:inline-flex;margin-bottom:8px}
-.review-summary{display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap;padding:22px}
-.review{display:flex;gap:13px;padding:16px 0;border-top:1px solid var(--border)}
-.review .avatar{width:36px;height:36px;font-size:13px}
-.review-text{font-size:14px;color:var(--text-2);line-height:1.65;overflow-wrap:break-word;margin-top:5px}
-.review-form .textarea{min-height:70px;margin-bottom:10px}
-.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;border:1px solid var(--border-strong);background:transparent;color:var(--text-3);cursor:pointer;transition:all .15s;margin-left:auto}
-.icon-btn:hover{color:var(--text);border-color:#4a4a55;background:rgba(255,255,255,.03)}
-.icon-btn.danger:hover{color:#ff7b80;border-color:rgba(229,72,77,.5);background:rgba(229,72,77,.1)}
-
-/* ============================================================================
-   POLISH — “the crown is the light source”: dark gradient lighting, ambient
-   gold glow, refined surfaces, high-end admin + global UI details.
-   ============================================================================ */
-:root{
-  --gold-soft:rgba(212,175,55,.14);
-  --glow-gold:0 0 0 1px rgba(212,175,55,.14),0 18px 44px rgba(0,0,0,.55),0 0 34px rgba(212,175,55,.08);
-}
-
-/* ambient lighting — richer fixed gradient glow that follows the viewport */
-body{background:
-  radial-gradient(1200px 620px at 50% -8%, rgba(212,175,55,.11), transparent 62%),
-  radial-gradient(1000px 560px at 90% 2%, rgba(96,145,255,.06), transparent 55%),
-  radial-gradient(760px 520px at 4% 18%, rgba(212,175,55,.05), transparent 58%),
-  radial-gradient(900px 620px at 78% 78%, rgba(120,80,220,.045), transparent 60%),
-  radial-gradient(700px 500px at 20% 88%, rgba(212,175,55,.04), transparent 58%),
-  var(--bg);
-  background-attachment:fixed}
-/* subtle animated aurora shimmer across the whole viewport */
-body::before{content:"";position:fixed;inset:-40%;z-index:0;pointer-events:none;background:conic-gradient(from 190deg at 50% 0%, transparent 0deg, rgba(212,175,55,.05) 40deg, transparent 90deg, rgba(96,145,255,.04) 150deg, transparent 220deg, rgba(212,175,55,.045) 300deg, transparent 360deg);animation:kp-aurora 34s linear infinite;filter:blur(30px)}
-@keyframes kp-aurora{from{transform:rotate(0)}to{transform:rotate(360deg)}}
-
-/* header — deeper blur, gold hairline that catches the light */
-.site-header{background:linear-gradient(180deg, rgba(20,20,24,.94), rgba(12,12,14,.86));backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
-.site-header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;background:linear-gradient(90deg,transparent,rgba(212,175,55,.38),transparent);opacity:.65;pointer-events:none}
-.main-nav a.active{color:#fff;background:linear-gradient(180deg,rgba(212,175,55,.16),rgba(212,175,55,.04));box-shadow:inset 0 0 0 1px rgba(212,175,55,.2)}
-
-/* hero — the crown glows and lights the room */
-.hero{background:
-  radial-gradient(1100px 620px at 50% -14%, rgba(212,175,55,.16), transparent 62%),
-  radial-gradient(760px 420px at 50% 8%, rgba(212,175,55,.08), transparent 60%),
-  radial-gradient(500px 260px at 50% 22%, rgba(212,175,55,.05), transparent 62%),
-  var(--bg)}
-.hero::before{content:"";position:absolute;inset:0;background:radial-gradient(480px 260px at 50% 4%, rgba(212,175,55,.22), transparent 66%);animation:kp-breathe 5.5s ease-in-out infinite;pointer-events:none}
-@keyframes kp-breathe{0%,100%{opacity:.75}50%{opacity:1}}
-.hero .crown svg{width:48px;height:48px;filter:drop-shadow(0 0 30px rgba(212,175,55,.6)) drop-shadow(0 0 90px rgba(212,175,55,.32));animation:kp-breathe 5.5s ease-in-out infinite}
-.hero h1{background:linear-gradient(180deg,#ffffff 28%,#d9d9e0 70%,#8f8f9a 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
-.hero-tag{color:var(--text-2)}
-
-/* surfaces — cards catch the light */
-.card{background:linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,0) 46%), var(--surface);box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
-.card-hover:hover{transform:translateY(-4px);box-shadow:var(--glow-gold)}
-.asset-card{background:linear-gradient(180deg, rgba(255,255,255,.037), rgba(255,255,255,0) 48%), var(--surface)}
-.asset-card:hover .asset-title{background:linear-gradient(90deg,#fff,#e8c96a);-webkit-background-clip:text;background-clip:text;color:transparent}
-.asset-thumb{background:radial-gradient(120% 120% at 50% 0%, rgba(212,175,55,.12), transparent 55%)}
-.asset-card:hover .asset-thumb{background:radial-gradient(120% 120% at 50% 0%, rgba(212,175,55,.2), transparent 60%)}
-.asset-thumb::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg, transparent 55%, rgba(0,0,0,.38));pointer-events:none}
-.price{color:var(--gold);text-shadow:0 0 14px rgba(212,175,55,.28)}
-.approve-card{background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,0) 52%), var(--surface);box-shadow:inset 0 1px 0 rgba(255,255,255,.04);transition:border-color .2s,box-shadow .2s}
-.approve-card:hover{border-color:rgba(212,175,55,.25);box-shadow:var(--glow-gold)}
-.tier{background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,0) 50%), var(--surface);box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
-.tier.featured{background:linear-gradient(180deg, rgba(212,175,55,.10), rgba(255,255,255,0) 55%), var(--surface-2);border-color:rgba(212,175,55,.35);box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 0 30px rgba(212,175,55,.08)}
-.profile-hero{background:linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,0) 55%), var(--surface);box-shadow:inset 0 1px 0 rgba(255,255,255,.05),var(--shadow-1)}
-
-/* admin panel */
-.stat-card{background:linear-gradient(180deg, rgba(255,255,255,.038), rgba(255,255,255,0) 56%), var(--surface);box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 8px 24px rgba(0,0,0,.22);transition:transform .18s,border-color .2s,box-shadow .2s;position:relative;overflow:hidden}
-.stat-card::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(212,175,55,.5),transparent);opacity:0;transition:opacity .2s}
-.stat-card:hover{transform:translateY(-2px);border-color:rgba(212,175,55,.3);box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 14px 34px rgba(0,0,0,.4),0 0 26px rgba(212,175,55,.09)}
-.stat-card:hover::before{opacity:1}
-.stat-card b{background:linear-gradient(180deg,#fff 35%,#d5d5da);-webkit-background-clip:text;background-clip:text;color:transparent}
-
-/* tables */
-.table th{background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,0));color:var(--text-2)}
-.table tbody tr:hover{background:linear-gradient(90deg, rgba(212,175,55,.055), rgba(255,255,255,.015))}
-.table-wrap{background:linear-gradient(180deg, rgba(255,255,255,.015), rgba(255,255,255,0)), var(--surface)}
-
-/* tabs — keyboard focus ring (suppressed on the already-highlighted active tab) */
-.tab:focus-visible{outline:2px solid rgba(212,175,55,.65);outline-offset:-2px}
-.tab.active{outline:none}
-
-/* badges — a soft glow for the roles */
-.badge.admin{box-shadow:0 0 14px rgba(212,175,55,.28)}
-.badge.vip{box-shadow:0 0 12px rgba(77,141,255,.22)}
-.badge.owner{box-shadow:0 0 18px rgba(212,175,55,.4),inset 0 1px 0 rgba(255,255,255,.14)}
-.badge.cofounder{box-shadow:0 0 16px rgba(167,139,250,.32),inset 0 1px 0 rgba(255,255,255,.12)}
-.status-approved{box-shadow:0 0 12px rgba(70,167,88,.18)}
-.status-pending{box-shadow:0 0 12px rgba(163,163,173,.12)}
-
-/* buttons */
-.btn-primary{background:linear-gradient(180deg,#fbfbfd,#e7e7ec);box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 6px 18px rgba(0,0,0,.35);transition:transform .15s,box-shadow .2s,background .18s}
-.btn-primary:hover{transform:translateY(-1px);box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 10px 26px rgba(0,0,0,.45),0 0 26px rgba(212,175,55,.25)}
-.btn-ghost:hover{box-shadow:0 0 0 1px rgba(212,175,55,.22),0 0 18px rgba(212,175,55,.09)}
-
-/* inputs — gold focus ring */
-.input,.select,.textarea{background:linear-gradient(180deg, rgba(255,255,255,.022), rgba(255,255,255,0)), var(--surface-2);box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
-.input:focus,.select:focus,.textarea:focus{border-color:rgba(212,175,55,.55);box-shadow:0 0 0 3px rgba(212,175,55,.12)}
-
-/* eyebrows — the muted gold voice of the system */
-.section-eyebrow{color:rgba(212,175,55,.68)}
-
-/* overlays */
-.modal{background:linear-gradient(180deg,var(--surface-2),var(--surface));box-shadow:0 40px 90px rgba(0,0,0,.65),0 0 44px rgba(212,175,55,.07)}
-.dropdown-menu{background:linear-gradient(180deg,var(--surface-2),var(--surface));box-shadow:0 30px 70px rgba(0,0,0,.6),0 0 30px rgba(212,175,55,.05)}
-.toast{background:linear-gradient(180deg,var(--surface-2),var(--surface))}
-
-/* focus + empty state */
-:focus-visible{outline:2px solid rgba(212,175,55,.7);outline-offset:2px}
-.empty .crown svg{filter:drop-shadow(0 0 16px rgba(212,175,55,.35))}
-
-/* checkout payment methods */
-.pm-list{display:flex;flex-direction:column;gap:10px}
-.pm-card{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:13px 14px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,0)),var(--surface-2);border:1px solid var(--border-strong);cursor:pointer;transition:border-color .16s,transform .16s,box-shadow .16s;font-family:inherit;color:var(--text)}
-.pm-card:hover{border-color:rgba(212,175,55,.4);transform:translateY(-1px);box-shadow:0 0 18px rgba(212,175,55,.08)}
-.pm-card small{display:block;color:var(--text-3);font-size:12px;margin-top:2px}.pm-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:17px;background:linear-gradient(150deg,#2a2a33,#1a1a20);border:1px solid var(--border-strong);color:var(--gold);flex-shrink:0}
-
-/* ============ CHUNK Z: LOADER · INTERACTIVE FX · WOW ============ */
-
-/* ---- loading screen ---- */
-.loader{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:radial-gradient(1200px 700px at 50% 0%,#17171d 0%,#0c0c0e 55%,#070709 100%);transition:opacity .55s ease,visibility .55s ease}
-.loader.done{opacity:0;visibility:hidden;pointer-events:none}
-.loader-bg{position:absolute;inset:0;overflow:hidden}
-.loader-bg::before,.loader-bg::after{content:'';position:absolute;border-radius:50%;filter:blur(90px);opacity:.5;animation:loaderDrift 9s ease-in-out infinite alternate}
-.loader-bg::before{width:460px;height:460px;left:-80px;top:-120px;background:radial-gradient(circle,rgba(212,175,55,.22),transparent 65%);animation-duration:11s}
-.loader-bg::after{width:520px;height:520px;right:-140px;bottom:-160px;background:radial-gradient(circle,rgba(77,141,255,.16),transparent 65%)}
-@keyframes loaderDrift{from{transform:translate3d(0,0,0) scale(1)}to{transform:translate3d(40px,30px,0) scale(1.12)}}
-.loader-inner{position:relative;text-align:center;padding:0 24px;animation:loaderIn .7s cubic-bezier(.2,.7,.3,1)}
-@keyframes loaderIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
-.loader-orb{width:118px;height:118px;margin:0 auto 26px;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative}
-.loader-orb::before{content:'';position:absolute;inset:-8px;border-radius:50%;background:conic-gradient(from 0deg,rgba(212,175,55,0),rgba(212,175,55,.85),rgba(255,255,255,.25),rgba(212,175,55,0));animation:orbSpin 1.6s linear infinite;filter:blur(.4px)}
-.loader-orb::after{content:'';position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 50% 38%,#1d1d24,#101014 70%);box-shadow:0 0 46px rgba(212,175,55,.22),inset 0 0 22px rgba(212,175,55,.07)}
-.loader-crown{position:relative;z-index:1;color:var(--gold);display:inline-flex;animation:crownPulse 1.6s ease-in-out infinite}
-.loader-crown svg{width:52px;height:52px;filter:drop-shadow(0 0 18px rgba(212,175,55,.65))}
-@keyframes orbSpin{to{transform:rotate(360deg)}}
-@keyframes crownPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.09);opacity:.92}}
-.loader-title{font-family:var(--font-display);font-size:clamp(26px,5vw,38px);font-weight:700;letter-spacing:-.02em;background:linear-gradient(100deg,#fff 20%,#e8c96a 45%,#fff 70%);-webkit-background-clip:text;background-clip:text;color:transparent;background-size:200% 100%;animation:titleShimmer 2.6s linear infinite}
-.loader-title em{font-style:normal;color:var(--gold)}
-@keyframes titleShimmer{to{background-position:-200% 0}}
-.loader-sub{margin-top:8px;font-size:11.5px;letter-spacing:.34em;text-transform:uppercase;color:var(--text-3);font-weight:600}
-.loader-bar{width:min(320px,72vw);height:3px;margin:30px auto 14px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden}
-.loader-fill{height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,#8a6d1f,#e8c96a,#fff 55%,#e8c96a);background-size:200% 100%;animation:titleShimmer 1.8s linear infinite;transition:width .12s ease}
-.loader-pct{font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--text-2);font-variant-numeric:tabular-nums}
-.loader-tag{margin-top:26px;font-size:12px;color:var(--text-3);letter-spacing:.06em}
-.loader-tag::before,.loader-tag::after{content:'·';margin:0 8px;color:rgba(212,175,55,.6)}
-
-/* ---- cursor glow ---- */
-.cursor-glow{position:fixed;top:0;left:0;width:520px;height:520px;border-radius:50%;pointer-events:none;z-index:3;transform:translate(-50%,-50%);background:radial-gradient(circle,rgba(212,175,55,.09) 0%,rgba(255,255,255,.035) 32%,transparent 62%);mix-blend-mode:screen;opacity:0;transition:opacity .4s ease}
-.cursor-glow.on{opacity:1}
-@media (hover:none),(pointer:coarse){.cursor-glow{display:none}}
-@media (prefers-reduced-motion:reduce){.cursor-glow{display:none}}
-
-/* ---- hero life ---- */
-.hero{background:radial-gradient(1100px 500px at 50% -10%,rgba(255,255,255,.055),transparent 60%),radial-gradient(900px 420px at 82% 8%,rgba(212,175,55,.07),transparent 60%),radial-gradient(800px 420px at 12% 14%,rgba(77,141,255,.05),transparent 60%)}
-.hero h1{background:linear-gradient(180deg,#fff 30%,#d8d8de 72%);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
-.hero-em{background:linear-gradient(90deg,#e8c96a,#fff,#e8c96a);background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:titleShimmer 3.2s linear infinite}
-.hero-particles{position:absolute;inset:0;overflow:hidden;pointer-events:none}
-.particle{position:absolute;bottom:-12px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff,transparent 70%);box-shadow:0 0 10px rgba(212,175,55,.5);opacity:0;animation:floatUp linear infinite}
-@keyframes floatUp{0%{transform:translateY(0);opacity:0}12%{opacity:.85}88%{opacity:.6}100%{transform:translateY(-110vh);opacity:0}}
-@media (prefers-reduced-motion:reduce){.hero-particles{display:none}}
-.hero-stat b{background:linear-gradient(180deg,#fff,#cfb45c);-webkit-background-clip:text;background-clip:text;color:transparent}
-
-/* ---- card tilt ---- */
-.card-hover:hover{transform:perspective(900px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) translateY(var(--ty,-4px));transition:transform .18s ease-out,box-shadow .25s ease,border-color .25s ease;will-change:transform}
-@media (prefers-reduced-motion:reduce){.card-hover:hover{transform:translateY(-4px);transition:none}}
-.card-hover:hover .asset-thumb .thumb-bg{filter:brightness(1.08)}
-
-/* ---- shine sweep ---- */
-.btn-primary{position:relative;overflow:hidden}
-.btn-primary::after{content:'';position:absolute;top:0;left:-80%;width:60%;height:100%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.5),transparent);transform:skewX(-20deg);transition:left .55s ease}
-.btn-primary:hover::after{left:130%}
-.card-hover{position:relative;overflow:hidden}
-.card-hover::before{content:'';position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.07) 50%,transparent 65%);transform:translateX(-120%);transition:transform .8s ease;pointer-events:none;z-index:2}
-.card-hover:hover::before{transform:translateX(120%)}
-
-/* ---- like button ---- */
-.like-btn{display:inline-flex;align-items:center;gap:5px;background:transparent;border:1px solid var(--border-strong);color:var(--text-3);border-radius:99px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;transition:color .18s,border-color .18s,transform .18s,box-shadow .18s;font-family:inherit;line-height:1}
-.like-btn svg{width:13px;height:13px;transition:transform .25s cubic-bezier(.3,1.6,.5,1)}
-.like-btn:hover{color:#ff8fa3;border-color:rgba(229,72,77,.5);transform:translateY(-1px)}
-.like-btn.on{color:#ff5c7a;border-color:rgba(229,72,77,.65);background:rgba(229,72,77,.08);box-shadow:0 0 14px rgba(229,72,77,.18)}
-.like-btn.on svg{fill:currentColor;transform:scale(1.15)}
-.like-btn.pop{animation:likePop .4s cubic-bezier(.3,1.6,.5,1)}
-@keyframes likePop{0%{transform:scale(1)}40%{transform:scale(1.28)}100%{transform:scale(1)}}
-.like-btn.lg{padding:8px 16px;font-size:13.5px}
-.like-btn.lg svg{width:17px;height:17px}
-
-/* ---- dashboard ---- */
-.dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:22px}
-.dash-stat{background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,0)),var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;transition:transform .18s,box-shadow .25s,border-color .25s}
-.dash-stat:hover{transform:translateY(-2px);border-color:rgba(212,175,55,.35);box-shadow:0 14px 34px rgba(0,0,0,.4),0 0 22px rgba(212,175,55,.06)}
-.dash-stat .k{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-3);font-weight:600}
-.dash-stat .v{font-family:var(--font-display);font-size:clamp(20px,3vw,26px);font-weight:700;margin-top:4px;background:linear-gradient(180deg,#fff,#cfb45c);-webkit-background-clip:text;background-clip:text;color:transparent}
-.dash-stat .v.blue{background:linear-gradient(180deg,#fff,#6ea8ff);-webkit-background-clip:text;background-clip:text;color:transparent}
-.dash-stat .v.red{background:linear-gradient(180deg,#fff,#ff8f94);-webkit-background-clip:text;background-clip:text;color:transparent}
-.chart-box{position:relative;height:190px;margin-top:8px}
-.chart-box canvas{position:absolute;inset:0;width:100%;height:100%}
-.chart-tip{position:absolute;z-index:5;pointer-events:none;background:linear-gradient(180deg,var(--surface-3),var(--surface-2));border:1px solid var(--border-strong);border-radius:9px;padding:7px 11px;font-size:12px;color:var(--text);box-shadow:0 12px 30px rgba(0,0,0,.5);opacity:0;transition:opacity .12s;white-space:nowrap}
-.chart-tip b{color:var(--gold)}
-.lic-row{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--border)}
-.lic-row:last-child{border-bottom:none}
-.lic-key{font-family:var(--font-display);font-weight:700;font-size:13px;color:var(--gold);letter-spacing:.05em;white-space:nowrap}
-.lic-device{font-size:12.5px;color:var(--text-2)}
-.lic-device .off{color:var(--danger)}
-.badge.soft-ok{background:rgba(70,167,88,.14);color:#7fd6a0;border-color:rgba(70,167,88,.35)}
-.badge.soft-red{background:rgba(229,72,77,.13);color:#ff9ba0;border-color:rgba(229,72,77,.4)}
-.badge.soft-blue{background:rgba(77,141,255,.13);color:#9cc2ff;border-color:rgba(77,141,255,.4)}
-.sec-note{border:1px solid rgba(212,175,55,.28);background:linear-gradient(180deg,rgba(212,175,55,.06),rgba(212,175,55,.015));border-radius:var(--radius);padding:16px 18px;font-size:13.5px;color:var(--text-2)}
-.sec-note b{color:var(--text)}
-.cooldown-banner{display:flex;align-items:center;gap:12px;border:1px solid rgba(212,175,55,.35);background:linear-gradient(180deg,rgba(212,175,55,.09),rgba(212,175,55,.02));border-radius:var(--radius);padding:14px 18px;margin-bottom:18px;color:var(--text)}
-.cooldown-banner .crown{animation:crownPulse 1.8s ease-in-out infinite}
-.sort-chip{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:99px;border:1px solid var(--border-strong);background:transparent;color:var(--text-2);font-size:12.5px;font-weight:600;cursor:pointer;transition:all .18s;font-family:inherit}
-.sort-chip.active{color:#141414;background:linear-gradient(90deg,#f2e6b8,#e8c96a);border-color:transparent;box-shadow:0 4px 16px rgba(212,175,55,.22)}
-.sort-chip:hover:not(.active){color:var(--text);border-color:#4a4a55}
-.fa-badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:99px;background:rgba(212,175,55,.14);color:var(--gold);font-size:11px;font-weight:700;border:1px solid rgba(212,175,55,.3)}
-.composer-main{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0}
-.star-btn.on{color:var(--gold)}
-.star-btn:hover{color:var(--gold)}
-
-/* ---- portfolio cards + smart links ---- */
-.proj-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
-.project-banner .thumb-bg{position:absolute;inset:0}
-.project-tags{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
-.project-links{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
-.project-links a{width:34px;height:34px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--border-strong);background:rgba(255,255,255,.02);color:var(--text-3);transition:transform .16s,color .16s,border-color .16s,box-shadow .16s,background .16s}
-.project-links a svg{width:16px;height:16px}
-.project-links a:hover{transform:translateY(-2px) scale(1.06);border-color:transparent;box-shadow:0 8px 18px rgba(0,0,0,.45);background:rgba(255,255,255,.05)}
-.lk.discord:hover{color:#5865F2;background:rgba(88,101,242,.16)}
-.lk.youtube:hover{color:#FF0033;background:rgba(255,0,51,.13)}
-.lk.twitch:hover{color:#9146FF;background:rgba(145,70,255,.15)}
-.lk.x:hover{color:#1DA1F2;background:rgba(29,161,242,.14)}
-.lk.roblox:hover{color:#00A2FF;background:rgba(0,162,255,.14)}
-.lk.mediafire:hover{color:#1299F3;background:rgba(18,153,243,.14)}
-.lk.github:hover{color:#C9D1D9;background:rgba(255,255,255,.1)}
-.lk.instagram:hover{color:#E4405F;background:rgba(228,64,95,.15)}
-.lk.tiktok:hover{color:#69C9D0;background:rgba(105,201,208,.14)}
-.lk.spotify:hover{color:#1DB954;background:rgba(29,185,84,.15)}
-.lk.soundcloud:hover{color:#FF5500;background:rgba(255,85,0,.14)}
-.lk.patreon:hover{color:#FF424D;background:rgba(255,66,77,.15)}
-.lk.kick:hover{color:#53FC18;background:rgba(83,252,24,.13)}
-.lk.telegram:hover{color:#26A5E4;background:rgba(38,165,228,.15)}
-.lk.drive:hover{color:#4285F4;background:rgba(66,133,244,.15)}
-.lk.dropbox:hover{color:#0061FF;background:rgba(0,97,255,.15)}
-.lk.mega:hover{color:#D9272E;background:rgba(217,39,46,.15)}
-.lk.steam:hover{color:#66C0F4;background:rgba(102,192,244,.14)}
-.lk.itch:hover{color:#FA5C5C;background:rgba(250,92,92,.15)}
-.lk.gumroad:hover{color:#FF90E8;background:rgba(255,144,232,.15)}
-.lk.link:hover{color:var(--gold);background:rgba(212,175,55,.13)}
-.pf-img-preview{position:relative;height:104px;margin-top:8px;border:1px solid var(--border-strong);border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:repeating-linear-gradient(45deg,rgba(255,255,255,.015),rgba(255,255,255,.015) 8px,rgba(255,255,255,0) 8px,rgba(255,255,255,0) 16px);color:var(--text-3);font-size:12.5px}
-.pf-img-preview img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none}
-.pf-img-preview img.show{display:block}
-.pf-img-preview .ph{display:inline-flex;align-items:center;gap:7px;padding:0 12px;text-align:center}
-.pf-img-preview.err{border-color:rgba(229,72,77,.45)}
-.pf-img-preview.err .ph{color:#ff8f94}
-.pf-link-row{display:flex;gap:8px;align-items:center}
-.pf-link-row .input{flex:1}
-.pf-link-icon{width:36px;height:36px;flex-shrink:0;border-radius:9px;border:1px solid var(--border-strong);display:inline-flex;align-items:center;justify-content:center;color:var(--gold);background:rgba(255,255,255,.02)}
-.pf-link-icon svg{width:17px;height:17px}
-
-/* ================= UI POLISH — ambient light · glass · motion ================= */
-/* Living ambient background: drifting gold + violet light behind everything */
-body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background:
-  radial-gradient(60vw 46vh at 12% -8%,rgba(212,175,55,.10),transparent 62%),
-  radial-gradient(52vw 42vh at 88% 4%,rgba(120,96,255,.08),transparent 60%),
-  radial-gradient(70vw 55vh at 50% 108%,rgba(212,175,55,.07),transparent 60%);
-  animation:ambientDrift 26s ease-in-out infinite alternate}
-body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5;
-  background-image:linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px);
-  background-size:44px 44px;mask-image:radial-gradient(80vw 60vh at 50% 0%,#000 30%,transparent 85%)}
-@keyframes ambientDrift{0%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(2vw,-2vh,0) scale(1.06)}100%{transform:translate3d(-2vw,2vh,0) scale(1)}}
-#app{position:relative;z-index:1}
-::selection{background:rgba(212,175,55,.32);color:#fff}
-::-webkit-scrollbar{width:12px;height:12px}
-::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#3a3630,#2c2c33);border:3px solid var(--bg);border-radius:8px}
-::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,#4a4436,#3a3a44)}
-:focus-visible{outline:2px solid rgba(212,175,55,.75);outline-offset:2px;border-radius:5px}
-
-/* header — deeper glass with a gold hairline */
-.site-header{background:linear-gradient(180deg,rgba(14,14,17,.9),rgba(11,11,13,.78));backdrop-filter:blur(18px) saturate(1.3);-webkit-backdrop-filter:blur(18px) saturate(1.3);border-bottom:1px solid rgba(212,175,55,.16);box-shadow:0 1px 0 rgba(255,255,255,.03) inset,0 12px 34px rgba(0,0,0,.35)}
-.main-nav a:hover{background:rgba(212,175,55,.09)}
-.main-nav a.active{background:rgba(212,175,55,.13);color:var(--gold)}
-.brand .crown svg{filter:drop-shadow(0 0 10px rgba(212,175,55,.5))}
-
-/* cards — translucent glass + light-catching hover */
-.card{background:linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,0) 42%),var(--surface);box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
-.card-hover:hover{border-color:rgba(212,175,55,.42);box-shadow:var(--shadow-1),0 0 0 1px rgba(212,175,55,.12),0 0 30px rgba(212,175,55,.10)}
-.asset-card:hover .asset-title,.project-card:hover h3{color:var(--gold)}
-.asset-title{transition:color .2s}
-
-/* buttons — light sweep + gold glow */
-.btn{position:relative;overflow:hidden}
-.btn::after{content:'';position:absolute;top:0;left:-80%;width:50%;height:100%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.16),transparent);transform:skewX(-22deg);transition:left .55s ease}
-.btn:hover::after{left:130%}
-.btn-primary{background:linear-gradient(180deg,#fffdf6,#e9e6da);color:#141209;box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 6px 20px rgba(0,0,0,.4),0 0 0 1px rgba(212,175,55,.35)}
-.btn-primary:hover{box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 10px 30px rgba(0,0,0,.5),0 0 30px rgba(212,175,55,.4)}
-.btn-ghost:hover{box-shadow:0 0 0 1px rgba(212,175,55,.28),0 0 20px rgba(212,175,55,.14)}
-
-/* inputs — gold focus ring */
-.input:focus,.select:focus,.textarea:focus{border-color:rgba(212,175,55,.55);box-shadow:0 0 0 3px rgba(212,175,55,.14),0 0 18px rgba(212,175,55,.08)}
-.input:hover,.select:hover,.textarea:hover{border-color:#45454f}
-
-/* hero — living light */
-.hero{background:radial-gradient(1200px 560px at 50% -12%,rgba(255,255,255,.07),transparent 58%),radial-gradient(700px 380px at 82% -20%,rgba(212,175,55,.10),transparent 60%),radial-gradient(700px 380px at 14% -16%,rgba(120,96,255,.07),transparent 60%)}
-.hero .crown svg{width:52px;height:52px;filter:drop-shadow(0 0 26px rgba(212,175,55,.55));animation:crownFloat 5s ease-in-out infinite}
-@keyframes crownFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
-.hero h1{background:linear-gradient(110deg,#f4f4f6 20%,#ffd97a 45%,#f4f4f6 70%);-webkit-background-clip:text;background-clip:text;color:transparent;animation:titleShimmer 7s ease-in-out infinite;background-size:220% auto}
-@keyframes titleShimmer{0%,100%{background-position:0% center}50%{background-position:100% center}}
-.hero-cta .btn{box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 10px 30px rgba(0,0,0,.45)}
-.hero-stat b{background:linear-gradient(180deg,#fff,var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
-
-/* section reveals */
-.js-reveal .section-head,.js-reveal .profile-hero,.js-reveal .tier,.js-reveal .approve-card,.js-reveal .creator-card,.js-reveal .asset-card,.js-reveal .project-card{opacity:0;transform:translateY(16px);transition:opacity .55s cubic-bezier(.2,.7,.3,1),transform .55s cubic-bezier(.2,.7,.3,1)}
-.js-reveal .in{opacity:1;transform:none}
-
-/* auth pages — full-screen focus, all site chrome hidden */
-.auth-mode .site-header,.auth-mode .site-footer,.auth-mode .social-dock,.auth-mode .post-fab,.auth-mode .site-status,.auth-mode .announce{display:none!important}
-.auth-mode main{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:36px 20px}
-.auth-mode .auth-shell{margin:0;width:100%}
-
-/* auth — split royal panel */
-.auth-shell{max-width:1040px;margin:42px auto;display:grid;grid-template-columns:1fr 1fr;border:1px solid rgba(212,175,55,.22);border-radius:26px;overflow:hidden;background:var(--surface);box-shadow:0 30px 90px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.03) inset,0 0 60px rgba(212,175,55,.07)}
-.auth-brand{position:relative;display:flex;flex-direction:column;justify-content:center;gap:18px;padding:52px 46px;overflow:hidden;background:radial-gradient(120% 90% at 20% 0%,rgba(212,175,55,.16),transparent 55%),radial-gradient(120% 100% at 90% 110%,rgba(120,96,255,.12),transparent 55%),linear-gradient(180deg,#141317,#0d0d10)}
-.auth-brand .crown svg{width:40px;height:40px;filter:drop-shadow(0 0 20px rgba(212,175,55,.6))}
-.auth-brand-title{font-family:var(--font-display);font-size:clamp(24px,3vw,31px);line-height:1.15;letter-spacing:-.02em;font-weight:700;color:var(--text);position:relative;z-index:1}
-.auth-brand-sub{color:var(--text-2);font-size:14.5px;line-height:1.65;position:relative;z-index:1}
-.auth-brand-tags{display:flex;gap:9px;flex-wrap:wrap;position:relative;z-index:1}
-.auth-brand-tags span{display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border-radius:999px;border:1px solid rgba(212,175,55,.3);background:rgba(212,175,55,.07);color:var(--text-2);font-size:12px;font-weight:600;letter-spacing:.04em}
-.auth-brand-tags svg{width:13px;height:13px;color:var(--gold)}
-.gold-shimmer{background:linear-gradient(110deg,#ffd97a,#d4af37,#fff3c4,#d4af37);background-size:240% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:titleShimmer 5s linear infinite}
-.auth-brand .orb{position:absolute;border-radius:50%;filter:blur(46px);opacity:.5;animation:orbFloat 12s ease-in-out infinite alternate}
-.auth-brand .o1{width:280px;height:280px;background:rgba(212,175,55,.22);top:-70px;left:-70px}
-.auth-brand .o2{width:220px;height:220px;background:rgba(120,96,255,.2);bottom:-50px;right:-40px;animation-delay:-4s}
-.auth-brand .o3{width:150px;height:150px;background:rgba(212,175,55,.16);top:38%;right:16%;animation-delay:-8s}
-@keyframes orbFloat{0%{transform:translate(0,0) scale(1)}100%{transform:translate(18px,-22px) scale(1.12)}}
-.auth-panel{padding:46px 48px;display:flex;flex-direction:column;justify-content:center;background:linear-gradient(180deg,rgba(255,255,255,.015),rgba(255,255,255,0))}
-.auth-panel .auth-title{text-align:left;font-size:26px;margin:0 0 4px}
-.auth-panel .auth-sub{text-align:left;margin-bottom:24px}
-.auth-panel .auth-alt{text-align:left}
-.social-row{display:flex;flex-direction:column;gap:18px;margin-bottom:22px}
-.btn-google{display:flex;align-items:center;justify-content:center;gap:11px;background:linear-gradient(180deg,#fbfbfc,#e8e8ec);color:#1a1a1d;border:1px solid rgba(255,255,255,.25);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 8px 22px rgba(0,0,0,.35)}
-.btn-google:hover{background:linear-gradient(180deg,#fff,#f0f0f4);box-shadow:inset 0 1px 0 #fff,0 10px 28px rgba(0,0,0,.45),0 0 22px rgba(212,175,55,.18)}
-.divider{display:flex;align-items:center;gap:14px;color:var(--text-3);font-size:12px;letter-spacing:.14em;text-transform:uppercase}
-.divider::before,.divider::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--border-strong),transparent)}
-.terms-row{display:flex;align-items:flex-start;gap:10px;margin:14px 0 0;cursor:pointer;font-size:13px;color:var(--text-2);line-height:1.5}
-.terms-row input{width:17px;height:17px;margin-top:1px;flex-shrink:0;accent-color:var(--gold);cursor:pointer}
-.terms-row a{color:var(--gold);font-weight:600;text-decoration:underline;text-decoration-color:rgba(212,175,55,.4);text-underline-offset:2px}
-.terms-row a:hover{text-decoration-color:var(--gold)}
-@media (max-width:880px){.auth-shell{grid-template-columns:1fr;max-width:480px}.auth-brand{display:none}.auth-panel{padding:34px 26px}}
-
-/* floating bits — dock, FAB, status pill glow */
-.social-dock .s-btn{background:linear-gradient(180deg,rgba(44,44,52,.88),rgba(20,20,24,.92));border-color:rgba(212,175,55,.34);box-shadow:0 6px 18px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.08)}
-.social-dock .s-btn:hover{box-shadow:0 8px 24px rgba(212,175,55,.28),0 0 0 1px rgba(212,175,55,.4)}
-.post-fab{box-shadow:0 8px 26px rgba(212,175,55,.34),inset 0 1px 0 rgba(255,255,255,.14),0 0 0 0 rgba(212,175,55,.4);animation:fabPulse 3.2s ease-out infinite}
-@keyframes fabPulse{0%{box-shadow:0 8px 26px rgba(212,175,55,.34),inset 0 1px 0 rgba(255,255,255,.14),0 0 0 0 rgba(212,175,55,.38)}70%{box-shadow:0 8px 26px rgba(212,175,55,.34),inset 0 1px 0 rgba(255,255,255,.14),0 0 0 14px rgba(212,175,55,0)}100%{box-shadow:0 8px 26px rgba(212,175,55,.34),inset 0 1px 0 rgba(255,255,255,.14),0 0 0 0 rgba(212,175,55,0)}}
-.site-status{border-color:rgba(212,175,55,.3)}
-
-/* tables & lists — gold hover light */
-.table tbody tr:hover{background:linear-gradient(90deg,rgba(212,175,55,.075),rgba(255,255,255,.015))}
-.approve-card:hover,.tier:hover{box-shadow:0 0 0 1px rgba(212,175,55,.14),0 14px 38px rgba(0,0,0,.4)}
-
-/* owner badge — living shimmer */
-.badge.owner{position:relative;overflow:hidden}
-.badge.owner::after{content:'';position:absolute;top:0;left:-70%;width:50%;height:100%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.28),transparent);transform:skewX(-22deg);animation:badgeShine 3.4s ease-in-out infinite}
-@keyframes badgeShine{0%,60%{left:-70%}100%{left:140%}}
-
-/* modal — glass depth */
-.modal-overlay{background:rgba(8,8,10,.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
-.modal{background:linear-gradient(180deg,#181820,#121216);border:1px solid rgba(212,175,55,.24);box-shadow:0 34px 100px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.03) inset,0 0 50px rgba(212,175,55,.08)}
-
-/* ============================================================================
-   WOW³ — ROYAL ATMOSPHERE: scroll progress, ambient dust, click bursts,
-   sparkle trail, magnetic controls, crown ring, hero rotor, marquee ticker,
-   staggered reveals, spotlight aura, avatar rings, nav underline, toast edge.
-   ============================================================================ */
-
-/* ---- scroll progress bar (gold comet across the top) ---- */
-.scroll-progress{position:fixed;top:0;left:0;height:3px;width:0;z-index:200;border-radius:0 3px 3px 0;background:linear-gradient(90deg,#8a6d1f,#e8c96a,#fff8dc,#e8c96a);background-size:220% 100%;animation:titleShimmer 2.2s linear infinite;box-shadow:0 0 12px rgba(212,175,55,.7),0 0 26px rgba(212,175,55,.35);pointer-events:none}
-
-/* ---- back-to-top crown button ---- */
-.to-top{position:fixed;right:18px;bottom:140px;z-index:70;width:46px;height:46px;border-radius:50%;border:1px solid rgba(212,175,55,.4);background:linear-gradient(180deg,rgba(46,40,22,.92),rgba(20,17,10,.94));color:var(--gold);display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;visibility:hidden;transform:translateY(12px);transition:opacity .3s,transform .3s,visibility .3s,box-shadow .2s;box-shadow:0 6px 18px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.1);backdrop-filter:blur(8px)}
-.to-top.show{opacity:1;visibility:visible;transform:none}
-.to-top:hover{box-shadow:0 8px 24px rgba(212,175,55,.3),0 0 0 1px rgba(212,175,55,.45);transform:translateY(-2px)}
-.to-top svg{width:18px;height:18px}
-
-/* ---- ambient gold dust (floating motes across the whole site) ---- */
-.ambient-dust{position:fixed;inset:0;z-index:1;pointer-events:none;overflow:hidden}
-.dust-mote{position:absolute;top:-14px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff7d6,transparent 68%);box-shadow:0 0 6px rgba(212,175,55,.55);opacity:0;animation:dustFall linear infinite}
-@keyframes dustFall{0%{transform:translateY(-4vh) translateX(0) rotate(0);opacity:0}8%{opacity:.65}80%{opacity:.38}100%{transform:translateY(108vh) translateX(6vw) rotate(200deg);opacity:0}}
-@media (prefers-reduced-motion:reduce){.ambient-dust{display:none}}
-
-/* ---- click burst particles ---- */
-.fx-burst{position:fixed;z-index:200;pointer-events:none;top:0;left:0}
-.fx-particle{position:absolute;border-radius:50%;pointer-events:none;animation:burstFly .75s cubic-bezier(.15,.7,.3,1) forwards}
-.fx-particle::after{content:'';position:absolute;inset:0;border-radius:50%;background:inherit;filter:blur(2px);opacity:.6}
-@keyframes burstFly{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(.15);opacity:0}}
-
-/* ---- cursor sparkle trail ---- */
-.fx-sparkle{position:fixed;z-index:200;pointer-events:none;color:var(--gold);animation:sparkleFade .8s ease-out forwards;filter:drop-shadow(0 0 4px rgba(212,175,55,.8))}
-@keyframes sparkleFade{0%{transform:translate(-50%,-50%) scale(.3) rotate(0);opacity:0}18%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(24deg)}100%{transform:translate(calc(-50% + var(--sx,0px)),calc(-50% + var(--sy,-18px))) scale(.1) rotate(120deg);opacity:0}}
-
-/* ---- magnetic controls (JS nudges toward the cursor) ---- */
-.mag{transition:transform .16s ease-out}
-
-/* ---- hero floating orbs ---- */
-.hero-orb{position:absolute;border-radius:50%;filter:blur(70px);pointer-events:none;opacity:.55;animation:orbFloat 13s ease-in-out infinite alternate}
-.hero-orb.o1{width:340px;height:340px;background:rgba(212,175,55,.17);top:-120px;left:-80px}
-.hero-orb.o2{width:300px;height:300px;background:rgba(120,96,255,.14);top:-90px;right:-90px;animation-delay:-5s}
-.hero-orb.o3{width:220px;height:220px;background:rgba(212,175,55,.12);bottom:-60px;left:34%;animation-delay:-9s}
-
-/* ---- crown ring: rotating gold halo behind the crown ---- */
-.crown-ring{position:relative;display:inline-flex;width:96px;height:96px;margin-top:8px;align-items:center;justify-content:center}
-.crown-ring::before{content:'';position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,rgba(212,175,55,0),rgba(212,175,55,.85),rgba(255,255,255,.5),rgba(212,175,55,.85),rgba(212,175,55,0));animation:orbSpin 5s linear infinite;filter:blur(.5px);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 2px));mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 2px))}
-.crown-ring::after{content:'';position:absolute;inset:10px;border-radius:50%;background:radial-gradient(circle,rgba(212,175,55,.14),transparent 70%);animation:kp-breathe 4.5s ease-in-out infinite}
-.crown-ring .crown{position:relative;z-index:1}
-.crown-ring .crown svg{width:42px;height:42px}
-
-/* ---- hero rotor (rotating tagline) ---- */
-.hero-rotor{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:12px;min-height:24px}
-.rotor{display:inline-flex;align-items:center;font-size:13.5px;color:var(--text-2);font-weight:600}
-.rotor-dot{width:5px;height:5px;border-radius:50%;background:var(--gold);margin:0 10px;box-shadow:0 0 8px rgba(212,175,55,.8);flex-shrink:0;animation:statusPulse 2s ease-out infinite}
-.rotor-txt{display:inline-block;transition:opacity .3s ease,transform .3s ease;animation:rotorIn .55s cubic-bezier(.2,.7,.3,1)}
-@keyframes rotorIn{from{opacity:0;transform:translateY(8px) rotateX(24deg)}to{opacity:1;transform:none}}
-
-/* ---- marquee ticker ---- */
-.marquee{position:relative;overflow:hidden;border-top:1px solid rgba(212,175,55,.16);border-bottom:1px solid rgba(212,175,55,.16);background:linear-gradient(180deg,rgba(212,175,55,.05),rgba(212,175,55,.015));padding:13px 0}
-.marquee-track{display:flex;gap:0;width:max-content;animation:marqueeScroll 32s linear infinite}
-.marquee:hover .marquee-track{animation-play-state:paused}
-.marquee-track span{display:inline-flex;align-items:center;gap:22px;padding:0 22px;font-size:12px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--text-2);white-space:nowrap}
-.marquee-track span b{color:var(--gold);font-weight:700}
-@keyframes marqueeScroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-
-/* ---- staggered reveals for grids ---- */
-.js-reveal .grid > *:nth-child(2){transition-delay:.05s}
-.js-reveal .grid > *:nth-child(3){transition-delay:.1s}
-.js-reveal .grid > *:nth-child(4){transition-delay:.15s}
-.js-reveal .grid > *:nth-child(5){transition-delay:.2s}
-.js-reveal .grid > *:nth-child(6){transition-delay:.25s}
-.js-reveal .grid > *:nth-child(n+7){transition-delay:.3s}
-
-/* ---- spotlight aura (rotating conic border) ---- */
-@property --ang{syntax:'<angle>';initial-value:0deg;inherits:false}
-.portfolio-grid .project-card.spotlight{position:relative}
-.portfolio-grid .project-card.spotlight::before{content:'';position:absolute;inset:0;padding:2px;border-radius:var(--radius);background:conic-gradient(from var(--ang,0deg),transparent 0deg,rgba(212,175,55,.75) 70deg,transparent 150deg,rgba(255,255,255,.3) 230deg,transparent 320deg);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:spotSpin 6s linear infinite;pointer-events:none;z-index:3}
-@keyframes spotSpin{to{--ang:360deg}}
-.portfolio-grid .project-card.spotlight .project-banner::after{content:'';position:absolute;inset:0;background:radial-gradient(120% 90% at 50% 0%,rgba(212,175,55,.16),transparent 60%);pointer-events:none}
-
-/* ---- avatar glow ring (profile hero) ---- */
-.profile-hero .avatar{position:relative;box-shadow:0 0 0 3px rgba(212,175,55,.25),0 0 30px rgba(212,175,55,.35),inset 0 1px 0 rgba(255,255,255,.15)}
-.profile-hero .avatar::after{content:'';position:absolute;inset:-7px;border-radius:50%;border:1px solid rgba(212,175,55,.5);border-top-color:transparent;animation:orbSpin 4s linear infinite}
-
-/* ---- section title flourish ---- */
-.section-head h2{background:linear-gradient(100deg,#fff 30%,#e8c96a 55%,#fff 80%);background-size:220% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:titleShimmer 7s ease-in-out infinite}
-.section-eyebrow{display:inline-flex;align-items:center;gap:8px}
-.section-eyebrow::before{content:'';width:22px;height:1px;background:linear-gradient(90deg,transparent,rgba(212,175,55,.8))}
-
-/* ---- nav underline slide ---- */
-.main-nav a{position:relative}
-.main-nav a::after{content:'';position:absolute;left:14px;right:14px;bottom:4px;height:1.5px;border-radius:2px;background:linear-gradient(90deg,var(--gold),transparent);transform:scaleX(0);transform-origin:left;transition:transform .28s cubic-bezier(.2,.7,.3,1)}
-.main-nav a:hover::after,.main-nav a.active::after{transform:scaleX(1)}
-
-/* ---- toast gold edge ---- */
-.toast{position:relative;overflow:hidden}
-.toast::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,#8a6d1f,#e8c96a,#fff)}
-.toast.ok::before{background:linear-gradient(180deg,#2f7a44,#46a758,#8fe3a5)}
-.toast.err::before{background:linear-gradient(180deg,#b33238,#e5484d,#ff9aa0)}
-
-/* ---- view transition upgrade ---- */
-.view{animation:viewIn .45s cubic-bezier(.2,.7,.3,1)}
-@keyframes viewIn{from{opacity:0;transform:translateY(18px) scale(.992);filter:blur(3px)}to{opacity:1;transform:none;filter:blur(0)}}
-
-/* ---- footer hairline ---- */
-.site-footer{border-top:none;position:relative}
-.site-footer::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(212,175,55,.45),transparent)}
-
-/* ---- card top edge light ---- */
-.card-hover::after{content:'';position:absolute;top:0;left:15%;right:15%;height:1px;background:linear-gradient(90deg,transparent,rgba(212,175,55,.55),transparent);opacity:0;transition:opacity .25s;pointer-events:none;z-index:2}
-.card-hover:hover::after{opacity:1}
-
-/* ---- cinematic page transition (gold veil sweep) ---- */
-.view.leaving{animation:viewOut .22s ease-in forwards}
-@keyframes viewOut{to{opacity:0;transform:translateY(-10px);filter:blur(4px)}}
-.view-veil{position:fixed;inset:0;z-index:90;pointer-events:none;visibility:hidden;opacity:0;transform:translateX(-102%);background:linear-gradient(100deg,transparent 26%,rgba(212,175,55,.06) 44%,rgba(232,201,106,.2) 50%,rgba(212,175,55,.06) 56%,transparent 74%);filter:blur(1px)}
-.view-veil.go{visibility:visible;animation:veilSweep .55s cubic-bezier(.5,0,.2,1) forwards}
-@keyframes veilSweep{0%{transform:translateX(-102%);opacity:0}12%{opacity:1}88%{opacity:1}100%{transform:translateX(102%);opacity:0}}
-
-/* ---- settings: toggle switches, volume, rows ---- */
-.set-row{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--border)}
-.set-row:last-child{border-bottom:none}
-.set-row b{display:block;font-size:14px;font-weight:600}
-.set-row small{font-size:12px;color:var(--text-3)}
-.switch{position:relative;display:inline-flex;align-items:center;gap:12px;cursor:pointer;flex:1;min-width:0}
-.switch input{position:absolute;opacity:0;width:0;height:0}
-.switch .track{width:44px;height:24px;border-radius:99px;background:var(--surface-3);border:1px solid var(--border-strong);position:relative;flex-shrink:0;transition:background .2s,border-color .2s,box-shadow .2s}
-.switch .track::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#b9b9c2;transition:transform .2s cubic-bezier(.3,1.4,.5,1),background .2s,box-shadow .2s}
-.switch input:checked + .track{background:rgba(212,175,55,.22);border-color:rgba(212,175,55,.55);box-shadow:0 0 14px rgba(212,175,55,.18)}
-.switch input:checked + .track::after{transform:translateX(20px);background:var(--gold);box-shadow:0 0 10px rgba(212,175,55,.75)}
-.switch:focus-within .track{box-shadow:0 0 0 3px rgba(212,175,55,.16)}
-input[type=range].vol{width:170px;accent-color:var(--gold);cursor:pointer;background:transparent}
-input[type=range].vol::-webkit-slider-runnable-track{height:4px;border-radius:99px;background:var(--surface-3)}
-input[type=range].vol::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--gold);margin-top:-6px;box-shadow:0 0 10px rgba(212,175,55,.7)}
-
-/* ===== announcement banner ===== */
-.announce{position:relative;z-index:45;overflow:hidden;border-bottom:1px solid var(--border);animation:announceIn .5s cubic-bezier(.2,.7,.3,1)}
-@keyframes announceIn{from{transform:translateY(-100%)}to{transform:none}}
-.announce.gone{animation:announceOut .32s ease forwards}
-@keyframes announceOut{to{transform:translateY(-100%);opacity:0}}
-.announce-inner{max-width:1200px;margin:0 auto;padding:10px 24px;display:flex;align-items:center;gap:12px;font-size:13.5px;color:var(--text)}
-.announce-icon{display:inline-flex;flex-shrink:0;color:var(--gold)}
-.announce-text{flex:1;min-width:0;line-height:1.45}
-.announce-text a{color:inherit;text-decoration:underline;text-underline-offset:3px;font-weight:600;white-space:nowrap}
-.announce-close{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;border:1px solid transparent;color:inherit;background:transparent;cursor:pointer;transition:background .18s}
-.announce-close:hover{background:rgba(255,255,255,.12)}
-.announce.gold{background:linear-gradient(90deg,rgba(212,175,55,.16),rgba(212,175,55,.05) 60%,transparent);color:#f0d98a}
-.announce.green{background:linear-gradient(90deg,rgba(52,199,89,.16),rgba(52,199,89,.05) 60%,transparent);color:#8ee6a9}
-.announce.red{background:linear-gradient(90deg,rgba(255,69,58,.2),rgba(255,69,58,.06) 60%,transparent);color:#ffb4ae}
-
-/* ===== mobile drawer ===== */
-.hamburger{display:none;align-items:center;justify-content:center;width:40px;height:40px;border-radius:10px;border:1px solid var(--border-strong);background:transparent;color:var(--text-2);cursor:pointer;transition:color .18s,border-color .18s;flex-shrink:0}
-.hamburger:hover{color:var(--gold);border-color:rgba(212,175,55,.45)}
-.drawer{position:fixed;top:0;right:0;bottom:0;width:min(320px,86vw);z-index:120;display:flex;flex-direction:column;background:linear-gradient(180deg,#141419 0%,#0c0c0f 100%);border-left:1px solid rgba(212,175,55,.22);box-shadow:-24px 0 60px rgba(0,0,0,.55);transform:translateX(104%);transition:transform .34s cubic-bezier(.2,.7,.3,1),visibility 0s linear .34s;padding:18px 16px 22px;gap:6px;visibility:hidden;overflow-y:auto;overflow-x:hidden}
-.drawer.open{transform:none;visibility:visible;transition:transform .34s cubic-bezier(.2,.7,.3,1),visibility 0s}
-.drawer-backdrop{position:fixed;inset:0;z-index:110;background:rgba(4,4,6,.62);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);animation:fadeIn .25s ease}
-.drawer-head{display:flex;align-items:center;gap:10px;padding:4px 4px 14px;border-bottom:1px solid var(--border)}
-.drawer-head .crown svg{width:24px;height:24px}
-.drawer-title{font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--gold);letter-spacing:.08em;text-transform:uppercase}
-.drawer-close{margin-left:auto;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;border:1px solid var(--border-strong);background:transparent;color:var(--text-2);cursor:pointer;transition:color .18s,background .18s}
-.drawer-close:hover{color:var(--gold);background:rgba(212,175,55,.08)}
-.drawer-nav{display:flex;flex-direction:column;gap:2px;padding:14px 0;border-bottom:1px solid var(--border)}
-.drawer-account{display:flex;flex-direction:column;gap:2px;padding-top:14px}
-.m-nav-item{display:flex;align-items:center;gap:13px;padding:12px 10px;border-radius:10px;color:var(--text-2);font-size:15px;font-weight:500;text-align:left;background:transparent;border:none;cursor:pointer;transition:background .18s,color .18s,transform .18s}
-.m-nav-item svg{flex-shrink:0;color:var(--gold);width:19px;height:19px}
-.m-nav-item:hover{background:rgba(212,175,55,.1);color:var(--text)}
-.m-nav-item:active{transform:scale(.985)}
-.m-nav-item .fa-badge{font-style:normal;margin-left:8px}
-.drawer-social{display:flex;gap:8px;margin-top:auto;padding-top:16px}
-.drawer-social .s-btn{flex:1;height:44px;border-radius:12px;border:1px solid rgba(212,175,55,.28);background:linear-gradient(180deg, rgba(40,40,48,.9), rgba(22,22,27,.92));color:var(--text-1);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .18s,box-shadow .18s,border-color .18s;box-shadow:0 4px 14px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06)}
-.drawer-social .s-btn:hover{transform:translateY(-2px);border-color:rgba(212,175,55,.55);box-shadow:0 6px 20px rgba(212,175,55,.18)}
-.drawer-social .s-btn svg{width:20px;height:20px}
-.drawer-social .s-btn.help{font-weight:800;font-size:15px;color:var(--gold);background:linear-gradient(180deg, rgba(60,52,20,.95), rgba(26,23,14,.95))}
-@media (max-width:1080px){
-  .account-name{display:none!important}
-}
-@media (max-width:600px){
-  .header-right{gap:8px}
-  .header-cta{gap:8px}
-  .header-right .btn-sm{padding:7px 11px;font-size:12.5px}
-}
-@media (max-width:480px){
-  .header-cta{display:none}
-  .brand-sub{display:none}
-}
-.acct-chev{display:inline-flex}
-@media (max-width:380px){
-  .acct-chev{display:none}
-  .brand{font-size:16px}
-  .brand .crown svg{width:24px;height:24px}
-  .header-right #user-btn{padding:8px 12px}
-}
-@media (max-width:760px){
-  .hamburger{display:inline-flex}
-}
-@media (prefers-reduced-motion:reduce){
-  .drawer,.drawer-backdrop,.announce{transition:none!important;animation:none!important}
-}
-
-@media (prefers-reduced-motion:reduce){
-  body::before,body::after,.hero .crown svg,.hero h1,.hero-stat b,.badge.owner::after,.post-fab,.auth-brand .orb,.gold-shimmer,
-  .scroll-progress,.to-top,.marquee-track,.crown-ring,.crown-ring::before,.crown-ring::after,.hero-orb,.rotor-txt,.rotor-dot,.fx-burst,.fx-particle,.fx-sparkle,.profile-hero .avatar::after,.section-head h2,.portfolio-grid .project-card.spotlight::before,.view.leaving,.view-veil,.switch .track,.switch .track::after{animation:none!important;transition:none!important}
-  .js-reveal .section-head,.js-reveal .profile-hero,.js-reveal .tier,.js-reveal .approve-card,.js-reveal .creator-card,.js-reveal .asset-card,.js-reveal .project-card{opacity:1;transform:none}
-  .ambient-dust,.scroll-progress,.to-top,.view-veil{display:none}
-}
-
-/* ============================================================
-   LIGHT THEME — full overrides (loaded last so it wins the cascade)
-   White + gold look: every hardcoded dark surface, white-on-white
-   text, and dark gradient from the polish chunks is corrected here.
-   ============================================================ */
-html[data-theme="light"] body{background:radial-gradient(1100px 560px at 50% -10%, rgba(184,145,42,.10), transparent 60%),radial-gradient(900px 480px at 90% 0%, rgba(77,141,255,.05), transparent 55%),#f6f6f8;background-attachment:fixed}
-html[data-theme="light"] body::before{background:none;animation:none}
-html[data-theme="light"] body::after{opacity:.16;background-image:linear-gradient(rgba(23,23,28,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(23,23,28,.05) 1px,transparent 1px)}
-html[data-theme="light"] ::selection{background:#ffe9a8;color:#17171c}
-html[data-theme="light"] ::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#d9d9e0,#c4c4ce);border:3px solid #f6f6f8}
-html[data-theme="light"] ::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,#c9c9d2,#b4b4c0)}
-
-/* ---- topbar: white with a gold crown accent ---- */
-html[data-theme="light"] .site-header{background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(250,249,244,.92));border-bottom:1px solid rgba(184,145,42,.35);box-shadow:0 1px 0 rgba(255,255,255,.8) inset,0 10px 30px rgba(23,23,28,.08)}
-html[data-theme="light"] .site-header::after{background:linear-gradient(90deg,transparent,rgba(184,145,42,.55),transparent);opacity:.9}
-html[data-theme="light"] .main-nav a{color:var(--text-2)}
-html[data-theme="light"] .main-nav a:hover{color:var(--text);background:rgba(184,145,42,.10)}
-html[data-theme="light"] .main-nav a.active{color:#17171c;background:linear-gradient(180deg,rgba(184,145,42,.22),rgba(184,145,42,.08));box-shadow:inset 0 0 0 1px rgba(184,145,42,.45);text-shadow:none}
-html[data-theme="light"] .brand .crown svg{filter:drop-shadow(0 0 8px rgba(184,145,42,.45))}
-html[data-theme="light"] .icon-btn:hover,html[data-theme="light"] .btn-ghost:hover{background:rgba(184,145,42,.08);border-color:var(--border-strong);color:var(--text)}
-html[data-theme="light"] .dropdown-menu{background:#fff;box-shadow:0 18px 50px rgba(23,23,28,.16),0 2px 8px rgba(23,23,28,.08)}
-html[data-theme="light"] .dropdown-menu a:hover,html[data-theme="light"] .dropdown-menu button:hover{background:rgba(184,145,42,.10);color:var(--text)}
-
-/* ---- hero ---- */
-html[data-theme="light"] .hero{background:radial-gradient(1000px 520px at 50% -14%, rgba(184,145,42,.14), transparent 62%),var(--bg)}
-html[data-theme="light"] .hero h1{background:linear-gradient(180deg,#17171c 30%,#4a4436 75%);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none;animation:none}
-html[data-theme="light"] .hero .crown svg{filter:drop-shadow(0 0 22px rgba(184,145,42,.5))}
-
-/* ---- cards & surfaces: strip the white-glass overlay meant for dark ---- */
-html[data-theme="light"] .card,html[data-theme="light"] .asset-card,html[data-theme="light"] .approve-card,html[data-theme="light"] .tier,html[data-theme="light"] .profile-hero,html[data-theme="light"] .stat-card,html[data-theme="light"] .dash-stat,html[data-theme="light"] .table-wrap,html[data-theme="light"] .pm-card{background:var(--surface);box-shadow:var(--shadow-1)}
-html[data-theme="light"] .tier.featured{background:#fffbef;box-shadow:var(--shadow-1),0 0 24px rgba(184,145,42,.12)}
-html[data-theme="light"] .stat-card b{background:none;-webkit-background-clip:initial;background-clip:initial;color:var(--text)}
-html[data-theme="light"] .stat-card:hover{box-shadow:var(--shadow-2),0 0 20px rgba(184,145,42,.14)}
-html[data-theme="light"] .card-hover:hover{box-shadow:var(--shadow-2),0 0 0 1px rgba(184,145,42,.25),0 0 26px rgba(184,145,42,.12)}
-html[data-theme="light"] .asset-card:hover .asset-title{background:none;-webkit-background-clip:initial;background-clip:initial;color:var(--gold)}
-html[data-theme="light"] .asset-thumb{background:radial-gradient(120% 120% at 50% 0%, rgba(184,145,42,.14), transparent 55%)}
-html[data-theme="light"] .asset-thumb::after{background:linear-gradient(180deg, transparent 62%, rgba(23,23,28,.14))}
-html[data-theme="light"] .thumb-default{background:linear-gradient(150deg,#ece9df,#dcd9cf)}
-html[data-theme="light"] .project-banner svg{color:rgba(23,23,28,.55)}
-html[data-theme="light"] .price{text-shadow:none}
-
-/* ---- inputs, modals, toasts ---- */
-html[data-theme="light"] .input,html[data-theme="light"] .select,html[data-theme="light"] .textarea{background:#fff;color:var(--text);box-shadow:inset 0 1px 2px rgba(23,23,28,.04)}
-html[data-theme="light"] .input:focus,html[data-theme="light"] .select:focus,html[data-theme="light"] .textarea:focus{border-color:#b8912a;box-shadow:0 0 0 3px rgba(184,145,42,.15)}
-html[data-theme="light"] .input::placeholder,html[data-theme="light"] .textarea::placeholder{color:var(--text-3)}
-html[data-theme="light"] .modal{background:#fff;box-shadow:0 40px 90px rgba(23,23,28,.28),0 0 40px rgba(184,145,42,.10)}
-html[data-theme="light"] .modal-overlay{background:rgba(40,36,24,.38)}
-html[data-theme="light"] .drawer-backdrop{background:rgba(40,36,24,.34)}
-html[data-theme="light"] .toast{background:#fff;color:var(--text);box-shadow:0 18px 50px rgba(23,23,28,.20),0 2px 8px rgba(23,23,28,.08)}
-html[data-theme="light"] .select option{background:#fff;color:#17171c}
-
-/* ---- buttons, chips, tabs ---- */
-html[data-theme="light"] .btn-primary{background:linear-gradient(180deg,#ffffff,#f1efe6);color:#17171c;box-shadow:inset 0 1px 0 #fff,0 6px 18px rgba(23,23,28,.14)}
-html[data-theme="light"] .btn-primary:hover{background:#fff;box-shadow:inset 0 1px 0 #fff,0 10px 26px rgba(23,23,28,.2),0 0 22px rgba(184,145,42,.22)}
-html[data-theme="light"] .btn-primary::after{background:linear-gradient(105deg,transparent,rgba(255,255,255,.9),transparent)}
-html[data-theme="light"] .chip.active{color:#fff;background:#17171c;border-color:#17171c}
-html[data-theme="light"] .tab.active{color:#8a6d1c;background:linear-gradient(180deg,rgba(184,145,42,.16),rgba(184,145,42,.03));text-shadow:none}
-html[data-theme="light"] .table th{background:linear-gradient(180deg,rgba(23,23,28,.035),rgba(23,23,28,0))}
-html[data-theme="light"] .table tbody tr:hover{background:linear-gradient(90deg, rgba(184,145,42,.07), rgba(23,23,28,.015))}
-
-/* ---- badges: solid tints readable on white ---- */
-html[data-theme="light"] .badge.owner{background:linear-gradient(135deg,rgba(184,145,42,.20),rgba(184,145,42,.08));color:#7a5c10;border:1px solid rgba(184,145,42,.5);box-shadow:none}
-html[data-theme="light"] .badge.cofounder{background:linear-gradient(135deg,rgba(139,109,230,.18),rgba(139,109,230,.07));color:#4c34a8;border:1px solid rgba(139,109,230,.45);box-shadow:none}
-html[data-theme="light"] .badge.tag,html[data-theme="light"] .badge.plain{background:rgba(23,23,28,.05);color:var(--text-2)}
-
-/* ---- floating widgets: white instead of black glass ---- */
-html[data-theme="light"] .post-fab{background:linear-gradient(180deg,#fffdf4,#f3edda);color:#8a6d1c;box-shadow:0 6px 22px rgba(184,145,42,.30),inset 0 1px 0 #fff}
-html[data-theme="light"] .post-fab.locked{background:linear-gradient(180deg,#ececef,#e2e2e6);color:#8b8b94;box-shadow:0 6px 22px rgba(23,23,28,.14),inset 0 1px 0 #fff;border-color:var(--border-strong)}
-html[data-theme="light"] .site-status{background:linear-gradient(180deg,#fff,#f6f4ec);color:var(--text-2);box-shadow:0 4px 14px rgba(23,23,28,.14),inset 0 1px 0 #fff}
-html[data-theme="light"] .social-dock .s-btn{background:linear-gradient(180deg,#fff,#f4f2ea);color:var(--text-2);box-shadow:0 4px 14px rgba(23,23,28,.14),inset 0 1px 0 #fff}
-html[data-theme="light"] .avatar{background:linear-gradient(145deg,#efece2,#e2ded1);color:#7a6c3f}
-html[data-theme="light"] .loader{background:radial-gradient(1200px 700px at 50% 0%,#ffffff 0%,#f6f6f8 55%,#ededf0 100%)}
-
-/* ---- text contrast safety net: kill any remaining pure-white text ---- */
-html[data-theme="light"] .hero-tag,html[data-theme="light"] .muted,html[data-theme="light"] .sub,html[data-theme="light"] .dim,html[data-theme="light"] .footer h4,html[data-theme="light"] .footer-brand p,html[data-theme="light"] .footer-bottom,html[data-theme="light"] .footer-links a{color:var(--text-2)}
-html[data-theme="light"] .footer-links a:hover{color:var(--text)}
-html[data-theme="light"] .site-footer{background:#fbfaf6}
-
-/* ---- remaining shimmer/gradient-text elements (white gradients -> dark) ---- */
-html[data-theme="light"] .section-head h2{background:linear-gradient(100deg,#17171c 30%,#8a6d1c 55%,#17171c 80%);-webkit-background-clip:text;background-clip:text}
-html[data-theme="light"] .hero-stat b{background:linear-gradient(180deg,#17171c,#8a6d1c);-webkit-background-clip:text;background-clip:text}
-html[data-theme="light"] .dash-stat .v{background:linear-gradient(180deg,#17171c,#8a6d1c);-webkit-background-clip:text;background-clip:text}
-html[data-theme="light"] .dash-stat .v.blue{background:linear-gradient(180deg,#1c3a8a,#2d5bd7);-webkit-background-clip:text;background-clip:text}
-html[data-theme="light"] .dash-stat .v.red{background:linear-gradient(180deg,#8a1c22,#d72d35);-webkit-background-clip:text;background-clip:text}
-html[data-theme="light"] .hero-em{background:linear-gradient(90deg,#8a6d1c,#17171c,#8a6d1c);background-size:200% auto;-webkit-background-clip:text;background-clip:text}
-html[data-theme="light"] .gold-shimmer{background:linear-gradient(110deg,#8a6d1c,#b8912a,#d9c074,#b8912a);-webkit-background-clip:text;background-clip:text}
-html[data-theme="light"] .loader-title{background:linear-gradient(100deg,#17171c 20%,#8a6d1c 45%,#17171c 70%);-webkit-background-clip:text;background-clip:text}
-/* ==== light theme: louder gold (user request — yellow/gold must pop) ==== */
-html[data-theme="light"]{--gold:#a87908;--gold-strong:#8a6d1c}
-html[data-theme="light"] .brand .crown,html[data-theme="light"] .hero .crown{color:#a87908}
-html[data-theme="light"] .site-header{border-bottom:1px solid rgba(168,121,8,.55);box-shadow:0 1px 0 rgba(255,255,255,.8) inset,0 10px 30px rgba(168,121,8,.10)}
-html[data-theme="light"] .site-header::after{background:linear-gradient(90deg,transparent,rgba(168,121,8,.85),transparent)}
-html[data-theme="light"] .main-nav a.active{color:#17171c;background:linear-gradient(180deg,rgba(212,164,22,.35),rgba(212,164,22,.12));box-shadow:inset 0 0 0 1.5px rgba(168,121,8,.7)}
-html[data-theme="light"] .main-nav a:hover{background:rgba(212,164,22,.18)}
-html[data-theme="light"] .btn-ghost{border-color:rgba(168,121,8,.45);color:#6d5410}
-html[data-theme="light"] .btn-ghost:hover{background:rgba(212,164,22,.16);border-color:rgba(168,121,8,.8);color:#4d3a06}
-html[data-theme="light"] .chip.active{background:linear-gradient(180deg,#c79a1b,#8a6d1c);border-color:#8a6d1c;color:#fff;text-shadow:0 1px 1px rgba(0,0,0,.35)}
-html[data-theme="light"] .tab.active{color:#6d5410;background:linear-gradient(180deg,rgba(212,164,22,.30),rgba(212,164,22,.06));box-shadow:inset 0 -2px 0 #a87908}
-html[data-theme="light"] .badge.vip{background:linear-gradient(135deg,rgba(212,164,22,.30),rgba(168,121,8,.12));color:#6d5410;border:1px solid rgba(168,121,8,.6)}
-html[data-theme="light"] .badge.owner{background:linear-gradient(135deg,rgba(212,164,22,.32),rgba(168,121,8,.10));color:#5f470a;border:1.5px solid rgba(168,121,8,.65)}
-html[data-theme="light"] .section-eyebrow,html[data-theme="light"] .project-foot b,html[data-theme="light"] b[style*="--gold"],html[data-theme="light"] .price{color:#a87908}
-html[data-theme="light"] .card-hover:hover{box-shadow:var(--shadow-2),0 0 0 1.5px rgba(168,121,8,.45),0 0 30px rgba(168,121,8,.18)}
-html[data-theme="light"] .tier.featured{background:#fffaf0;box-shadow:var(--shadow-1),0 0 0 1.5px rgba(168,121,8,.5),0 0 30px rgba(168,121,8,.16)}
-html[data-theme="light"] input:focus,html[data-theme="light"] textarea:focus,html[data-theme="light"] .select:focus{border-color:#a87908;box-shadow:0 0 0 3px rgba(168,121,8,.18)}
-html[data-theme="light"] a{color:#8a6d1c}
-html[data-theme="light"] a:hover{color:#6d5410}
-html[data-theme="light"] .post-fab{background:linear-gradient(180deg,#d9ad2b,#a87908);color:#fff;box-shadow:0 6px 22px rgba(168,121,8,.45),inset 0 1px 0 rgba(255,255,255,.35)}
-html[data-theme="light"] .crown{color:#a87908}
-</style>
-</head>
-<body>
-<div id="loader" class="loader" role="status" aria-label="Loading Kings Production">
-  <div class="loader-bg"></div>
-  <div class="loader-inner">
-    <div class="loader-orb" aria-hidden="true"><span class="loader-crown"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 16.5V10l4.2 3.6L12 6.5l3.8 7.1L20 10v6.5a1.6 1.6 0 0 1-1.6 1.6H5.6A1.6 1.6 0 0 1 4 16.5Z"/><rect x="5.2" y="19" width="13.6" height="1.8" rx="0.9"/></svg></span></div>
-    <div class="loader-title">Kings <em>Production</em></div>
-    <div class="loader-sub">Where Excellence Meets Innovation</div>
-    <div class="loader-bar"><div class="loader-fill" id="loader-fill"></div></div>
-    <div class="loader-pct" id="loader-pct">0%</div>
-    <div class="loader-tag">Forging premium Roblox systems</div>
-  </div>
-</div>
-<div id="app" aria-live="polite"></div>
-<noscript><div style="padding:40px;font-family:sans-serif;color:#fff;background:#0c0c0e;min-height:100vh">Kings Production requires JavaScript to run.</div></noscript>
-<script>
 'use strict';
 /* ================= CHUNK 1: STORE · SEED · HELPERS ================= */
 const STORE_KEY = 'kp_db_v3';
@@ -1155,46 +9,23 @@ const IDB_STORE = 'files';
 const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-5);
 const now = () => Date.now();
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-/* Display-only data kept in the page: currency tables and the TOTP math the
-   2FA screen needs. Everything else lives server-side — the deployed page is
-   served WITHOUT the business engine (see the server's productionPage()), so a
-   downloaded copy contains no marketplace logic to rebuild. */
-const KP_DISPLAY = {
-  COUNTRY_CURRENCY: { US: 'USD', PH: 'PHP', GB: 'GBP', CA: 'CAD', AU: 'AUD', DE: 'EUR', FR: 'EUR', ES: 'EUR', IT: 'EUR', NL: 'EUR', PT: 'EUR', IE: 'EUR', JP: 'JPY', KR: 'KRW', IN: 'INR', SG: 'SGD', MY: 'MYR', ID: 'IDR', BR: 'BRL', MX: 'MXN', AE: 'AED', SA: 'SAR', ZA: 'ZAR', NG: 'NGN', GH: 'GHS', KE: 'KES', EG: 'EGP', TR: 'TRY', RU: 'RUB', CN: 'CNY', HK: 'HKD', TW: 'TWD', TH: 'THB', VN: 'VND', AR: 'ARS', CL: 'CLP', CO: 'COP', PE: 'PEN' },
-  FX_FALLBACK: { USD: 1, PHP: 56.5, GBP: 0.79, CAD: 1.36, AUD: 1.5, EUR: 0.92, JPY: 150, KRW: 1330, INR: 83.5, SGD: 1.35, MYR: 4.7, IDR: 15800, BRL: 5.1, MXN: 17.2, AED: 3.67, SAR: 3.75, ZAR: 18.5, NGN: 1480, GHS: 15.4, KES: 129, EGP: 48, TRY: 32.5, RUB: 92, CNY: 7.2, HKD: 7.8, TWD: 32, THB: 36.5, VND: 25400, ARS: 890, CLP: 940, COP: 3900, PEN: 3.7 },
-  CURRENCY_SYMBOL: { USD: '$', PHP: '₱', GBP: '£', CAD: 'C$', AUD: 'A$', EUR: '€', JPY: '¥', KRW: '₩', INR: '₹', SGD: 'S$', MYR: 'RM', IDR: 'Rp', BRL: 'R$', MXN: 'Mex$', AED: 'د.إ', SAR: '﷼', ZAR: 'R', NGN: '₦', GHS: 'GH₵', KES: 'KSh', EGP: 'E£', TRY: '₺', RUB: '₽', CNY: '¥', HKD: 'HK$', TWD: 'NT$', THB: '฿', VND: '₫', ARS: '$', CLP: '$', COP: '$', PEN: 'S/' },
-};
-/* RFC 6238 TOTP — generic HMAC math, no platform secrets involved. */
-async function kpTotpCode(secret, atMs = Date.now()) {
-  const B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-  const map = {}; [...B32].forEach((c, i) => { map[c] = i; });
-  let bits = 0, val = 0; const bytes = [];
-  for (const ch of String(secret).toUpperCase().replace(/=+$/, '')) { if (map[ch] == null) continue; val = (val << 5) | map[ch]; bits += 5; if (bits >= 8) { bytes.push((val >> (bits - 8)) & 255); bits -= 8; } }
-  const counter = Math.floor(atMs / 1000 / 30);
-  const key = await crypto.subtle.importKey('raw', new Uint8Array(bytes), { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']);
-  const buf = new ArrayBuffer(8); new DataView(buf).setUint32(4, counter, false);
-  const h = new Uint8Array(await crypto.subtle.sign('HMAC', key, new Uint8Array(buf)));
-  const off = h[h.length - 1] & 0xf;
-  const bin = ((h[off] & 0x7f) << 24) | (h[off + 1] << 16) | (h[off + 2] << 8) | h[off + 3];
-  return String(bin % 1000000).padStart(6, '0');
-}
-const CUR_OF = c => (KP_DISPLAY.COUNTRY_CURRENCY[String(c || '').toUpperCase()] || 'USD');
-const CUR_SYM = c => KP_DISPLAY.CURRENCY_SYMBOL[CUR_OF(c)] || (CUR_OF(c) + ' ');
+const CUR_OF = c => (KPEngine.COUNTRY_CURRENCY[String(c || '').toUpperCase()] || 'USD');
+const CUR_SYM = c => KPEngine.CURRENCY_SYMBOL[CUR_OF(c)] || (CUR_OF(c) + ' ');
 function localRate() {
   const cur = CUR_OF(STATE.user ? STATE.user.country : 'US');
-  const rates = STATE.rates || KP_DISPLAY.FX_FALLBACK;
+  const rates = STATE.rates || KPEngine.FX_FALLBACK;
   return { cur, r: Number(rates[cur] || 1) };
 }
 const fmtMoney = n => {
   const { cur, r } = localRate();
-  return (KP_DISPLAY.CURRENCY_SYMBOL[cur] || (cur + ' ')) + ' ' + Math.round((Number(n) || 0) * r).toLocaleString('en-US');
+  return (KPEngine.CURRENCY_SYMBOL[cur] || (cur + ' ')) + ' ' + Math.round((Number(n) || 0) * r).toLocaleString('en-US');
 };
 const fmtUsd = n => '$ ' + Number(n || 0).toLocaleString('en-US');
 const fmtPhp = (php) => {
   const cur = CUR_OF(STATE.user ? STATE.user.country : 'US');
-  const rates = STATE.rates || KP_DISPLAY.FX_FALLBACK;
+  const rates = STATE.rates || KPEngine.FX_FALLBACK;
   const local = Math.max(1, Math.round((Number(php) || 0) / Number(rates.PHP || 1) * Number(rates[cur] || 1)));
-  return (KP_DISPLAY.CURRENCY_SYMBOL[cur] || (cur + ' ')) + ' ' + local.toLocaleString('en-US');
+  return (KPEngine.CURRENCY_SYMBOL[cur] || (cur + ' ')) + ' ' + local.toLocaleString('en-US');
 };
 const fmtDate = t => new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 const fmtDateFull = t => new Date(t).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
@@ -1294,7 +125,6 @@ const ICON = {
   model: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 2.8 20 7.4v9.2L12 21.2 4 16.6V7.4L12 2.8Z"/><path d="M12 2.8v9.2m0 0L4 7.4m8 4.6 8-4.6M12 21.2v-9.2"/></svg>',
   plugin: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M8 4a1 1 0 0 1 2 0v1h4V4a1 1 0 0 1 2 0v1a2 2 0 0 0 2 2h1v4h-1a1 1 0 0 0 0 2h1v4h-1a2 2 0 0 0-2 2v1h-4v-1a1 1 0 0 0-2 0v1H6v-1a2 2 0 0 0-2-2H3v-4h1a1 1 0 0 0 0-2H3V7h1a2 2 0 0 0 2-2V4h2Z"/></svg>',
   system: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.5M12 18.7v2.5M2.8 12h2.5M18.7 12h2.5M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8"/></svg>',
-  tool: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4.2 4.2 0 0 0-5.6 5.1L3.6 16.9a2 2 0 0 0 2.8 2.8l5.5-5.5a4.2 4.2 0 0 0 5.1-5.6l-2.9 2.9-2.5-2.5 2.9-2.9Z"/><path d="m14 5 5 5"/></svg>',
   flag: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 4.5c4.5-2 7 2 11 0v8.5c-4.5 2-7-2-11 0"/><path d="M5 13c4.5-2 7 2 11 0"/></svg>',
   heart: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.5S3.5 15.4 3.5 9.6A4.6 4.6 0 0 1 12 7a4.6 4.6 0 0 1 8.5 2.6c0 5.8-8.5 10.9-8.5 10.9Z"/></svg>',
   chart: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/></svg>',
@@ -1322,10 +152,10 @@ const ICON = {
   gumroad: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M16.5 7.2c-1.2-.9-2.6-1.3-4.1-1.2-3.2.1-5.4 2.2-5.4 5.5 0 3.2 2.3 5.4 5.5 5.4 1.6 0 3-.5 4-1.4M16.5 7.2V4.9h.1M16.5 7.2H12"/></svg>',
   link: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5"/></svg>'
 };
-const CATEGORIES = ['animation', 'model', 'plugin', 'system', 'tool'];
-const CAT_LABEL = { animation: 'Animation', model: 'Model', plugin: 'Plugin', system: 'System', tool: 'Tool' };
-const CAT_ICON = { animation: ICON.anim, model: ICON.model, plugin: ICON.plugin, system: ICON.system, tool: ICON.tool };
-const CAT_THUMB = { animation: 'thumb-anim', model: 'thumb-model', plugin: 'thumb-plugin', system: 'thumb-system', tool: 'thumb-tool' };
+const CATEGORIES = ['animation', 'model', 'plugin', 'system'];
+const CAT_LABEL = { animation: 'Animation', model: 'Model', plugin: 'Plugin', system: 'System' };
+const CAT_ICON = { animation: ICON.anim, model: ICON.model, plugin: ICON.plugin, system: ICON.system };
+const CAT_THUMB = { animation: 'thumb-anim', model: 'thumb-model', plugin: 'thumb-plugin', system: 'thumb-system' };
 
 /* ---- smart link detection: every known site becomes its brand icon ---- */
 const LINK_TYPES = [
@@ -1488,8 +318,8 @@ const API = {};
   const fail = (code, error) => ({ ok: false, code, error });
   const byId = (list, id) => list.find(x => x.id === id);
 
-  const CATEGORIES = ['animation', 'model', 'plugin', 'system', 'tool'];
-  const CAT_LABEL = { animation: 'Animation', model: 'Model', plugin: 'Plugin', system: 'System', tool: 'Tool' };
+  const CATEGORIES = ['animation', 'model', 'plugin', 'system'];
+  const CAT_LABEL = { animation: 'Animation', model: 'Model', plugin: 'Plugin', system: 'System' };
   /* Role hierarchy (index = rank). Owner and Co-Founder can do everything;
      Admin can do everything except grant roles at admin level or higher;
      Licensed sellers can post; Members browse, buy, comment, rate. */
@@ -1620,7 +450,7 @@ const API = {};
   function createEngine(deps) {
     const store = deps.store, files = deps.files, mail = deps.mail;
     const cfg = Object.assign(
-      { autoAdminFirstUser: true, devMail: true, onlineWindowMs: 10 * 6e4, sessionTtlMs: 30 * 24 * 36e5, maxUploadBytes: 100 * 1024 * 1024, currency: 'USD', priceMultiplier: 1 },
+      { autoAdminFirstUser: true, devMail: true, onlineWindowMs: 10 * 6e4, sessionTtlMs: 30 * 24 * 36e5, maxUploadBytes: 20 * 1024 * 1024, currency: 'USD', priceMultiplier: 1 },
       deps.config || {}
     );
     const fx = Object.assign({}, FX_FALLBACK, cfg.fx || {});
@@ -1645,27 +475,17 @@ const API = {};
       if (effRank(actor) < roleRank('cofounder')) return fail('forbidden', 'Only the Co-Founder or Founder can ' + (what || 'do that') + '.');
       return null;
     };
-    /* Posting cooldown — a rolling 24h allowance that follows the seller's
-       Contract tier: Contract 1 = 1 post/day, Contract 2 = 3/day, Contract 3 =
-       10/day. Staff and anyone posting without a Contract get the base 1/day.
-       Admins (Admin rank and above) are exempt entirely. */
+    /* Posting cooldown — one new post per 24h for creators (admins are exempt). */
     const POST_COOLDOWN_MS = cfg.postCooldownMs || 24 * 36e5;
-    const CONTRACT_POST_LIMIT = { 1: 1, 2: 3, 3: 10 };
-    function postLimitFor(u) {
-      const tier = Number(u && u.contractTier) || 0;
-      return CONTRACT_POST_LIMIT[tier] || 1;
-    }
     function cooldownInfo(u) {
       if (!u || isAdmin(u) || !canPost(u)) return null;
-      const limit = postLimitFor(u);
       const posts = all('assets').filter(a => a.ownerId === u.id).sort((x, y) => y.createdAt - x.createdAt);
-      if (posts.length < limit) return null;
-      /* The oldest post still inside the window is the one that frees a slot. */
-      const gate = posts[limit - 1].createdAt;
-      const remainingMs = POST_COOLDOWN_MS - (now() - gate);
+      if (!posts.length) return null;
+      const last = posts[0].createdAt;
+      const remainingMs = POST_COOLDOWN_MS - (now() - last);
       if (remainingMs <= 0) return null;
       const h = Math.floor(remainingMs / 36e5), m = Math.floor((remainingMs % 36e5) / 6e4);
-      return { allowed: false, nextPostAt: gate + POST_COOLDOWN_MS, remainingMs, limit, used: posts.filter(a => now() - a.createdAt < POST_COOLDOWN_MS).length, text: (h > 0 ? h + 'h ' : '') + m + 'm' };
+      return { allowed: false, nextPostAt: last + POST_COOLDOWN_MS, remainingMs, text: (h > 0 ? h + 'h ' : '') + m + 'm' };
     }
     async function postStatus(user) {
       const u = resolveUser(user);
@@ -1726,9 +546,6 @@ const API = {};
     }
     const likeCount = id => all('likes').filter(l => l.assetId === id).length;
     const likedBy = (id, userId) => !!(userId && all('likes').some(l => l.assetId === id && l.userId === userId));
-    /* Free-claim reach: how many distinct users have the free system
-       (completed free order). Shown as "N users" instead of "N sold". */
-    const usersOf = id => new Set(all('orders').filter(o => o.assetId === id && o.method === 'free' && o.status === 'completed').map(o => o.buyerId)).size;
     /* Trending score — likes + ratings + sales, decayed by age so fresh
        engagement rises to the top of the front page. */
     function hotScore(a) {
@@ -1738,21 +555,13 @@ const API = {};
       return pop / Math.pow(hours + 3, 0.5);
     }
     function summarize(a, viewerId) {
-      /* Deleted/missing post: degrade gracefully instead of throwing — one
-         orphan order or purchase must never blank the whole Orders page. */
-      if (!a) return null;
       const o = dbUser(a.ownerId);
       const rv = assetRating(a);
       let images = [], paymentMethods = [], sellerPaymentDetails = null;
       try { images = a.images ? JSON.parse(a.images) : []; } catch (e) {}
       try { paymentMethods = a.paymentMethods ? JSON.parse(a.paymentMethods) : []; } catch (e) {}
       try { sellerPaymentDetails = a.sellerPaymentDetails ? JSON.parse(a.sellerPaymentDetails) : null; } catch (e) {}
-      /* Public shape. Deliberately EXCLUDES fileUrl (the deliverable — it used
-         to ride along in the shop list, so anyone could grab a paid system for
-         free) and sellerPaymentDetails (the seller's GCash/QR details — payment
-         info is revealed on the asset page at checkout, not scraped in bulk).
-         fileName stays because buyers see what they are getting. */
-      return { id: a.id, title: a.title, category: a.category, description: a.description, price: a.price, sales: a.sales, users: usersOf(a.id), freeLicensed: !!a.freeLicensed, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, imageUrl: a.imageUrl, images, paymentMethods, deliverDuringPending: !!a.deliverDuringPending, owner: o ? publicUser(o) : null, rating: rv ? rv.rating : null, ratingCount: rv ? rv.count : 0, likes: likeCount(a.id), liked: likedBy(a.id, viewerId) };
+      return { id: a.id, title: a.title, category: a.category, description: a.description, price: a.price, sales: a.sales, status: a.status, createdAt: a.createdAt, rejectReason: a.rejectReason, fileName: a.fileName, fileUrl: a.fileUrl || null, imageUrl: a.imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending: !!a.deliverDuringPending, owner: o ? publicUser(o) : null, rating: rv ? rv.rating : null, ratingCount: rv ? rv.count : 0, likes: likeCount(a.id), liked: likedBy(a.id, viewerId) };
     }
     function sendEmail(rec) {
       const row = { id: 'e' + uid(), to: rec.to, subject: rec.subject, action: rec.action, body: rec.body, link: rec.link || null, createdAt: now(), read: false };
@@ -2047,7 +856,7 @@ const API = {};
       });
       return out;
     }
-    async function createAsset(user, { title, category, description, price, fileName, fileData, fileUrl, backupUrl, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending, freeLicensed } = {}) {
+    async function createAsset(user, { title, category, description, price, fileName, fileData, fileUrl, backupUrl, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to post assets.');
       if (!canPost(u)) {
@@ -2056,15 +865,15 @@ const API = {};
         return fail('auth', 'You must be logged in to post assets.');
       }
       const cd = cooldownInfo(u);
-      if (cd) return fail('cooldown', 'Posting limit reached for your Contract tier (' + cd.limit + ' post' + (cd.limit > 1 ? 's' : '') + ' per 24h) — you can post again in ' + cd.text + '.');
+      if (cd) return fail('cooldown', 'Posting cooldown active — you can post again in ' + cd.text + '.');
       title = String(title || '').trim();
       description = String(description || '').trim();
       price = Number(price);
       category = String(category || '').toLowerCase();
       if (title.length < 3 || title.length > 60) return fail('invalid', 'Title must be 3–60 characters.');
-      if (!CATEGORIES.includes(category)) return fail('invalid', 'Choose a valid category: Animation, Model, Plugin, System, or Tool.');
+      if (!CATEGORIES.includes(category)) return fail('invalid', 'Choose a valid category: Animation, Model, Plugin, or System.');
       if (description.length < 10) return fail('invalid', 'A full description is required (at least 10 characters).');
-      if (!Number.isFinite(price) || price < 0 || price > 999999) return fail('invalid', 'Price must be 0 (free) or a positive number of USD.');
+      if (!Number.isFinite(price) || price <= 0 || price > 999999) return fail('invalid', 'Price must be a positive number of USD.');
       const img = normalizeImageUrl(imageUrl);
       if (img === null && String(imageUrl || '').trim()) return fail('invalid', 'Image link must be a valid http(s) URL.');
       const file = normalizeFile(fileData, fileName);
@@ -2082,20 +891,19 @@ const API = {};
       const cleanImages = Array.isArray(images) ? images.map(x => normalizeImageUrl(x)).filter(Boolean).slice(0, 12) : [];
       const allowedPm = ['stripe', 'paypal', 'gcash', 'kofi'];
       const sellerPm = Array.isArray(paymentMethods) ? paymentMethods.filter(m => allowedPm.includes(m)).slice(0, 4) : [];
-      /* Accepted payment methods are REQUIRED on paid posts — buyers can only
-         pay with methods the seller actually checked. Free posts (price 0)
-         skip payment entirely, so no methods are needed. */
-      if (Number(price) > 0 && !sellerPm.length) return fail('invalid', 'Select at least one accepted payment method (GCash, Ko-fi, PayPal, or Stripe) — buyers can only pay with methods you accept. (Set the price to 0 to post for free instead.)');
+      /* Accepted payment methods are REQUIRED — buyers can only pay with
+         methods the seller actually checked, so an empty list is a bug. */
+      if (!sellerPm.length) return fail('invalid', 'Select at least one accepted payment method (GCash, Ko-fi, PayPal, or Stripe) — buyers can only pay with methods you accept.');
       const asset = {
         id: 'a' + uid(), ownerId: u.id, title, category, description, price,
         fileName: file ? file.name : (fileName || (hostedFileUrl ? hostedFileUrl.split('/').pop().split('?')[0] || 'system-file' : 'system-file')), fileMime: file ? file.mime : 'application/octet-stream', fileSize: file ? file.size : 0,
         fileUrl: hostedFileUrl || null,
         backupUrl: backup || null,
-        images: JSON.stringify(cleanImages), paymentMethods: JSON.stringify(sellerPm), sellerPaymentDetails: JSON.stringify(cleanSellerPaymentDetails(sellerPm, sellerPaymentDetails)), deliverDuringPending: deliverDuringPending ? 1 : 0, freeLicensed: Number(price) > 0 ? 0 : (freeLicensed ? 1 : 0),
+        images: JSON.stringify(cleanImages), paymentMethods: JSON.stringify(sellerPm), sellerPaymentDetails: JSON.stringify(cleanSellerPaymentDetails(sellerPm, sellerPaymentDetails)), deliverDuringPending: deliverDuringPending ? 1 : 0,
         imageUrl: img, status: founderLevel ? 'approved' : 'pending', rejectReason: null, sales: 0, createdAt: now(), updatedAt: now(), approvedAt: founderLevel ? now() : null,
       };
       if (file) {
-        if (file.size > cfg.maxUploadBytes) return fail('invalid', 'File is too large (max ' + Math.round(cfg.maxUploadBytes / 1048576) + ' MB).');
+        if (file.size > cfg.maxUploadBytes) return fail('invalid', 'File is too large (max 20 MB).');
         try { await files.put(asset.id, file); }
         catch (err) { console.error(err); return fail('storage', 'Could not store the file.'); }
       }
@@ -2120,30 +928,22 @@ const API = {};
       const isOwner = !!viewer && viewer.id === a.ownerId;
       const isAdminView = !!viewer && isStaff(viewer);
       if (a.status !== 'approved' && !isOwner && !isAdminView) return fail('notfound', 'This asset is not available yet.');
-      const purchase = viewer ? livePurchaseFor(viewer.id, id) : null;
-      const blockedHere = !!(viewer && !isOwner && !isAdminView && isAssetBlocked(id, viewer.id));
+      const purchase = viewer ? all('purchases').find(p => p.assetId === id && p.buyerId === viewer.id) : null;
       return ok({
         ...summarize(a, viewerId),
         description: a.description,
         isOwner,
         hasPurchased: !!purchase,
-        blocked: blockedHere,
-        canDownload: !blockedHere && !!(isOwner || isAdminView || purchase),
+        canDownload: !!(isOwner || isAdminView || purchase),
         /* Mirror link is private — only entitled viewers ever see it. */
         backupUrl: (isOwner || isAdminView || purchase) ? (a.backupUrl || null) : null,
-        /* The primary file link is private too: the owner/staff see where it
-           lives, everyone else must go through the gated /file route. */
-        fileUrl: (isOwner || isAdminView) ? (a.fileUrl || null) : null,
-        /* Payment details are shown to buyers at checkout (this page), which is
-           where a purchase actually happens — never in the public shop list. */
-        sellerPaymentDetails: (() => { try { return a.sellerPaymentDetails ? JSON.parse(a.sellerPaymentDetails) : null; } catch (e) { return null; } })(),
         purchase,
         sellerResponse: sellerResponseStats(a.ownerId),
         canRate: isVerifiedBuyer(viewer, id),
       });
     }
 
-    async function updateAsset(user, id, { title, category, description, price, fileName, fileData, fileUrl, backupUrl, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending, freeLicensed } = {}) {
+    async function updateAsset(user, id, { title, category, description, price, fileName, fileData, fileUrl, backupUrl, imageUrl, images, paymentMethods, sellerPaymentDetails, deliverDuringPending } = {}) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
       const a = byIdIn('assets', id);
@@ -2167,7 +967,7 @@ const API = {};
       }
       if (price !== undefined) {
         price = Number(price);
-        if (!Number.isFinite(price) || price < 0 || price > 999999) return fail('invalid', 'Price must be 0 (free) or a positive number of USD.');
+        if (!Number.isFinite(price) || price <= 0 || price > 999999) return fail('invalid', 'Price must be a positive number of USD.');
         a.price = price;
       }
       if (imageUrl !== undefined) {
@@ -2190,7 +990,6 @@ const API = {};
         a.sellerPaymentDetails = JSON.stringify(cleanSellerPaymentDetails(pms, Object.assign({}, prev, sellerPaymentDetails)));
       }
       if (deliverDuringPending !== undefined) a.deliverDuringPending = !!deliverDuringPending ? 1 : 0;
-      if (freeLicensed !== undefined) a.freeLicensed = !!freeLicensed ? 1 : 0;
       if (backupUrl !== undefined) {
         const bu = normalizeImageUrl(backupUrl);
         if (!bu) return fail('invalid', 'A backup download link is required — upload the same file to MediaFire, Mega, GoFile, or Drive and paste the link.');
@@ -2198,7 +997,7 @@ const API = {};
       }
       const file = normalizeFile(fileData, fileName);
       if (file) {
-        if (file.size > cfg.maxUploadBytes) return fail('invalid', 'File is too large (max ' + Math.round(cfg.maxUploadBytes / 1048576) + ' MB).');
+        if (file.size > cfg.maxUploadBytes) return fail('invalid', 'File is too large (max 20 MB).');
         a.fileName = file.name; a.fileMime = file.mime; a.fileSize = file.size;
         a.fileUrl = null; // raw bytes replace any hosted URL
         try { await files.put(a.id, file); } catch (err) { console.error(err); return fail('storage', 'Could not store the file.'); }
@@ -2221,7 +1020,6 @@ const API = {};
       const purchaseIds = all('purchases').filter(p => p.assetId === id).map(p => p.id);
       all('comments').filter(c => c.assetId === id).forEach(c => store.del('comments', c.id));
       all('purchases').filter(p => p.assetId === id).forEach(p => store.del('purchases', p.id));
-      all('orders').filter(o => o.assetId === id).forEach(o => store.del('orders', o.id)); // post deleted → its orders go with it, nothing lingers
       all('likes').filter(l => l.assetId === id).forEach(l => store.del('likes', l.id));
       all('devices').filter(d => d.assetId === id || purchaseIds.includes(d.purchaseId)).forEach(d => store.del('devices', d.id));
       all('reviews').filter(r => r.assetId === id).forEach(r => store.del('reviews', r.id));
@@ -2454,19 +1252,6 @@ const API = {};
       }));
     }
 
-    /* A purchase row only grants a download while its license is live. Revoked
-       and disabled licenses (seller unapproved the order, blocked the buyer, or
-       admin revoked it) must lose the FILE as well — the license status alone
-       only stopped the system in-game, so a blocked buyer could still download
-       the deliverable forever. */
-    function livePurchaseFor(viewerId, assetId) {
-      if (!viewerId) return null;
-      const p = all('purchases').find(x => x.assetId === assetId && x.buyerId === viewerId);
-      if (!p) return null;
-      const st = String(p.status || 'active').toLowerCase();
-      if (st === 'disabled' || st === 'revoked') return null;
-      return p;
-    }
     async function download(user, id) {
       const a = byIdIn('assets', id);
       if (!a) return fail('notfound', 'Asset not found.');
@@ -2474,8 +1259,7 @@ const API = {};
       const isOwner = v && v.id === a.ownerId;
       const isAdminView = v && isStaff(v);
       const isTest = v && isTester(v);
-      if (v && !isOwner && !isAdminView && isAssetBlocked(id, v.id)) return fail('forbidden', 'The seller has blocked your account from this system.');
-      const hasPurchased = !!livePurchaseFor(v && v.id, id);
+      const hasPurchased = v && all('purchases').some(p => p.assetId === id && p.buyerId === v.id);
       if (!isOwner && !isAdminView && !isTest && !hasPurchased) return fail('forbidden', 'Purchase this asset to download the file.');
       return ok({ fileName: a.fileName, mime: a.fileMime, size: a.fileSize, fileUrl: a.fileUrl || null, backupUrl: a.backupUrl || null });
     }
@@ -2487,9 +1271,7 @@ const API = {};
     function grantLicense(u, a) {
       const key = 'KP-' + randomToken(4).toUpperCase().match(/.{1,4}/g).join('-');
       store.put('purchases', { id: 'p' + uid(), assetId: a.id, buyerId: u.id, price: a.price, licenseKey: key, gameId: null, gameName: '', createdAt: now() });
-      /* Free systems count USERS, not sales — the shop shows "N users" instead
-         of "N sold" for zero-price posts. */
-      if (Number(a.price) > 0) a.sales = (a.sales || 0) + 1;
+      a.sales = (a.sales || 0) + 1;
       store.put('assets', a);
       flush();
       return { licenseKey: key, vipUpgrade: false };
@@ -2876,10 +1658,8 @@ const API = {};
     async function createOrder(user, assetId, method, gameDetails) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
-      /* Free claims arrive with method 'free' — skip the payment-method gate. */
-      const isFreeClaim = String(method || '').toLowerCase() === 'free';
       method = String(method || '').toLowerCase();
-      if (!isFreeClaim && !PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, GCash, or Ko-fi.');
+      if (!PAY_METHODS.includes(method)) return fail('invalid', 'Choose a payment method: Stripe, PayPal, GCash, or Ko-fi.');
       const a = byIdIn('assets', assetId);
       if (isRestricted(u)) return fail('restricted', 'Your account is restricted — you cannot make purchases right now. You may appeal or wait out the restriction.');
       if (!a) return fail('notfound', 'Asset not found.');
@@ -2887,30 +1667,9 @@ const API = {};
       if (isBanned(u)) return fail('banned', 'Your account is banned.');
       if (a.status !== 'approved') return fail('notfound', 'This asset is not available for purchase.');
       if (a.ownerId === u.id) return fail('self', 'You cannot purchase your own asset.');
-      if (isAssetBlocked(a.id, u.id)) return fail('forbidden', 'The seller has blocked your account from this system.');
       if (all('purchases').some(p => p.assetId === a.id && p.buyerId === u.id)) return fail('owned', 'You already own this asset.');
       if (all('orders').some(o => o.buyerId === u.id && o.assetId === a.id && (o.status === 'created' || o.status === 'paid')))
         return fail('pending', 'You already have a pending order for this asset.');
-      /* FREE posts (price 0): no payment, no method picker. Two flavors:
-         - freeLicensed (checked): the free system still carries a license —
-           the claimer fills in game details; the order waits for the seller's
-           approval exactly like a paid order (Approve details → completes +
-           license).
-         - open source (unchecked): no license, no questions — the claim
-           completes instantly and the file is downloadable right away. */
-      if (!(Number(a.price) > 0)) {
-        const needsDetails = !!a.freeLicensed;
-        let freeDetails = null;
-        if (needsDetails) {
-          const gd0 = gameDetails && typeof gameDetails === 'object' ? gameDetails : {};
-          freeDetails = { gameName: String(gd0.gameName || '').trim().slice(0, 80) || null, placeId: String(gd0.placeId || '').trim().slice(0, 20) || null, gameOwner: String(gd0.gameOwner || '').trim().slice(0, 80) || null, notes: String(gd0.notes || '').trim().slice(0, 400) || null };
-          if (!freeDetails.gameName || !freeDetails.placeId || !freeDetails.gameOwner) return fail('invalid', 'This free system is licensed — game name, place ID, and game creator are required to claim it.');
-        }
-        const order0 = { id: 'o' + uid(), buyerId: u.id, assetId: a.id, method: 'free', amount: 0, currency: currencyOf(u.country), status: needsDetails ? 'paid' : 'created', providerRef: needsDetails ? 'free-claim' : null, licenseKey: null, gameDetails: JSON.stringify(freeDetails), sellerId: a.ownerId, approval: 'pending', createdAt: now(), paidAt: needsDetails ? now() : null, updatedAt: now() };
-        store.put('orders', order0);
-        flush();
-        return needsDetails ? ok({ orderId: order0.id, amount: 0, currency: order0.currency, freeLicensed: true }) : finalizeOrder(order0, u);
-      }
       const currency = currencyOf(u.country);
       const amount = convertPrice(a.price, u.country);
       const gd = gameDetails && typeof gameDetails === 'object' ? gameDetails : {};
@@ -2992,14 +1751,6 @@ const API = {};
       order.approval = decision;
       order.approvalNote = String(note || '').trim().slice(0, 300) || null;
       order.updatedAt = now();
-      /* FREE licensed claims complete on approval: the seller accepts the
-         claimer's game details and the license is issued right here — no
-         payment ever happened, so there is nothing else to verify. */
-      if (decision === 'approved' && order.method === 'free' && order.status === 'paid') {
-        const buyerF = dbUser(order.buyerId);
-        const outF = finalizeOrder(order, buyerF);
-        return outF;
-      }
       /* A rejected order leaves pending for good: it moves to the buyer's
          Rejected list (they can delete it there) and the buyer is emailed. */
       if (decision === 'rejected') {
@@ -3154,23 +1905,13 @@ const API = {};
       if (!u) return fail('auth', 'You must be logged in to do that.');
       const order = byIdIn('orders', orderId);
       if (!order || order.buyerId !== u.id) return fail('forbidden', 'Order not found.');
-      /* A completed order is a delivered license — deleting it here would strand
-         the buyer's license. The seller has to unapprove / reject it instead. */
-      if (order.status === 'completed') return fail('invalid', 'This order is already completed — ask the seller to unapprove it if you need it changed.');
-      /* Cancel removes the order outright. It used to only delete orders still in
-         the 'created' state, so a manual-payment order (awaiting proof) stayed in
-         the buyer's Orders page after they cancelled it. */
-      store.del('orders', order.id);
-      flush();
+      if (order.status === 'created') { order.status = 'cancelled'; order.updatedAt = now(); store.put('orders', order); flush(); }
       return ok(true);
     }
     async function myOrders(user) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
-      /* Only live orders show: cancelled rows and orders whose post no longer
-         exists are filtered out (plan orders — VIP / subscription — always stay). */
-      const live = o => o.status !== 'cancelled' && (isVipOrder(o) || isSubOrder(o) || !!byIdIn('assets', o.assetId));
-      return ok(all('orders').filter(o => o.buyerId === u.id && live(o)).sort((x, y) => y.createdAt - x.createdAt).map(o => {
+      return ok(all('orders').filter(o => o.buyerId === u.id).sort((x, y) => y.createdAt - x.createdAt).map(o => {
         let proof = null;
         try { proof = o.proof ? JSON.parse(o.proof) : null; } catch (e) {}
         return { ...o, proof, manual: MANUAL_METHODS.includes(o.method), vip: isVipOrder(o), sub: isSubOrder(o) ? { category: String(o.assetId).split(':')[1], tier: Number(String(o.assetId).split(':')[2]) } : null, asset: (isVipOrder(o) || isSubOrder(o)) ? null : summarize(byIdIn('assets', o.assetId)) };
@@ -3178,8 +1919,7 @@ const API = {};
     }
     async function adminOrders(actor) {
       const r = requireAdmin(actor); if (r) return r;
-      const live = o => o.status !== 'cancelled' && (isVipOrder(o) || isSubOrder(o) || !!byIdIn('assets', o.assetId));
-      return ok(all('orders').filter(live).slice().sort((x, y) => y.createdAt - x.createdAt).map(o => ({ ...o, vip: isVipOrder(o), buyer: publicUser(dbUser(o.buyerId)), asset: (isVipOrder(o) || isSubOrder(o)) ? null : summarize(byIdIn('assets', o.assetId)) })));
+      return ok(all('orders').slice().sort((x, y) => y.createdAt - x.createdAt).map(o => ({ ...o, vip: isVipOrder(o), buyer: publicUser(dbUser(o.buyerId)), asset: (isVipOrder(o) || isSubOrder(o)) ? null : summarize(byIdIn('assets', o.assetId)) })));
     }
     async function adminCompleteOrder(actor, orderId) {
       const r = requireAdmin(actor); if (r) return r;
@@ -3197,7 +1937,7 @@ const API = {};
     async function myPurchases(user) {
       const u = resolveUser(user);
       if (!u) return fail('auth', 'You must be logged in to do that.');
-      return ok(all('purchases').filter(p => p.buyerId === u.id).sort((x, y) => y.createdAt - x.createdAt).map(p => ({ ...p, asset: summarize(byIdIn('assets', p.assetId)) })).filter(x => x.asset !== null));
+      return ok(all('purchases').filter(p => p.buyerId === u.id).sort((x, y) => y.createdAt - x.createdAt).map(p => ({ ...p, asset: summarize(byIdIn('assets', p.assetId)) })));
     }
 
     async function assignLicense(user, purchaseId, { gameId, gameName } = {}) {
@@ -3321,7 +2061,7 @@ const API = {};
         .map(p => ({
           ...p,
           buyer: publicUser(dbUser(p.buyerId)),
-          asset: summarize(byIdIn('assets', p.assetId), u.id) || null,
+          asset: summarize(byIdIn('assets', p.assetId), u.id),
           devices: all('devices').filter(d => d.purchaseId === p.id).sort((a, b) => b.lastSeen - a.lastSeen),
         }));
       return ok(list);
@@ -3518,7 +2258,7 @@ const API = {};
       if (!Array.isArray(links)) return [];
       return links.map(l => ({ url: String((l && l.url) || '').trim() })).filter(l => /^https?:\/\//i.test(l.url)).slice(0, 12).map(l => ({ url: l.url.slice(0, 500) }));
     }
-    async function createPortfolio(actor, { title, category, desc, stat, status, imageUrl, images, links, featured, creatorId } = {}) {
+    async function createPortfolio(actor, { title, category, desc, stat, status, imageUrl, images, links, featured } = {}) {
       const r = requireCofounder(actor, 'create portfolio posts'); if (r) return r;
       title = String(title || '').trim();
       desc = String(desc || '').trim();
@@ -3530,7 +2270,7 @@ const API = {};
       const item = {
         id: 'pp' + uid(), title, category: String(category || '').trim().slice(0, 40),
         desc, stat: String(stat || '').trim().slice(0, 60), status: String(status || 'Live').trim().slice(0, 24),
-        imageUrl: img, images: JSON.stringify(imgs), links: JSON.stringify(cleanPortfolioLinks(links)), featured: !!featured, creatorId: String(creatorId || '').trim() || null, createdAt: now(),
+        imageUrl: img, images: JSON.stringify(imgs), links: JSON.stringify(cleanPortfolioLinks(links)), featured: !!featured, createdAt: now(),
       };
       if (item.featured) all('portfolio').filter(x => x.featured && x.id !== item.id).forEach(x => { x.featured = false; store.put('portfolio', x); });
       store.put('portfolio', item);
@@ -3565,7 +2305,6 @@ const API = {};
         it.images = JSON.stringify(imgs);
       }
       if (patch.links !== undefined) it.links = JSON.stringify(cleanPortfolioLinks(patch.links));
-      if (patch.creatorId !== undefined) it.creatorId = String(patch.creatorId || '').trim() || null;
       if (patch.featured !== undefined) {
         it.featured = !!patch.featured;
         if (it.featured) all('portfolio').filter(x => x.featured && x.id !== it.id).forEach(x => { x.featured = false; store.put('portfolio', x); });
@@ -3711,19 +2450,14 @@ const API = {};
       if (effRank(actor) < roleRank('cofounder')) return fail('forbidden', 'Only the Co-Founder / Founder can grant plans directly.');
       const t = dbUser(targetId);
       if (!t) return fail('notfound', 'User not found.');
-      /* Omitted tiers keep their current value, so the Founder Panel can grant
-         one plan without having to resend the other (it used to reject the
-         whole grant with "Tiers must be 0–3" when only one was supplied). */
-      const readTier = n => (n === undefined || n === null || n === '' ? undefined : Number(n));
-      const okTier = n => n === undefined || [0, 1, 2, 3].includes(n);
-      const pT = readTier(protectionTier), cT = readTier(contractTier);
-      if (!okTier(pT) || !okTier(cT)) return fail('invalid', 'Tiers must be 0–3.');
-      if (pT !== undefined) t.protectionTier = pT;
-      if (cT !== undefined) t.contractTier = cT;
+      const pT = Number(protectionTier), cT = Number(contractTier);
+      if (![0, 1, 2, 3].includes(pT) || ![0, 1, 2, 3].includes(cT)) return fail('invalid', 'Tiers must be 0–3.');
+      t.protectionTier = pT;
+      t.contractTier = cT;
       t.updatedAt = now();
       store.put('users', t);
       flush();
-      return ok({ protectionTier: t.protectionTier, contractTier: t.contractTier });
+      return ok({ protectionTier: pT, contractTier: cT });
     }
     async function adminSetTags(actor, targetId, tags) {
       const r = requireAdmin(actor); if (r) return r;
@@ -4597,16 +3331,6 @@ const API = {};
        verified once so nobody is locked out of anything. */
     try { all('users').filter(u => !u.emailVerified).forEach(u => { u.emailVerified = 1; store.put('users', u); }); flush(); } catch (e) { /* best effort */ }
 
-    /* Orders hygiene on boot — legacy rows from older builds are removed so
-       buyers only ever see orders that still exist: cancelled rows, and
-       orders whose post was deleted. Plan orders (VIP / subscription) have
-       no asset and always stay. */
-    try {
-      const dead = all('orders').filter(o => o.status === 'cancelled' || (!isVipOrder(o) && !isSubOrder(o) && !byIdIn('assets', o.assetId)));
-      dead.forEach(o => store.del('orders', o.id));
-      if (dead.length) flush();
-    } catch (e) { /* best effort */ }
-
     return {
       register, requestRegisterCode, login, googleLogin, verify2fa, requestReset, resetPassword, logout, me,
       verifyEmail, resendVerification,
@@ -4655,61 +3379,17 @@ function _browserLabel() {
 let _mode = null;      // 'remote' | 'local'
 let _engine = null;
 
-/* The site ALWAYS talks to the server. The in-browser engine is only used when
-   the page is opened straight from disk (file://) or explicitly requested with
-   ?local=1 for offline development.
-
-   This used to be a silent trap: the backend check gave up after 1.5 seconds
-   and swapped in an EMPTY local marketplace. On a slow connection the shop
-   rendered zero posts and every category chip / search looked broken. We now
-   wait and retry, and if the server truly is unreachable we say so with a
-   retry banner instead of faking an empty store. It also stops a downloaded
-   copy of this page from booting its own marketplace. */
-function _showBackendOffline() {
-  if (document.getElementById('kp-offline')) return;
-  const el = document.createElement('div');
-  el.id = 'kp-offline';
-  el.setAttribute('style', 'position:fixed;left:0;right:0;bottom:0;z-index:99999;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;padding:12px 16px;background:#3a2410;color:#ffe6a8;border-top:1px solid #d4af37;font:14px/1.4 system-ui,sans-serif;text-align:center');
-  el.innerHTML = '<span><b>Can’t reach the Kings Production server.</b> Your connection or the server may be slow — nothing is lost, the page will retry automatically.</span>';
-  const b = document.createElement('button');
-  b.textContent = 'Retry now';
-  b.setAttribute('style', 'cursor:pointer;border:1px solid #d4af37;background:#d4af37;color:#1a1206;font-weight:700;border-radius:999px;padding:7px 16px');
-  b.onclick = () => location.reload();
-  el.appendChild(b);
-  document.body.appendChild(el);
-}
-
 async function _detectTransport() {
-  const forcedLocal = location.protocol === 'file:' || /[?&]local=1\b/.test(location.search);
-  if (forcedLocal) {
-    try {
-      _engine = KPEngine.createEngine({ store: createLocalStore(), files: Files, config: { autoAdminFirstUser: true } });
-      _mode = 'local';
-      console.info('[Kings Production] local engine (offline / dev mode)');
-      return;
-    } catch (e) {
-      /* Production builds ship without the in-browser engine on purpose. */
-      console.warn('[Kings Production] offline engine not present in this build — using the server');
-    }
-  }
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 7000);
-      const r = await fetch('/api/health', { signal: ctrl.signal, cache: 'no-store' });
-      clearTimeout(timer);
-      if (r.ok) {
-        _mode = 'remote';
-        console.info('[Kings Production] connected to the Node/Express + SQLite backend');
-        return;
-      }
-    } catch (e) { /* retry */ }
-    if (attempt < 3) await new Promise(res => setTimeout(res, attempt * 700));
-  }
-  /* Never fake an empty marketplace — stay in server mode and tell the user. */
-  _mode = 'remote';
-  console.warn('[Kings Production] backend unreachable after retries');
-  try { _showBackendOffline(); } catch (e) {}
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 1500);
+    const r = await fetch('/api/health', { signal: ctrl.signal });
+    clearTimeout(timer);
+    if (r.ok) { _mode = 'remote'; console.info('[Kings Production] connected to the Node/Express + SQLite backend'); return; }
+  } catch (e) { /* server unreachable — fall through to the in-browser engine */ }
+  _mode = 'local';
+  _engine = KPEngine.createEngine({ store: createLocalStore(), files: Files, config: { autoAdminFirstUser: true } });
+  console.info('[Kings Production] backend not reachable — using the in-browser engine (localStorage)');
 }
 
 async function _call(method, path, body) {
@@ -4798,12 +3478,9 @@ async function _assetForm(a, withFile) {
   if (a.paymentMethods) fd.append('paymentMethods', JSON.stringify(a.paymentMethods));
   if (a.sellerPaymentDetails) fd.append('sellerPaymentDetails', JSON.stringify(a.sellerPaymentDetails));
   if (a.deliverDuringPending !== undefined) fd.append('deliverDuringPending', a.deliverDuringPending ? '1' : '0');
-  if (a.freeLicensed !== undefined) fd.append('freeLicensed', a.freeLicensed ? '1' : '0');
   if (a.backupUrl !== undefined) fd.append('backupUrl', a.backupUrl || '');
   if (a.fileUrl) fd.append('fileUrl', a.fileUrl);
-  if (a.fileName) fd.append('fileName', a.fileName); /* keep the original name when the file is hosted */
-  if (withFile && a.fileObject) fd.append('file', a.fileObject, a.fileName || a.fileObject.name || 'asset-file');
-  else if (withFile && a.fileData) fd.append('file', await (await fetch(a.fileData)).blob(), a.fileName || 'asset-file');
+  if (withFile && a.fileData) fd.append('file', await (await fetch(a.fileData)).blob(), a.fileName || 'asset-file');
   return fd;
 }
 /* Upload a local system file to Catbox through the server proxy; returns the
@@ -5089,7 +3766,7 @@ API.adminReports = user => _wrap(async () => _mode === 'local' ? await _engine.a
 API.adminResolveReport = (user, id) => _wrap(async () => _mode === 'local' ? await _engine.adminResolveReport(user, id) : await _call('POST', '/api/admin/reports/' + _e(id) + '/resolve'));
 
 /* TOTP utility used by the live-code display during 2FA setup */
-API.totp = secret => kpTotpCode(secret);
+API.totp = secret => KPEngine.totpCode(secret);
 
 /* ================= CHUNK 4: UI HELPERS · SHELL · ROUTER · HOME/SHOP ================= */
 /* ---- small UI pieces ---- */
@@ -5143,7 +3820,7 @@ function statusBadge(status, rejectReason) {
   if (status === 'pending') return `<span class="status-pill status-pending">Pending approval</span>`;
   return `<span class="status-pill status-rejected" title="${esc(rejectReason || '')}">Rejected</span>`;
 }
-function catBadge(cat) { const icon = CAT_ICON[cat] || CAT_ICON.system || ''; const label = CAT_LABEL[cat] || 'Other'; return `<span class="badge plain"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${String(icon).replace(/<svg[^>]*>/i, '').replace(/<\/svg>/i, '')}</svg>${esc(label)}</span>`; }
+function catBadge(cat) { return `<span class="badge plain"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${CAT_ICON[cat].replace(/<svg[^>]*>/i, '').replace(/<\/svg>/i, '')}</svg>${CAT_LABEL[cat]}</span>`; }
 function thumbHtml(a, size = 44) {
   if (a && a.imageUrl) {
     const direct = esc(a.imageUrl);
@@ -5162,8 +3839,8 @@ function assetCardHtml(a, rank) {
       <div class="asset-owner">${avatarHtml(a.owner, 22)}<a href="#/profile/${esc(a.owner.handle)}" onclick="event.stopPropagation()">${esc(a.owner.displayName)}</a>${badgeHtml(a.owner.role, a.owner.tags, a.owner)}</div>
       ${a.ratingCount ? `<div class="asset-rating">${starsHtml(a.rating)}<span class="muted small">${a.rating} · ${a.ratingCount}</span></div>` : ''}
       <div class="asset-foot">
-        <span class="price">${Number(a.price) > 0 ? fmtMoney(a.price) : '<b style="color:var(--ok)">FREE</b>'}</span>
-        <span class="row" style="gap:8px"><span class="sales" title="${Number(a.price) > 0 ? 'Times sold' : 'Users who have this free system'}">${ICON.user}${Number(a.price) > 0 ? (a.sales || 0) : (a.users || 0)}</span><button class="like-btn ${a.liked ? 'on' : ''}" data-count="${a.likes || 0}" title="Like this asset" onclick="onLike(event,'${a.id}',this)">${ICON.heart}<span>${a.likes || 0}</span></button></span>
+        <span class="price">${fmtMoney(a.price)}</span>
+        <span class="row" style="gap:8px"><span class="sales">${ICON.cart}${a.sales || 0}</span><button class="like-btn ${a.liked ? 'on' : ''}" data-count="${a.likes || 0}" title="Like this asset" onclick="onLike(event,'${a.id}',this)">${ICON.heart}<span>${a.likes || 0}</span></button></span>
       </div>
     </div></article>`;
 }
@@ -5235,14 +3912,7 @@ function promptModal({ title, label, placeholder, confirmLabel = 'Confirm', dang
 /* go() tolerates callers that already include the leading '#' (some card
    templates pass '#/asset/…'), otherwise the hash becomes '##/…' and the
    router treats the path as '#' and bounces the user home. */
-const go = path => {
-  const target = '#' + String(path || '').replace(/^#+/, '');
-  /* Re-clicking the route you're already on refreshes the view — the router
-     reruns and refetches — instead of being a silent no-op because the hash
-     never changed (no hashchange event fires). */
-  if (location.hash === target) { router(); return; }
-  location.hash = target;
-};
+const go = path => { location.hash = '#' + String(path || '').replace(/^#+/, ''); };
 function parseHash() {
   const h = location.hash.replace(/^#+\/?/, '');
   const [pathPart, queryPart] = h.split('?');
@@ -5259,7 +3929,7 @@ const COUNTRIES = [
   ['GH', 'Ghana'], ['KE', 'Kenya'], ['EG', 'Egypt'], ['TR', 'Turkey'], ['RU', 'Russia'], ['CN', 'China'], ['HK', 'Hong Kong'],
   ['TW', 'Taiwan'], ['TH', 'Thailand'], ['VN', 'Vietnam'], ['AR', 'Argentina'], ['CL', 'Chile'], ['CO', 'Colombia'], ['PE', 'Peru'],
 ];
-const countrySelect = (sel) => `<select class="select" name="country" required><option value="">Select your country</option>${COUNTRIES.map(([c, l]) => `<option value="${c}" ${sel === c ? 'selected' : ''}>${l} (${KP_DISPLAY.CURRENCY_SYMBOL[KP_DISPLAY.COUNTRY_CURRENCY[c]] || KP_DISPLAY.COUNTRY_CURRENCY[c]})</option>`).join('')}</select>`;
+const countrySelect = (sel) => `<select class="select" name="country" required><option value="">Select your country</option>${COUNTRIES.map(([c, l]) => `<option value="${c}" ${sel === c ? 'selected' : ''}>${l} (${KPEngine.CURRENCY_SYMBOL[KPEngine.COUNTRY_CURRENCY[c]] || KPEngine.COUNTRY_CURRENCY[c]})</option>`).join('')}</select>`;
 const SOCIAL = { discord: 'https://discord.gg/syQfqmaA28', youtube: 'https://youtube.com/@kingsproductionw' };
 
 /* ---- shell ---- */
@@ -5450,7 +4120,7 @@ function bindHeader() {
 /* ---- router ---- */
 const TITLES = {
   home: 'Kings Production — Premium Roblox Development Studio', shop: 'Shop — Kings Production',
-  portfolio: 'Portfolio — Kings Production', subscription: 'Subscription — Kings Production', creators: 'Creators — Kings Production', creator: 'Creator — Kings Production',
+  portfolio: 'Portfolio — Kings Production', subscription: 'Subscription — Kings Production', creators: 'Creators — Kings Production',
   support: 'Support — Kings Production', ticket: 'Ticket — Kings Production',
   verify: 'Verify your email — Kings Production', faq: 'FAQ & Q&A — Kings Production',
   login: 'Log in — Kings Production', register: 'Create account — Kings Production',
@@ -5462,7 +4132,7 @@ async function router(opts = {}) {
   const { path, params, query } = parseHash();
   /* Auth pages are full-screen and focused — hide the site chrome around them. */
   document.body.classList.toggle('auth-mode', ['login', 'register', 'forgot', 'reset'].includes(path));
-  if (!['home', 'shop', 'portfolio', 'subscription', 'creators', 'creator', 'support', 'ticket', 'verify', 'asset', 'profile', 'login', 'register', 'forgot', 'reset', 'settings', 'upload', 'my-assets', 'orders', 'dashboard', 'admin', 'privacy', 'terms', 'faq'].includes(path)) { location.hash = '#/'; return; }
+  if (!['home', 'shop', 'portfolio', 'subscription', 'creators', 'support', 'ticket', 'verify', 'asset', 'profile', 'login', 'register', 'forgot', 'reset', 'settings', 'upload', 'my-assets', 'orders', 'dashboard', 'admin', 'privacy', 'terms', 'faq'].includes(path)) { location.hash = '#/'; return; }
   const me = await API.me();
   STATE.user = me.ok ? me.data : null;
   renderHeader();
@@ -5503,7 +4173,7 @@ function catalogSectionHtml(insidePage) {
   const inner = `<div class="section-head"><div><span class="section-eyebrow">Marketplace</span><h2>All Assets</h2><p>Scripts, models, plugins, animations, and systems — approved by the Kings Production team.</p></div></div>
     <div class="toolbar">
       <div class="search">${ICON.search}<input class="input" id="cat-q" placeholder="Search assets…" value="${esc(STATE.catalogQ)}"></div>
-      <div class="row" id="cat-chips">${['', 'free', ...CATEGORIES].map(c => `<button class="chip ${STATE.catalogCat === c ? 'active' : ''}" data-cat="${c}">${c === 'free' ? 'Free' : c ? CAT_LABEL[c] : 'All'}</button>`).join('')}</div>
+      <div class="row" id="cat-chips">${['', ...CATEGORIES].map(c => `<button class="chip ${STATE.catalogCat === c ? 'active' : ''}" data-cat="${c}">${c ? CAT_LABEL[c] : 'All'}</button>`).join('')}</div>
       <div class="row" id="cat-sort" style="gap:8px;flex-wrap:wrap">${[['trending', 'Trending', ICON.zap], ['newest', 'Newest', ICON.clock], ['top', 'Top selling', ICON.cart]].map(([k, l, ic]) => `<button class="sort-chip ${STATE.catalogSort === k ? 'active' : ''}" data-sort="${k}">${ic}${l}</button>`).join('')}</div>
     </div>
     <div id="cat-grid">${loadingHtml()}</div>`;
@@ -5517,7 +4187,7 @@ function refreshCatalog() {
     if (!res.ok) { grid.innerHTML = emptyHtml('Could not load assets', res.error); return; }
     const q = STATE.catalogQ.toLowerCase();
     const list = res.data.filter(a =>
-      (STATE.catalogCat === 'free' ? Number(a.price) === 0 : !STATE.catalogCat || a.category === STATE.catalogCat) &&
+      (!STATE.catalogCat || a.category === STATE.catalogCat) &&
       (!q || (a.title + ' ' + a.description + ' ' + (a.owner && a.owner.displayName)).toLowerCase().includes(q)));
     if (STATE.catalogSort === 'newest') list.sort((x, y) => y.createdAt - x.createdAt);
     else if (STATE.catalogSort === 'top') list.sort((x, y) => (y.sales || 0) - (x.sales || 0));
@@ -5526,43 +4196,25 @@ function refreshCatalog() {
       : emptyHtml('No assets found', 'Try a different search or category.');
   });
 }
-/* One delegated listener for EVERY category/sort chip row on the page —
-   survives re-renders and can never be lost to a failed bind (the old
-   per-render binding died whenever any card threw mid-bind, leaving the
-   chips permanently dead). Rows declare data-chips="shopOur|shopSeller|home". */
-document.addEventListener('click', e => {
-  const chip = e.target.closest('.chip[data-cat]');
-  if (chip) {
-    const row = chip.closest('[id="cat-chips"], .shop-chips');
-    if (!row) return;
-    if (row.id === 'cat-chips') {
-      STATE.catalogCat = chip.dataset.cat;
-      row.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.cat === chip.dataset.cat));
-      if (typeof refreshCatalog === 'function') refreshCatalog();
-    } else {
-      const st = chip.dataset.s === 'our' ? STATE.shopOur : STATE.shopSeller;
-      st.cat = chip.dataset.cat;
-      row.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.cat === chip.dataset.cat));
-      renderShopGrid('shop-grid-' + chip.dataset.s, st.assets || [], st);
-    }
-    return;
-  }
-  const sort = e.target.closest('.sort-chip[data-sort]');
-  if (sort) {
-    const row = sort.closest('#cat-sort, .shop-sort');
-    if (!row) return;
-    if (row.id === 'cat-sort') {
-      STATE.catalogSort = sort.dataset.sort;
-      row.querySelectorAll('.sort-chip').forEach(c => c.classList.toggle('active', c.dataset.sort === sort.dataset.sort));
-      if (typeof refreshCatalog === 'function') refreshCatalog();
-    } else {
-      const st = sort.dataset.s === 'our' ? STATE.shopOur : STATE.shopSeller;
-      st.sort = sort.dataset.sort;
-      row.querySelectorAll('.sort-chip').forEach(c => c.classList.toggle('active', c.dataset.sort === sort.dataset.sort));
-      renderShopGrid('shop-grid-' + sort.dataset.s, st.assets || [], st);
-    }
-  }
-});
+function bindCatalog() {
+  const q = document.getElementById('cat-q');
+  q && q.addEventListener('input', e => { STATE.catalogQ = e.target.value; clearTimeout(q._t); q._t = setTimeout(refreshCatalog, 180); });
+  const chips = document.getElementById('cat-chips');
+  chips && chips.addEventListener('click', e => {
+    const b = e.target.closest('[data-cat]'); if (!b) return;
+    STATE.catalogCat = b.dataset.cat;
+    chips.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.cat === b.dataset.cat));
+    refreshCatalog();
+  });
+  const sort = document.getElementById('cat-sort');
+  sort && sort.addEventListener('click', e => {
+    const b = e.target.closest('[data-sort]'); if (!b) return;
+    STATE.catalogSort = b.dataset.sort;
+    sort.querySelectorAll('.sort-chip').forEach(c => c.classList.toggle('active', c.dataset.sort === b.dataset.sort));
+    refreshCatalog();
+  });
+  refreshCatalog();
+}
 
 /* ================= VIEWS ================= */
 const VIEWS = {};
@@ -5610,7 +4262,7 @@ VIEWS.shop = async () => {
   STATE.shopSeller.assets = sellerAssets;
 
   function sectionHtml(label, eyebrow, desc, id, st) {
-    const catChips = ['', 'free', ...CATEGORIES].map(c => `<button class="chip ${st.cat === c ? 'active' : ''}" data-s="${id}" data-cat="${c}">${c === 'free' ? 'Free' : c ? CAT_LABEL[c] : 'All'}</button>`).join('');
+    const catChips = ['', ...CATEGORIES].map(c => `<button class="chip ${st.cat === c ? 'active' : ''}" data-s="${id}" data-cat="${c}">${c ? CAT_LABEL[c] : 'All'}</button>`).join('');
     const sortBtns = [['trending', 'Trending', ICON.zap], ['newest', 'Newest', ICON.clock], ['top', 'Top selling', ICON.cart]].map(([k, l, ic]) => `<button class="sort-chip ${st.sort === k ? 'active' : ''}" data-s="${id}" data-sort="${k}">${ic}${l}</button>`).join('');
     return `<div class="section-head"><div><span class="section-eyebrow">${eyebrow}</span><h2>${label}</h2><p>${desc}</p></div></div>
       <div class="toolbar">
@@ -5640,30 +4292,20 @@ VIEWS.shop = async () => {
 
 /* ================= CHUNK 5: ASSET · PROFILE · AUTH · SETTINGS · UPLOAD · MY-ASSETS ================= */
 const VIEWS_BIND = {};
-/* Home catalog: search input only — chip/sort clicks go through the global
-   delegated listener; this also drives the initial fetch+render. */
-function bindCatalog() {
-  const q = document.getElementById('cat-q');
-  q && q.addEventListener('input', e => { STATE.catalogQ = e.target.value; clearTimeout(q._t); q._t = setTimeout(refreshCatalog, 180); });
-  refreshCatalog();
-}
 VIEWS_BIND.home = () => { bindCatalog(); spawnParticles(); setupRotor(); setupMarquee(); document.querySelectorAll('.count-up').forEach(el => countUp(el, el.dataset.count)); };
 /* Render one shop grid from a raw asset list + filter state */
 function renderShopGrid(containerId, assets, st) {
   const grid = document.getElementById(containerId);
   if (!grid) return;
   const q = st.q.toLowerCase();
-  const list = assets.filter(a => {
-    if (st.cat === 'free' && Number(a.price) > 0) return false;
-    if (st.cat && st.cat !== 'free' && a.category !== st.cat) return false;
-    if (!q) return true;
-    return ((a.title || '') + ' ' + (a.description || '') + ' ' + (a.owner && a.owner.displayName || '')).toLowerCase().includes(q);
-  });
+  const list = assets.filter(a =>
+    (!st.cat || a.category === st.cat) &&
+    (!q || ((a.title || '') + ' ' + (a.description || '') + ' ' + (a.owner && a.owner.displayName || '')).toLowerCase().includes(q)));
   if (st.sort === 'newest') list.sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0));
   else if (st.sort === 'top') list.sort((x, y) => (y.sales || 0) - (x.sales || 0));
   /* 'trending' = default order from the API (hot score) */
   grid.innerHTML = list.length
-    ? `<div class="grid grid-assets">${list.map(a => { try { return assetCardHtml(a); } catch (e) { console.error('card render failed for', a && a.id, e); return ''; } }).join('')}</div>`
+    ? `<div class="grid grid-assets">${list.map(a => assetCardHtml(a)).join('')}</div>`
     : emptyHtml('No assets found', 'Try a different search or category.');
 }
 VIEWS_BIND.shop = () => {
@@ -5673,7 +4315,24 @@ VIEWS_BIND.shop = () => {
     const q = document.getElementById('shop-q-' + id);
     if (q) q.addEventListener('input', e => { st.q = e.target.value; clearTimeout(q._t); q._t = setTimeout(() => renderShopGrid('shop-grid-' + id, assets, st), 180); });
   });
-  /* chip + sort clicks are handled by the global delegated listener */
+  document.querySelectorAll('.shop-chips').forEach(row => {
+    row.addEventListener('click', e => {
+      const b = e.target.closest('[data-cat]'); if (!b) return;
+      const st = b.dataset.s === 'our' ? STATE.shopOur : STATE.shopSeller;
+      st.cat = b.dataset.cat;
+      row.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.cat === b.dataset.cat));
+      renderShopGrid('shop-grid-' + b.dataset.s, st.assets || [], st);
+    });
+  });
+  document.querySelectorAll('.shop-sort').forEach(row => {
+    row.addEventListener('click', e => {
+      const b = e.target.closest('[data-sort]'); if (!b) return;
+      const st = b.dataset.s === 'our' ? STATE.shopOur : STATE.shopSeller;
+      st.sort = b.dataset.sort;
+      row.querySelectorAll('.sort-chip').forEach(c => c.classList.toggle('active', c.dataset.sort === b.dataset.sort));
+      renderShopGrid('shop-grid-' + b.dataset.s, st.assets || [], st);
+    });
+  });
 };
 VIEWS_BIND.profile = () => { initProfileTags((STATE._pfUser && STATE._pfUser.tags) || []); };
 VIEWS_BIND.login = async ({ query } = {}) => {
@@ -5700,47 +4359,7 @@ function readFileAsDataURL(file) { return new Promise((res, rej) => { const r = 
 /* ---- shared actions ---- */
 async function onBuy(id) {
   if (!STATE.user) { go('/login'); return; }
-  /* Zero-price posts skip checkout entirely — straight to the free claim. */
-  try { const ar = await API.getAsset(id, STATE.user && STATE.user.id); if (ar.ok && ar.data && !(Number(ar.data.price) > 0)) { onClaimFree(id); return; } } catch (e) {}
   openCheckout(id);
-}
-/* Free posts (price 0):
-   - Open source (no license): one click — the claim completes instantly and
-     the file is ready on Orders. No details, no approval.
-   - Licensed (seller ticked the box): the claimer fills in game details and
-     the seller approves each claim, exactly like a paid order. */
-async function onClaimFree(id) {
-  if (!STATE.user) { go('/login'); return; }
-  let licensed = false;
-  try { const ar = await API.getAsset(id, STATE.user && STATE.user.id); if (ar.ok && ar.data) licensed = !!ar.data.freeLicensed; } catch (e) {}
-  if (!licensed) {
-    /* Open source — instant claim, no questions. */
-    const r = await API.checkout(STATE.user, id, 'free', null, {});
-    if (r.ok) { toast('Claimed! The system file is on your Orders page. 🎉', 'ok'); burstAt(innerWidth / 2, innerHeight / 2, 26); SFX.play('purchase'); go('/orders'); }
-    else toast(r.error, 'err');
-    return;
-  }
-  modal({
-    title: 'Get this licensed system for free',
-    confirmLabel: 'Submit claim',
-    body: `<p class="muted small" style="margin:0 0 12px"><b style="color:var(--ok)">This free system is licensed.</b> Enter your game details — the seller reviews and approves your claim, then the file unlocks on your Orders page.</p>
-      <div class="field"><label>Game name<span class="req">*</span></label><input class="input" id="fr-name" maxlength="80" placeholder="e.g. Blox Kingdom" required></div>
-      <div class="field"><label>Game place ID<span class="req">*</span></label><input class="input" id="fr-place" maxlength="30" inputmode="numeric" placeholder="e.g. 1234567890" required></div>
-      <div class="field"><label>Game creator<span class="req">*</span></label><input class="input" id="fr-owner" maxlength="80" placeholder="Your username or group name" required></div>
-      <div class="field"><label>Notes <span class="muted small" style="font-weight:400">(optional)</span></label><textarea class="textarea" id="fr-notes" rows="2" maxlength="300" placeholder="Anything the seller should know"></textarea></div>`,
-    validate: ov => {
-      const gameName = ov.querySelector('#fr-name').value.trim();
-      const placeId = ov.querySelector('#fr-place').value.trim();
-      const gameOwner = ov.querySelector('#fr-owner').value.trim();
-      if (!gameName || !placeId || !gameOwner) { toast('Game name, place ID, and creator are required.', 'err'); return false; }
-      return { gameName, placeId, gameOwner, notes: ov.querySelector('#fr-notes').value.trim() };
-    },
-    onConfirm: async v => {
-      const r = await API.checkout(STATE.user, id, 'free', null, v);
-      if (r.ok) { toast('Claim submitted — the seller will review and approve it. 🎉', 'ok'); burstAt(innerWidth / 2, innerHeight / 2, 26); SFX.play('purchase'); go('/orders'); }
-      else toast(r.error, 'err');
-    },
-  });
 }
 /* VIP perk: zero-cost Try order on the studio's own systems — still goes
    through game details + seller approval, exactly like a paid purchase. */
@@ -5788,7 +4407,6 @@ async function openCheckout(assetId, plan) {
   let sellerMethods = null;
   if (isAsset) {
     const ar = await API.getAsset(assetId, STATE.user && STATE.user.id);
-    if (ar.ok && ar.data && !(Number(ar.data.price) > 0)) { onClaimFree(assetId); return; } // free post — no checkout
     if (ar.ok && ar.data && Array.isArray(ar.data.paymentMethods) && ar.data.paymentMethods.length) {
       const map = { gcash: 'gcash_manual', kofi: 'kofi_manual', paypal: 'paypal', stripe: 'stripe' };
       sellerMethods = ar.data.paymentMethods.map(m => map[m] || m);
@@ -6029,11 +4647,7 @@ VIEWS.asset = async ({ params }) => {
   } else if (a.status === 'approved') {
     const isOurSystem = a.owner && isStaff(a.owner);
     const iAmVip = me && isVipUser(me) && !isStaff(me);
-    const isFree = !(Number(a.price) > 0);
-    buyHtml = isFree
-      ? `<button class="btn btn-primary btn-lg" onclick="onClaimFree('${a.id}')">${ICON.download} Get for free</button>
-         ${iAmVip && isOurSystem ? `<button class="btn btn-ghost btn-lg" style="margin-left:10px;border-color:rgba(212,175,55,.4)" onclick="onVipTry('${a.id}')" title="VIP perk — try Kings Production's own system free (studio approval still required)">${ICON.crown} Try</button>` : ''}`
-      : `<button class="btn btn-primary btn-lg" onclick="onBuy('${a.id}')">${ICON.cart} Purchase · ${fmtMoney(a.price)}</button>
+    buyHtml = `<button class="btn btn-primary btn-lg" onclick="onBuy('${a.id}')">${ICON.cart} Purchase · ${fmtMoney(a.price)}</button>
       ${iAmVip && isOurSystem ? `<button class="btn btn-ghost btn-lg" style="margin-left:10px;border-color:rgba(212,175,55,.4)" onclick="onVipTry('${a.id}')" title="VIP perk — try Kings Production's own system free (studio approval still required)">${ICON.crown} Try</button>` : ''}
       ${me && !canPost(me) ? `<p class="muted small" style="margin-top:10px">Buying this system gives you a license key for your game. Want to sell your own? A <a href=\"#/subscription\" style="color:var(--vip)">Contract plan</a> unlocks posting.</p>` : ''}`;
   }
@@ -6086,9 +4700,9 @@ VIEWS.asset = async ({ params }) => {
     <div class="asset-hero">
       <div class="asset-hero-thumb" title="Click to zoom" onclick="openLightbox('${esc(proxiedImageUrl(a.imageUrl || ''))}')">${thumbHtml(a, 84)}</div>
       <div>
-        <div class="asset-meta">${catBadge(a.category)}${ownerView ? statusBadge(a.status, a.rejectReason) : ''}${Number(a.price) > 0 ? `<span class="sales">${ICON.cart}${a.sales} sold</span>` : `<span class="sales" title="Users who have this free system">${ICON.user}${a.users || 0} users</span>`}${a.ratingCount ? `${starsHtml(a.rating)}<span class="muted small">${a.rating} · ${a.ratingCount}</span>` : ''}</div>
+        <div class="asset-meta">${catBadge(a.category)}${ownerView ? statusBadge(a.status, a.rejectReason) : ''}<span class="sales">${ICON.cart}${a.sales} sold</span>${a.ratingCount ? `${starsHtml(a.rating)}<span class="muted small">${a.rating} · ${a.ratingCount}</span>` : ''}</div>
         <h1 style="font-family:var(--font-display);font-size:clamp(26px,4vw,38px);font-weight:700;letter-spacing:-.02em;margin-top:10px">${esc(a.title)}</h1>
-        <div class="asset-meta"><span class="price" style="font-size:22px">${Number(a.price) > 0 ? fmtMoney(a.price) : '<b style="color:var(--ok)">FREE</b>'}</span><span class="muted small">· posted ${fmtDate(a.createdAt)}</span></div>
+        <div class="asset-meta"><span class="price" style="font-size:22px">${fmtMoney(a.price)}</span><span class="muted small">· posted ${fmtDate(a.createdAt)}</span></div>
         ${a.sellerResponse ? `<div class="row" style="gap:10px;margin-top:10px;flex-wrap:wrap"><span class="badge soft-ok" title="Share of payment proofs this seller verified within 24 hours over the last 30 days">${ICON.clock} Seller response: ${a.sellerResponse.pct}% · ${esc(a.sellerResponse.label)}</span>${a.sellerResponse.avgHours ? `<span class="muted small" style="align-self:center">avg ${a.sellerResponse.avgHours}h to verify</span>` : ''}</div>` : ''}
         <div class="row" style="gap:12px;margin-top:10px"><button class="like-btn lg ${a.liked ? 'on' : ''}" title="Like this asset" onclick="onLike(event,'${a.id}',this)">${ICON.heart}<span>${a.likes || 0}</span></button></div>
         ${a.paymentMethods && a.paymentMethods.length ? `<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:12px"><span class="muted small" style="align-self:center">${ICON.check} The seller accepts:</span>${a.paymentMethods.map(m => `<span class="chip" style="cursor:default">${({ gcash: 'GCash', kofi: 'Ko-fi', paypal: 'PayPal', stripe: 'Stripe' })[m] || esc(m)}</span>`).join('')}</div>` : ''}
@@ -6657,7 +5271,7 @@ VIEWS.upload = async ({ query }) => {
         <div class="field"><label>Title<span class="req">*</span></label><input class="input" name="title" maxlength="60" placeholder="e.g. Onyx Admin Commands" value="${esc(a ? a.title : '')}" required></div>
         <div class="row" style="align-items:flex-start">
           <div class="field" style="flex:1;min-width:200px"><label>Category<span class="req">*</span></label><select class="select" name="category" required>${CATEGORIES.map(c => `<option value="${c}" ${a && a.category === c ? 'selected' : ''}>${CAT_LABEL[c]}</option>`).join('')}</select><div class="hint">Roblox categories only.</div></div>
-          <div class="field" style="flex:1;min-width:160px"><label>Price (USD)<span class="req">*</span></label><input class="input" name="price" type="number" min="0" max="999999" step="0.01" placeholder="9.99" value="${a ? a.price : ''}" required><div class="hint">Stored in USD — buyers see it in their own currency. Set <b>0</b> to post it as <b style="color:var(--ok)">FREE</b> (no payment — buyers claim it instantly).</div></div>
+          <div class="field" style="flex:1;min-width:160px"><label>Price (USD)<span class="req">*</span></label><input class="input" name="price" type="number" min="0.5" max="999999" step="0.01" placeholder="9.99" value="${a ? a.price : ''}" required><div class="hint">Stored in USD — buyers see it in their own currency.</div></div>
         </div>
         <div class="field"><label>Full description<span class="req">*</span></label><textarea class="textarea" name="description" placeholder="Describe the asset in detail — what it includes, how it works, what it is built for…" required>${esc(a ? a.description : '')}</textarea></div>
         <div class="field"><label>Image link<span class="req">*</span></label>
@@ -6668,7 +5282,7 @@ VIEWS.upload = async ({ query }) => {
           <div id="up-imgs" style="display:flex;flex-direction:column;gap:8px"></div>
           <button class="btn btn-ghost btn-sm" type="button" id="up-add-img" style="margin-top:8px">${ICON.plus} Add photo</button>
         </div>
-        <div class="field" id="up-pm-wrap"><label>Accepted payment methods <span class="muted small" style="font-weight:400">— buyers pick from these on your post (leave empty for all staff methods)</span></label>
+        <div class="field"><label>Accepted payment methods <span class="muted small" style="font-weight:400">— buyers pick from these on your post (leave empty for all staff methods)</span></label>
           <div class="row" style="gap:8px;flex-wrap:wrap">
             ${[['gcash', 'GCash (QR / manual)'], ['kofi', 'Ko-fi (manual)'], ['paypal', 'PayPal'], ['stripe', 'Stripe']].map(([v, l]) => `<label class="chip" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;padding:7px 12px"><input type="checkbox" name="pm" value="${v}" style="accent-color:var(--gold)"> ${l}</label>`).join('')}
           </div>
@@ -6677,17 +5291,14 @@ VIEWS.upload = async ({ query }) => {
         </div>
         <div class="field"><label>System file<span class="req">*</span></label>
           <input class="input" type="file" name="file" accept=".rbxl,.rbxm,.rbxmx,.lua,.luau,.zip,.txt,.dll,.json" >
-          ${a ? `<div class="hint">Current file: ${esc(a.fileName)} — choose a new file to replace it.</div>` : '<div class="hint">Required — attach the actual system file (.rbxl, .rbxm, .rbxmx, .lua, .luau, up to 100 MB). It is stored securely on our own server and delivered only to buyers entitled to it. Staff verify this file against your registered system and post picture before the post goes live.'}</div>
+          ${a ? `<div class="hint">Current file: ${esc(a.fileName)} — choose a new file to replace it.</div>` : '<div class="hint">Required — attach the actual system file (.rbxl, .rbxm, .rbxmx, .lua, .luau, up to 100 MB). On submit it is uploaded to the file host and only a link is kept, so nothing heavy is stored here. Staff verify this file against your registered system and post picture before the post goes live.'}</div>
         </div>
         <div class="field"><label>Backup download link<span class="req">*</span></label>
           <input class="input" name="backupUrl" type="url" required placeholder="https://www.mediafire.com/… or https://mega.nz/… or https://gofile.io/…" value="${esc(a ? (a.backupUrl || '') : '')}">
           <div class="hint">Required — upload the same file to MediaFire, Mega, GoFile, or Drive and paste the link. If the primary host is ever unreachable, buyers automatically fall back to this link, so a host outage never blocks a sale.</div>
         </div>
-        <div class="field" id="up-ddp-wrap"><label style="display:inline-flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" name="deliverDuringPending" style="accent-color:var(--gold);width:17px;height:17px"> <span><b>Give the system file while approval is pending</b> <span class="muted small" style="font-weight:400">(optional)</span></span></label>
+        <div class="field"><label style="display:inline-flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" name="deliverDuringPending" style="accent-color:var(--gold);width:17px;height:17px"> <span><b>Give the system file while approval is pending</b> <span class="muted small" style="font-weight:400">(optional)</span></span></label>
           <div class="hint">When checked, buyers who paid get the file immediately — they only wait for you to activate the license for their game. When unchecked (default), buyers wait for your full approval before the file unlocks.</div>
-        </div>
-        <div class="field" id="up-free-lic-wrap" style="display:none"><label style="display:inline-flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" name="freeLicensed" style="accent-color:var(--gold);width:17px;height:17px"> <span><b>This free system has a license</b> <span class="muted small" style="font-weight:400">(optional)</span></span></label>
-          <div class="hint">Checked: claimers must fill in their <b>game details</b> (game name, place ID, creator) and you approve each claim — the system stays protected. Unchecked: the system is <b>open source</b> — no license, no questions — claimers get the file instantly with no details asked.</div>
         </div>
         <div class="row"><button class="btn btn-primary" type="submit" ${cooldown ? 'disabled' : ''}>${(STATE.user && effRank(STATE.user) >= roleRank('cofounder')) ? 'Post it' : 'Submit for approval'}</button></div>
         ${cooldown ? `<p class="muted small mt">Submit is locked while the cooldown runs. Come back in ${esc(cooldown.text)}.</p>` : ''}
@@ -6704,10 +5315,7 @@ async function onSubmitAsset(e) {
   if (!file && !f.assetId.value) { toast('A system file is required.', 'err'); return; }
   const images = [...f.querySelectorAll('#up-imgs input')].map(i => i.value.trim()).filter(Boolean);
   const paymentMethods = [...f.querySelectorAll('input[name=pm]:checked')].map(c => c.value);
-  const priceNum = Number(f.price.value);
-  /* Free posts (price 0) skip payment entirely — no methods needed. Paid
-     posts must have at least one accepted method. */
-  if (priceNum > 0 && !paymentMethods.length) { toast('Select at least one accepted payment method — buyers can only pay with methods you accept. (Set the price to 0 to post for free instead.)', 'err'); return; }
+  if (!paymentMethods.length) { toast('Select at least one accepted payment method — buyers can only pay with methods you accept.', 'err'); return; }
   const sellerPaymentDetails = collectSellerPmDetails();
   /* Manual methods must carry at least one contact point (QR image or account) —
      otherwise the buyer has no way to pay you. */
@@ -6720,26 +5328,21 @@ async function onSubmitAsset(e) {
     }
   }
   const deliverDuringPending = f.querySelector('input[name=deliverDuringPending]').checked;
-  const freeLicensed = priceNum > 0 ? false : !!(f.querySelector('input[name=freeLicensed]') && f.querySelector('input[name=freeLicensed]').checked);
   const backupUrl = (f.backupUrl && f.backupUrl.value || '').trim();
   const btn = f.querySelector('button[type=submit]');
   const origLabel = btn.textContent;
   btn.disabled = true; btn.textContent = 'Submitting…';
   try {
-    let fileObject = null, fileName = null, fileUrl = null;
+    let fileData = null, fileName = null, fileUrl = null;
     if (file) {
-      /* The deliverable is stored on OUR server (the engine's own file store,
-         streamed back through the gated /api/assets/:id/file route).
-
-         Third-party hosts are deliberately out of this path: Catbox rate-limits
-         server/datacenter IPs, caps file size and its links get refused — which
-         is exactly how sellers ended up with posts whose buyers could not
-         download anything. The required backup link still gives buyers a second
-         mirror, so no single host outage can block a sale. */
-      if (file.size > 100 * 1024 * 1024) { toast('That file is over 100 MB — upload it to MediaFire/Mega/GoFile and use the backup link instead.', 'err'); return; }
-      fileObject = file; fileName = file.name;
+      /* Send the file to the host (Catbox) so only a URL is stored. If the
+         host fails, fall back to raw upload so the post never gets lost. */
+      const upBtn = f.querySelector('#up-file-host');
+      const hosted = await uploadSystemFile(file, upBtn);
+      if (hosted.ok) { fileUrl = hosted.url; fileName = file.name; }
+      else { toast('Could not reach the file host — storing the file directly instead.', 'warn'); fileData = await readFileAsDataURL(file); fileName = file.name; }
     }
-    const payload = { title: f.title.value, category: f.category.value, description: f.description.value, price: f.price.value, imageUrl: f.imageUrl.value.trim(), images, paymentMethods, sellerPaymentDetails, deliverDuringPending, freeLicensed, backupUrl, fileName, fileObject, fileUrl };
+    const payload = { title: f.title.value, category: f.category.value, description: f.description.value, price: f.price.value, imageUrl: f.imageUrl.value.trim(), images, paymentMethods, sellerPaymentDetails, deliverDuringPending, backupUrl, fileName, fileData, fileUrl };
     const res = f.assetId.value
       ? await API.updateAsset(STATE.user, f.assetId.value, payload)
       : await API.createAsset(STATE.user, payload);
@@ -6819,36 +5422,7 @@ function collectSellerPmDetails() {
   });
   return out;
 }
-VIEWS_BIND.upload = () => {
-  initUploadExtras(STATE._uploadAsset || null);
-  attachImageUploadWidgets();
-  /* FREE posts (price 0): payment methods + "give file while pending" are
-     payment concepts — hide them live as the seller types the price. */
-  const f = document.querySelector('form[onsubmit="onSubmitAsset(event)"]');
-  if (!f) return;
-  const priceInput = f.querySelector('input[name=price]');
-  const pmWrap = f.querySelector('#up-pm-wrap');
-  const ddpWrap = f.querySelector('#up-ddp-wrap');
-  const freeLicWrap = f.querySelector('#up-free-lic-wrap');
-  const freeLicBox = f.querySelector('input[name=freeLicensed]');
-  let banner = null;
-  const apply = () => {
-    const isFree = !(Number(priceInput.value) > 0);
-    if (pmWrap) pmWrap.style.display = isFree ? 'none' : '';
-    if (ddpWrap) ddpWrap.style.display = isFree ? 'none' : '';
-    if (freeLicWrap) freeLicWrap.style.display = isFree ? '' : 'none';
-    if (!isFree && freeLicBox) freeLicBox.checked = false;
-    if (isFree && !banner) {
-      banner = document.createElement('div');
-      banner.className = 'form-ok';
-      banner.style.margin = '10px 0';
-      banner.innerHTML = '<b style="color:var(--ok)">FREE post</b> — no payment needed. Payment methods and "give file while pending" are hidden because buyers claim this system instantly with no checkout. Optionally tick <b>This free system has a license</b> to collect game details and approve each claim.';
-      ddpWrap && ddpWrap.parentElement.insertBefore(banner, ddpWrap);
-    } else if (!isFree && banner) { banner.remove(); banner = null; }
-  };
-  priceInput && priceInput.addEventListener('input', apply);
-  apply();
-};
+VIEWS_BIND.upload = () => { initUploadExtras(STATE._uploadAsset || null); attachImageUploadWidgets(); };
 
 /* ---- my assets ---- */
 VIEWS['my-assets'] = async () => {
@@ -6882,8 +5456,7 @@ VIEWS.orders = async () => {
   const list = r.ok ? r.data : [];
   const rows = list.map(o => {
     const a = o.asset || null;
-    const gone = !a && !o.sub && !o.vip && !String(o.assetId || '').startsWith('sub:') && o.assetId !== 'vip';
-    const title = gone ? (o.assetTitle || '(deleted post)') : o.sub ? (o.sub.category === 'protection' ? 'Subscription ' : 'Contract ') + o.sub.tier : o.vip ? 'Licensed seller plan' : (a ? a.title : '(deleted asset)');
+    const title = o.sub ? (o.sub.category === 'protection' ? 'Subscription ' : 'Contract ') + o.sub.tier : o.vip ? 'Licensed seller plan' : (a ? a.title : '(deleted asset)');
     const completed = o.status === 'completed';
     const isTry = o.method === 'vip_try' || !!o.vipTrial;
     const proof = o.proof && typeof o.proof === 'object' ? o.proof : null;
@@ -6902,14 +5475,13 @@ VIEWS.orders = async () => {
       <div style="padding:4px 20px 16px"><button class="btn btn-ghost btn-sm" onclick="openManualPayment('${o.id}', '${esc(o.method)}', null, '${esc(o.assetId || '')}')">${proof ? 'Update proof' : 'Submit payment proof'}</button></div>` : '';
     return `<div class="card" style="margin-bottom:12px;overflow:hidden">
       <div class="row" style="padding:14px 20px;gap:12px;border-bottom:1px solid var(--border);flex-wrap:wrap">
-        <div style="flex:1;min-width:200px"><b style="font-family:var(--font-display)">${esc(title)}</b><div class="muted small">${isTry ? `Requested ${fmtDate(o.createdAt)} · <b style="color:var(--vip)">VIP</b>` : o.method === 'free' ? `Claimed ${fmtDate(o.createdAt)} · <b style="color:var(--ok)">FREE</b>` : `Ordered ${fmtDate(o.createdAt)} · <span class="price" style="font-size:13px">${o.amount} ${esc(o.currency)}</span>`}</div></div>
+        <div style="flex:1;min-width:200px"><b style="font-family:var(--font-display)">${esc(title)}</b><div class="muted small">${isTry ? `Requested ${fmtDate(o.createdAt)} · <b style="color:var(--vip)">VIP</b>` : `Ordered ${fmtDate(o.createdAt)} · <span class="price" style="font-size:13px">${o.amount} ${esc(o.currency)}</span>`}</div></div>
         ${statusBadge}
         ${completed ? '<span class="badge soft-ok">Delivered</span>' : ''}
       ${o.status === 'rejected' ? `<div style="padding:4px 20px 16px"><button class="btn btn-danger btn-sm" onclick="onDeleteRejectedOrder('${o.id}')">${ICON.trash} Delete rejected order</button></div>` : ''}
       </div>
       ${a && !completed && !o.manual ? `<div style="padding:10px 20px 4px" class="muted small">The seller reviews your game details before activation — you will get an email once it is approved.</div>` : ''}
       ${a && completed ? `<div style="padding:10px 20px 4px" class="muted small">System file delivered${a.deliverDuringPending ? ' — the seller released it early, so you can download it right now' : ''}.</div><div style="padding:4px 20px 16px"><button class="btn btn-primary btn-sm" onclick="onDownload('${a.id}')">${ICON.download} Download system file</button></div>` : ''}
-      ${gone && completed && o.licenseKey ? `<div style="padding:10px 20px 4px" class="muted small">The original post was removed, but your license stays valid: <b style="color:var(--text)">${esc(o.licenseKey)}</b></div>` : ''}
       ${proofBlock}
       ${completed || o.manual && o.status === 'pending_verification' ? '' : `<div style="padding:10px 20px 16px"><button class="btn btn-ghost btn-sm" onclick="onCancelMyOrder('${o.id}')">Cancel order</button></div>`}
     </div>`;
@@ -7898,7 +6470,6 @@ VIEWS.portfolio = async () => {
   const isAdmin = isStaff(STATE.user);
   STATE._pfItems = {};
   list.forEach(p => { STATE._pfItems[p.id] = p; });
-  STATE._creatorOptions = (c.ok && c.data && c.data.creators) || [];
   const canDelete = effRank(STATE.user) >= roleRank('cofounder');
   const cardFor = p => {
     const adminRow = isAdmin ? `<div class="row" style="gap:8px;margin-top:14px"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openPortfolioEditor('${p.id}')">${ICON.edit} Edit</button><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();onToggleSpotlight('${p.id}')" title="Pin / unpin at the top">${p.featured ? `★ Unpin spotlight` : `★ Spotlight`}</button>${canDelete ? `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();onDeletePortfolio('${p.id}')">${ICON.trash}</button>` : ''}</div>` : '';
@@ -7989,8 +6560,6 @@ function openPortfolioEditor(id) {
         <div class="field"><label>Links <span class="muted small" style="font-weight:400">— auto-detected: Discord, YouTube, Twitch, X, Roblox, MediaFire, GitHub, Spotify, Telegram, Drive…</span></label>
           <div id="pf-links" style="display:flex;flex-direction:column;gap:8px"></div>
           <button class="btn btn-ghost btn-sm" type="button" id="pf-add-link" style="margin-top:8px">${ICON.plus} Add link</button></div>
-        <div class="field"><label>Credit to creator <span class="muted small" style="font-weight:400">(optional — shows this project on their Creators profile)</span></label>
-          <select class="select" id="pf-creator"><option value="">— Studio (no single creator) —</option>${(STATE._creatorOptions || []).map(cr => `<option value="${esc(cr.id)}" ${item && item.creatorId === cr.id ? 'selected' : ''}>${esc(cr.name)}${cr.role ? ' · ' + esc(cr.role) : ''}</option>`).join('')}</select></div>
         <label style="display:flex;align-items:flex-start;gap:9px;margin:16px 0 2px;cursor:pointer;font-size:13.5px;color:var(--text-2);line-height:1.45"><input type="checkbox" id="pf-featured" ${item && item.featured ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--gold);margin-top:1px;flex-shrink:0"> <span><b style="color:var(--gold)">★ Pin to top as Spotlight</b> — the featured project renders larger at the top of the portfolio. Only one project can be spotlighted at a time.</span></label>`,
     validate: async o => {
       const title = o.querySelector('#pf-title').value.trim();
@@ -8001,7 +6570,7 @@ function openPortfolioEditor(id) {
       if (img && !/^https?:\/\//i.test(img)) { toast('Cover image must be a valid http(s) URL.', 'err'); return false; }
       const links = [...o.querySelectorAll('.pf-link-row')].map(r => ({ url: r.querySelector('input').value.trim() })).filter(l => l.url);
       const images = [...o.querySelectorAll('.pf-img-row')].map(r => r.querySelector('input').value.trim()).filter(u => u);
-      const payload = { title, category: o.querySelector('#pf-cat').value.trim(), desc, stat: o.querySelector('#pf-stat').value.trim(), status: o.querySelector('#pf-status').value.trim() || 'Live', imageUrl: img, images, links, featured: !!o.querySelector('#pf-featured').checked, creatorId: o.querySelector('#pf-creator') ? o.querySelector('#pf-creator').value : undefined };
+      const payload = { title, category: o.querySelector('#pf-cat').value.trim(), desc, stat: o.querySelector('#pf-stat').value.trim(), status: o.querySelector('#pf-status').value.trim() || 'Live', imageUrl: img, images, links, featured: !!o.querySelector('#pf-featured').checked };
       const res = isEdit ? await API.updatePortfolio(STATE.user, item.id, payload) : await API.createPortfolio(STATE.user, payload);
       if (!res.ok) { toast(res.error, 'err'); return false; }
       toast(isEdit ? 'Project updated.' : 'Project published!');
@@ -8065,7 +6634,7 @@ VIEWS.creators = async () => {
     <div class="grid creators-grid">${list.map(cr => {
       const canDeleteCr = effRank(STATE.user) >= roleRank('cofounder');
       const adminRow = isAdmin ? `<div class="row" style="gap:8px;margin-top:12px"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openCreatorEditor('${cr.id}')">${ICON.edit} Edit</button>${canDeleteCr ? `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();onDeleteCreator('${cr.id}')">${ICON.trash}</button>` : ''}</div>` : '';
-      const profileLink = `onclick="go('/creator/${cr.id}')" role="link" tabindex="0" style="cursor:pointer"`;
+      const profileLink = `onclick="openCreatorViewer('${cr.id}')" role="link" tabindex="0" style="cursor:pointer"`;
       const hasDocs = !!(cr.docs && String(cr.docs).trim());
       return `<div class="card card-hover creator-card" ${profileLink}>
         <span>${creatorAvatarHtml(cr, 78)}</span>
@@ -8078,55 +6647,6 @@ VIEWS.creators = async () => {
         ${adminRow}
       </div>`;
     }).join('') || emptyHtml('No creators yet', 'The studio team will appear here.')}</div>
-  </div>`;
-};
-/* ============ CREATOR PROFILE PAGE (#/creator/<id>) ============
-   A full page (not a modal): status, bio, connected links, and this
-   creator's works — portfolio projects tagged to them plus the systems
-   they have posted to the shop. No "member since" — staff are forever. */
-VIEWS.creator = async ({ params = [] } = {}) => {
-  const id = params[0];
-  const c = await API.content();
-  const creators = c.ok && c.data && c.data.creators ? c.data.creators : [];
-  const cr = creators.find(x => x.id === id);
-  if (!cr) return `<div class="page">${emptyHtml('Creator not found', 'This profile does not exist or was removed.')}<div class="center mt2"><a class="btn btn-primary" href="#/creators">← Back to Creators</a></div></div>`;
-  STATE._crItems = STATE._crItems || {}; STATE._crItems[cr.id] = cr;
-  /* Their works: portfolio items assigned to this creator + shop systems by
-     the linked site account (or — for unlinked legends — matched by name). */
-  const portfolio = c.ok && c.data && c.data.portfolio ? c.data.portfolio : [];
-  const myPortfolio = portfolio.filter(p => (p.creatorId || '') === cr.id || (!p.creatorId && cr.handle && p.ownerHandle === cr.handle));
-  const assetsRes = await API.listApproved(STATE.user);
-  const allAssets = assetsRes.ok ? assetsRes.data : [];
-  const mySystems = allAssets.filter(a => (cr.handle && a.owner && a.owner.handle === cr.handle) || (!cr.handle && a.owner && a.owner.displayName === cr.name));
-  let linksHtml = '';
-  try { const ls = typeof cr.links === 'string' ? JSON.parse(cr.links || '[]') : (cr.links || []); linksHtml = ls.length ? `<div class="project-links" style="justify-content:center">${ls.map(l => linkIconHtml(l)).join('')}</div>` : ''; } catch (e) {}
-  const staff = effRank(STATE.user) >= roleRank('cofounder');
-  const sysCard = a => `<article class="card card-hover asset-card" onclick="go('/asset/${a.id}')">
-    <div class="asset-thumb"><span class="asset-cat">${catBadge(a.category)}</span>${thumbHtml(a, 40)}</div>
-    <div class="asset-body">
-      <h3 class="asset-title">${esc(a.title)}</h3>
-      <div class="asset-foot"><span class="price">${Number(a.price) > 0 ? fmtMoney(a.price) : '<b style="color:var(--ok)">FREE</b>'}</span><span class="row" style="gap:8px"><span class="sales">${ICON.cart}${a.sales || 0}</span></span></div>
-    </div></article>`;
-  const pfCard = p => `<article class="card card-hover project-card" onclick="openPortfolioZoom('${p.id}')" role="button" tabindex="0" style="cursor:pointer">
-    <div class="project-banner">${p.imageUrl ? `<img class="proj-img" src="${esc(proxiedImageUrl(p.imageUrl))}" alt="" loading="lazy" onerror="this.remove()">` : `<div class="thumb-bg thumb-default"></div><span style="position:relative">${ICON.model}</span>`}</div>
-    <div class="project-body"><div class="project-tags"><span class="badge plain">${esc(p.category || 'Project')}</span><span class="badge ${p.status === 'Live' ? 'ok' : 'plain'}">${esc(p.status || 'Live')}</span></div><h3>${esc(p.title)}</h3><div class="pf-note">${esc((p.desc || '').slice(0, 110))}${(p.desc || '').length > 110 ? '…' : ''}</div></div></article>`;
-  return `<div class="page">
-    <a class="muted small" href="#/creators" style="display:inline-flex;align-items:center;gap:6px;margin-bottom:18px">← Back to Creators</a>
-    <div class="card card-pad" style="padding:34px 30px;text-align:center;position:relative">
-      ${staff ? `<button class="btn btn-ghost btn-sm" style="position:absolute;top:14px;right:14px" onclick="openCreatorEditor('${cr.id}')">${ICON.edit} Edit</button>` : ''}
-      <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
-        ${creatorAvatarHtml(cr, 110)}
-        <div><h1 style="font-family:var(--font-display);font-size:clamp(26px,4vw,36px);margin:0">${esc(cr.name)}</h1><div class="role" style="font-size:15px;margin-top:4px">${esc(cr.role || 'Creator')}</div></div>
-        <p style="max-width:640px;margin:6px 0 0;line-height:1.75;font-size:14.5px;white-space:pre-wrap">${esc(cr.bio || 'This creator has not written a bio yet.')}</p>
-        ${linksHtml}
-      </div>
-    </div>
-    ${cr.docs && String(cr.docs).trim() ? `<div class="section-head" style="margin-top:40px"><div><span class="section-eyebrow">Documentation</span><h2>Their story &amp; systems</h2><p>Documentaries, guides, and showcase notes from this creator.</p></div></div>
-    <div class="card card-pad"><div style="white-space:pre-wrap;line-height:1.7;font-size:14px">${esc(cr.docs)}</div></div>` : ''}
-    <div class="section-head" style="margin-top:40px"><div><span class="section-eyebrow">Works</span><h2>Portfolio projects</h2><p>Showcase projects published by ${esc(cr.name)} — the full studio portfolio lives on the <a href="#/portfolio" style="color:var(--gold)">Portfolio</a> page.</p></div></div>
-    ${myPortfolio.length ? `<div class="grid portfolio-grid">${myPortfolio.map(pfCard).join('')}</div>` : emptyHtml('No projects yet', 'Portfolio work by this creator will appear here.')}
-    <div class="section-head" style="margin-top:40px"><div><span class="section-eyebrow">Marketplace</span><h2>Posted systems</h2><p>Systems ${esc(cr.name)} has published to the shop.</p></div></div>
-    ${mySystems.length ? `<div class="grid grid-assets">${mySystems.map(sysCard).join('')}</div>` : emptyHtml('No systems posted yet', 'Shop systems by this creator will appear here.')}
   </div>`;
 };
 /* Creator documentation — a public viewer, editable by staff in the creator editor. */
@@ -8462,9 +6982,7 @@ function legalSection(title, ...paras) {
 VIEWS.faq = async () => {
   const r = await API.getFaqs();
   const list = r.ok && Array.isArray(r.data) ? r.data : [];
-  STATE._faqItems = list;
   const staff = isStaff(STATE.user);
-  const staffBtn = staff ? `<button class="btn btn-ghost btn-sm" onclick="openFaqEditor()">${ICON.edit} Edit FAQ</button>` : '';
   const item = (f, i) => `
     <details class="card card-pad" style="margin-bottom:10px;cursor:pointer" ${i === 0 ? 'open' : ''}>
       <summary style="font-family:var(--font-display);font-size:15.5px;font-weight:600;list-style:none;display:flex;justify-content:space-between;gap:10px"><span>${esc(f.q)}</span><span class="muted">＋</span></summary>
@@ -8476,37 +6994,6 @@ VIEWS.faq = async () => {
     <div class="card card-pad center mt2" style="padding:26px"><p class="muted" style="margin:0 0 12px">Still stuck? Our team answers every ticket.</p><a class="btn btn-primary" href="#/support">${ICON.mail} Contact support</a></div>
   </div>`;
 };
-/* FAQ editor — staff can add / edit / remove questions & answers from the web. */
-function openFaqEditor() {
-  if (!isStaff(STATE.user)) { toast('Only staff can edit the FAQ.', 'err'); return; }
-  const items = (STATE._faqItems || []).map(f => ({ q: f.q, a: f.a }));
-  const row = (f = { q: '', a: '' }) => `<div class="faq-edit-row" style="border:1px solid var(--border);border-radius:10px;padding:10px;display:grid;gap:8px;margin-bottom:10px">
-      <input class="input fe-q" maxlength="200" placeholder="Question" value="${esc(f.q)}">
-      <textarea class="textarea fe-a" rows="2" maxlength="2000" placeholder="Answer">${esc(f.a)}</textarea>
-      <button class="btn btn-danger btn-sm" type="button" style="justify-self:start" onclick="this.closest('.faq-edit-row').remove()">${ICON.trash} Remove</button>
-    </div>`;
-  const ov = modal({
-    title: 'Edit FAQ',
-    wide: true,
-    confirmLabel: 'Save FAQ',
-    body: `<p class="muted small" style="margin:0 0 12px">Questions show on the public FAQ page in this order. Empty rows are dropped on save.</p>
-      <div id="faq-rows">${items.length ? items.map(f => row(f)).join('') : row()}</div>
-      <button class="btn btn-ghost btn-sm" type="button" id="faq-add">${ICON.plus} Add question</button>`,
-    validate: o => {
-      const faqs = [...o.querySelectorAll('.faq-edit-row')].map(r => ({ q: r.querySelector('.fe-q').value.trim(), a: r.querySelector('.fe-a').value.trim() })).filter(f => f.q && f.a);
-      if (!faqs.length) { toast('Add at least one question with an answer.', 'err'); return false; }
-      return { faqs };
-    },
-    onConfirm: async v => {
-      const r = await API.saveFaqs(STATE.user, v.faqs);
-      if (!r.ok) { toast(r.error, 'err'); return false; }
-      toast('FAQ saved.');
-      return true;
-    },
-    onConfirm2: undefined,
-  });
-  ov.querySelector('#faq-add').addEventListener('click', () => { const d = document.createElement('div'); d.innerHTML = row(); ov.querySelector('#faq-rows').appendChild(d.firstElementChild); });
-}
 /* Legal documents are editable text (Co-Founder/Founder) stored on the server.
    Lines starting with "## " render as section headings. */
 function legalBodyHtml(body) {
@@ -8920,6 +7407,7 @@ async function adminTabHtml(tab) {
       <td><div class="row-actions"><a class="btn btn-ghost btn-sm" href="#/ticket/${esc(t.id)}">${ICON.mail} View</a><button class="btn btn-danger btn-sm" onclick="onAdminDeleteTicket('${t.id}')">${ICON.trash}</button></div></td>
     </tr>`;
     return `<p class="muted small mb">Support tickets created by users. Closed tickets keep a full transcript log. ${list.length} ticket${list.length === 1 ? '' : 's'} total.</p>
+      ${await adminFaqEditorHtml()}
       <h3 style="font-family:var(--font-display);font-size:17px;margin:18px 0 10px">Tickets</h3>
       <div class="table-wrap"><table class="table">
         <thead><tr><th>Subject</th><th>User</th><th>Status</th><th>Last activity</th><th>Created</th><th></th></tr></thead>
@@ -9741,6 +8229,3 @@ async function init() {
   }
 }
 init();
-</script>
-</body>
-</html>

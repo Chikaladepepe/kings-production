@@ -41,11 +41,16 @@ const SCHEMA = {
   creators: ['id', 'name', 'role', 'bio', 'docs', 'links', 'handle', 'imageUrl', 'createdAt'],
   orders: ['id', 'buyerId', 'assetId', 'method', 'amount', 'currency', 'status', 'providerRef', 'licenseKey', 'gameDetails', 'sellerId', 'approval', 'approvalNote', 'createdAt', 'paidAt', 'updatedAt'],
   tickets: ['id', 'userId', 'subject', 'category', 'details', 'status', 'createdAt', 'updatedAt', 'lastActivityAt'],
-  ticket_messages: ['id', 'ticketId', 'userId', 'body', 'createdAt'],
+  ticket_messages: ['id', 'ticketId', 'userId', 'body', 'kind', 'actorName', 'createdAt'],
   announcements: ['id', 'title', 'body', 'link', 'style', 'active', 'createdAt', 'updatedAt'],
   systems: ['id', 'userId', 'name', 'password', 'status', 'staffNote', 'pausedBy', 'pauseExpiresAt', 'kickOnDeny', 'banOnBlacklist', 'createdAt', 'updatedAt', 'lastSeenAt'],
   system_devices: ['id', 'systemId', 'deviceId', 'deviceName', 'status', 'createdAt', 'lastSeenAt'],
   system_games: ['id', 'systemId', 'placeId', 'status', 'gameName', 'gameOwner', 'gameOwnerType', 'createdAt', 'lastSeenAt'],
+  /* These two exist as tables but were missing here, so every write threw
+     "SCHEMA[table] is not iterable" — which is why saving payment settings
+     (GCash QR/details) failed on the SQLite backend. */
+  site_settings: ['id', 'value', 'updatedAt'],
+  chats: ['id', 'assetId', 'buyerId', 'sellerId', 'userId', 'body', 'createdAt'],
   sub_revokes: ['id', 'actorId', 'targetId', 'reason', 'prevProtection', 'prevContract', 'status', 'resolvedBy', 'resolvedAt', 'createdAt'],
   mail_blasts: ['id', 'subject', 'body', 'recipients', 'status', 'scheduledFor', 'createdAt', 'updatedAt', 'sentAt'],
   mail_inbound: ['id', 'email', 'event', 'subject', 'body', 'detail', 'createdAt'],
@@ -134,8 +139,8 @@ CREATE TABLE IF NOT EXISTS tickets (
   createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL, lastActivityAt INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS ticket_messages (
-  id TEXT PRIMARY KEY, ticketId TEXT NOT NULL, userId TEXT NOT NULL, body TEXT NOT NULL,
-  createdAt INTEGER NOT NULL
+  id TEXT PRIMARY KEY, ticketId TEXT NOT NULL, userId TEXT, body TEXT NOT NULL,
+  kind TEXT, actorName TEXT, createdAt INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS announcements (
   id TEXT PRIMARY KEY, title TEXT NOT NULL, body TEXT NOT NULL, link TEXT,
@@ -344,6 +349,38 @@ function ticketCleanup(db) {
 function runMigrations(db) {
   for (const sql of MIGRATIONS) {
     try { db.exec(sql); } catch (e) { /* duplicate column — already migrated */ }
+  }
+  ensureTicketMessagesWritable(db);
+}
+/* Older databases created ticket_messages with userId NOT NULL, so the system
+   message that "close ticket" writes (userId NULL) failed with a constraint
+   error — closing a support ticket always returned HTTP 500. SQLite cannot drop
+   NOT NULL with ALTER, so rebuild the table in place, once, when we detect it. */
+function ensureTicketMessagesWritable(db) {
+  try {
+    const cols = db.prepare('PRAGMA table_info(ticket_messages)').all();
+    if (!cols.length) return;
+    const userIdCol = cols.find(c => c.name === 'userId');
+    const needsRebuild = !userIdCol || Number(userIdCol.notnull) === 1;
+    if (!needsRebuild) {
+      /* Still make sure the newer columns exist on databases built before them. */
+      for (const sql of ['ALTER TABLE ticket_messages ADD COLUMN kind TEXT', 'ALTER TABLE ticket_messages ADD COLUMN actorName TEXT']) {
+        try { db.exec(sql); } catch (e) {}
+      }
+      return;
+    }
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS ticket_messages_rebuild (
+        id TEXT PRIMARY KEY, ticketId TEXT NOT NULL, userId TEXT, body TEXT NOT NULL,
+        kind TEXT, actorName TEXT, createdAt INTEGER NOT NULL
+      );
+      INSERT OR IGNORE INTO ticket_messages_rebuild (id, ticketId, userId, body, createdAt)
+        SELECT id, ticketId, userId, body, createdAt FROM ticket_messages;
+      DROP TABLE ticket_messages;
+      ALTER TABLE ticket_messages_rebuild RENAME TO ticket_messages;
+    `);
+  } catch (e) {
+    console.error('[store] ticket_messages rebuild skipped:', e && e.message || e);
   }
 }
 
